@@ -25,6 +25,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { createAlert, sendEmail, sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
+import { scheduleJob } from "./scheduler.js";
 
 const REMINDER_THRESHOLDS_DAYS = [7, 3, 1] as const;
 
@@ -203,8 +204,7 @@ async function runSubscriptionReminderScan(): Promise<void> {
 }
 
 export function startSubscriptionReminderScheduler(): void {
-  // Run once at startup, then once per day
-  runSubscriptionReminderScan();
-  setInterval(runSubscriptionReminderScan, 24 * 60 * 60 * 1000);
-  logger.info("Subscription reminder scheduler started (thresholds: 7, 3, 1 days)");
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("subscription-reminders", 24 * 60 * 60 * 1000, runSubscriptionReminderScan);
 }

@@ -10,6 +10,7 @@ import {
   contratsPrestatairesTable,
   lotsTable,
   syndicatesTable,
+  appelPaymentsTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import {
@@ -89,6 +90,7 @@ router.get(
         .select({
           buildingId: appelsDeFondsTable.buildingId,
           amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
           status: appelsDeFondsTable.status,
         })
         .from(appelsDeFondsTable)
@@ -103,11 +105,9 @@ router.get(
       }
 
       const enriched = buildings.map((b) => {
-        const appels = appelsByBuilding.get(b.id) ?? [];
+        const appels = (appelsByBuilding.get(b.id) ?? []).filter((a) => a.status !== "cancelled");
         const totalDu = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-        const totalEncaisse = appels
-          .filter((a) => a.status === "paid")
-          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+        const totalEncaisse = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
         const tauxRecouvrement =
           totalDu > 0 ? Math.round((totalEncaisse / totalDu) * 100) : 0;
         return {
@@ -232,34 +232,37 @@ router.get(
         : [];
 
       // ── Appels stats ─────────────────────────────────────────────────────
-      const paidAppels = appels.filter((a) => a.status === "paid");
-      const overdueAppels = appels.filter((a) => a.status === "overdue");
-      const pendingAppels = appels.filter((a) => a.status === "pending");
+      // Cancelled calls are not owed. "Paid" is what validated payments
+      // covered (partial payments included); the rest is outstanding.
+      const owedAppels = appels.filter((a) => a.status !== "cancelled");
+      const paidOf = (a: (typeof appels)[number]) => Number(a.amountPaid ?? 0);
+      const outstandingOf = (a: (typeof appels)[number]) => Number(a.amount ?? 0) - Number(a.amountPaid ?? 0);
+      const isOverdue = (a: (typeof appels)[number]) => a.status === "overdue";
+      const isPending = (a: (typeof appels)[number]) =>
+        ["pending", "partially_paid", "pending_validation", "rejected"].includes(a.status ?? "");
 
-      const totalMontantDu = appels.reduce(
-        (s, a) => s + Number(a.amount ?? 0),
-        0,
-      );
-      const totalEncaisse = paidAppels.reduce(
-        (s, a) => s + Number(a.amount ?? 0),
-        0,
-      );
-      const totalImpaye = overdueAppels.reduce(
-        (s, a) => s + Number(a.amount ?? 0),
-        0,
-      );
-      const totalEnAttente = pendingAppels.reduce(
-        (s, a) => s + Number(a.amount ?? 0),
-        0,
-      );
+      const totalMontantDu = owedAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const totalEncaisse = owedAppels.reduce((s, a) => s + paidOf(a), 0);
+      const totalImpaye = owedAppels.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
+      const totalEnAttente = owedAppels.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
       const tauxRecouvrement =
         totalMontantDu > 0
           ? Math.round((totalEncaisse / totalMontantDu) * 100)
           : 0;
 
-      const fondsReserveCollecte = appels
-        .filter((a) => a.type === "fonds_reserve" && a.status === "paid")
-        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const fondsReserveCollecte = owedAppels
+        .filter((a) => a.type === "fonds_reserve")
+        .reduce((s, a) => s + paidOf(a), 0);
+
+      // Validated payments, dated by their validation (cash actually received).
+      const appelIds = owedAppels.map((a) => a.id);
+      const validatedPayments = appelIds.length
+        ? await db
+            .select({ appelId: appelPaymentsTable.appelId, amount: appelPaymentsTable.amount, reviewedAt: appelPaymentsTable.reviewedAt })
+            .from(appelPaymentsTable)
+            .where(and(inArray(appelPaymentsTable.appelId, appelIds), eq(appelPaymentsTable.status, "validated")))
+        : [];
+      const appelsWithHistory = new Set(validatedPayments.map((p) => p.appelId));
 
       // ── Monthly history (last 6 months) ──────────────────────────────────
       const now = new Date();
@@ -273,11 +276,18 @@ router.get(
         const m = String(d.getMonth() + 1).padStart(2, "0");
         const prefix = `${y}-${m}`;
 
-        const paid = paidAppels
-          .filter((a) => a.paidDate?.startsWith(prefix))
-          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+        // Calls settled before the payment history existed only carry paidDate.
+        const legacyPaid = owedAppels
+          .filter((a) => a.status === "paid" && a.paidDate?.startsWith(prefix))
+          .filter((a) => !appelsWithHistory.has(a.id))
+          .reduce((s, a) => s + paidOf(a), 0);
+        const paid =
+          legacyPaid +
+          validatedPayments
+            .filter((p) => p.reviewedAt && p.reviewedAt.toISOString().startsWith(prefix))
+            .reduce((s, p) => s + Number(p.amount ?? 0), 0);
 
-        const due = appels
+        const due = owedAppels
           .filter((a) => a.dueDate?.startsWith(prefix))
           .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
@@ -285,18 +295,12 @@ router.get(
       });
 
       // ── Period stats table ────────────────────────────────────────────────
-      const periods = [...new Set(appels.map((a) => a.period))].sort();
+      const periods = [...new Set(owedAppels.map((a) => a.period))].sort();
       const periodStats = periods.map((period) => {
-        const pa = appels.filter((a) => a.period === period);
-        const paid = pa
-          .filter((a) => a.status === "paid")
-          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
-        const overdue = pa
-          .filter((a) => a.status === "overdue")
-          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
-        const pending = pa
-          .filter((a) => a.status === "pending")
-          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+        const pa = owedAppels.filter((a) => a.period === period);
+        const paid = pa.reduce((s, a) => s + paidOf(a), 0);
+        const overdue = pa.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
+        const pending = pa.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
         const total = pa.reduce((s, a) => s + Number(a.amount ?? 0), 0);
         return {
           period,
@@ -412,9 +416,9 @@ router.get(
           },
           appelsDeFonds: {
             total: appels.length,
-            paid: paidAppels.length,
-            overdue: overdueAppels.length,
-            pending: pendingAppels.length,
+            paid: owedAppels.filter((a) => a.status === "paid").length,
+            overdue: owedAppels.filter(isOverdue).length,
+            pending: owedAppels.filter(isPending).length,
           },
         },
       });

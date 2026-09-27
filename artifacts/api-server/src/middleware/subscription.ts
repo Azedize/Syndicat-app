@@ -10,13 +10,32 @@ import { db } from "@workspace/db";
 import { syndicateSubscriptionsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-function isExpiredStatus(status: string | null, trialEndDate: Date | null, currentPeriodEnd: Date | null): boolean {
-  const now = new Date();
-  if (status === "suspended" || status === "cancelled") return true;
-  if (status === "trial") return trialEndDate ? now > trialEndDate : false;
-  if (status === "active") return currentPeriodEnd ? now > currentPeriodEnd : false;
-  if (status === "expired") return true;
-  return false;
+interface SubscriptionWindow {
+  status: string | null;
+  trialEndDate: Date | null;
+  currentPeriodEnd: Date | null;
+  gracePeriodEnd: Date | null;
+}
+
+/**
+ * Deny-by-default: only an explicitly valid window grants write access.
+ * - trial  → requires a trial end date in the future
+ * - active → valid until currentPeriodEnd; a null end date is an open-ended
+ *            grant, which only a super_admin can set (PUT /subscriptions/:id)
+ * - grace  → valid until gracePeriodEnd (a missing end date is NOT unlimited)
+ * - pending_payment, suspended, cancelled, expired, unknown → read-only
+ */
+export function isWritableSubscription(sub: SubscriptionWindow, now = new Date()): boolean {
+  switch (sub.status) {
+    case "trial":
+      return !!sub.trialEndDate && now <= sub.trialEndDate;
+    case "active":
+      return !sub.currentPeriodEnd || now <= sub.currentPeriodEnd;
+    case "grace":
+      return !!sub.gracePeriodEnd && now <= sub.gracePeriodEnd;
+    default:
+      return false;
+  }
 }
 
 export async function requireActiveSubscription(req: Request, res: Response, next: NextFunction) {
@@ -27,20 +46,24 @@ export async function requireActiveSubscription(req: Request, res: Response, nex
     if (user.role === "super_admin") { next(); return; }
     if (!user.syndicateId) { next(); return; }
 
-    const [sub] = await db
+    // Consider every subscription row, not only the newest: starting a plan
+    // change creates a new `pending_payment` row, which must not lock out a
+    // syndicate whose current subscription is still valid.
+    const subs = await db
       .select({
         status: syndicateSubscriptionsTable.status,
         trialEndDate: syndicateSubscriptionsTable.trialEndDate,
         currentPeriodEnd: syndicateSubscriptionsTable.currentPeriodEnd,
+        gracePeriodEnd: syndicateSubscriptionsTable.gracePeriodEnd,
       })
       .from(syndicateSubscriptionsTable)
       .where(eq(syndicateSubscriptionsTable.syndicateId, user.syndicateId))
       .orderBy(desc(syndicateSubscriptionsTable.createdAt))
-      .limit(1);
+      .limit(20);
 
-    if (!sub) { next(); return; } // no subscription = allow (onboarding edge case)
-
-    if (isExpiredStatus(sub.status, sub.trialEndDate, sub.currentPeriodEnd)) {
+    // No subscription at all is not a free pass: every syndicate receives a
+    // trial at creation, so its absence means read-only until one exists.
+    if (!subs.some((sub) => isWritableSubscription(sub))) {
       res.status(402).json({
         error: "Abonnement expiré ou suspendu. Veuillez renouveler votre abonnement pour continuer.",
         code: "SUBSCRIPTION_REQUIRED",

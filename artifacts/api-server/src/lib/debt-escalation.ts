@@ -25,6 +25,7 @@ import { eq, and, inArray, ne } from "drizzle-orm";
 import { createAlert, sendPushToUsers, sendEmail } from "./notify.js";
 import { logger } from "./logger.js";
 import { paymentReminderTemplate, latePaymentWarningTemplate } from "./email/templates.js";
+import { scheduleJob } from "./scheduler.js";
 
 export type EscalationLevel =
   | "reminder"
@@ -97,7 +98,7 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
     const unpaidAppels = await db
       .select()
       .from(appelsDeFondsTable)
-      .where(inArray(appelsDeFondsTable.status, ["pending", "overdue"]));
+      .where(inArray(appelsDeFondsTable.status, ["pending", "overdue", "partially_paid"]));
 
     if (unpaidAppels.length === 0) return result;
 
@@ -120,7 +121,8 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
         let totalUnpaid = 0;
 
         for (const appel of appels) {
-          totalUnpaid += parseFloat(String(appel.amount ?? 0));
+          // Only the part not covered by validated payments is owed.
+          totalUnpaid += Number(appel.amount ?? 0) - Number(appel.amountPaid ?? 0);
           const refDate = appel.dueDate
             ? new Date(appel.dueDate)
             : appel.createdAt ?? null;
@@ -300,12 +302,7 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
 
 /** Starts the daily escalation scan (on boot + every 24 hours). */
 export function startEscalationScheduler(): void {
-  runDailyEscalationScan().catch((err) =>
-    logger.warn({ err }, "Boot escalation scan failed"),
-  );
-  setInterval(() => {
-    runDailyEscalationScan().catch((err) =>
-      logger.warn({ err }, "Scheduled escalation scan failed"),
-    );
-  }, 24 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("debt-escalation", 24 * 60 * 60 * 1000, runDailyEscalationScan);
 }

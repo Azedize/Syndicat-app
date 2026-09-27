@@ -28,7 +28,7 @@ import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
-import { getApiBaseUrl } from "@/services/api";
+import { getApiBaseUrl, ticketedUrl } from "@/services/api";
 import {
   pickAndUploadPhoto,
   captureAndUploadPhoto,
@@ -104,10 +104,7 @@ function InvoicesScreenInner() {
     try {
       setDownloadingPdf(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const base = getApiBaseUrl();
-      const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-      const url = `${base}/pdf/invoice/${invoiceId}${tokenParam}`;
-      await Linking.openURL(url);
+      await Linking.openURL(await ticketedUrl(`/pdf/invoice/${invoiceId}`));
     } catch {
       showToast({ type: "error", title: t("error"), message: t("invPdfError") });
     } finally {

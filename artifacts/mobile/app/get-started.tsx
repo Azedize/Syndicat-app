@@ -105,27 +105,9 @@ function ActionBtn({ icon, label, sublabel, onPress, variant, color = "#2563EB",
   );
 }
 
-// ─── Certification badges ─────────────────────────────────────────────────────
-
-const CERTS = [
-  { icon: "shield" as const, label: "ISO 27001" },
-  { icon: "lock" as const, label: "RGPD/CNDP" },
-  { icon: "server" as const, label: "Cloud Maroc" },
-  { icon: "check-circle" as const, label: "99.9% SLA" },
-];
-
-function CertStrip({ isDark }: { isDark: boolean }) {
-  return (
-    <View style={styles.certStrip}>
-      {CERTS.map((c) => (
-        <View key={c.label} style={[styles.certItem, { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(37,99,235,0.06)", borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.12)" }]}>
-          <Feather name={c.icon} size={12} color={isDark ? "#60A5FA" : "#2563EB"} />
-          <Text style={[styles.certLabel, { color: isDark ? "#93C5FD" : "#1E3A8A" }]}>{c.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
+// No certification / SLA badges: MIZAN holds no ISO 27001 certification,
+// its CNDP compliance and Moroccan hosting are not established, and no SLA
+// exists. Such claims must not be shown until they are true and verified.
 
 // ─── Testimonial card ─────────────────────────────────────────────────────────
 
@@ -213,6 +195,21 @@ export default function GetStartedScreen() {
               onPress={() => router.replace("/login")} color="#3B82F6" isDark={isDark}
             />
           </View>
+          {/* Sign-up creates a syndic (organisation) account. Residents are
+              invited by their syndic, who creates their account. */}
+          <View
+            style={[
+              styles.residentNote,
+              { backgroundColor: isDark ? "#0F223D" : "#EFF6FF", borderColor: isDark ? "#1E3A5F" : "#BFDBFE" },
+            ]}
+          >
+            <Feather name="info" size={16} color="#2563EB" />
+            <Text style={[styles.residentNoteText, { color: isDark ? "#C7D2E4" : "#1E3A8A" }]}>
+              Vous êtes copropriétaire ou locataire ? Vous n'avez pas besoin de créer de compte :
+              votre syndic vous inscrit et vous recevez vos identifiants par email. Utilisez
+              ensuite « Se connecter ».
+            </Text>
+          </View>
         </Animated.View>
 
         <TestimonialCard isDark={isDark} />
@@ -245,7 +242,6 @@ export default function GetStartedScreen() {
 
         <View style={{ gap: 16 }}>
           <Text style={[styles.sectionLabel, { textAlign: "center", color: isDark ? "#7A90B0" : "#64748B" }]}>SÉCURITÉ & CONFORMITÉ</Text>
-          <CertStrip isDark={isDark} />
         </View>
 
         <Text style={[styles.legalText, { color: isDark ? "#4A6080" : "#94A3B8" }]}>
@@ -259,6 +255,8 @@ export default function GetStartedScreen() {
 }
 
 const styles = StyleSheet.create({
+  residentNote: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 12, borderWidth: 1, marginTop: 12 },
+  residentNoteText: { flex: 1, fontSize: 13, lineHeight: 19 },
   root: { flex: 1 },
   backBtn: { width: 44, height: 44, justifyContent: "center", alignSelf: "flex-start" },
   

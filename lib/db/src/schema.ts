@@ -9,6 +9,9 @@ import {
   index,
   uniqueIndex,
   jsonb,
+  date,
+  check,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -73,6 +76,7 @@ export const usersTable = pgTable(
     phone: text("phone"),
     cin: text("cin"),                    // Moroccan CIN (Carte d'Identité Nationale)
     passwordHash: text("password_hash").notNull(),
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
     role: text("role").notNull().default("member"),
     status: text("status").notNull().default("active"),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "set null" }),
@@ -291,8 +295,14 @@ export const appelsDeFondsTable = pgTable(
     type: text("type").default("charges_courantes"),
     amount: money("amount").notNull(),
     dueDate: text("due_date"),
-    // status: pending | pending_validation | paid | overdue | rejected
+    // status: pending (issued) | pending_validation | partially_paid | paid
+    //         | overdue | rejected | cancelled
     status: text("status").default("pending"),
+    // Sum of validated payments (appel_payments). Never above `amount`.
+    amountPaid: money("amount_paid").notNull().default("0"),
+    cancelledAt: timestamp("cancelled_at"),
+    cancelledBy: text("cancelled_by"),
+    cancellationReason: text("cancellation_reason"),
     paymentMethod: text("payment_method"),
     proofUrl: text("proof_url"),
     notes: text("notes"),
@@ -311,6 +321,12 @@ export const appelsDeFondsTable = pgTable(
     index("appels_due_date_idx").on(t.dueDate),
     // Composite for financial report queries (building × period)
     index("appels_building_period_idx").on(t.buildingId, t.period),
+    // One call per lot, period and charge type — makes generation idempotent
+    uniqueIndex("appels_lot_period_type_uq").on(t.lotId, t.period, t.type),
+    check(
+      "appels_amount_paid_range",
+      sql`${t.amountPaid} >= 0 AND ${t.amountPaid} <= ${t.amount}`,
+    ),
   ],
 );
 
@@ -328,10 +344,14 @@ export const transactionsTable = pgTable(
     memberId: text("member_id").references(() => usersTable.id, { onDelete: "set null" }),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     proofUrl: text("proof_url"),
+    // Journal entry this operation was posted as (null = not a cash movement,
+    // e.g. a pending item, or a record predating the journal).
+    ledgerEntryId: text("ledger_entry_id").references((): AnyPgColumn => ledgerEntriesTable.id),
     createdAt: createdAt(),
   },
   (t) => [
     index("transactions_syndicate_id_idx").on(t.syndicateId),
+    index("transactions_ledger_entry_id_idx").on(t.ledgerEntryId),
     index("transactions_member_id_idx").on(t.memberId),
     index("transactions_status_idx").on(t.status),
     // Composite for financial dashboard queries (syndicate × type × date)
@@ -350,6 +370,7 @@ export const salaryRecordsTable = pgTable(
     status: text("status").default("pending"),
     paidDate: text("paid_date"),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    ledgerEntryId: text("ledger_entry_id").references((): AnyPgColumn => ledgerEntriesTable.id),
     createdAt: createdAt(),
   },
   (t) => [index("salary_records_syndicate_id_idx").on(t.syndicateId)],
@@ -542,7 +563,7 @@ export const prestataireEvaluationsTable = pgTable(
       .notNull()
       .references(() => prestatairesTable.id, { onDelete: "cascade" }),
     travauxId: text("travaux_id"),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     quality: integer("quality").notNull(),
     speed: integer("speed").notNull(),
     communication: integer("communication").notNull(),
@@ -555,6 +576,7 @@ export const prestataireEvaluationsTable = pgTable(
   },
   (t) => [
     index("prestataire_evaluations_prestataire_id_idx").on(t.prestataireId),
+    index("prestataire_evaluations_syndicate_id_idx").on(t.syndicateId),
   ],
 );
 
@@ -953,18 +975,25 @@ export const announcementsTable = pgTable("announcements", {
   priority: text("priority").default("info"),
   audience: text("audience").default("Tous les membres"),
   pinned: boolean("pinned").default(false),
-  syndicateId: text("syndicate_id"),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
   authorId: text("author_id"),
   author: text("author"),
   expiresAt: timestamp("expires_at"),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("announcements_syndicate_id_idx").on(t.syndicateId)],
+);
 
 // ─── Documents ──────────────────────────────────────────────────────────────
 
 export const documentsTable = pgTable(
   "documents",
   {
+    // Person a personal document concerns (attestation, formal notice, sale
+    // file…). Residents only see general documents and their own personal
+    // ones. Deliberately no FK: deleting the user must never turn a personal
+    // document into a syndicate-wide one (it stays hidden from residents).
+    subjectUserId: text("subject_user_id"),
     id: id(),
     title: text("title").notNull(),
     category: text("category").notNull(),
@@ -1037,6 +1066,7 @@ export const documentsTable = pgTable(
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),
     index("documents_category_idx").on(t.category),
+    index("documents_subject_user_id_idx").on(t.subjectUserId),
     index("documents_status_idx").on(t.status),
     index("documents_document_number_idx").on(t.documentNumber),
     index("documents_retention_until_idx").on(t.retentionUntil),
@@ -1096,7 +1126,7 @@ export const documentSignaturesTable = pgTable(
     signedBy: text("signed_by").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
     signedAt: timestamp("signed_at").notNull().defaultNow(),
     signerRole: text("signer_role").notNull(),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     ipAddress: text("ip_address"),
     // Raw signature pad data (SVG markup produced by the mobile signature pad,
     // embeddable directly in generated PDFs via pdfmake's `svg` node)
@@ -1117,6 +1147,7 @@ export const documentSignaturesTable = pgTable(
     index("doc_signatures_signed_by_idx").on(t.signedBy),
     // A given user can only sign a given document once — prevents duplicate signature rows.
     uniqueIndex("doc_signatures_document_signer_uq").on(t.documentId, t.signedBy),
+    index("document_signatures_syndicate_id_idx").on(t.syndicateId),
   ],
 );
 
@@ -1297,7 +1328,7 @@ export const productsTable = pgTable(
     imageUrls: text("image_urls").default("[]"), // JSON array of image URLs
     videoUrl: text("video_url"),
     stock: integer("stock").default(1),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     sellerId: text("seller_id"),
     sellerName: text("seller_name"),
     sellerPhone: text("seller_phone"),
@@ -1481,9 +1512,11 @@ export const legalAlertsTable = pgTable("legal_alerts", {
   date: text("date"),
   action: text("action"),
   status: text("status").default("open"),
-  syndicateId: text("syndicate_id"),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("legal_alerts_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const supportTicketsTable = pgTable(
   "support_tickets",
@@ -1531,7 +1564,7 @@ export const cotisationsTable = pgTable(
     amount: money("amount").notNull(),
     dueDate: text("due_date"),
     status: text("status").default("pending"),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "restrict" }),
     paidDate: text("paid_date"),
     receipt: text("receipt"),
     createdAt: createdAt(),
@@ -1572,10 +1605,19 @@ export const alertsTable = pgTable("alerts", {
   message: text("message").notNull(),
   type: text("type").default("info"),
   date: text("date"),
+  // Audience of a broadcast alert: all | admin (management team) | member
   target: text("target").default("all"),
-  syndicateId: text("syndicate_id"),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+  // Personal notification: when set, only this user sees the alert
+  // (payment validated/rejected, reply to their ticket…), whatever `target`.
+  recipientUserId: text("recipient_user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   createdAt: createdAt(),
-});
+},
+  (t) => [
+    index("alerts_syndicate_id_idx").on(t.syndicateId),
+    index("alerts_recipient_user_id_idx").on(t.recipientUserId),
+  ],
+);
 
 export const alertReadsTable = pgTable(
   "alert_reads",
@@ -1611,9 +1653,11 @@ export const partnersTable = pgTable("partners", {
   startDate: text("start_date"),
   endDate: text("end_date"),
   description: text("description").default(""),
-  syndicateId: text("syndicate_id"),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("partners_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const payslipsTable = pgTable("payslips", {
   id: id(),
@@ -1621,9 +1665,11 @@ export const payslipsTable = pgTable("payslips", {
   month: text("month"),
   amount: money("amount"),
   fileUrl: text("file_url"),
-  syndicateId: text("syndicate_id"),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("payslips_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const subscriptionPlansTable = pgTable("subscription_plans", {
   id: id(),
@@ -1653,7 +1699,7 @@ export const subscriptionPlansTable = pgTable("subscription_plans", {
 
 export const syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
   id: id(),
-  syndicateId: text("syndicate_id").notNull(),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "restrict" }).notNull(),
   planId: text("plan_id"),
   status: text("status").default("trial"), // pending_payment | trial | active | grace | suspended | cancelled | expired
   autoRenew: boolean("auto_renew").default(true),
@@ -1670,13 +1716,15 @@ export const syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
   activatedAt: timestamp("activated_at"),
   renewalDate: timestamp("renewal_date"),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("syndicate_subscriptions_syndicate_created_idx").on(t.syndicateId, t.createdAt)],
+);
 
 // ─── Billing Invoices ────────────────────────────────────────────────────────
 
 export const billingInvoicesTable = pgTable("billing_invoices", {
   id: id(),
-  syndicateId: text("syndicate_id").notNull(),
+  syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "restrict" }).notNull(),
   subscriptionId: text("subscription_id"),
   amount: money("amount").notNull(),
   status: text("status").default("open"), // open | paid | void | uncollectible
@@ -1700,7 +1748,7 @@ export const subscriptionPaymentsTable = pgTable(
   "subscription_payments",
   {
     id: id(),
-    syndicateId: text("syndicate_id").notNull(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "restrict" }).notNull(),
     subscriptionId: text("subscription_id"),
     planId: text("plan_id").notNull(),
     invoiceId: text("invoice_id"),
@@ -1750,7 +1798,9 @@ export const auditLogsTable = pgTable("audit_logs", {
   details: text("details"),
   ipAddress: text("ip_address"),
   createdAt: createdAt(),
-});
+},
+  (t) => [index("audit_logs_syndicate_created_idx").on(t.syndicateId, t.createdAt)],
+);
 
 // ─── Email Logs ─────────────────────────────────────────────────────────────
 // Tracks every transactional email attempted by the EmailService (lib/email),
@@ -2014,7 +2064,7 @@ export const travauxPrivatifsTable = pgTable(
     id: id(),
     buildingId: text("building_id").notNull(),
     lotId: text("lot_id"),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     // Requester
     requestedById: text("requested_by_id"),
     requestedByName: text("requested_by_name").notNull(),
@@ -2533,5 +2583,256 @@ export const documentCommentsTable = pgTable(
   (t) => [
     index("document_comments_document_id_idx").on(t.documentId),
     index("document_comments_author_id_idx").on(t.authorId),
+  ],
+);
+
+// ─── Scheduled job runs ───────────────────────────────────────────────────────
+// One row per background job. A run is claimed with an atomic conditional
+// upsert on last_run_at, so with several API instances each job executes once
+// per interval (and restarts do not re-trigger every job).
+
+export const scheduledJobRunsTable = pgTable("scheduled_job_runs", {
+  name: text("name").primaryKey(),
+  lastRunAt: timestamp("last_run_at").notNull(),
+  lastStatus: text("last_status"),
+  lastError: text("last_error"),
+  lastDurationMs: integer("last_duration_ms"),
+});
+
+// ─── Treasury: accounts, journal, payments, expenses, reconciliation ─────────
+// Every syndicate owns its accounts; balances are never stored — they are the
+// sum of the account's journal entries. Journal entries are append-only (a DB
+// trigger refuses UPDATE/DELETE): corrections are posted as reversal entries.
+
+export const treasuryAccountsTable = pgTable(
+  "treasury_accounts",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    // Optional: an account dedicated to one building of the syndicate.
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    // bank = compte bancaire du syndicat, cash = caisse (espèces)
+    kind: text("kind").notNull(),
+    label: text("label").notNull(),
+    bankName: text("bank_name"),
+    accountHolder: text("account_holder"),
+    // Moroccan RIB, 24 digits, digits only. Printed on payment demands so that
+    // co-owners can pay — not a secret, but never exposed to residents via API.
+    rib: text("rib"),
+    currency: text("currency").notNull().default("MAD"),
+    // Informative copy of the opening journal entry (reprise de solde).
+    openingBalance: money("opening_balance").notNull().default("0"),
+    openingDate: date("opening_date").notNull(),
+    // active | closed
+    status: text("status").notNull().default("active"),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    closedAt: timestamp("closed_at"),
+    closedBy: text("closed_by"),
+  },
+  (t) => [
+    index("treasury_accounts_syndicate_id_idx").on(t.syndicateId),
+    uniqueIndex("treasury_accounts_syndicate_rib_uq").on(t.syndicateId, t.rib).where(sql`${t.rib} IS NOT NULL`),
+    // At most one default account per kind and syndicate.
+    uniqueIndex("treasury_accounts_default_uq").on(t.syndicateId, t.kind).where(sql`${t.isDefault}`),
+    check("treasury_accounts_kind_chk", sql`${t.kind} IN ('bank', 'cash')`),
+    check("treasury_accounts_status_chk", sql`${t.status} IN ('active', 'closed')`),
+    check("treasury_accounts_rib_chk", sql`${t.rib} IS NULL OR ${t.rib} ~ '^[0-9]{24}$'`),
+    check("treasury_accounts_currency_chk", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+  ],
+);
+
+export const ledgerEntriesTable = pgTable(
+  "ledger_entries",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    accountId: text("account_id").notNull().references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    // Continuous per-syndicate/year number, e.g. JRN-2026-000042.
+    entryNumber: text("entry_number").notNull(),
+    entryDate: date("entry_date").notNull(),
+    // in = encaissement, out = décaissement
+    direction: text("direction").notNull(),
+    amount: money("amount").notNull(),
+    currency: text("currency").notNull().default("MAD"),
+    category: text("category").notNull(),
+    label: text("label").notNull(),
+    // Receipt / cheque / transfer / invoice reference
+    reference: text("reference"),
+    // opening | appel_payment | expense | salary | manual | transfer | reversal
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id"),
+    reversesEntryId: text("reverses_entry_id").references((): AnyPgColumn => ledgerEntriesTable.id, { onDelete: "restrict" }),
+    buildingId: text("building_id"),
+    proofUrl: text("proof_url"),
+    idempotencyKey: text("idempotency_key"),
+    // No FK: the journal must outlive user accounts (same as audit_logs).
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("ledger_entries_number_uq").on(t.syndicateId, t.entryNumber),
+    index("ledger_entries_syndicate_date_idx").on(t.syndicateId, t.entryDate),
+    index("ledger_entries_account_date_idx").on(t.accountId, t.entryDate),
+    // A payment event / opening balance is posted at most once. Expenses and
+    // salaries are protected by their conditional status transition instead
+    // (they may be paid again after a reversal).
+    uniqueIndex("ledger_entries_source_uq")
+      .on(t.sourceType, t.sourceId)
+      .where(sql`${t.sourceType} IN ('opening', 'appel_payment')`),
+    // An entry is reversed at most once.
+    uniqueIndex("ledger_entries_reverses_uq").on(t.reversesEntryId).where(sql`${t.reversesEntryId} IS NOT NULL`),
+    uniqueIndex("ledger_entries_idempotency_uq").on(t.syndicateId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
+    check("ledger_entries_direction_chk", sql`${t.direction} IN ('in', 'out')`),
+    check("ledger_entries_amount_chk", sql`${t.amount} > 0`),
+    check(
+      "ledger_entries_source_type_chk",
+      sql`${t.sourceType} IN ('opening', 'appel_payment', 'expense', 'salary', 'manual', 'transfer', 'reversal')`,
+    ),
+  ],
+);
+
+/** One row per payment declared on a call for funds (history is kept). */
+export const appelPaymentsTable = pgTable(
+  "appel_payments",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    appelId: text("appel_id").notNull().references(() => appelsDeFondsTable.id, { onDelete: "restrict" }),
+    amount: money("amount").notNull(),
+    // virement | cheque | especes
+    method: text("method").notNull(),
+    // Transfer reference or cheque number given by the payer
+    reference: text("reference"),
+    proofUrl: text("proof_url"),
+    notes: text("notes"),
+    // pending | validated | rejected | reversed
+    status: text("status").notNull().default("pending"),
+    declaredBy: text("declared_by").notNull(),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at"),
+    rejectionReason: text("rejection_reason"),
+    accountId: text("account_id").references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    ledgerEntryId: text("ledger_entry_id").references(() => ledgerEntriesTable.id, { onDelete: "restrict" }),
+    receiptNumber: text("receipt_number"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("appel_payments_syndicate_id_idx").on(t.syndicateId),
+    index("appel_payments_appel_id_idx").on(t.appelId),
+    // At most one payment under review per call for funds.
+    uniqueIndex("appel_payments_one_pending_uq").on(t.appelId).where(sql`${t.status} = 'pending'`),
+    uniqueIndex("appel_payments_receipt_uq").on(t.syndicateId, t.receiptNumber).where(sql`${t.receiptNumber} IS NOT NULL`),
+    check("appel_payments_amount_chk", sql`${t.amount} > 0`),
+    check("appel_payments_method_chk", sql`${t.method} IN ('virement', 'cheque', 'especes')`),
+    check("appel_payments_status_chk", sql`${t.status} IN ('pending', 'validated', 'rejected', 'reversed')`),
+  ],
+);
+
+/** Syndicate expenses: submitted → approved → paid (or rejected / cancelled). */
+export const expensesTable = pgTable(
+  "expenses",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    // DEP-2026-0001
+    reference: text("reference").notNull(),
+    label: text("label").notNull(),
+    category: text("category").notNull(),
+    amount: money("amount").notNull(),
+    currency: text("currency").notNull().default("MAD"),
+    supplierName: text("supplier_name"),
+    prestataireId: text("prestataire_id").references(() => prestatairesTable.id, { onDelete: "set null" }),
+    invoiceNumber: text("invoice_number"),
+    invoiceDate: date("invoice_date"),
+    // Uploaded invoice / justification (/objects/… of this syndicate)
+    proofUrl: text("proof_url").notNull(),
+    budgetLineId: text("budget_line_id").references(() => budgetLinesTable.id, { onDelete: "set null" }),
+    // Set when the expense comes from a validated work order (one per work order)
+    travauxId: text("travaux_id").references(() => travauxTable.id, { onDelete: "set null" }),
+    // submitted | approved | rejected | paid | cancelled
+    status: text("status").notNull().default("submitted"),
+    createdBy: text("created_by").notNull(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at"),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at"),
+    rejectionReason: text("rejection_reason"),
+    paidBy: text("paid_by"),
+    paidAt: timestamp("paid_at"),
+    paymentMethod: text("payment_method"),
+    paymentReference: text("payment_reference"),
+    accountId: text("account_id").references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    ledgerEntryId: text("ledger_entry_id").references(() => ledgerEntriesTable.id, { onDelete: "restrict" }),
+    idempotencyKey: text("idempotency_key"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("expenses_syndicate_status_idx").on(t.syndicateId, t.status),
+    index("expenses_budget_line_id_idx").on(t.budgetLineId),
+    uniqueIndex("expenses_reference_uq").on(t.syndicateId, t.reference),
+    uniqueIndex("expenses_travaux_uq").on(t.travauxId).where(sql`${t.travauxId} IS NOT NULL`),
+    uniqueIndex("expenses_idempotency_uq").on(t.syndicateId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
+    check("expenses_amount_chk", sql`${t.amount} > 0`),
+    check("expenses_status_chk", sql`${t.status} IN ('submitted', 'approved', 'rejected', 'paid', 'cancelled')`),
+    check(
+      "expenses_payment_method_chk",
+      sql`${t.paymentMethod} IS NULL OR ${t.paymentMethod} IN ('virement', 'cheque', 'especes', 'prelevement')`,
+    ),
+  ],
+);
+
+/** Bank statement lines imported for reconciliation (signed amounts). */
+export const bankStatementLinesTable = pgTable(
+  "bank_statement_lines",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    accountId: text("account_id").notNull().references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    valueDate: date("value_date").notNull(),
+    // > 0 credit (money in), < 0 debit (money out)
+    amount: money("amount").notNull(),
+    label: text("label").notNull(),
+    reference: text("reference"),
+    // Stable identity of the line: re-importing the same statement is a no-op.
+    externalId: text("external_id").notNull(),
+    // unmatched | partial | matched | anomaly | ignored
+    status: text("status").notNull().default("unmatched"),
+    matchedAmount: money("matched_amount").notNull().default("0"),
+    note: text("note"),
+    importBatchId: text("import_batch_id"),
+    importedBy: text("imported_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("bank_statement_lines_external_uq").on(t.accountId, t.externalId),
+    index("bank_statement_lines_account_status_idx").on(t.accountId, t.status),
+    check("bank_statement_lines_amount_chk", sql`${t.amount} <> 0`),
+    check(
+      "bank_statement_lines_status_chk",
+      sql`${t.status} IN ('unmatched', 'partial', 'matched', 'anomaly', 'ignored')`,
+    ),
+    check("bank_statement_lines_matched_chk", sql`${t.matchedAmount} >= 0 AND ${t.matchedAmount} <= abs(${t.amount})`),
+  ],
+);
+
+/** Links a statement line to the journal entries it settles. */
+export const reconciliationMatchesTable = pgTable(
+  "reconciliation_matches",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    statementLineId: text("statement_line_id").notNull().references(() => bankStatementLinesTable.id, { onDelete: "restrict" }),
+    ledgerEntryId: text("ledger_entry_id").notNull().references(() => ledgerEntriesTable.id, { onDelete: "restrict" }),
+    amount: money("amount").notNull(),
+    matchedBy: text("matched_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("reconciliation_matches_pair_uq").on(t.statementLineId, t.ledgerEntryId),
+    index("reconciliation_matches_ledger_entry_idx").on(t.ledgerEntryId),
+    check("reconciliation_matches_amount_chk", sql`${t.amount} > 0`),
   ],
 );

@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "hello": "tsx ./src/hello.ts",
     "seed": "node --env-file=../.env --import=tsx ./src/seed.ts",
     "db:status": "node --env-file=../.env --import=tsx ./src/db-status.ts",
     "seed:stripe-products": "tsx ./src/seed-stripe-products.ts",
     "election-audit:seed": "tsx ./src/election-audit-seed.ts",
     "election-audit:test": "tsx ./src/election-audit-test.ts",
-    "rbac-regression:test": "tsx ./src/rbac-regression-test.ts",
+    "rbac-regression:test": "node --env-file=../.env --import=tsx ./src/rbac-regression-test.ts",
+    "auth-security:test": "node --env-file=../.env --import=tsx ./src/auth-security-test.ts",
+    "documents-security:test": "node --env-file=../.env --import=tsx ./src/documents-security-test.ts",
+    "scenario-e2e:test": "node --env-file=../.env --import=tsx ./src/scenario-e2e-test.ts",
+    "journeys:test": "node --env-file=../.env --import=tsx ./src/journeys-test.ts",
+    "finance-integrity:test": "node --env-file=../.env --import=tsx ./src/finance-integrity-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

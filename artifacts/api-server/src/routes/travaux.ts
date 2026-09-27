@@ -8,12 +8,14 @@ import {
   lotsTable,
   membersTable,
   tenantsTable,
-  transactionsTable,
+  expensesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { isSyndicateTeamRole, requireAuth, requireAdmin } from "../middleware/auth.js";
 import { createAlert } from "../lib/notify.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { nextSequenceNumber } from "../lib/sequences.js";
+import { FinanceError, fromCents, sendFinanceError, toCents } from "../lib/treasury.js";
 import { getUserBuildingIds, assertUserCanAccessBuilding } from "../lib/scope.js";
 
 const router = Router();
@@ -625,55 +627,81 @@ router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res)
       (now.getTime() - new Date((travail.assignedAt ?? travail.createdAt) as any).getTime()) / 60000,
     );
 
-    const amount = travail.invoiceAmount ?? travail.estimatedAmount ?? 0;
+    const amountCents = toCents(travail.invoiceAmount ?? travail.estimatedAmount ?? 0);
+    if (amountCents <= 0) {
+      return void res.status(400).json({
+        error: "Impossible de valider : le montant de la facture est manquant.",
+        code: "INVOICE_AMOUNT_REQUIRED",
+      });
+    }
+    const amount = fromCents(amountCents);
 
-    const [building] = await db
-      .select({ syndicateId: buildingsTable.syndicateId })
-      .from(buildingsTable)
-      .where(eq(buildingsTable.id, travail.buildingId));
-
-    const [transaction] = await db
-      .insert(transactionsTable)
-      .values({
-        type: "depense",
-        amount: String(amount),
-        label: `Intervention: ${travail.title}`,
-        date: now.toISOString().split("T")[0],
-        status: "paid",
-        syndicateId: building?.syndicateId,
-        proofUrl: travail.invoiceUrl,
-      })
-      .returning();
-
-    const [updated] = await db
-      .update(travauxTable)
-      .set({
-        status: "completed",
-        completedAt: now,
-        actualAmount: String(amount),
-        validatedById: user.userId,
-        validatedByName: user.name,
-        validatedAt: now,
-        transactionId: transaction.id,
-        resolutionTimeMinutes,
-      })
-      .where(eq(travauxTable.id, String(String(req.params.id))))
-      .returning();
+    // Validating the work closes the intervention and creates the supplier
+    // expense, already approved (the syndic checked the documentation). No
+    // money moves here: the treasurer pays it from /expenses, which posts the
+    // journal entry. One expense per work order (unique travaux_id), and the
+    // status condition makes a double validation fail.
+    const { updated, expense } = await db.transaction(async (tx) => {
+      const [closed] = await tx
+        .update(travauxTable)
+        .set({
+          status: "completed",
+          completedAt: now,
+          actualAmount: amount,
+          validatedById: user.userId,
+          validatedByName: user.name,
+          validatedAt: now,
+          resolutionTimeMinutes,
+        })
+        .where(
+          and(
+            eq(travauxTable.id, travail.id),
+            sql`${travauxTable.status} NOT IN ('completed', 'cancelled')`,
+          ),
+        )
+        .returning();
+      if (!closed) {
+        throw new FinanceError(409, "TRAVAUX_ALREADY_VALIDATED", "Cette intervention est déjà validée ou annulée");
+      }
+      const reference = await nextSequenceNumber(tx, effectiveSyndicateId, "DEP", 4);
+      const [created] = await tx
+        .insert(expensesTable)
+        .values({
+          syndicateId: effectiveSyndicateId,
+          buildingId: travail.buildingId,
+          reference,
+          label: `Intervention : ${travail.title}`,
+          category: "travaux",
+          amount,
+          prestataireId: travail.prestataireId,
+          proofUrl: travail.invoiceUrl!,
+          travauxId: travail.id,
+          status: "approved",
+          createdBy: user.userId,
+          approvedBy: user.userId,
+          approvedAt: now,
+        })
+        .returning();
+      return { updated: closed, expense: created };
+    });
 
     await serverAuditLog(req, {
       action: "VALIDATE",
       entity: "travaux",
       entityId: updated.id,
-      details: `Intervention validée et clôturée: ${updated.title} — ${amount} MAD`,
+      syndicateId: effectiveSyndicateId,
+      details: `Intervention validée et clôturée: ${updated.title} — ${amount} MAD — dépense ${expense.reference} à payer`,
     });
 
-    res.json({ data: updated, message: "Intervention validée, paiement enregistré" });
+    res.json({
+      data: updated,
+      expense,
+      message: `Intervention validée. Dépense ${expense.reference} créée, à payer par le trésorier.`,
+    });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendFinanceError(res, req, e, "Server error");
   }
 });
-
 // PUT /travaux/:id — Update work order (status, assignment, amounts)
 router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {

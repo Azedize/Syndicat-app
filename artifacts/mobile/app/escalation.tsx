@@ -26,7 +26,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getApiBaseUrl } from "@/services/api";
+import { getApiBaseUrl, getFileTicket, withFileTicket } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
@@ -251,18 +251,17 @@ function EscalationScreenInner() {
 
   // ── Open letter ─────────────────────────────────────────────────────────────
 
-  const openLetter = (item: Escalation) => {
+  const openLetter = async (item: Escalation) => {
     if (!item.letterUrl) return;
-    // Build absolute URL — pass JWT as query param because Linking.openURL
-    // cannot attach Authorization headers (the endpoint accepts ?token= as fallback)
+    // Linking.openURL cannot attach Authorization headers: a short-lived
+    // download ticket is appended instead, and only for our own API host.
     const rawUrl = item.letterUrl;
     const urlBase = /^https?:\/\//i.test(rawUrl)
       ? rawUrl
       : `${getApiBaseUrl()}${rawUrl.replace(/^\/api(?=\/)/, "")}`;
-    const tokenParam = token
-      ? `${urlBase.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`
-      : "";
-    const url = `${urlBase}${tokenParam}`;
+    const url = urlBase.startsWith(getApiBaseUrl())
+      ? withFileTicket(urlBase, await getFileTicket())
+      : urlBase;
     Linking.openURL(url).catch(() =>
       showToast({ type: "error", title: t("error"), message: t("escOpenDocError") }),
     );

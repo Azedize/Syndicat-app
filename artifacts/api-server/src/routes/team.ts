@@ -13,15 +13,10 @@ import {
   usersTable,
   membersTable,
   syndicatesTable,
-  refreshTokensTable,
 } from "@workspace/db/schema";
 import { eq, and, or } from "drizzle-orm";
-import {
-  requireAuth,
-  requireAdmin,
-  signToken,
-  signRefreshToken,
-} from "../middleware/auth.js";
+import { requireAuth, requireAdmin, BCRYPT_COST } from "../middleware/auth.js";
+import { serverAuditLog } from "../lib/audit.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { teamInvitationTemplate } from "../lib/email/templates.js";
 
@@ -265,12 +260,10 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
         .json({ error: `L'email ${emailLower} est déjà utilisé` });
     }
 
-    // Generate a temporary password: 8 random chars (memorable format)
-    const tempPassword =
-      randomBytes(3).toString("hex").toUpperCase() +
-      "-" +
-      randomBytes(2).toString("hex");
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    // Temporary password (96 bits), delivered only to the invitee's mailbox.
+    // mustChangePassword restricts the account until it is replaced.
+    const tempPassword = randomBytes(12).toString("base64url");
+    const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_COST);
 
     const [newUser] = await db
       .insert(usersTable)
@@ -279,27 +272,19 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
         email: emailLower,
         phone: phone?.trim() ?? null,
         passwordHash,
+        mustChangePassword: true,
         role,
         syndicateId,
         status: "active",
-      } as any)
+      })
       .returning();
 
-    // Issue tokens so the invited user can log in immediately
-    const accessToken = signToken({
-      userId: newUser.id,
-      email: newUser.email,
-      role: role as any,
+    await serverAuditLog(req, {
+      action: "USER_INVITED",
+      entity: "user",
+      entityId: newUser.id,
       syndicateId,
-      name: newUser.name,
-    });
-
-    const refreshTokenValue = signRefreshToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await db.insert(refreshTokensTable).values({
-      userId: newUser.id,
-      token: refreshTokenValue,
-      expiresAt,
+      details: `${emailLower} (${role})`,
     });
 
     // Get syndicate info for email
@@ -312,6 +297,7 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { subject, html } = teamInvitationTemplate(
         name,
+        emailLower,
         role,
         syndicate?.name ?? "votre syndicat",
         tempPassword,
@@ -326,9 +312,10 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
       req.log.warn(emailErr, "Failed to send team invitation email");
     }
 
+    // The temporary password is never returned to the inviting admin.
     const { passwordHash: _, ...safeUser } = newUser;
     res.status(201).json({
-      data: { ...safeUser, tempPassword },
+      data: safeUser,
       message: "Invitation envoyée",
     });
   } catch (err) {

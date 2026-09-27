@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { getToken } from "@/services/api";
+import { getApiBaseUrl, getFileTicket, getToken, withFileTicket } from "@/services/api";
 import React, { useRef, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -1120,15 +1120,14 @@ export default function DocumentsScreen() {
       const res = await docsApi.downloadUrl(doc.id);
       let signedUrl = (res as any).url as string | undefined;
       if (signedUrl) {
-        // local-docs URLs go through requireAuth which can't receive the
-        // Authorization header from a WebView — append the JWT as ?token=…
-        if (signedUrl.includes("/local-docs/")) {
-          const jwt = await getToken();
-          if (jwt) {
-            signedUrl = signedUrl.includes("?")
-              ? `${signedUrl}&token=${encodeURIComponent(jwt)}`
-              : `${signedUrl}?token=${encodeURIComponent(jwt)}`;
-          }
+        // local-docs URLs go through requireAuth, which can't receive the
+        // Authorization header from a WebView — append a short-lived download
+        // ticket (never the session token), and only for our own API.
+        if (
+          signedUrl.includes("/local-docs/") &&
+          signedUrl.startsWith(getApiBaseUrl())
+        ) {
+          signedUrl = withFileTicket(signedUrl, await getFileTicket());
         }
         router.push({
           pathname: "/pdf-viewer",

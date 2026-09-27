@@ -14,7 +14,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AIAssistant } from "@/components/AIAssistant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { NotificationManager } from "@/components/NotificationManager";
@@ -62,12 +61,17 @@ function AuthGate() {
     // unauthenticated landing experience instead of briefly opening the tabs.
     if (!user && !inAuthGroup && segments[0] !== undefined) {
       router.replace("/welcome");
+    } else if (user?.mustChangePassword && (segments[0] as string) !== "change-password") {
+      // Temporary (invitation) credentials: the API refuses everything else
+      // until the password is changed, so do not show the app shell.
+      router.replace("/change-password" as any);
     } else if (user && segments[0] === "login") {
       router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
 
   const inAuthRoute = segments[0] === "login" ||
+    (segments[0] as string) === "change-password" ||
     segments[0] === "forgot-password" ||
     segments[0] === "reset-password" ||
     !user;
@@ -81,7 +85,6 @@ function AuthGate() {
         <View style={{ flex: 1, overflow: "hidden" as any }}>
           <SubscriptionBanner />
           <Slot />
-          <AIAssistant />
           <ToastContainer />
           <NotificationManager />
         </View>
@@ -93,7 +96,6 @@ function AuthGate() {
     <View style={{ flex: 1, direction } as any}>
       {user && !inAuthRoute && <SubscriptionBanner />}
       <Slot />
-      {user && !inAuthRoute && <AIAssistant />}
       {user && !inAuthRoute && <NotificationManager />}
       <ToastContainer />
     </View>

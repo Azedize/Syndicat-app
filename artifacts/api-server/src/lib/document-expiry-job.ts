@@ -21,6 +21,7 @@ import { and, eq, isNotNull, lt, lte } from "drizzle-orm";
 import { logger } from "./logger.js";
 import { systemAuditLog } from "./audit.js";
 import { createAlert, sendEmailToMany } from "./notify.js";
+import { scheduleJob } from "./scheduler.js";
 
 const THRESHOLDS = [30, 15, 7, 1] as const;
 
@@ -174,8 +175,7 @@ export async function runExpiryScan(): Promise<ExpiryScanResult> {
 
 /** Starts the expiration scan (on boot + every 6 hours). */
 export function startDocumentExpiryScheduler(): void {
-  runExpiryScan().catch((err) => logger.warn({ err }, "Boot expiry scan failed"));
-  setInterval(() => {
-    runExpiryScan().catch((err) => logger.warn({ err }, "Scheduled expiry scan failed"));
-  }, 6 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("document-expiry", 6 * 60 * 60 * 1000, runExpiryScan);
 }

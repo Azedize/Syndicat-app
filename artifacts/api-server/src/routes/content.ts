@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { createAlert, sendEmailToMany } from "../lib/notify.js";
+import {
+  alertAudienceWhere,
+  createAlert,
+  notifyUser,
+  sendEmailToMany,
+} from "../lib/notify.js";
 import { supportTicketTemplate } from "../lib/email/templates.js";
 import {
   legalAlertsTable,
@@ -24,6 +29,7 @@ import {
   syndicateWhere,
   effectiveSyndicateId,
 } from "../lib/syndicate-filter.js";
+import { findForeignReference } from "../lib/scope.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
 
@@ -540,14 +546,24 @@ router.post("/support/:id/replies", requireAuth, async (req, res) => {
       .set({ status: "in_progress" })
       .where(supportTicketWhere(req, id));
 
-    // Notify the ticket submitter that a reply arrived
-    createAlert({
-      title: "Réponse à votre ticket",
-      message: `${req.user!.name} a répondu à votre ticket.`,
-      type: "info",
-      syndicateId: ticket.syndicateId || null,
-      target: "admin",
-    }).catch(() => {});
+    // Notify the other side of the conversation: the submitter when the team
+    // replies, the team when the submitter adds a message.
+    if (ticket.submittedById && ticket.submittedById !== req.user!.userId) {
+      void notifyUser(ticket.submittedById, {
+        title: "Réponse à votre ticket",
+        message: `${req.user!.name} a répondu à « ${ticket.title} ».`,
+        type: "info",
+        syndicateId: ticket.syndicateId || null,
+      });
+    } else {
+      createAlert({
+        title: "Nouveau message sur un ticket",
+        message: `${req.user!.name} a complété le ticket « ${ticket.title} ».`,
+        type: "info",
+        syndicateId: ticket.syndicateId || null,
+        target: "admin",
+      }).catch(() => {});
+    }
 
     res.status(201).json({ data: reply, message: "Réponse ajoutée" });
   } catch (err) {
@@ -584,6 +600,14 @@ router.put(
         .set({ status: "resolved" })
         .where(supportTicketWhere(req, id))
         .returning();
+      if (ticket.submittedById && ticket.submittedById !== req.user!.userId) {
+        void notifyUser(ticket.submittedById, {
+          title: "Ticket résolu",
+          message: `Votre ticket « ${ticket.title} » a été marqué comme résolu.`,
+          type: "success",
+          syndicateId: ticket.syndicateId || null,
+        });
+      }
       res.json({ data: updated, message: "Ticket résolu" });
     } catch (err) {
       req.log.error(err);
@@ -715,150 +739,28 @@ router.get("/cotisations", requireAuth, async (req, res) => {
 });
 
 /**
- * POST /cotisations — Admin creates a cotisation record for a member
+ * Legacy "cotisations" (union dues) module — read-only history.
+ * In a copropriété the co-owners' contributions are the calls for funds
+ * (appels de fonds): generated from the voted budget, paid with a proof,
+ * validated by the treasurer and posted to the journal. The old write paths
+ * issued receipts outside the journal (REC-<timestamp>) and the member path
+ * could never succeed, so they are closed.
  */
-router.post(
-  "/cotisations",
-  requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
-  async (req, res) => {
-    const schema = z.object({
-      memberId: z.string().min(1),
-      label: z.string().min(1),
-      period: z.string().min(1),
-      amount: z.number().positive(),
-      dueDate: z.string(),
-      status: z.enum(["pending", "paid", "overdue"]).default("pending"),
-      syndicateId: z.string().optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const sid = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, ...data } = result.data;
-      const [row] = await db
-        .insert(cotisationsTable)
-        .values({ ...data, syndicateId: sid } as any)
-        .returning();
-      res.status(201).json({ data: row, message: "Cotisation créée" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+router.post("/cotisations", requireAuth, (_req, res) => {
+  res.status(410).json({
+    error:
+      "Les cotisations sont remplacées par les appels de fonds : déclarez et validez les paiements depuis « Charges ».",
+    code: "LEGACY_MODULE",
+  });
+});
 
-/**
- * POST /cotisations/:id/pay
- * Member submits payment proof (mandatory) → status becomes "pending_validation",
- * pending admin review at PUT /payment-proofs/:id/review. Members can never
- * self-mark a cotisation as paid.
- * Admins may mark a cotisation as paid directly (e.g. confirmed cash/bank payment).
- */
-router.put(
-  "/cotisations/:id/pay",
-  requireAuth,
-  requireRole("super_admin", "syndicate_admin", "member"),
-  async (req, res) => {
-    const id = String(req.params.id) as string;
-    const schema = z.object({ proofUrl: z.string().url().optional() });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const [cotisation] = await db
-        .select()
-        .from(cotisationsTable)
-        .where(eq(cotisationsTable.id, id));
-      if (!cotisation) {
-        res.status(404).json({ error: "Cotisation introuvable" });
-        return;
-      }
-      const isMember = req.user!.role === "member";
-      const memberIdentityIds = isMember
-        ? await resolveMemberIdentityIds(req, cotisation.syndicateId)
-        : [];
-      if (isMember && !memberIdentityIds.includes(cotisation.memberId)) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-      if (!isMember && !isSameSyndicate(req, cotisation.syndicateId)) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-      if (cotisation.status === "paid") {
-        res.status(400).json({ error: "Cette cotisation est déjà payée" });
-        return;
-      }
-
-      if (isMember) {
-        // Members can never self-mark a cotisation as paid — a proof of payment
-        // is mandatory and always routes through admin review.
-        if (!result.data.proofUrl) {
-          res.status(400).json({ error: "Une preuve de paiement est requise" });
-          return;
-        }
-        if (cotisation.status === "pending_validation") {
-          res.status(400).json({
-            error:
-              "Une preuve est déjà en attente de validation pour cette cotisation",
-          });
-          return;
-        }
-        await db.transaction(async (tx) => {
-          await tx
-            .update(cotisationsTable)
-            .set({ status: "pending_validation" })
-            .where(eq(cotisationsTable.id, id));
-          await tx.insert(paymentProofsTable).values({
-            cotisationId: id,
-            proofUrl: result.data.proofUrl!,
-            uploadedById: req.user!.userId,
-            status: "pending",
-          });
-        });
-        await serverAuditLog(req, {
-          action: "SUBMIT_PAYMENT_PROOF",
-          entity: "cotisation",
-          entityId: id,
-          syndicateId: cotisation.syndicateId ?? undefined,
-          details: "Preuve de paiement soumise pour validation",
-        });
-        res.json({
-          message: "Preuve de paiement soumise, en attente de validation",
-        });
-      } else {
-        // Admin direct payment (bank transfer confirmed manually, cash, etc.)
-        const receipt = `REC-${Date.now()}`;
-        const [updated] = await db
-          .update(cotisationsTable)
-          .set({
-            status: "paid",
-            paidDate: new Date().toISOString().split("T")[0],
-            receipt,
-          })
-          .where(eq(cotisationsTable.id, id))
-          .returning();
-        await serverAuditLog(req, {
-          action: "RECORD_COTISATION_PAYMENT",
-          entity: "cotisation",
-          entityId: id,
-          syndicateId: cotisation.syndicateId ?? undefined,
-          details: `Paiement direct enregistré: ${receipt}`,
-        });
-        res.json({ data: updated, message: "Paiement enregistré", receipt });
-      }
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+router.put("/cotisations/:id/pay", requireAuth, (_req, res) => {
+  res.status(410).json({
+    error:
+      "Les cotisations sont remplacées par les appels de fonds : déclarez et validez les paiements depuis « Charges ».",
+    code: "LEGACY_MODULE",
+  });
+});
 
 /**
  * GET /cotisations/:id/proofs — list payment proofs for a cotisation
@@ -895,100 +797,25 @@ router.get(
   },
 );
 
-/**
- * PUT /payment-proofs/:id/review — admin approves or rejects a proof
- */
-router.put(
-  "/payment-proofs/:id/review",
-  requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
-  async (req, res) => {
-    const id = String(req.params.id) as string;
-    const schema = z.object({
-      action: z.enum(["approve", "reject"]),
-      note: z.string().max(500).optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Action invalide" });
-      return;
-    }
-    try {
-      const [proof] = await db
-        .select()
-        .from(paymentProofsTable)
-        .where(eq(paymentProofsTable.id, id));
-      if (!proof) {
-        res.status(404).json({ error: "Preuve introuvable" });
-        return;
-      }
-
-      const [cotisation] = await db
-        .select()
-        .from(cotisationsTable)
-        .where(eq(cotisationsTable.id, proof.cotisationId));
-      if (!cotisation) {
-        res.status(404).json({ error: "Cotisation introuvable" });
-        return;
-      }
-      if (!isSameSyndicate(req, cotisation.syndicateId)) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-
-      const approved = result.data.action === "approve";
-      await db.transaction(async (tx) => {
-        await tx
-          .update(paymentProofsTable)
-          .set({
-            status: approved ? "approved" : "rejected",
-            reviewedById: req.user!.userId,
-            reviewNote: result.data.note,
-            reviewedAt: new Date(),
-          })
-          .where(eq(paymentProofsTable.id, id));
-
-        if (approved) {
-          const receipt = `REC-${Date.now()}`;
-          await tx
-            .update(cotisationsTable)
-            .set({
-              status: "paid",
-              paidDate: new Date().toISOString().split("T")[0],
-              receipt,
-            })
-            .where(eq(cotisationsTable.id, proof.cotisationId));
-        } else {
-          // Rejected → revert to pending
-          await tx
-            .update(cotisationsTable)
-            .set({ status: "pending" })
-            .where(eq(cotisationsTable.id, proof.cotisationId));
-        }
-      });
-
-      await serverAuditLog(req, {
-        action: approved ? "APPROVE_PROOF" : "REJECT_PROOF",
-        entity: "payment_proof",
-        entityId: id,
-        details: result.data.note,
-        syndicateId: cotisation.syndicateId ?? undefined,
-      });
-
-      res.json({ message: approved ? "Paiement validé" : "Paiement rejeté" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+router.put("/payment-proofs/:id/review", requireAuth, (_req, res) => {
+  res.status(410).json({
+    error:
+      "Les cotisations sont remplacées par les appels de fonds : déclarez et validez les paiements depuis « Charges ».",
+    code: "LEGACY_MODULE",
+  });
+});
 
 // ─── System Alerts (per-user reads) ──────────────────────────────────────────
 
 router.get("/alerts", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
   try {
-    const where = syndicateWhere(req, alertsTable.syndicateId);
+    // Syndicate scope AND audience: personal alerts of this user, plus
+    // broadcasts addressed to their role (residents never see team-only alerts).
+    const where = and(
+      syndicateWhere(req, alertsTable.syndicateId),
+      alertAudienceWhere(req.user!.userId, req.user!.role),
+    );
     const [rows, [{ value: total }]] = await Promise.all([
       db
         .select()
@@ -1036,7 +863,13 @@ router.put("/alerts/:id/read", requireAuth, async (req, res) => {
     const [alert] = await db
       .select()
       .from(alertsTable)
-      .where(and(eq(alertsTable.id, id), scopeWhere));
+      .where(
+        and(
+          eq(alertsTable.id, id),
+          scopeWhere,
+          alertAudienceWhere(req.user!.userId, req.user!.role),
+        ),
+      );
     if (!alert) {
       res.status(404).json({ error: "Alerte introuvable" });
       return;
@@ -1059,7 +892,10 @@ router.put("/alerts/:id/read", requireAuth, async (req, res) => {
 
 router.put("/alerts/read-all", requireAuth, async (req, res) => {
   try {
-    const where = syndicateWhere(req, alertsTable.syndicateId);
+    const where = and(
+      syndicateWhere(req, alertsTable.syndicateId),
+      alertAudienceWhere(req.user!.userId, req.user!.role),
+    );
     const rows = await db
       .select({ id: alertsTable.id })
       .from(alertsTable)
@@ -1337,55 +1173,15 @@ router.get("/payslips", requireAuth, async (req, res) => {
   }
 });
 
-router.post(
-  "/payslips",
-  requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
-  async (req, res) => {
-    const schema = z.object({
-      employeeId: z.string(),
-      employeeName: z.string(),
-      role: z.string(),
-      month: z.string(),
-      baseSalary: z.number().int().positive(),
-      allowances: z.number().int().nonnegative().default(0),
-      deductions: z.number().int().nonnegative().default(0),
-      cnss: z.number().int().nonnegative().default(0),
-      ir: z.number().int().nonnegative().default(0),
-      mutuelle: z.number().int().nonnegative().default(0),
-      syndicateId: z.string().optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const sid = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, ...data } = result.data;
-      const netSalary =
-        data.baseSalary +
-        data.allowances -
-        data.deductions -
-        data.cnss -
-        data.ir -
-        data.mutuelle;
-      const [row] = await db
-        .insert(payslipsTable)
-        .values({
-          ...data,
-          syndicateId: sid,
-          netSalary,
-          status: "draft",
-        } as any)
-        .returning();
-      res.status(201).json({ data: row, message: "Fiche de paie générée" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+// Payslip generation stored none of the submitted fields (they are not
+// columns of the payslips table). Salaries are recorded and paid through
+// /finance/salaries, which posts the payment to the journal.
+router.post("/payslips", requireAuth, (_req, res) => {
+  res.status(410).json({
+    error: "La génération de fiches de paie n'est pas disponible : enregistrez les salaires depuis « Fiches de paie ».",
+    code: "LEGACY_MODULE",
+  });
+});
 
 // ─── Announcements ────────────────────────────────────────────────────────────
 

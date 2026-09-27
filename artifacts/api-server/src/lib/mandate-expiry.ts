@@ -3,6 +3,7 @@ import { conseilSyndicalTable } from "@workspace/db/schema";
 import { eq, and, lte } from "drizzle-orm";
 import { createAlert, sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
+import { scheduleJob } from "./scheduler.js";
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -42,8 +43,7 @@ export async function checkExpiringMandates(): Promise<void> {
 
 /** Starts the periodic mandate-expiry check (on boot + once a day). */
 export function startMandateExpiryScheduler(): void {
-  checkExpiringMandates().catch(() => {});
-  setInterval(() => {
-    checkExpiringMandates().catch(() => {});
-  }, 24 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("mandate-expiry", 24 * 60 * 60 * 1000, checkExpiringMandates);
 }

@@ -47,6 +47,9 @@ import templateStudioRouter from "./template-studio.js";
 import governanceRouter from "./governance.js";
 import organigrammeRouter from "./organigramme.js";
 import stripeRouter from "./stripe.js";
+import meRouter from "./me.js";
+import treasuryRouter from "./treasury.js";
+import expensesRouter from "./expenses.js";
 
 const router: IRouter = Router();
 
@@ -75,6 +78,8 @@ router.use(syndicatesRouter);
 router.use(electionsRouter);
 router.use(meetingsRouter);
 router.use(financeRouter);
+router.use(treasuryRouter);
+router.use(expensesRouter);
 router.use(marketplaceRouter);
 router.use(chatRouter);
 router.use(documentsRouter);
@@ -114,5 +119,6 @@ router.use(emailRouter);
 router.use(templateStudioRouter);
 router.use(governanceRouter);
 router.use(organigrammeRouter);
+router.use(meRouter);
 
 export default router;

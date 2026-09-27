@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import {
   budgetsTable,
@@ -15,6 +16,8 @@ import {
   usersTable,
   prestatairesTable,
   meetingsTable,
+  storageObjectsTable,
+  appelPaymentsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
 import {
@@ -25,6 +28,21 @@ import {
   isSyndicateTeamRole,
 } from "../middleware/auth.js";
 import { assertUserCanAccessBuilding } from "../lib/scope.js";
+import { nextSequenceNumber } from "../lib/sequences.js";
+import { createAlert, notifyUser } from "../lib/notify.js";
+import {
+  FinanceError,
+  amountSchema,
+  fromCents,
+  lockAccount,
+  postEntry,
+  recordOperation,
+  sendFinanceError,
+  settlementStatus,
+  toCents,
+  today,
+  uniqueViolation,
+} from "../lib/treasury.js";
 
 /** True when the user is syndicate-scoped (not super_admin). Used for row-level scoping in finance queries. */
 function isSyndicateScoped(role: string): boolean {
@@ -33,6 +51,130 @@ function isSyndicateScoped(role: string): boolean {
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
+
+/** Statuses from which a co-owner may declare a payment. */
+const PAYABLE_STATUSES = ["pending", "overdue", "rejected", "partially_paid"] as const;
+
+/** Journal category of a call-for-funds payment, by call type. */
+const APPEL_LEDGER_CATEGORY: Record<string, string> = {
+  charges_courantes: "charges_copropriete",
+  fonds_reserve: "fonds_reserve",
+  appel_special: "appel_special",
+};
+
+// "online" is intentionally absent: there is no payment-gateway integration
+// yet, so an "online" declaration would be indistinguishable from a claim.
+const submitPaymentSchema = z.object({
+  paymentMethod: z.enum(["virement", "cheque", "especes"], {
+    errorMap: () => ({ message: "Mode de paiement invalide (virement, chèque ou espèces)" }),
+  }),
+  // Mandatory: a payment without proof can never be validated by the
+  // treasurer, so accepting it would leave the co-owner in a dead end.
+  proofUrl: z
+    .string({ required_error: "Un justificatif de paiement est obligatoire." })
+    .max(500)
+    .refine((v) => v.startsWith("/objects/"), {
+      message:
+        "Le justificatif doit être téléchargé sur le serveur avant la soumission.",
+    }),
+  notes: z.string().max(1000).optional(),
+  // Partial payment: defaults to the remaining balance of the call.
+  amount: amountSchema.optional(),
+  // Transfer reference or cheque number
+  reference: z.string().trim().max(100).optional(),
+});
+
+const generateAppelsSchema = z.object({
+  period: z
+    .string()
+    .regex(/^\d{4}(-(0[1-9]|1[0-2])|-Q[1-4])?$/, {
+      message: "Période invalide (ex. '2026-05', '2026-Q1' ou '2026')",
+    }),
+  type: z
+    .enum(["charges_courantes", "fonds_reserve", "appel_special"])
+    .default("charges_courantes"),
+});
+
+function periodsPerYear(period: string): number {
+  if (/^\d{4}-Q[1-4]$/.test(period)) return 4;
+  if (/^\d{4}-\d{2}$/.test(period)) return 12;
+  return 1;
+}
+
+/**
+ * Splits an amount in cents proportionally to tantièmes using the
+ * largest-remainder method, so the sum of the shares always equals the total
+ * exactly (no centime is created or lost by rounding).
+ */
+export function splitByTantiemes(totalCents: number, tantiemes: number[]): number[] {
+  const weight = tantiemes.reduce((s, t) => s + t, 0);
+  if (weight <= 0) return tantiemes.map(() => 0);
+  const raw = tantiemes.map((t) => (totalCents * t) / weight);
+  const shares = raw.map(Math.floor);
+  let remainder = totalCents - shares.reduce((s, v) => s + v, 0);
+  const order = raw
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (const { i } of order) {
+    if (remainder <= 0) break;
+    shares[i] += 1;
+    remainder -= 1;
+  }
+  return shares;
+}
+
+/** Budget lifecycle: draft → submitted → approved (by AG) → closed. */
+const PRE_APPROVAL_BUDGET_STATUSES: string[] = ["draft", "submitted"];
+const APPROVED_BUDGET_STATUSES: string[] = ["approved", "closed"];
+
+const budgetAmount = z
+  .union([z.number(), z.string().regex(/^\d+(\.\d{1,2})?$/)])
+  .transform((v) => Number(v).toFixed(2))
+  .refine((v) => Number(v) >= 0, { message: "Montant invalide" });
+
+const updateBudgetSchema = z.object({
+  totalAmount: budgetAmount.optional(),
+  chargesAmount: budgetAmount.optional(),
+  fondsReserve: budgetAmount.optional(),
+  status: z.enum(["draft", "submitted", "approved", "closed"]).optional(),
+  meetingId: z.string().min(1).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+});
+
+type OwnerLookupExecutor = Pick<typeof db, "select">;
+
+/**
+ * Maps an appel owner (members.id, or a users.id for legacy rows) to the
+ * owner's user account in the same syndicate. Returns null when the owner has
+ * no platform account — the transaction then stays unattributed rather than
+ * violating the users foreign key.
+ */
+async function resolveOwnerUserId(
+  executor: OwnerLookupExecutor,
+  ownerId: string | null,
+  syndicateId: string,
+): Promise<string | null> {
+  if (!ownerId) return null;
+  const [direct] = await executor
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(and(eq(usersTable.id, ownerId), eq(usersTable.syndicateId, syndicateId)))
+    .limit(1);
+  if (direct) return direct.id;
+  const [viaMember] = await executor
+    .select({ id: usersTable.id })
+    .from(membersTable)
+    .innerJoin(usersTable, eq(usersTable.email, membersTable.email))
+    .where(
+      and(
+        eq(membersTable.id, ownerId),
+        eq(membersTable.syndicateId, syndicateId),
+        eq(usersTable.syndicateId, syndicateId),
+      ),
+    )
+    .limit(1);
+  return viaMember?.id ?? null;
+}
 
 const CHARGE_READ_ROLES = [
   "super_admin",
@@ -140,8 +282,8 @@ router.get("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
       db
         .select({
           budgetId: appelsDeFondsTable.budgetId,
-          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
-          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue')), 0)`,
+          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amountPaid}), 0)`,
+          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}) FILTER (WHERE ${appelsDeFondsTable.status} NOT IN ('paid', 'cancelled')), 0)`,
         })
         .from(appelsDeFondsTable)
         .where(inArray(appelsDeFondsTable.budgetId, budgetIds))
@@ -247,6 +389,14 @@ router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
         .status(400)
         .json({ error: "year and buildingId are required" });
     }
+    // A budget is approved only by the general assembly (PUT with meetingId),
+    // never at creation.
+    if (status !== undefined && !PRE_APPROVAL_BUDGET_STATUSES.includes(status)) {
+      return void res.status(400).json({
+        error: "Un budget est créé en brouillon ; son approbation se fait en AG.",
+        code: "BUDGET_STATUS_INVALID",
+      });
+    }
 
     // Syndicate ownership check via building FK
     const [building] = await db
@@ -294,36 +444,40 @@ router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
       }
     }
 
-    const [budget] = await db
-      .insert(budgetsTable)
-      .values({
-        year,
-        buildingId,
-        totalAmount: totalAmount ?? 0,
-        chargesAmount: chargesAmount ?? 0,
-        fondsReserve: fondsReserve ?? 0,
-        status: status ?? "draft",
-        notes,
-        createdBy: user.userId,
-      })
-      .returning();
+    // Budget and its lines are created atomically (no budget without lines
+    // if a line fails validation in the database).
+    const budget = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(budgetsTable)
+        .values({
+          year,
+          buildingId,
+          totalAmount: totalAmount ?? 0,
+          chargesAmount: chargesAmount ?? 0,
+          fondsReserve: fondsReserve ?? 0,
+          status: status ?? "draft",
+          notes,
+          createdBy: user.userId,
+        })
+        .returning();
 
-    // Insert budget lines if provided
-    if (lines && Array.isArray(lines) && lines.length > 0) {
-      await db.insert(budgetLinesTable).values(
-        lines.map((l: any) => ({
-          budgetId: budget.id,
-          category: l.category,
-          label: l.label,
-          amountAnnual: l.amountAnnual ?? 0,
-          amountQ1: l.amountQ1,
-          amountQ2: l.amountQ2,
-          amountQ3: l.amountQ3,
-          amountQ4: l.amountQ4,
-          prestataireId: l.prestataireId,
-        })),
-      );
-    }
+      if (lines && Array.isArray(lines) && lines.length > 0) {
+        await tx.insert(budgetLinesTable).values(
+          lines.map((l: any) => ({
+            budgetId: created.id,
+            category: l.category,
+            label: l.label,
+            amountAnnual: l.amountAnnual ?? 0,
+            amountQ1: l.amountQ1,
+            amountQ2: l.amountQ2,
+            amountQ3: l.amountQ3,
+            amountQ4: l.amountQ4,
+            prestataireId: l.prestataireId,
+          })),
+        );
+      }
+      return created;
+    });
 
     await serverAuditLog(req, {
       action: "CREATE",
@@ -371,18 +525,39 @@ router.put(
         }
       }
 
-      const allowed = [
-        "totalAmount",
-        "chargesAmount",
-        "fondsReserve",
-        "status",
-        "votedAt",
-        "meetingId",
-        "notes",
-      ];
-      const updates: Record<string, any> = {};
-      for (const k of allowed) {
-        if (req.body[k] !== undefined) updates[k] = req.body[k];
+      const parsed = updateBudgetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return void res.status(400).json({
+          error: parsed.error.issues[0]?.message ?? "Données invalides",
+        });
+      }
+      const updates: Record<string, unknown> = Object.fromEntries(
+        Object.entries(parsed.data).filter(([, v]) => v !== undefined),
+      );
+
+      const isApproved = APPROVED_BUDGET_STATUSES.includes(existing.status ?? "");
+      const changesAmounts = ["totalAmount", "chargesAmount", "fondsReserve"].some(
+        (k) => k in updates,
+      );
+      if (isApproved && changesAmounts) {
+        return void res.status(409).json({
+          error:
+            "Budget approuvé en AG : ses montants ne peuvent plus être modifiés sans nouvelle délibération.",
+          code: "BUDGET_LOCKED",
+        });
+      }
+      // Loi 18-00: the provisional budget is adopted by the general assembly.
+      // Approval must reference the assembly (meeting) of this syndicate.
+      if (updates.status === "approved" && existing.status !== "approved") {
+        const meetingId = (updates.meetingId as string | null | undefined) ?? existing.meetingId;
+        if (!meetingId) {
+          return void res.status(400).json({
+            error: "L'approbation d'un budget doit référencer l'assemblée générale qui l'a voté.",
+            code: "BUDGET_APPROVAL_REQUIRES_AG",
+          });
+        }
+        updates.meetingId = meetingId;
+        updates.votedAt = new Date();
       }
 
       if (updates.meetingId !== undefined && updates.meetingId !== null) {
@@ -432,11 +607,15 @@ router.post(
   async (req, res) => {
     try {
       const user = req.user!;
-      const { period, type } = req.body;
-      if (!period)
-        return void res
-          .status(400)
-          .json({ error: "period is required (e.g. '2026-Q1')" });
+      const parsed = generateAppelsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return void res.status(400).json({
+          error:
+            parsed.error.issues[0]?.message ??
+            "period is required (e.g. '2026-05', '2026-Q1' or '2026')",
+        });
+      }
+      const { period, type: chargeType } = parsed.data;
 
       const [budget] = await db
         .select()
@@ -461,6 +640,15 @@ router.post(
         }
       }
 
+      // Charges are called on the budget voted by the general assembly —
+      // never on a draft the syndic can still change alone.
+      if (budget.status !== "approved") {
+        return void res.status(409).json({
+          error: "Le budget doit être approuvé en assemblée générale avant d'émettre des appels de fonds.",
+          code: "BUDGET_NOT_APPROVED",
+        });
+      }
+
       const lots = await db
         .select()
         .from(lotsTable)
@@ -477,47 +665,96 @@ router.post(
           .status(400)
           .json({ error: "Lots have no tantiemes assigned" });
 
-      const chargeType = type ?? "charges_courantes";
-      const baseAmount = Number(
+      const annualAmount =
         chargeType === "fonds_reserve"
-          ? (budget.fondsReserve ?? 0)
-          : (budget.chargesAmount ?? 0),
+          ? (budget.fondsReserve ?? "0")
+          : (budget.chargesAmount ?? "0");
+      // The share of the annual budget depends on the period granularity:
+      // monthly (YYYY-MM) = 1/12, quarterly (YYYY-Qn) = 1/4, yearly = 1/1.
+      const periodCents = Math.round(
+        toCents(annualAmount) / periodsPerYear(period),
       );
-
-      // Quarterly: divide annual amount by 4
-      const periodAmount = baseAmount / 4;
+      const shares = splitByTantiemes(
+        periodCents,
+        lots.map((lot) => lot.tantiemes ?? 0),
+      );
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
 
-      const appels = lots.map((lot) => ({
+      const appels = lots.map((lot, i) => ({
         buildingId: budget.buildingId,
         budgetId: budget.id,
         lotId: lot.id,
-        ownerId: lot.ownerId ?? undefined,
+        ownerId: lot.ownerId ?? null,
         period,
         type: chargeType,
-        amount: Math.round(
-          (periodAmount * Number(lot.tantiemes ?? 0)) / totalTantiemes,
-        ),
+        amount: (shares[i] / 100).toFixed(2),
         dueDate: dueDate.toISOString().split("T")[0],
         status: "pending" as const,
       }));
 
-      await db.insert(appelsDeFondsTable).values(appels as any);
+      // Idempotent: a lot receives at most one call per (period, type). The
+      // unique index appels_lot_period_type_uq makes concurrent requests safe.
+      const inserted = await db
+        .insert(appelsDeFondsTable)
+        .values(appels)
+        .onConflictDoNothing({
+          target: [
+            appelsDeFondsTable.lotId,
+            appelsDeFondsTable.period,
+            appelsDeFondsTable.type,
+          ],
+        })
+        .returning({ amount: appelsDeFondsTable.amount });
+
+      if (inserted.length === 0) {
+        return void res.status(409).json({
+          error: `Les appels de fonds ${chargeType} de la période ${period} existent déjà pour cet immeuble.`,
+          code: "APPELS_ALREADY_GENERATED",
+        });
+      }
+
+      const totalCents = inserted.reduce((s, a) => s + toCents(a.amount), 0);
+
+      // Each owner is told about their own call (amount + due date).
+      void (async () => {
+        const syndicateId = building?.syndicateId;
+        if (!syndicateId) return;
+        const insertedRows = await db
+          .select({ ownerId: appelsDeFondsTable.ownerId, amount: appelsDeFondsTable.amount, dueDate: appelsDeFondsTable.dueDate })
+          .from(appelsDeFondsTable)
+          .where(
+            and(
+              eq(appelsDeFondsTable.budgetId, budget.id),
+              eq(appelsDeFondsTable.period, period),
+              eq(appelsDeFondsTable.type, chargeType),
+            ),
+          );
+        for (const row of insertedRows) {
+          const userId = await resolveOwnerUserId(db, row.ownerId, syndicateId);
+          await notifyUser(userId, {
+            title: "Nouvel appel de fonds",
+            message: `Appel de fonds ${period} : ${row.amount} MAD à régler avant le ${row.dueDate}.`,
+            type: "info",
+            syndicateId,
+          });
+        }
+      })().catch(() => {});
 
       await serverAuditLog(req, {
         action: "GENERATE_APPELS",
         entity: "budget",
         entityId: budget.id,
         syndicateId: building?.syndicateId ?? undefined,
-        details: `${appels.length} appels générés pour période ${period}`,
+        details: `${inserted.length} appels générés pour période ${period}`,
       });
 
       res.status(201).json({
-        message: `Generated ${appels.length} appels de fonds for period ${period}`,
-        total: appels.reduce((s, a) => s + a.amount, 0),
-        count: appels.length,
+        message: `Generated ${inserted.length} appels de fonds for period ${period}`,
+        total: totalCents / 100,
+        count: inserted.length,
+        skipped: appels.length - inserted.length,
       });
     } catch (e) {
       req.log.error(e);
@@ -680,17 +917,47 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
         .where(where)
         .orderBy(desc(appelsDeFondsTable.createdAt)),
       db
+        // Amounts come from validated payments (amount_paid), so partial
+        // payments count for what was really received. Cancelled calls are
+        // not owed and are excluded.
         .select({
-          total: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}), 0)`,
-          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
-          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'pending'), 0)`,
-          overdue: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'overdue'), 0)`,
+          total: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} <> 'cancelled'), 0)`,
+          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amountPaid}), 0)`,
+          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending', 'pending_validation', 'partially_paid', 'rejected')), 0)`,
+          overdue: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}) FILTER (WHERE ${appelsDeFondsTable.status} = 'overdue'), 0)`,
         })
         .from(appelsDeFondsTable)
         .where(where),
     ]);
 
-    res.json({ data: rows, total: rows.length, stats });
+    // Human-readable context for the mobile cards (lot number instead of an
+    // id, building, owner) and the amount still due after partial payments.
+    const lotIds = [...new Set(rows.map((r) => r.lotId))];
+    const buildingIds = [...new Set(rows.map((r) => r.buildingId))];
+    const ownerIds = [...new Set(rows.map((r) => r.ownerId).filter((v): v is string => !!v))];
+    const [lotRows, buildingRows, ownerRows] = await Promise.all([
+      lotIds.length
+        ? db.select({ id: lotsTable.id, number: lotsTable.number }).from(lotsTable).where(inArray(lotsTable.id, lotIds))
+        : [],
+      buildingIds.length
+        ? db.select({ id: buildingsTable.id, name: buildingsTable.name }).from(buildingsTable).where(inArray(buildingsTable.id, buildingIds))
+        : [],
+      ownerIds.length && user.role !== "member"
+        ? db.select({ id: membersTable.id, name: membersTable.name }).from(membersTable).where(inArray(membersTable.id, ownerIds))
+        : [],
+    ]);
+    const lotNumber = new Map(lotRows.map((l) => [l.id, l.number]));
+    const buildingName = new Map(buildingRows.map((b) => [b.id, b.name]));
+    const ownerName = new Map(ownerRows.map((o) => [o.id, o.name]));
+    const data = rows.map((r) => ({
+      ...r,
+      lotNumber: lotNumber.get(r.lotId) ?? null,
+      buildingName: buildingName.get(r.buildingId) ?? null,
+      ownerName: r.ownerId ? (ownerName.get(r.ownerId) ?? null) : null,
+      remaining: fromCents(Math.max(0, toCents(r.amount) - toCents(r.amountPaid))),
+    }));
+
+    res.json({ data, total: data.length, stats });
   } catch (e: any) {
     if (e?.status) return void res.status(e.status).json({ error: e.message });
     req.log.error(e);
@@ -698,7 +965,9 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
   }
 });
 
-// PUT /appels-de-fonds/:id/pay — Submit payment (owner or admin only)
+// PUT /appels-de-fonds/:id/pay — Declare a payment (owner or admin).
+// Each declaration is kept in appel_payments; a call may be settled in
+// several partial payments. Nothing is credited until a treasurer validates.
 router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
@@ -727,21 +996,21 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 
     if (!appel) return void res.status(404).json({ error: "Not found" });
 
+    const [appelBuilding] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, appel.buildingId))
+      .limit(1);
+
     // Only Super Admin (supervised) and syndicate admins can submit for any
     // charge in scope. Members must match the owner identity.
     const isAdmin =
       user.role === "super_admin" || user.role === "syndicate_admin";
 
     if (isAdmin) {
-      // Verify this charge belongs to the admin's syndicate via building FK.
-      const [bld] = await db
-        .select({ syndicateId: buildingsTable.syndicateId })
-        .from(buildingsTable)
-        .where(eq(buildingsTable.id, appel.buildingId))
-        .limit(1);
       const expectedSyndicateId =
         user.role === "super_admin" ? supervisedSyndicateId : user.syndicateId;
-      if (!bld || bld.syndicateId !== expectedSyndicateId) {
+      if (!appelBuilding || appelBuilding.syndicateId !== expectedSyndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
     }
@@ -760,8 +1029,9 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
         .limit(1);
       const memberId = member?.id;
       const isOwner =
-        appel.ownerId === user.userId ||
-        (memberId && appel.ownerId === memberId);
+        appelBuilding?.syndicateId === user.syndicateId &&
+        (appel.ownerId === user.userId ||
+          (memberId && appel.ownerId === memberId));
       if (!isOwner) {
         return void res.status(403).json({
           error:
@@ -770,54 +1040,160 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
       }
     }
 
-    const { paymentMethod, proofUrl, notes } = req.body;
-    if (!paymentMethod) {
-      return void res
-        .status(400)
-        .json({ error: "Le mode de paiement est obligatoire" });
-    }
-
-    // Reject local device URIs — they are not accessible from the server
-    if (
-      proofUrl &&
-      (String(proofUrl).startsWith("file://") ||
-        String(proofUrl).startsWith("content://"))
-    ) {
+    const parsed = submitPaymentSchema.safeParse(req.body);
+    if (!parsed.success) {
       return void res.status(400).json({
-        error:
-          "Le justificatif doit être téléchargé sur le serveur avant la soumission. URI local non accepté.",
-        code: "LOCAL_URI_REJECTED",
+        error: parsed.error.issues[0]?.message ?? "Données de paiement invalides",
+        code: "INVALID_PAYMENT",
       });
     }
+    const { paymentMethod, proofUrl, notes, reference } = parsed.data;
+    const syndicateId = appelBuilding?.syndicateId;
+    if (!syndicateId) {
+      return void res
+        .status(409)
+        .json({ error: "Immeuble sans syndicat : paiement impossible" });
+    }
 
-    const [updated] = await db
-      .update(appelsDeFondsTable)
-      .set({
-        status: "pending_validation",
+    // The proof must be a file uploaded to our private storage by this user
+    // (or within the charge's syndicate) — never an arbitrary URL or another
+    // tenant's object path.
+    if (proofUrl) {
+      const [proof] = await db
+        .select({
+          ownerId: storageObjectsTable.ownerId,
+          syndicateId: storageObjectsTable.syndicateId,
+        })
+        .from(storageObjectsTable)
+        .where(eq(storageObjectsTable.objectPath, proofUrl))
+        .limit(1);
+      const proofAllowed =
+        !!proof &&
+        (proof.ownerId === user.userId ||
+          (!!proof.syndicateId && proof.syndicateId === syndicateId));
+      if (!proofAllowed) {
+        return void res.status(400).json({
+          error:
+            "Le justificatif doit être un fichier téléversé sur MIZAN par vous-même.",
+          code: "PROOF_NOT_OWNED",
+        });
+      }
+    }
+
+    // Status transition + payment row in one transaction. The status
+    // condition on the UPDATE makes concurrent declarations (double click,
+    // retry) fail instead of creating two pending payments; the partial
+    // unique index on appel_payments is the last line of defence.
+    let result: { appel: typeof appelsDeFondsTable.$inferSelect; payment: typeof appelPaymentsTable.$inferSelect };
+    try {
+      result = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(appelsDeFondsTable)
+          .set({
+            status: "pending_validation",
+            paymentMethod,
+            proofUrl: proofUrl ?? null,
+            notes: notes ?? null,
+            rejectionReason: null,
+          })
+          .where(
+            and(
+              eq(appelsDeFondsTable.id, appel.id),
+              inArray(appelsDeFondsTable.status, [...PAYABLE_STATUSES]),
+            ),
+          )
+          .returning();
+        if (!updated) {
+          throw new FinanceError(
+            409,
+            "APPEL_NOT_PAYABLE",
+            appel.status === "paid"
+              ? "Cet appel de fonds est déjà réglé."
+              : appel.status === "cancelled"
+                ? "Cet appel de fonds est annulé."
+                : "Un paiement est déjà en attente de validation pour cet appel.",
+          );
+        }
+        const remaining = toCents(updated.amount) - toCents(updated.amountPaid);
+        const amount = parsed.data.amount ?? fromCents(remaining);
+        if (toCents(amount) > remaining) {
+          throw new FinanceError(
+            400,
+            "AMOUNT_EXCEEDS_BALANCE",
+            `Le montant déclaré dépasse le reste à payer (${fromCents(remaining)} MAD).`,
+          );
+        }
+        const [payment] = await tx
+          .insert(appelPaymentsTable)
+          .values({
+            syndicateId,
+            appelId: appel.id,
+            amount,
+            method: paymentMethod,
+            reference: reference ?? null,
+            proofUrl: proofUrl ?? null,
+            notes: notes ?? null,
+            status: "pending",
+            declaredBy: user.userId,
+          })
+          .returning();
+        return { appel: updated, payment };
+      });
+    } catch (err) {
+      if (uniqueViolation(err) !== null) {
+        return void res.status(409).json({
+          error: "Un paiement est déjà en attente de validation pour cet appel.",
+          code: "APPEL_NOT_PAYABLE",
+        });
+      }
+      throw err;
+    }
+
+    await serverAuditLog(req, {
+      action: "PAYMENT_SUBMITTED",
+      entity: "appel_de_fonds",
+      entityId: appel.id,
+      syndicateId,
+      details: JSON.stringify({
+        paymentId: result.payment.id,
+        amount: result.payment.amount,
+        period: appel.period,
         paymentMethod,
-        proofUrl: proofUrl ?? null,
-        notes: notes ?? null,
-        rejectionReason: null,
-      })
-      .where(eq(appelsDeFondsTable.id, String(req.params.id)))
-      .returning();
+      }),
+    });
+
+    createAlert({
+      title: "Paiement à valider",
+      message: `Un paiement de ${result.payment.amount} MAD (appel ${appel.period}) a été déclaré et attend votre validation.`,
+      type: "info",
+      syndicateId,
+      target: "admin",
+    }).catch(() => {});
 
     res.json({
-      data: updated,
+      data: result.appel,
+      payment: result.payment,
       message: "Paiement soumis, en attente de validation",
     });
   } catch (e) {
-    if ((e as any)?.status) {
-      return void res
-        .status((e as any).status)
-        .json({ error: (e as any).message, code: (e as any).code });
-    }
-    req.log.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendFinanceError(res, req, e, "Server error");
   }
 });
 
-// PUT /appels-de-fonds/:id/validate — Admin approves or rejects a payment submission
+const validatePaymentSchema = z
+  .object({
+    approve: z.boolean(),
+    rejectionReason: z.string().trim().max(500).optional(),
+    // Treasury account credited; default: the syndicate's default bank
+    // account (cash box for espèces).
+    accountId: z.string().optional(),
+  })
+  .refine((d) => d.approve || !!d.rejectionReason, {
+    message: "Un motif de rejet est obligatoire",
+    path: ["rejectionReason"],
+  });
+
+// PUT /appels-de-fonds/:id/validate — Treasurer approves or rejects the payment under review
 router.put(
   "/appels-de-fonds/:id/validate",
   requireAuth,
@@ -825,7 +1201,14 @@ router.put(
   async (req, res) => {
     try {
       const user = req.user!;
-      const { approve, rejectionReason } = req.body;
+      const parsed = validatePaymentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return void res.status(400).json({
+          error: parsed.error.issues[0]?.message ?? "Données invalides",
+          code: "INVALID_VALIDATION",
+        });
+      }
+      const { approve, rejectionReason, accountId } = parsed.data;
 
       const [appel] = await db
         .select()
@@ -839,123 +1222,296 @@ router.put(
         .from(buildingsTable)
         .where(eq(buildingsTable.id, appel.buildingId));
 
-      if (
-        isSyndicateScoped(user.role) &&
-        building?.syndicateId !== user.syndicateId
-      ) {
+      if (!building?.syndicateId || building.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
+      const syndicateId = building.syndicateId;
 
+      // A decision on a call that is no longer under review is a state
+      // conflict (already processed by someone else, double click, retry).
       if (appel.status !== "pending_validation") {
-        return void res
-          .status(400)
-          .json({ error: "Cet appel n'est pas en attente de validation" });
-      }
-
-      if (!approve && !rejectionReason) {
-        return void res
-          .status(400)
-          .json({ error: "Un motif de rejet est obligatoire" });
-      }
-
-      // Enforce: admin cannot approve a charge without proof of payment
-      if (approve && !appel.proofUrl) {
-        return void res.status(400).json({
-          error:
-            "Validation refusée : une pièce justificative (proofUrl) est obligatoire avant d'approuver un paiement.",
-          code: "PROOF_REQUIRED",
+        return void res.status(409).json({
+          error: "Cet appel n'est pas en attente de validation",
+          code: "PAYMENT_ALREADY_PROCESSED",
         });
       }
 
       const now = new Date();
-      // Generate receipt number using crypto-safe method
-      const receiptNum = approve
-        ? `REC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getTime()).slice(-6)}`
-        : undefined;
+      const dateStr = today();
 
-      const [updated] = await db
-        .update(appelsDeFondsTable)
-        .set({
-          status: approve ? "paid" : "rejected",
-          paidDate: approve ? now.toISOString().split("T")[0] : undefined,
-          receiptNumber: receiptNum,
-          rejectionReason: approve
-            ? null
-            : (rejectionReason ?? "Paiement non conforme"),
-          validatedBy: user.userId,
-          validatedAt: now,
-        })
-        .where(eq(appelsDeFondsTable.id, String(req.params.id)))
-        .returning();
+      // One atomic unit: payment decision, call settlement, receipt number,
+      // journal entry and operation register either all commit or all roll
+      // back. The appel row is locked, so two treasurers validating at the
+      // same time are serialized and the second one gets a 409.
+      const outcome = await db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select()
+          .from(appelsDeFondsTable)
+          .where(eq(appelsDeFondsTable.id, appel.id))
+          .for("update");
+        if (!locked || locked.status !== "pending_validation") {
+          throw new FinanceError(409, "PAYMENT_ALREADY_PROCESSED", "Paiement déjà traité");
+        }
+        const [payment] = await tx
+          .select()
+          .from(appelPaymentsTable)
+          .where(
+            and(
+              eq(appelPaymentsTable.appelId, appel.id),
+              eq(appelPaymentsTable.status, "pending"),
+            ),
+          )
+          .for("update");
+        if (!payment) {
+          throw new FinanceError(409, "NO_PENDING_PAYMENT", "Aucun paiement en attente pour cet appel");
+        }
+
+        if (!approve) {
+          const [rejected] = await tx
+            .update(appelPaymentsTable)
+            .set({
+              status: "rejected",
+              reviewedBy: user.userId,
+              reviewedAt: now,
+              rejectionReason: rejectionReason!,
+            })
+            .where(eq(appelPaymentsTable.id, payment.id))
+            .returning();
+          const [row] = await tx
+            .update(appelsDeFondsTable)
+            .set({
+              // A call with earlier validated payments stays partially paid.
+              status: toCents(locked.amountPaid) > 0 ? "partially_paid" : "rejected",
+              rejectionReason: rejectionReason!,
+              validatedBy: user.userId,
+              validatedAt: now,
+            })
+            .where(eq(appelsDeFondsTable.id, appel.id))
+            .returning();
+          return { appel: row, payment: rejected, entry: null, receipt: undefined as string | undefined };
+        }
+
+        // Enforce: a payment cannot be approved without proof of payment.
+        if (!payment.proofUrl) {
+          throw new FinanceError(
+            400,
+            "PROOF_REQUIRED",
+            "Validation refusée : une pièce justificative est obligatoire avant d'approuver un paiement.",
+          );
+        }
+        const paidCents = toCents(locked.amountPaid) + toCents(payment.amount);
+        if (paidCents > toCents(locked.amount)) {
+          throw new FinanceError(409, "AMOUNT_EXCEEDS_BALANCE", "Le paiement dépasse le reste à payer de l'appel");
+        }
+        const account = await lockAccount(tx, syndicateId, {
+          accountId,
+          preferKind: payment.method === "especes" ? "cash" : "bank",
+        });
+        const receipt = await nextSequenceNumber(tx, syndicateId, "REC", 6);
+        const entry = await postEntry(tx, {
+          syndicateId,
+          account,
+          direction: "in",
+          amount: payment.amount,
+          entryDate: dateStr,
+          category: APPEL_LEDGER_CATEGORY[locked.type ?? "charges_courantes"] ?? "charges_copropriete",
+          label: `Appel de fonds ${locked.period} — Reçu ${receipt}`,
+          reference: receipt,
+          sourceType: "appel_payment",
+          sourceId: payment.id,
+          buildingId: locked.buildingId,
+          proofUrl: payment.proofUrl,
+          createdBy: user.userId,
+        });
+        // transactions.member_id references users.id, whereas appel.ownerId
+        // references members.id — resolve the owner's user account (same
+        // syndicate) instead of inserting a dangling foreign key.
+        const payerUserId = await resolveOwnerUserId(tx, locked.ownerId, syndicateId);
+        await recordOperation(tx, {
+          syndicateId,
+          type: "cotisation",
+          amount: payment.amount,
+          label: `Appel de fonds ${locked.period} — Reçu ${receipt}`,
+          date: dateStr,
+          memberId: payerUserId,
+          proofUrl: payment.proofUrl,
+          ledgerEntryId: entry.id,
+        });
+        const [validated] = await tx
+          .update(appelPaymentsTable)
+          .set({
+            status: "validated",
+            reviewedBy: user.userId,
+            reviewedAt: now,
+            accountId: account.id,
+            ledgerEntryId: entry.id,
+            receiptNumber: receipt,
+          })
+          .where(eq(appelPaymentsTable.id, payment.id))
+          .returning();
+        const fullyPaid = paidCents >= toCents(locked.amount);
+        const [row] = await tx
+          .update(appelsDeFondsTable)
+          .set({
+            amountPaid: fromCents(paidCents),
+            status: settlementStatus(toCents(locked.amount), paidCents, locked.dueDate),
+            paidDate: fullyPaid ? dateStr : locked.paidDate,
+            receiptNumber: receipt,
+            rejectionReason: null,
+            validatedBy: user.userId,
+            validatedAt: now,
+          })
+          .where(eq(appelsDeFondsTable.id, appel.id))
+          .returning();
+        return { appel: row, payment: validated, entry, receipt };
+      });
 
       await serverAuditLog(req, {
         action: approve ? "payment_approved" : "payment_rejected",
         entity: "appel_de_fonds",
         entityId: appel.id,
-        syndicateId: building?.syndicateId ?? undefined,
+        syndicateId,
         details: JSON.stringify({
-          amount: appel.amount,
+          paymentId: outcome.payment.id,
+          amount: outcome.payment.amount,
           period: appel.period,
-          paymentMethod: appel.paymentMethod,
-          receiptNumber: receiptNum,
+          paymentMethod: outcome.payment.method,
+          receiptNumber: outcome.receipt,
+          ledgerEntry: outcome.entry?.entryNumber,
           rejectionReason: approve ? null : rejectionReason,
         }),
       });
 
-      // On approval: create a transaction record for accounting + sync caisse
-      if (approve) {
-        const syndicateId = building?.syndicateId ?? null;
-        const dateStr = now.toISOString().split("T")[0];
-        const amountNum = Number(appel.amount ?? 0);
-
-        // Fire-and-forget: insert transaction for the member's payment record
-        db.insert(transactionsTable)
-          .values({
-            type: "cotisation",
-            amount: appel.amount,
-            label: `Cotisation ${appel.period} — Reçu ${receiptNum}`,
-            date: dateStr,
-            status: "paid",
-            memberId: appel.ownerId ?? null,
+      // The owner learns the outcome in their notification center (+ push).
+      const ownerUserId = await resolveOwnerUserId(db, appel.ownerId, syndicateId);
+      const remaining = fromCents(toCents(outcome.appel.amount) - toCents(outcome.appel.amountPaid));
+      void notifyUser(ownerUserId, approve
+        ? {
+            title: "Paiement validé",
+            message:
+              outcome.appel.status === "paid"
+                ? `Votre paiement de ${outcome.payment.amount} MAD (appel ${appel.period}) est validé. Reçu n° ${outcome.receipt}.`
+                : `Votre paiement de ${outcome.payment.amount} MAD (appel ${appel.period}) est validé. Reçu n° ${outcome.receipt}. Reste à payer : ${remaining} MAD.`,
+            type: "success",
             syndicateId,
-          } as any)
-          .catch(() => {});
-
-        // Sync caisse: add an "encaissement" entry so the running balance is updated
-        if (syndicateId) {
-          db.transaction(async (tx) => {
-            await tx.execute(
-              sql`SELECT pg_advisory_xact_lock(hashtext(${syndicateId}))`,
-            );
-            const [last] = await tx
-              .select({ balance: caisseEntriesTable.balance })
-              .from(caisseEntriesTable)
-              .where(eq(caisseEntriesTable.syndicateId, syndicateId))
-              .orderBy(desc(caisseEntriesTable.createdAt))
-              .limit(1);
-            const prevBalance = Number(last?.balance ?? 0);
-            await tx.insert(caisseEntriesTable).values({
-              label: `Appel de fonds ${appel.period} — ${receiptNum}`,
-              amount: String(amountNum),
-              type: "encaissement",
-              date: dateStr,
-              category: "charges_copropriete",
-              syndicateId,
-              balance: String(prevBalance + amountNum),
-            } as any);
-          }).catch(() => {});
-        }
-      }
+          }
+        : {
+            title: "Paiement refusé",
+            message: `Votre paiement pour l'appel ${appel.period} a été refusé : ${rejectionReason}. Vous pouvez le déclarer à nouveau.`,
+            type: "warning",
+            syndicateId,
+          });
 
       res.json({
-        data: updated,
+        data: outcome.appel,
+        payment: outcome.payment,
+        ledgerEntry: outcome.entry,
         message: approve
-          ? `Paiement validé. Reçu: ${receiptNum}`
+          ? `Paiement validé. Reçu: ${outcome.receipt}`
           : "Paiement rejeté. Le propriétaire sera informé.",
       });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendFinanceError(res, req, e, "Server error");
+    }
+  },
+);
+
+// GET /appels-de-fonds/:id/payments — payment history of a call (owner or finance team)
+router.get("/appels-de-fonds/:id/payments", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    const [appel] = await db
+      .select({ id: appelsDeFondsTable.id, ownerId: appelsDeFondsTable.ownerId, syndicateId: buildingsTable.syndicateId })
+      .from(appelsDeFondsTable)
+      .innerJoin(buildingsTable, eq(buildingsTable.id, appelsDeFondsTable.buildingId))
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)));
+    if (!appel || !user.syndicateId || appel.syndicateId !== user.syndicateId) {
+      return void res.status(404).json({ error: "Appel de fonds introuvable" });
+    }
+    const financeReader = ["syndicate_admin", "treasurer", "president", "committee_member"].includes(user.role);
+    if (!financeReader) {
+      const ownerUserId = await resolveOwnerUserId(db, appel.ownerId, appel.syndicateId);
+      if (user.role !== "member" || ownerUserId !== user.userId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+    const rows = await db
+      .select({
+        id: appelPaymentsTable.id,
+        amount: appelPaymentsTable.amount,
+        method: appelPaymentsTable.method,
+        reference: appelPaymentsTable.reference,
+        proofUrl: appelPaymentsTable.proofUrl,
+        notes: appelPaymentsTable.notes,
+        status: appelPaymentsTable.status,
+        rejectionReason: appelPaymentsTable.rejectionReason,
+        receiptNumber: appelPaymentsTable.receiptNumber,
+        reviewedAt: appelPaymentsTable.reviewedAt,
+        createdAt: appelPaymentsTable.createdAt,
+      })
+      .from(appelPaymentsTable)
+      .where(eq(appelPaymentsTable.appelId, appel.id))
+      .orderBy(desc(appelPaymentsTable.createdAt));
+    res.json({ data: rows });
+  } catch (e) {
+    sendFinanceError(res, req, e, "Server error");
+  }
+});
+
+// POST /appels-de-fonds/:id/cancel — cancel an unpaid call (kept for history)
+router.post(
+  "/appels-de-fonds/:id/cancel",
+  requireAuth,
+  requireFinanceAccess,
+  async (req, res) => {
+    try {
+      const parsed = z.object({ reason: z.string().trim().min(3).max(500) }).strict().safeParse(req.body);
+      if (!parsed.success) {
+        return void res.status(400).json({ error: "Un motif d'annulation est obligatoire", code: "REASON_REQUIRED" });
+      }
+      const user = req.user!;
+      const [appel] = await db
+        .select({ id: appelsDeFondsTable.id, status: appelsDeFondsTable.status, period: appelsDeFondsTable.period, syndicateId: buildingsTable.syndicateId })
+        .from(appelsDeFondsTable)
+        .innerJoin(buildingsTable, eq(buildingsTable.id, appelsDeFondsTable.buildingId))
+        .where(eq(appelsDeFondsTable.id, String(req.params.id)));
+      if (!appel || appel.syndicateId !== user.syndicateId) {
+        return void res.status(404).json({ error: "Appel de fonds introuvable" });
+      }
+      // Only a call with nothing paid and nothing under review can be cancelled;
+      // a paid amount must first be reversed in the journal.
+      const [row] = await db
+        .update(appelsDeFondsTable)
+        .set({
+          status: "cancelled",
+          cancelledAt: new Date(),
+          cancelledBy: user.userId,
+          cancellationReason: parsed.data.reason,
+        })
+        .where(
+          and(
+            eq(appelsDeFondsTable.id, appel.id),
+            inArray(appelsDeFondsTable.status, ["pending", "overdue", "rejected"]),
+            eq(appelsDeFondsTable.amountPaid, "0"),
+          ),
+        )
+        .returning();
+      if (!row) {
+        return void res.status(409).json({
+          error: "Seul un appel sans paiement validé ni en attente peut être annulé.",
+          code: "APPEL_NOT_CANCELLABLE",
+        });
+      }
+      await serverAuditLog(req, {
+        action: "APPEL_CANCELLED",
+        entity: "appel_de_fonds",
+        entityId: appel.id,
+        syndicateId: appel.syndicateId ?? undefined,
+        details: `${appel.period} — ${parsed.data.reason}`,
+      });
+      res.json({ data: row, message: "Appel de fonds annulé" });
+    } catch (e) {
+      sendFinanceError(res, req, e, "Server error");
     }
   },
 );
@@ -1036,7 +1592,38 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       if (!isOwner) return void res.status(403).json({ error: "Accès refusé" });
     }
 
-    if (appel.status !== "paid" || !appel.receiptNumber) {
+    // One receipt per validated payment (?paymentId=…, default: the latest).
+    // Calls settled before the payment history existed keep their own receipt.
+    const requestedPaymentId =
+      typeof req.query.paymentId === "string" ? req.query.paymentId : null;
+    const [payment] = await db
+      .select()
+      .from(appelPaymentsTable)
+      .where(
+        and(
+          eq(appelPaymentsTable.appelId, appel.id),
+          eq(appelPaymentsTable.status, "validated"),
+          ...(requestedPaymentId ? [eq(appelPaymentsTable.id, requestedPaymentId)] : []),
+        ),
+      )
+      .orderBy(desc(appelPaymentsTable.reviewedAt))
+      .limit(1);
+    const receipt = payment
+      ? {
+          number: payment.receiptNumber!,
+          date: (payment.reviewedAt ?? new Date()).toISOString().split("T")[0],
+          amount: payment.amount,
+          method: payment.method,
+        }
+      : !requestedPaymentId && appel.status === "paid" && appel.receiptNumber
+        ? {
+            number: appel.receiptNumber,
+            date: appel.paidDate ?? new Date().toISOString().split("T")[0],
+            amount: appel.amount,
+            method: appel.paymentMethod,
+          }
+        : null;
+    if (!receipt) {
       return void res.status(400).json({
         error: "Reçu disponible uniquement pour les paiements validés",
       });
@@ -1095,7 +1682,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
     const FONT = fonts.DejaVu ? "DejaVu" : "Helvetica";
     const printer = new PdfPrinter(fonts);
 
-    const amountFmt = Number(appel.amount ?? 0).toLocaleString("fr-MA", {
+    const amountFmt = Number(receipt.amount ?? 0).toLocaleString("fr-MA", {
       minimumFractionDigits: 2,
     });
     const payMethodLabels: Record<string, string> = {
@@ -1142,7 +1729,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                   style: { font: FONT, fontSize: 8, color: "#64748b" },
                 },
                 {
-                  text: appel.receiptNumber!,
+                  text: receipt.number,
                   style: {
                     font: FONT,
                     fontSize: 14,
@@ -1161,7 +1748,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                 },
                 {
                   text:
-                    appel.paidDate ?? new Date().toISOString().split("T")[0],
+                    receipt.date,
                   style: { font: FONT, fontSize: 12, bold: true },
                   alignment: "right",
                 },
@@ -1263,8 +1850,8 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                 },
                 {
                   text:
-                    payMethodLabels[String(appel.paymentMethod ?? "")] ??
-                    appel.paymentMethod ??
+                    payMethodLabels[String(receipt.method ?? "")] ??
+                    receipt.method ??
                     "—",
                   border: [false, false, false, true],
                   borderColor: ["", "", "", "#e2e8f0"],
@@ -1339,7 +1926,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="recu-${appel.receiptNumber}.pdf"`,
+        `attachment; filename="recu-${receipt.number}.pdf"`,
       );
       res.send(pdfBuffer);
     });
@@ -1382,7 +1969,8 @@ router.post(
       const overdueCharges = await db
         .select({
           ownerId: appelsDeFondsTable.ownerId,
-          amount: appelsDeFondsTable.amount,
+          // Outstanding part only: partial payments reduce the debt.
+          amount: sql<string>`${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}`,
           buildingId: appelsDeFondsTable.buildingId,
         })
         .from(appelsDeFondsTable)
@@ -1613,7 +2201,7 @@ router.put(
         .set({ status: "overdue" })
         .where(
           and(
-            eq(appelsDeFondsTable.status, "pending"),
+            inArray(appelsDeFondsTable.status, ["pending", "partially_paid"]),
             sql`${appelsDeFondsTable.dueDate} < ${today}`,
             inArray(appelsDeFondsTable.buildingId, buildingIds),
           ),

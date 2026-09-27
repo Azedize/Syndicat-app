@@ -11,5 +11,3 @@ export const pool = postgres(process.env.DATABASE_URL, { max: 10 });
 export * from "./schema";
 
 export const db = drizzle(pool, { schema });
-
-export * from "./schema";

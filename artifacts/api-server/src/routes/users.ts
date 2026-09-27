@@ -3,9 +3,9 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, syndicatesTable } from "@workspace/db/schema";
+import { usersTable, syndicatesTable, membersTable } from "@workspace/db/schema";
 import { eq, ilike, or, and, count, desc } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, BCRYPT_COST } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
@@ -210,28 +210,61 @@ router.post(
       // and made the invitation flow unsafe.
       const temporaryPassword =
         password ?? randomBytes(12).toString("base64url");
-      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-      const [created] = await db
-        .insert(usersTable)
-        .values({
-          name,
-          email: normalizedEmail,
-          phone: phone || null,
-          role,
-          status: "pending",
-          passwordHash,
-          syndicateId: createdSyndicateId,
-        } as any)
-        .returning({
-          id: usersTable.id,
-          name: usersTable.name,
-          email: usersTable.email,
-          phone: usersTable.phone,
-          role: usersTable.role,
-          status: usersTable.status,
-          syndicateId: usersTable.syndicateId,
-          createdAt: usersTable.createdAt,
-        });
+      const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_COST);
+
+      // A co-owner account must also exist as a member (the entity lots,
+      // charges and votes refer to); otherwise it can log in but can never
+      // be assigned a lot. Both rows are created atomically.
+      if (role === "member") {
+        const [otherMember] = await db
+          .select({ syndicateId: membersTable.syndicateId })
+          .from(membersTable)
+          .where(eq(membersTable.email, normalizedEmail))
+          .limit(1);
+        if (otherMember && otherMember.syndicateId !== createdSyndicateId) {
+          res.status(409).json({
+            error: "Cet email est déjà enregistré comme membre d'un autre syndicat",
+          });
+          return;
+        }
+      }
+      const created = await db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(usersTable)
+          .values({
+            name,
+            email: normalizedEmail,
+            phone: phone || null,
+            role,
+            status: "active",
+            passwordHash,
+            mustChangePassword: true,
+            syndicateId: createdSyndicateId,
+          } as any)
+          .returning({
+            id: usersTable.id,
+            name: usersTable.name,
+            email: usersTable.email,
+            phone: usersTable.phone,
+            role: usersTable.role,
+            status: usersTable.status,
+            syndicateId: usersTable.syndicateId,
+            createdAt: usersTable.createdAt,
+          });
+        if (role === "member" && createdSyndicateId) {
+          await tx
+            .insert(membersTable)
+            .values({
+              name,
+              email: normalizedEmail,
+              phone: phone || "",
+              syndicateId: createdSyndicateId,
+              status: "active",
+            })
+            .onConflictDoNothing();
+        }
+        return created;
+      });
 
       await serverAuditLog(req, {
         action: "CREATE",

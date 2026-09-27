@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
+  appelPaymentsTable,
   membersTable,
   syndicatesTable,
   cotisationsTable,
   transactionsTable,
-  caisseEntriesTable,
+  ledgerEntriesTable,
   unionActionsTable,
   supportTicketsTable,
   usersTable,
@@ -19,9 +20,11 @@ import {
   meetingsTable,
   appelsDeFondsTable,
 } from "@workspace/db/schema";
-import { eq, and, or, count, sum, gte, lt, desc, sql } from "drizzle-orm";
+import { eq, and, or, count, sum, gte, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere } from "../lib/syndicate-filter.js";
+
+import { syndicateFlows } from "../lib/treasury.js";
 
 const router = Router();
 
@@ -389,7 +392,6 @@ router.get(
   async (req, res) => {
     try {
       const syndicateId = await resolveScopedSyndicateId(req);
-      const caisseWhere = eq(caisseEntriesTable.syndicateId, syndicateId);
       const txWhere = eq(transactionsTable.syndicateId, syndicateId);
 
       const now = new Date();
@@ -402,15 +404,7 @@ router.get(
         totalRevenue,
         totalExpenses,
       ] = await Promise.all([
-        db
-          .select({
-            balance: caisseEntriesTable.balance,
-            amount: caisseEntriesTable.amount,
-          })
-          .from(caisseEntriesTable)
-          .where(caisseWhere)
-          .orderBy(desc(caisseEntriesTable.createdAt))
-          .limit(10),
+        syndicateFlows(syndicateId),
         db
           .select({
             value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
@@ -463,18 +457,8 @@ router.get(
           ),
       ]);
 
-      // Compute caisse balance: use the stored balance from the latest entry, or sum all amounts
-      let caisseBalance = 0;
-      if (latestCaisse.length > 0 && latestCaisse[0].balance != null) {
-        caisseBalance = Number(latestCaisse[0].balance ?? 0);
-      } else {
-        caisseBalance = latestCaisse.reduce((s, e) => {
-          if (e.amount != null) {
-            return s + Number(e.amount);
-          }
-          return s;
-        }, 0);
-      }
+      // Treasury balance = sum of the syndicate's journal (all accounts).
+      const caisseBalance = latestCaisse.balance;
 
       res.json({
         data: {
@@ -491,94 +475,98 @@ router.get(
   },
 );
 
-// ─── Finance/cotisations action items (admin dashboard summary) ──────────────
+// ─── Finance action items (admin / treasurer dashboard) ─────────────────────
+// Payments declared by co-owners and waiting for review, then overdue calls
+// for funds. Source of truth: appel_payments / appels_de_fonds (the legacy
+// cotisations module is no longer written to).
 router.get(
   "/statistics/finance/pending",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireRole("super_admin", "syndicate_admin", "treasurer"),
   async (req, res) => {
     try {
       const syndicateId = await resolveScopedSyndicateId(req);
-      const cotWhere = eq(cotisationsTable.syndicateId, syndicateId);
-      const today = new Date().toISOString().split("T")[0];
+      const [pendingPayments, overdueAppels] = await Promise.all([
+        db
+          .select({
+            paymentId: appelPaymentsTable.id,
+            appelId: appelPaymentsTable.appelId,
+            amount: appelPaymentsTable.amount,
+            proofUrl: appelPaymentsTable.proofUrl,
+            declaredBy: appelPaymentsTable.declaredBy,
+            createdAt: appelPaymentsTable.createdAt,
+            period: appelsDeFondsTable.period,
+            type: appelsDeFondsTable.type,
+            dueDate: appelsDeFondsTable.dueDate,
+            ownerId: appelsDeFondsTable.ownerId,
+          })
+          .from(appelPaymentsTable)
+          .innerJoin(appelsDeFondsTable, eq(appelsDeFondsTable.id, appelPaymentsTable.appelId))
+          .where(and(eq(appelPaymentsTable.syndicateId, syndicateId), eq(appelPaymentsTable.status, "pending")))
+          .orderBy(appelPaymentsTable.createdAt)
+          .limit(200),
+        db
+          .select({
+            id: appelsDeFondsTable.id,
+            period: appelsDeFondsTable.period,
+            type: appelsDeFondsTable.type,
+            dueDate: appelsDeFondsTable.dueDate,
+            ownerId: appelsDeFondsTable.ownerId,
+            outstanding: sql<string>`${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}`,
+          })
+          .from(appelsDeFondsTable)
+          .innerJoin(buildingsTable, eq(buildingsTable.id, appelsDeFondsTable.buildingId))
+          .where(and(eq(buildingsTable.syndicateId, syndicateId), eq(appelsDeFondsTable.status, "overdue")))
+          .orderBy(appelsDeFondsTable.dueDate)
+          .limit(200),
+      ]);
 
-      const overdueClause = and(
-        eq(cotisationsTable.status, "pending"),
-        lt(cotisationsTable.dueDate, today),
-      );
-      const validationClause = eq(
-        cotisationsTable.status,
-        "pending_validation",
-      );
-      const statusFilter = or(overdueClause, validationClause);
-
-      const [flaggedCotisations, overdueCountRow, validationCountRow] =
-        await Promise.all([
-          db
-            .select({
-              id: cotisationsTable.id,
-              memberId: cotisationsTable.memberId,
-              label: cotisationsTable.label,
-              period: cotisationsTable.period,
-              amount: cotisationsTable.amount,
-              dueDate: cotisationsTable.dueDate,
-              status: cotisationsTable.status,
-              syndicateId: cotisationsTable.syndicateId,
-            })
-            .from(cotisationsTable)
-            .where(and(cotWhere, statusFilter))
-            .orderBy(desc(cotisationsTable.createdAt))
-            .limit(200),
-          db
-            .select({ value: count() })
-            .from(cotisationsTable)
-            .where(and(cotWhere, overdueClause)),
-          db
-            .select({ value: count() })
-            .from(cotisationsTable)
-            .where(and(cotWhere, validationClause)),
-        ]);
-
-      const memberIds = [...new Set(flaggedCotisations.map((c) => c.memberId))];
-      const members = memberIds.length
+      const ownerIds = [
+        ...new Set([...pendingPayments, ...overdueAppels].map((r) => r.ownerId).filter((v): v is string => !!v)),
+      ];
+      const owners = ownerIds.length
         ? await db
-            .select({ id: usersTable.id, name: usersTable.name })
-            .from(usersTable)
-            .where(sql`${usersTable.id} IN ${memberIds}`)
+            .select({ id: membersTable.id, name: membersTable.name })
+            .from(membersTable)
+            .where(and(inArray(membersTable.id, ownerIds), eq(membersTable.syndicateId, syndicateId)))
         : [];
-      const memberNameById = new Map(members.map((m) => [m.id, m.name]));
+      const ownerName = new Map(owners.map((o) => [o.id, o.name]));
+      const label = (type: string | null, period: string) => `Appel de fonds ${period}${type && type !== "charges_courantes" ? ` (${type})` : ""}`;
 
-      const pendingProofsWhere = eq(paymentProofsTable.status, "pending");
-      const proofs = await db
-        .select({
-          id: paymentProofsTable.id,
-          cotisationId: paymentProofsTable.cotisationId,
-          proofUrl: paymentProofsTable.proofUrl,
-          uploadedById: paymentProofsTable.uploadedById,
-          createdAt: paymentProofsTable.createdAt,
-        })
-        .from(paymentProofsTable)
-        .where(pendingProofsWhere)
-        .orderBy(desc(paymentProofsTable.createdAt))
-        .limit(200);
-
-      const relevantCotisationIds = new Set(
-        flaggedCotisations.map((c) => c.id),
-      );
-      const scopedProofs = proofs.filter((p) =>
-        relevantCotisationIds.has(p.cotisationId),
-      );
-
-      const items = flaggedCotisations.map((c) => ({
-        ...c,
-        memberName: memberNameById.get(c.memberId) ?? c.memberId,
-        proof: scopedProofs.find((p) => p.cotisationId === c.id) ?? null,
-      }));
+      const items = [
+        ...pendingPayments.map((p) => ({
+          id: p.appelId,
+          memberId: p.ownerId ?? "",
+          memberName: (p.ownerId && ownerName.get(p.ownerId)) || "—",
+          label: label(p.type, p.period),
+          period: p.period,
+          amount: Number(p.amount),
+          dueDate: p.dueDate,
+          status: "pending_validation",
+          proof: {
+            id: p.paymentId,
+            proofUrl: p.proofUrl ?? "",
+            uploadedById: p.declaredBy,
+            createdAt: (p.createdAt ?? new Date()).toISOString(),
+          },
+        })),
+        ...overdueAppels.map((a) => ({
+          id: a.id,
+          memberId: a.ownerId ?? "",
+          memberName: (a.ownerId && ownerName.get(a.ownerId)) || "—",
+          label: label(a.type, a.period),
+          period: a.period,
+          amount: Number(a.outstanding),
+          dueDate: a.dueDate,
+          status: "overdue",
+          proof: null,
+        })),
+      ];
 
       res.json({
         data: {
-          overdueCount: Number(overdueCountRow[0].value),
-          pendingValidationCount: Number(validationCountRow[0].value),
+          overdueCount: overdueAppels.length,
+          pendingValidationCount: pendingPayments.length,
           items,
         },
       });
@@ -628,13 +616,14 @@ router.get(
           .from(supportTicketsTable),
         db
           .select({
-            syndicateId: caisseEntriesTable.syndicateId,
-            balance: caisseEntriesTable.balance,
-            amount: caisseEntriesTable.amount,
-            createdAt: caisseEntriesTable.createdAt,
+            syndicateId: ledgerEntriesTable.syndicateId,
+            // Treasury balance from the journal (sum of all accounts).
+            balance: sql<string>`SUM(CASE WHEN ${ledgerEntriesTable.direction} = 'in' THEN ${ledgerEntriesTable.amount} ELSE -${ledgerEntriesTable.amount} END)`,
+            amount: sql<string>`0`,
+            createdAt: sql<Date>`MAX(${ledgerEntriesTable.createdAt})`,
           })
-          .from(caisseEntriesTable)
-          .orderBy(desc(caisseEntriesTable.createdAt)),
+          .from(ledgerEntriesTable)
+          .groupBy(ledgerEntriesTable.syndicateId),
         db
           .select({
             syndicateId: electionsTable.syndicateId,
@@ -821,10 +810,10 @@ router.get(
         .select({
           syndicateId: buildingsTable.syndicateId,
           totalCharges: count(),
-          unpaidCharges: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue'))`,
+          unpaidCharges: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue','partially_paid','pending_validation','rejected'))`,
           paidCharges: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid')`,
-          totalAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)), 0)`,
-          paidAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
+          totalAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)) FILTER (WHERE ${appelsDeFondsTable.status} <> 'cancelled'), 0)`,
+          paidAmount: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amountPaid}), 0)`,
         })
         .from(appelsDeFondsTable)
         .innerJoin(
@@ -833,16 +822,17 @@ router.get(
         )
         .groupBy(buildingsTable.syndicateId);
 
-      // Financial balance from caisse_entries (latest balance per syndicate)
+      // Financial balance from the journal (per syndicate)
       const latestCaisse = await db
         .select({
-          syndicateId: caisseEntriesTable.syndicateId,
-          balance: caisseEntriesTable.balance,
-          amount: caisseEntriesTable.amount,
-          createdAt: caisseEntriesTable.createdAt,
+          syndicateId: ledgerEntriesTable.syndicateId,
+          // Treasury balance from the journal (sum of all accounts).
+          balance: sql<string>`SUM(CASE WHEN ${ledgerEntriesTable.direction} = 'in' THEN ${ledgerEntriesTable.amount} ELSE -${ledgerEntriesTable.amount} END)`,
+          amount: sql<string>`0`,
+          createdAt: sql<Date>`MAX(${ledgerEntriesTable.createdAt})`,
         })
-        .from(caisseEntriesTable)
-        .orderBy(desc(caisseEntriesTable.createdAt));
+        .from(ledgerEntriesTable)
+        .groupBy(ledgerEntriesTable.syndicateId);
 
       // Build lookup maps
       const byCounts = (
@@ -906,7 +896,7 @@ router.get(
         }
       }
 
-      // Latest caisse balance per syndicate
+      // Treasury balance per syndicate (journal)
       const caisseBalanceMap = new Map<string, number>();
       for (const entry of latestCaisse) {
         if (entry.syndicateId && !caisseBalanceMap.has(entry.syndicateId)) {

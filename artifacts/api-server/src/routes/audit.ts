@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, SYNDICATE_TEAM_ROLES } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
 
@@ -20,7 +20,10 @@ const auditSchema = z.object({
   platformAction: z.boolean().optional(),
 });
 
-router.post("/audit", requireAuth, async (req, res) => {
+// Client-reported events: restricted to the management team and marked as
+// such, so residents cannot write arbitrary entries into their syndicate's
+// audit trail and server-side events stay distinguishable.
+router.post("/audit", requireAuth, requireRole("super_admin", ...SYNDICATE_TEAM_ROLES), async (req, res) => {
   const result = auditSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: "Données invalides" });
@@ -39,7 +42,7 @@ router.post("/audit", requireAuth, async (req, res) => {
       action: result.data.action,
       entity: result.data.entity,
       entityId: result.data.entityId,
-      details: result.data.details,
+      details: `[client] ${result.data.details ?? ""}`.trim(),
       syndicateId: isSuperAdmin ? result.data.syndicateId : undefined,
       platformAction: isSuperAdmin ? result.data.platformAction : undefined,
     });

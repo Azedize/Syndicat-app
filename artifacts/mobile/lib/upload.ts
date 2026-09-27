@@ -1,5 +1,7 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { File } from "expo-file-system";
+import { Platform } from "react-native";
 import { getApiBaseUrl, getToken } from "@/services/api";
 
 /** Max attachment size: 50 MB */
@@ -15,12 +17,12 @@ export interface UploadResult {
 export type UploadProgressCallback = (progress: number) => void;
 
 /**
- * Upload a file URI directly to the API server (POST /storage/uploads, multipart).
+ * Upload a local file URI directly to the API server (POST /storage/uploads, multipart).
  *
  * The server saves the file to local or configured cloud storage and returns the same objectPath format
  * ("/objects/uploads/<uuid>") so the rest of the pipeline is unchanged.
  */
-async function uploadUri(
+export async function uploadFileUri(
   uri: string,
   fileName: string,
   contentType: string,
@@ -29,22 +31,34 @@ async function uploadUri(
   const token = await getToken();
   onProgress?.(0.05);
 
-  // Fetch the local file/blob URI into memory
-  const fileRes = await fetch(uri);
-  if (!fileRes.ok) throw new Error(`Cannot read file (${fileRes.status})`);
-  const blob = await fileRes.blob();
-  const size = blob.size ?? 0;
-
-  if (size > MAX_ATTACHMENT_SIZE) {
-    throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
+  const form = new FormData();
+  let size = 0;
+  if (Platform.OS === "web") {
+    // Browser: the picker returns a blob:/data: URL that fetch can read.
+    const fileRes = await fetch(uri);
+    if (!fileRes.ok) throw new Error(`Cannot read file (${fileRes.status})`);
+    const blob = await fileRes.blob();
+    size = blob.size ?? 0;
+    if (size > MAX_ATTACHMENT_SIZE) {
+      throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
+    }
+    form.append("file", blob, fileName);
+  } else {
+    // Android / iOS: React Native's FormData streams the file from its URI
+    // ({ uri, name, type }). A Blob part is not serialized reliably there,
+    // which made every native upload fail.
+    try {
+      size = new File(uri).size ?? 0;
+    } catch {
+      size = 0; // size unknown (e.g. content:// URI) — the server enforces its own limit
+    }
+    if (size > MAX_ATTACHMENT_SIZE) {
+      throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
+    }
+    form.append("file", { uri, name: fileName, type: contentType } as unknown as Blob);
   }
 
   onProgress?.(0.3);
-
-  // Build multipart form and POST directly to the API server.
-  // The server writes the file to workspace storage (dev) or GCS (prod).
-  const form = new FormData();
-  form.append("file", blob, fileName);
 
   const uploadRes = await fetch(`${getApiBaseUrl()}/storage/uploads`, {
     method: "POST",
@@ -64,6 +78,8 @@ async function uploadUri(
 
   return { objectPath, fileName, contentType, size };
 }
+
+const uploadUri = uploadFileUri;
 
 /** Prompts the user to pick a PDF document and uploads it. Returns UploadResult, or undefined on cancel. */
 export async function pickAndUploadPdf(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
@@ -110,7 +126,7 @@ function imageExtFromAsset(asset: { uri: string; mimeType?: string | null }): "j
 /** Prompts the user to pick a photo from the gallery and uploads it. */
 export async function pickAndUploadPhoto(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ["images"],
     quality: 0.7,
   });
   if (result.canceled || !result.assets?.[0]) return undefined;
@@ -125,7 +141,7 @@ export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback)
   const { status } = await ImagePicker.requestCameraPermissionsAsync();
   if (status !== "granted") return undefined;
   const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ["images"],
     quality: 0.8,
   });
   if (result.canceled || !result.assets?.[0]) return undefined;

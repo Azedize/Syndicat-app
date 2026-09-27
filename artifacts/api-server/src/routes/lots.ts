@@ -216,6 +216,7 @@ router.get("/lots", requireAuth, async (req, res) => {
           lotId: appelsDeFondsTable.lotId,
           status: appelsDeFondsTable.status,
           amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
         })
         .from(appelsDeFondsTable)
         .where(inArray(appelsDeFondsTable.lotId, lotIds)),
@@ -235,13 +236,15 @@ router.get("/lots", requireAuth, async (req, res) => {
         overdue: 0,
         pendingAmount: 0,
       };
-      if (c.status === "pending") {
+      // Outstanding = amount not yet covered by validated payments.
+      const outstanding = Number(c.amount ?? 0) - Number(c.amountPaid ?? 0);
+      if (["pending", "partially_paid", "pending_validation", "rejected"].includes(c.status ?? "")) {
         agg.pending++;
-        agg.pendingAmount += Number(c.amount ?? 0);
+        agg.pendingAmount += outstanding;
       }
       if (c.status === "overdue") {
         agg.overdue++;
-        agg.pendingAmount += Number(c.amount ?? 0);
+        agg.pendingAmount += outstanding;
       }
       chargesByLot.set(c.lotId, agg);
     }

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { uploadFileUri } from "@/lib/upload";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -351,7 +352,7 @@ export default function MyShopScreen() {
   const pickSponsorProof = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: false, quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: false, quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     setSponsorProofLocalUri(uri);
@@ -435,24 +436,12 @@ export default function MyShopScreen() {
 
   // ─── Image picker ──────────────────────────────────────────────────────
 
-  const uploadImageUri = async (uri: string, authToken?: string): Promise<string | null> => {
-    const baseUrl = getApiBaseUrl();
+  const uploadImageUri = async (uri: string, _authToken?: string): Promise<string | null> => {
     try {
-      const fileRes = await fetch(uri);
-      if (!fileRes.ok) return null;
-      const blob = await fileRes.blob();
       const ext = uri.split("?")[0].split(".").pop()?.toLowerCase();
       const ct = ext === "png" ? "image/png" : "image/jpeg";
-      const form = new FormData();
-      form.append("file", blob, `product-${Date.now()}.${ext === "png" ? "png" : "jpg"}`);
-      const res = await fetch(`${baseUrl}/storage/uploads`, {
-        method: "POST",
-        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        body: form,
-      });
-      if (!res.ok) return null;
-      const { objectPath } = await res.json();
-      return objectPath as string;
+      const { objectPath } = await uploadFileUri(uri, `product-${Date.now()}.${ext === "png" ? "png" : "jpg"}`, ct);
+      return objectPath;
     } catch { return null; }
   };
 
@@ -460,7 +449,7 @@ export default function MyShopScreen() {
     if (imageLocalUris.length >= 5) { Alert.alert(t("warning"), shopText("maximumPhotos", lang)); return; }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.75 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, quality: 0.75 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     setImageLocalUris((prev) => [...prev, uri]);

@@ -430,12 +430,14 @@ function FichesPaieScreenInner() {
       );
       load(true);
       showToast({ type: "success", message: STRINGS.updatedMessage[lang] });
-    } catch {
+    } catch (e: any) {
+      // e.g. no default bank account, salary already paid
       showToast({
         type: "error",
         title: STRINGS.loadingError[lang],
-        message: STRINGS.genericError[lang],
+        message: e?.message || STRINGS.genericError[lang],
       });
+      load(true);
     } finally {
       setPayingIds((current) => {
         const next = new Set(current);

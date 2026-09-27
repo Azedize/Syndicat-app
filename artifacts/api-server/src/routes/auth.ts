@@ -14,6 +14,10 @@ import {
   requireAuth,
   signToken,
   signRefreshToken,
+  hashToken,
+  signFileTicket,
+  FILE_TICKET_TTL_SECONDS,
+  BCRYPT_COST,
   type JwtPayload,
 } from "../middleware/auth.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
@@ -44,6 +48,39 @@ async function sendPasswordResetEmail(
 }
 
 const router = Router();
+
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// A refresh token presented again within this window after its rotation is
+// treated as a benign client race (two parallel refreshes), not as theft.
+const REFRESH_REUSE_GRACE_MS = 10_000;
+
+// Compared against when the email is unknown so that login takes the same time
+// whether or not the account exists (prevents account enumeration by timing).
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("mizan-timing-equalizer", BCRYPT_COST);
+
+type SessionUser = typeof usersTable.$inferSelect;
+
+function accessTokenFor(user: SessionUser): string {
+  return signToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role as JwtPayload["role"],
+    syndicateId: user.syndicateId ?? undefined,
+    name: user.name,
+    mcp: user.mustChangePassword || undefined,
+  });
+}
+
+/** Issues a refresh token; only its SHA-256 digest is stored. */
+async function issueRefreshToken(userId: string): Promise<string> {
+  const token = signRefreshToken();
+  await db.insert(refreshTokensTable).values({
+    userId,
+    token: hashToken(token),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+  });
+  return token;
+}
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
@@ -98,7 +135,7 @@ router.post("/auth/register", async (req, res) => {
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
     const [newUser] = await db
       .insert(usersTable)
@@ -112,20 +149,8 @@ router.post("/auth/register", async (req, res) => {
       } as any)
       .returning();
 
-    const accessToken = signToken({
-      userId: newUser.id,
-      email: newUser.email,
-      role: "syndicate_admin",
-      name: newUser.name,
-    });
-
-    const refreshTokenValue = signRefreshToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await db.insert(refreshTokensTable).values({
-      userId: newUser.id,
-      token: refreshTokenValue,
-      expiresAt,
-    });
+    const accessToken = accessTokenFor(newUser);
+    const refreshTokenValue = await issueRefreshToken(newUser.id);
 
     const { passwordHash: _, ...safeUser } = newUser;
     req.log.info(
@@ -171,12 +196,13 @@ router.post("/auth/login", async (req, res) => {
       .select()
       .from(usersTable)
       .where(eq(usersTable.email, email));
-    if (!user) {
-      res.status(401).json({ error: "Email ou mot de passe incorrect" });
-      return;
-    }
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
+    // Always run one bcrypt comparison so response time does not reveal
+    // whether the email is registered.
+    const valid = await bcrypt.compare(
+      password,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    );
+    if (!user || !valid) {
       res.status(401).json({ error: "Email ou mot de passe incorrect" });
       return;
     }
@@ -185,22 +211,8 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const accessToken = signToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role as JwtPayload["role"],
-      syndicateId: user.syndicateId ?? undefined,
-      name: user.name,
-    });
-
-    // Issue a refresh token valid for 30 days
-    const refreshTokenValue = signRefreshToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await db.insert(refreshTokensTable).values({
-      userId: user.id,
-      token: refreshTokenValue,
-      expiresAt,
-    });
+    const accessToken = accessTokenFor(user);
+    const refreshTokenValue = await issueRefreshToken(user.id);
 
     const { passwordHash: _, ...safeUser } = user;
     res.json({
@@ -232,12 +244,35 @@ router.post("/auth/refresh", async (req, res) => {
       .from(refreshTokensTable)
       .where(
         and(
-          eq(refreshTokensTable.token, result.data.refreshToken),
+          eq(refreshTokensTable.token, hashToken(result.data.refreshToken)),
           gt(refreshTokensTable.expiresAt, now),
         ),
       );
 
-    if (!tokenRow || tokenRow.revokedAt !== null) {
+    if (!tokenRow) {
+      res.status(401).json({ error: "Token invalide ou expiré" });
+      return;
+    }
+
+    if (tokenRow.revokedAt !== null) {
+      // A rotated token presented again outside the race window means it was
+      // copied: revoke every session of this user (refresh-token reuse
+      // detection, OAuth 2.0 Security Best Current Practice).
+      if (now.getTime() - tokenRow.revokedAt.getTime() > REFRESH_REUSE_GRACE_MS) {
+        await db
+          .update(refreshTokensTable)
+          .set({ revokedAt: now })
+          .where(
+            and(
+              eq(refreshTokensTable.userId, tokenRow.userId),
+              isNull(refreshTokensTable.revokedAt),
+            ),
+          );
+        req.log.warn(
+          { userId: tokenRow.userId },
+          "Refresh token reuse detected — all sessions revoked",
+        );
+      }
       res.status(401).json({ error: "Token invalide ou expiré" });
       return;
     }
@@ -251,31 +286,36 @@ router.post("/auth/refresh", async (req, res) => {
       return;
     }
 
-    // Rotate: revoke old token, issue new pair
+    // Rotate atomically: only the request that actually revokes the old token
+    // may issue a new pair (a concurrent refresh loses and gets 401).
     const newRefreshToken = signRefreshToken();
-    const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-    await db.transaction(async (tx) => {
-      await tx
+    const rotated = await db.transaction(async (tx) => {
+      const [revoked] = await tx
         .update(refreshTokensTable)
         .set({ revokedAt: now })
-        .where(eq(refreshTokensTable.id, tokenRow.id));
+        .where(
+          and(
+            eq(refreshTokensTable.id, tokenRow.id),
+            isNull(refreshTokensTable.revokedAt),
+          ),
+        )
+        .returning({ id: refreshTokensTable.id });
+      if (!revoked) return false;
       await tx.insert(refreshTokensTable).values({
         userId: user.id,
-        token: newRefreshToken,
-        expiresAt: newExpiresAt,
+        token: hashToken(newRefreshToken),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       });
+      return true;
     });
+    if (!rotated) {
+      res.status(401).json({ error: "Token invalide ou expiré" });
+      return;
+    }
 
-    const accessToken = signToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role as JwtPayload["role"],
-      syndicateId: user.syndicateId ?? undefined,
-      name: user.name,
+    res.json({
+      data: { token: accessTokenFor(user), refreshToken: newRefreshToken },
     });
-
-    res.json({ data: { token: accessToken, refreshToken: newRefreshToken } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -293,7 +333,7 @@ router.post("/auth/logout", async (req, res) => {
       await db
         .update(refreshTokensTable)
         .set({ revokedAt: new Date() })
-        .where(eq(refreshTokensTable.token, token));
+        .where(eq(refreshTokensTable.token, hashToken(token)));
     } catch {
       // Best-effort
     }
@@ -321,6 +361,20 @@ router.get("/auth/me", requireAuth, async (req, res) => {
   }
 });
 
+// ─── Download ticket ─────────────────────────────────────────────────────────
+// PDFs and private images opened by URL (Linking.openURL, <Image>, WebView)
+// cannot send an Authorization header. Instead of putting the session token in
+// the URL, the client exchanges it for a 5-minute, GET-only ticket.
+
+router.post("/auth/file-ticket", requireAuth, (req, res) => {
+  res.json({
+    data: {
+      ticket: signFileTicket(req.user!),
+      expiresIn: FILE_TICKET_TTL_SECONDS,
+    },
+  });
+});
+
 // ─── Change password ─────────────────────────────────────────────────────────
 
 router.post("/auth/change-password", requireAuth, async (req, res) => {
@@ -344,13 +398,19 @@ router.post("/auth/change-password", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Mot de passe actuel incorrect" });
       return;
     }
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      res.status(400).json({
+        error: "Le nouveau mot de passe doit être différent de l'actuel",
+      });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
     const now = new Date();
     await db.transaction(async (tx) => {
       // Update the password
       await tx
         .update(usersTable)
-        .set({ passwordHash, updatedAt: now })
+        .set({ passwordHash, mustChangePassword: false, updatedAt: now })
         .where(eq(usersTable.id, user.id));
       // Revoke all existing refresh tokens — forces re-login on all devices after password change
       await tx
@@ -424,7 +484,7 @@ router.post("/auth/forgot-password", async (req, res) => {
     });
     return;
   }
-  const { email } = result.data;
+  const email = result.data.email.trim().toLowerCase();
 
   try {
     const [user] = await db
@@ -452,7 +512,7 @@ router.post("/auth/forgot-password", async (req, res) => {
 
       await db.insert(passwordResetTokensTable).values({
         userId: user.id,
-        token,
+        token: hashToken(token), // the raw token only travels in the email
         expiresAt,
       });
 
@@ -501,7 +561,7 @@ router.post("/auth/reset-password", async (req, res) => {
       .from(passwordResetTokensTable)
       .where(
         and(
-          eq(passwordResetTokensTable.token, token),
+          eq(passwordResetTokensTable.token, hashToken(token)),
           isNull(passwordResetTokensTable.usedAt),
           gt(passwordResetTokensTable.expiresAt, now),
         ),
@@ -528,13 +588,13 @@ router.post("/auth/reset-password", async (req, res) => {
       return;
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
 
     await db.transaction(async (tx) => {
-      // Update the user's password
+      // Update the user's password (a reset also clears temporary credentials)
       await tx
         .update(usersTable)
-        .set({ passwordHash, updatedAt: new Date() })
+        .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
         .where(eq(usersTable.id, user.id));
 
       // Mark the token as used (one-time use)

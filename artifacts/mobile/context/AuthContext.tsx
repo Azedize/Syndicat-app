@@ -50,6 +50,8 @@ export interface AuthUser {
   status: "active" | "inactive";
   phone?: string;
   profession?: string;
+  /** Invitation accounts must replace their temporary password first. */
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
@@ -88,6 +90,7 @@ function mapApiUser(u: Record<string, unknown>): AuthUser {
     status: (u.status as "active" | "inactive") ?? "active",
     phone: (u.phone as string) ?? undefined,
     profession: (u.profession as string) ?? undefined,
+    mustChangePassword: u.mustChangePassword === true,
   };
 }
 

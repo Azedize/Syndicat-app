@@ -22,6 +22,7 @@ import {
   useBreakpoints,
 } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useMyCharges } from "@/hooks/useMyCharges";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { LinearGradient } from "expo-linear-gradient";
 import { audit as auditApi } from "@/services/api";
@@ -389,6 +390,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const myCharges = useMyCharges(user?.role === "member");
   const {
     dataLoading,
     dataLoadError,
@@ -1246,17 +1248,26 @@ export default function DashboardScreen() {
               </>
             ) : (
               (() => {
-                const myCot = cotisations.length > 0 ? cotisations[0] : null;
-                const cotLabel =
-                  myCot?.status === "paid"
-                    ? t("paid")
-                    : myCot?.status === "overdue"
-                      ? t("overdue")
-                      : t("pendingLabel");
+                // Real calls for funds of this co-owner (not the legacy
+                // "cotisations" table, which new co-owners never have).
+                const charges = myCharges.data;
+                const cotLabel = myCharges.isLoading
+                  ? "…"
+                  : myCharges.isError
+                    ? t("unavailable")
+                    : charges?.status === "paid"
+                      ? t("paid")
+                      : charges?.status === "overdue"
+                        ? t("overdue")
+                        : charges?.status === "under_review"
+                          ? t("inValidation")
+                          : charges?.status === "none"
+                            ? t("noChargesFound")
+                            : t("pendingLabel");
                 const cotColor =
-                  myCot?.status === "paid"
+                  charges?.status === "paid" || charges?.status === "none"
                     ? colors.success
-                    : myCot?.status === "overdue"
+                    : charges?.status === "overdue"
                       ? colors.destructive
                       : colors.warning;
                 const myMember = members.find((m) => m.email === user.email);
@@ -1281,12 +1292,14 @@ export default function DashboardScreen() {
                         icon="check-circle"
                         iconColor={memberColor}
                       />
-                      <StatCard
-                        label={t("cotisationLabel")}
-                        value={cotLabel}
-                        icon="credit-card"
-                        iconColor={cotColor}
-                      />
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push("/charges" as any)} activeOpacity={0.8}>
+                        <StatCard
+                          label={t("myChargesLabel")}
+                          value={cotLabel}
+                          icon="credit-card"
+                          iconColor={cotColor}
+                        />
+                      </TouchableOpacity>
                     </View>
                     <View style={styles.statsRow}>
                       <StatCard
@@ -1297,17 +1310,9 @@ export default function DashboardScreen() {
                       />
                       <StatCard
                         label={t("amountDue")}
-                        value={
-                          myCot?.status !== "paid"
-                            ? formatMad(Number(myCot?.amount ?? 0))
-                            : "0 MAD"
-                        }
+                        value={myCharges.isLoading ? "…" : formatMad(charges?.due ?? 0)}
                         icon="dollar-sign"
-                        iconColor={
-                          myCot?.status !== "paid"
-                            ? colors.destructive
-                            : colors.success
-                        }
+                        iconColor={(charges?.due ?? 0) > 0 ? colors.destructive : colors.success}
                       />
                     </View>
                   </>

@@ -3,6 +3,7 @@ import { contratsPrestatairesTable, prestatairesTable } from "@workspace/db/sche
 import { eq, and } from "drizzle-orm";
 import { createAlert } from "./notify.js";
 import { logger } from "./logger.js";
+import { scheduleJob } from "./scheduler.js";
 
 const THRESHOLDS = [60, 30, 7];
 
@@ -68,8 +69,7 @@ export async function checkExpiringContracts(): Promise<void> {
 
 /** Starts the periodic expiry check (on boot + every 6 hours). */
 export function startContractExpiryScheduler(): void {
-  checkExpiringContracts().catch(() => {});
-  setInterval(() => {
-    checkExpiringContracts().catch(() => {});
-  }, 6 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("contract-expiry", 6 * 60 * 60 * 1000, checkExpiringContracts);
 }

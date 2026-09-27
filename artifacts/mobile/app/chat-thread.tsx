@@ -28,7 +28,8 @@ import {
   type UploadResult,
   MAX_ATTACHMENT_SIZE,
 } from "@/lib/upload";
-import { getApiBaseUrl } from "@/services/api";
+import { getApiBaseUrl, withFileTicket } from "@/services/api";
+import { useFileTicket } from "@/hooks/useFileTicket";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
@@ -129,13 +130,14 @@ function getAttachmentBaseUrl(): string {
 
 function resolveAttachmentUrl(
   raw: string | null | undefined,
-  token: string | null,
+  ticket: string | null,
 ): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
-  // objectPath starts with /objects/ → serve via /storage/objects/
-  if (raw.startsWith("/objects/") && token)
-    return `${getAttachmentBaseUrl()}/storage${raw}?token=${encodeURIComponent(token)}`;
+  // objectPath starts with /objects/ → serve via /storage/objects/ with a
+  // short-lived download ticket (never the session token)
+  if (raw.startsWith("/objects/") && ticket)
+    return withFileTicket(`${getAttachmentBaseUrl()}/storage${raw}`, ticket);
   if (raw.startsWith("/objects/")) return null;
   return `${getAttachmentBaseUrl()}/storage/public-objects/${raw}`;
 }
@@ -150,6 +152,7 @@ export default function ChatThreadScreen() {
   const colors = useColors();
   const { t } = useLanguage();
   const { token } = useAuth();
+  const fileTicket = useFileTicket(!!token);
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [text, setText] = useState("");
@@ -769,7 +772,7 @@ export default function ChatThreadScreen() {
             msg.attachmentType?.startsWith("image/");
           const isDoc =
             msg.messageType === "document" || (!isImage && !!msg.attachmentUrl);
-          const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl, token);
+          const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl, fileTicket);
 
           return (
             <View style={[styles.msgRow, msg.isMe && styles.msgRowMe]}>

@@ -489,11 +489,8 @@ interface DataContextType {
   resolveLegalAlert: (id: string) => Promise<boolean>;
   addSupportTicket: (t: SupportTicket) => void;
   resolveTicket: (id: string) => void;
-  payOrder: (id: string) => void;
-  payCotisation: (id: string) => void;
   markAlertRead: (id: string) => void;
   refreshAlerts: () => Promise<void>;
-  voteForCandidate: (candidateId: string, electionId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => void;
   markConversationRead: (conversationId: string) => void;
   deleteConversation: (conversationId: string) => void;
@@ -1213,6 +1210,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setDataRefreshKey((current) => current + 1);
   };
 
+  // Optimistic writes: when the API rejects a change (validation, permission,
+  // expired subscription…), show the server's reason and re-sync from the
+  // server instead of silently keeping a change that was never saved.
+  const onWriteFailed = (err: unknown) => {
+    const message =
+      (err as { message?: string } | null)?.message ||
+      "L'enregistrement a échoué. Les données ont été rechargées.";
+    notificationBus.emit({ type: "error", message });
+    refreshData();
+  };
+
   const refreshLegalAlerts = async (): Promise<boolean> => {
     setLegalAlertsLoading(true);
     setLegalAlertsLoadError(false);
@@ -1260,7 +1268,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : s,
       ),
     );
-    api.content.updateSubscription(id, planId).catch(() => {});
+    api.content.updateSubscription(id, planId).catch(onWriteFailed);
   };
 
   const refreshNotificationPreferences = async (): Promise<boolean> => {
@@ -1359,7 +1367,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       payDate: undefined,
     };
     setPayslips((p) => [newPs, ...p]);
-    api.content.generatePayslip(employeeId, month).catch(() => {});
+    api.content.generatePayslip(employeeId, month).catch(onWriteFailed);
   };
 
   const confirmMeetingAttendance = (id: string) => {
@@ -1376,7 +1384,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         id,
         user?.role === "super_admin" ? meeting?.syndicateId : undefined,
       )
-      .catch(() => {});
+      .catch(onWriteFailed);
   };
 
   const addMeeting = (m: Meeting) => {
@@ -1429,22 +1437,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Adds a member that the caller has ALREADY persisted (POST /members) to the
+  // local list. Posting again here created a duplicate request per addition.
   const addMember = (m: Member) => {
     setMembers((p) => [m, ...p]);
-    api.members.create(m).catch(() => {
-      notificationBus.emit({
-        type: "warning",
-        message: `Membre ajouté localement — sera synchronisé au prochain démarrage`,
-      });
-    });
-    notificationBus.emit({
-      type: "success",
-      message: `Demande d'adhésion enregistrée : ${m.name}`,
-    });
   };
   const updateMemberStatus = (id: string, status: Member["status"]) => {
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, status } : m)));
-    api.members.updateStatus(id, status).catch(() => {});
+    api.members.updateStatus(id, status).catch(onWriteFailed);
     const action = status === "active" ? "approve_member" : "reject_member";
     api.content
       .auditLog({
@@ -1468,11 +1468,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addProduct = (p: Product) => {
     setProducts((prev) => [p, ...prev]);
-    api.marketplace.addProduct(p).catch(() => {});
+    api.marketplace.addProduct(p).catch(onWriteFailed);
   };
   const updateProduct = (p: Product) => {
     setProducts((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)));
-    api.marketplace.updateProduct(p.id, p).catch(() => {});
+    api.marketplace.updateProduct(p.id, p).catch(onWriteFailed);
   };
   const updateDocument = (
     id: string,
@@ -1522,13 +1522,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((pr) => pr.id !== id));
-    api.marketplace.deleteProduct(id).catch(() => {});
+    api.marketplace.deleteProduct(id).catch(onWriteFailed);
   };
   const validateProduct = (id: string) => {
     setProducts((p) =>
       p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)),
     );
-    api.marketplace.updateProduct(id, { status: "approved" }).catch(() => {});
+    api.marketplace.updateProduct(id, { status: "approved" }).catch(onWriteFailed);
     notificationBus.emit({
       type: "success",
       message: "Produit validé et publié sur le marketplace",
@@ -1536,15 +1536,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addSyndicate = (s: Syndicate) => {
     setSyndicates((p) => [s, ...p]);
-    api.syndicates.create(s).catch(() => {});
+    api.syndicates.create(s).catch(onWriteFailed);
   };
   const updateSyndicateStatus = (id: string, status: Syndicate["status"]) => {
     setSyndicates((p) => p.map((s) => (s.id === id ? { ...s, status } : s)));
-    api.syndicates.update(id, { status }).catch(() => {});
+    api.syndicates.update(id, { status }).catch(onWriteFailed);
   };
   const addSupportTicket = (t: SupportTicket) => {
     setSupportTickets((p) => [t, ...p]);
-    api.content.createTicket(t).catch(() => {});
+    api.content.createTicket(t).catch(onWriteFailed);
     notificationBus.emit({
       type: "info",
       message: `Ticket support soumis : "${t.title}"`,
@@ -1569,99 +1569,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSupportTickets((p) =>
       p.map((t) => (t.id === id ? { ...t, status: "resolved" } : t)),
     );
-    api.content.resolveTicket(id).catch(() => {});
+    api.content.resolveTicket(id).catch(onWriteFailed);
     notificationBus.emit({
       type: "success",
       message: "Ticket support marqué comme résolu",
     });
   };
-  const payOrder = (id: string) => {
-    const receipt = `CMD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === id ? { ...o, status: "delivered" as const } : o,
-      ),
-    );
-    api.content
-      .auditLog({
-        action: "pay_order",
-        entity: "commande",
-        entityId: id,
-        details: `Reçu: ${receipt}`,
-      })
-      .catch(() => {});
-    notificationBus.emit({
-      type: "success",
-      message: `Commande payée — reçu ${receipt} généré`,
-    });
-  };
-  const payCotisation = (id: string) => {
-    const receipt = `REC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    setCotisations((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              status: "paid" as const,
-              paidDate: new Date().toISOString().slice(0, 10),
-              receipt,
-            }
-          : c,
-      ),
-    );
-    api.content.payCotisation(id).catch(() => {
-      notificationBus.emit({
-        type: "warning",
-        message: "Paiement enregistré — synchronisation en attente",
-      });
-    });
-    api.content
-      .auditLog({
-        action: "pay_cotisation",
-        entity: "cotisation",
-        entityId: id,
-        details: `Reçu: ${receipt}`,
-      })
-      .catch(() => {});
-    notificationBus.emit({
-      type: "success",
-      message: `Cotisation payée — reçu ${receipt} généré`,
-    });
-  };
   const markAlertRead = (id: string) => {
     setAlerts((p) => p.map((a) => (a.id === id ? { ...a, read: true } : a)));
     api.content.markAlertRead(id).catch(() => {});
-  };
-  const voteForCandidate = async (
-    candidateId: string,
-    electionId: string,
-  ): Promise<void> => {
-    try {
-      await api.elections.vote(electionId, candidateId);
-      setCandidates((p) =>
-        p.map((c) =>
-          c.id === candidateId ? { ...c, votes: c.votes + 1, voted: true } : c,
-        ),
-      );
-      notificationBus.emit({
-        type: "success",
-        message: "Vote enregistré avec succès — merci pour votre participation",
-      });
-      api.content
-        .auditLog({
-          action: "vote",
-          entity: "élection",
-          entityId: electionId,
-          details: `Candidat ${candidateId}`,
-        })
-        .catch(() => {});
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.error ??
-        "Erreur lors du vote — veuillez réessayer";
-      notificationBus.emit({ type: "error", message: msg });
-      throw err;
-    }
   };
   const refreshConversations = async () => {
     try {
@@ -1681,7 +1597,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteConversation = (conversationId: string) => {
     setConversations((p) => p.filter((c) => c.id !== conversationId));
-    api.chat.delete(conversationId).catch(() => {});
+    api.chat.delete(conversationId).catch(onWriteFailed);
   };
 
   const sendMessage = (conversationId: string, text: string) => {
@@ -1707,11 +1623,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : c,
       ),
     );
-    api.chat.sendMessage(conversationId, text).catch(() => {});
+    api.chat.sendMessage(conversationId, text).catch(onWriteFailed);
   };
   const addTransaction = (t: Transaction) => {
     setTransactions((p) => [t, ...p]);
-    api.finance.addTransaction(t).catch(() => {});
+    api.finance.addTransaction(t).catch(onWriteFailed);
   };
   const updateTransactionStatus = async (
     id: string,
@@ -1745,11 +1661,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setPublications((p) =>
       p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)),
     );
-    api.publications.like(id).catch(() => {});
+    api.publications.like(id).catch(onWriteFailed);
   };
   const addPublication = (pub: Publication) => {
     setPublications((p) => [pub, ...p]);
-    api.publications.create(pub).catch(() => {});
+    api.publications.create(pub).catch(onWriteFailed);
   };
   const createElection = (e: Election) => {
     setElections((p) => [e, ...p]);
@@ -1797,7 +1713,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addReview = (r: Review) => {
     setReviews((p) => [r, ...p]);
-    api.marketplace.addReview(r).catch(() => {});
+    api.marketplace.addReview(r).catch(onWriteFailed);
   };
   // ─── Invoice helpers ──────────────────────────────────────────────────────
   function mapDbInvoice(r: unknown): Invoice {
@@ -1859,7 +1775,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addBonLivraison = (bl: BonLivraison) => {
     setBonsLivraison((p) => [bl, ...p]);
-    api.finance.addBon(bl).catch(() => {});
+    api.finance.addBon(bl).catch(onWriteFailed);
   };
   const updateBonLivraisonStatus = (
     id: string,
@@ -1868,7 +1784,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setBonsLivraison((p) =>
       p.map((bl) => (bl.id === id ? { ...bl, status } : bl)),
     );
-    api.finance.updateBon(id, { status }).catch(() => {});
+    api.finance.updateBon(id, { status }).catch(onWriteFailed);
   };
 
   return (
@@ -1927,12 +1843,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         resolveLegalAlert,
         addSupportTicket,
         resolveTicket,
-        payOrder,
-        payCotisation,
         markAlertRead,
         markAllAlertsRead,
         refreshAlerts,
-        voteForCandidate,
         sendMessage,
         addTransaction,
         updateTransactionStatus,

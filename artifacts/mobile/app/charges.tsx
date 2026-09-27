@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +30,8 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
 import { ErrorState } from "@/components/DataState";
-import { getApiBaseUrl } from "@/services/api";
+import { ticketedUrl } from "@/services/api";
+import { uploadFileUri } from "@/lib/upload";
 
 // Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
 export default function ChargesScreen() {
@@ -47,7 +50,8 @@ const STATUS_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   paid: "check-circle",
   overdue: "alert-circle",
   rejected: "x-circle",
-  partial: "minus-circle",
+  partially_paid: "pie-chart",
+  cancelled: "slash",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -56,7 +60,8 @@ const STATUS_COLORS: Record<string, string> = {
   paid: "#10b981",
   overdue: "#ef4444",
   rejected: "#ef4444",
-  partial: "#f97316",
+  partially_paid: "#f97316",
+  cancelled: "#6b7280",
 };
 
 const TYPE_KEYS: Record<string, string> = {
@@ -79,6 +84,11 @@ type Appel = {
   period: string;
   type: string;
   amount: number;
+  amountPaid: number;
+  remaining: number;
+  lotNumber?: string | null;
+  buildingName?: string | null;
+  ownerName?: string | null;
   dueDate?: string;
   status: string;
   paidDate?: string;
@@ -138,17 +148,24 @@ function ChargesScreenInner() {
   const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [appels, setAppels] = useState<Appel[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState("all");
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const [filter, setFilter] = useState(typeof params.filter === "string" ? params.filter : "all");
   const [payModal, setPayModal] = useState<Appel | null>(null);
   const [payMethod, setPayMethod] = useState("virement");
   const [payNote, setPayNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [payProofUri, setPayProofUri] = useState("");
+  const [payProof, setPayProof] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  // Totals come from the API (validated payments, partial ones included) —
+  // never recomputed from the currently loaded page.
+  const [stats, setStats] = useState({ total: 0, collected: 0, pending: 0, overdue: 0 });
   const [rejectModal, setRejectModal] = useState<Appel | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -171,7 +188,8 @@ function ChargesScreenInner() {
       label: t("payMethodEspeces"),
       icon: PAYMENT_ICONS.especes,
     },
-    { key: "online", label: t("payMethodOnline"), icon: PAYMENT_ICONS.online },
+    // No "online" entry: there is no card/CMI gateway yet, and the API only
+    // accepts verifiable methods (transfer, cheque, cash) with a proof.
   ];
 
   const FILTERS = [
@@ -179,6 +197,7 @@ function ChargesScreenInner() {
     { key: "pending", label: t("atPay") },
     { key: "pending_validation", label: t("inValidation") },
     { key: "overdue", label: t("latePayment") },
+    { key: "partially_paid", label: t("statusPartiallyPaid") },
     { key: "paid", label: t("paid") },
     { key: "rejected", label: t("statusRejected") },
   ];
@@ -190,7 +209,8 @@ function ChargesScreenInner() {
       paid: t("paid"),
       overdue: t("latePayment"),
       rejected: t("statusRejected"),
-      partial: t("statusPartial"),
+      partially_paid: t("statusPartiallyPaid"),
+      cancelled: t("statusCancelled"),
     };
     return map[status] ?? status;
   };
@@ -227,8 +247,18 @@ function ChargesScreenInner() {
           (data.data ?? []).map((a: any) => ({
             ...a,
             amount: Number(a.amount) || 0,
+            amountPaid: Number(a.amountPaid) || 0,
+            remaining: Number(a.remaining ?? a.amount) || 0,
           })),
         );
+        if (data.stats) {
+          setStats({
+            total: Number(data.stats.total) || 0,
+            collected: Number(data.stats.collected) || 0,
+            pending: Number(data.stats.pending) || 0,
+            overdue: Number(data.stats.overdue) || 0,
+          });
+        }
       } catch {
         setLoadError(true);
       } finally {
@@ -247,65 +277,76 @@ function ChargesScreenInner() {
     load(true);
   };
 
-  const uploadProofImage = async (uri: string): Promise<string | undefined> => {
-    const baseUrl = getApiBaseUrl();
+  const choosePayProof = () => {
+    Alert.alert(t("proofSourceTitle"), undefined, [
+      { text: t("proofFromCamera"), onPress: () => pickProofImage("camera") },
+      { text: t("proofFromGallery"), onPress: () => pickProofImage("library") },
+      { text: t("proofFromPdf"), onPress: pickProofPdf },
+      { text: t("cancel"), style: "cancel" },
+    ]);
+  };
+
+  const pickProofImage = async (source: "camera" | "library") => {
     try {
-      const fileRes = await fetch(uri);
-      if (!fileRes.ok) return undefined;
-      const blob = await fileRes.blob();
-      const tail = uri.split("?")[0].split(".").pop()?.toLowerCase();
-      const ext = tail === "png" ? "png" : "jpg";
-      const ct = ext === "png" ? "image/png" : "image/jpeg";
-      const form = new FormData();
-      form.append("file", blob, `proof-${Date.now()}.${ext}`);
-      const uploadRes = await fetch(`${baseUrl}/storage/uploads`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: form,
+      const perm =
+        source === "camera"
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t("error"), t("permissionDeniedMessage"));
+        return;
+      }
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (!asset) return;
+      const isPng = asset.mimeType === "image/png" || asset.uri.toLowerCase().endsWith(".png");
+      setPayProof({
+        uri: asset.uri,
+        name: `justificatif-${Date.now()}.${isPng ? "png" : "jpg"}`,
+        type: isPng ? "image/png" : "image/jpeg",
       });
-      if (!uploadRes.ok) return undefined;
-      const { objectPath } = await uploadRes.json();
-      return objectPath as string;
+      Haptics.selectionAsync();
     } catch {
-      return undefined;
+      Alert.alert(t("error"), t("uploadProofFailed"));
     }
   };
 
-  const pickProofImage = async () => {
+  const pickProofPdf = async () => {
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        const cam = await ImagePicker.requestCameraPermissionsAsync();
-        if (!cam.granted) return;
-        const result = await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          quality: 0.7,
-        });
-        if (!result.canceled && result.assets[0]) {
-          setPayProofUri(result.assets[0].uri);
-          Haptics.selectionAsync();
-        }
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-      });
-      if (!result.canceled && result.assets[0]) {
-        setPayProofUri(result.assets[0].uri);
-        Haptics.selectionAsync();
-      }
+      const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
+      const asset = result.canceled ? undefined : result.assets?.[0];
+      if (!asset) return;
+      setPayProof({ uri: asset.uri, name: asset.name ?? `justificatif-${Date.now()}.pdf`, type: "application/pdf" });
+      Haptics.selectionAsync();
     } catch {
-      /* silently ignore */
+      Alert.alert(t("error"), t("uploadProofFailed"));
     }
+  };
+
+  const openProof = async (appel: Appel) => {
+    if (!appel.proofUrl) return;
+    try {
+      const { Linking } = await import("react-native");
+      await Linking.openURL(await ticketedUrl(`/storage${appel.proofUrl}`));
+    } catch {
+      showToast({ type: "error", title: t("error"), message: t("errorGeneric") });
+    }
+  };
+
+  const openPayModal = (appel: Appel) => {
+    setPayModal(appel);
+    setPayAmount(String(appel.remaining));
+    setPayProof(null);
+    setPayNote("");
   };
 
   const downloadReceipt = async (appel: Appel) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const baseUrl = getApiBaseUrl();
-      const receiptUrl = `${baseUrl}/appels-de-fonds/${appel.id}/receipt?token=${token}`;
+      const receiptUrl = await ticketedUrl(`/appels-de-fonds/${appel.id}/receipt`);
       const { Linking } = await import("react-native");
       await Linking.openURL(receiptUrl);
     } catch {
@@ -318,46 +359,57 @@ function ChargesScreenInner() {
   };
 
   const handlePay = async () => {
-    if (!payModal) return;
+    if (!payModal || submitting) return;
+    const amount = Number(payAmount.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0 || amount > payModal.remaining || !/^\d+([.,]\d{1,2})?$/.test(payAmount.trim())) {
+      Alert.alert(t("error"), t("invalidPaymentAmount"));
+      return;
+    }
+    if (!payProof) {
+      Alert.alert(t("error"), t("proofRequiredHint"));
+      return;
+    }
     try {
       setSubmitting(true);
-      let proofUrl: string | undefined;
-      if (payProofUri) {
-        setUploadingProof(true);
-        proofUrl = await uploadProofImage(payProofUri);
+      setUploadingProof(true);
+      let proofUrl: string;
+      try {
+        proofUrl = (await uploadFileUri(payProof.uri, payProof.name, payProof.type)).objectPath;
+      } catch (e: any) {
+        showToast({ type: "error", title: t("error"), message: e?.message || t("uploadProofFailed") });
+        return;
+      } finally {
         setUploadingProof(false);
-        if (!proofUrl) {
-          showToast({
-            type: "error",
-            title: t("error"),
-            message: t("uploadProofFailed"),
-          });
-          setSubmitting(false);
-          return;
-        }
       }
       await apiRequest(
         `/appels-de-fonds/${payModal.id}/pay`,
         "PUT",
         {
           paymentMethod: payMethod,
-          notes: payNote || undefined,
-          proofUrl: proofUrl || undefined,
+          amount: amount.toFixed(2),
+          reference: payNote.trim() || undefined,
+          proofUrl,
         },
         token,
       );
       setPayModal(null);
       setPayNote("");
-      setPayProofUri("");
+      setPayProof(null);
+      showToast({ type: "success", title: t("success"), message: t("paymentSubmittedMessage") });
+      queryClient.invalidateQueries({ queryKey: ["my-charges"] });
       load(true);
-    } catch {
-      Alert.alert(t("error"), t("paymentSubmissionFailed"));
+    } catch (e: any) {
+      // Show the server's reason (already under review, amount too high…).
+      Alert.alert(t("error"), e?.message || t("paymentSubmissionFailed"));
+      load(true);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleApprove = async (id: string) => {
+    if (approvingId) return;
+    setApprovingId(id);
     try {
       await apiRequest(
         `/appels-de-fonds/${id}/validate`,
@@ -365,9 +417,13 @@ function ChargesScreenInner() {
         { approve: true },
         token,
       );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      // e.g. no treasury account configured, payment already processed
+      Alert.alert(t("error"), e?.message || t("paymentValidationFailed"));
+    } finally {
+      setApprovingId(null);
       load(true);
-    } catch {
-      Alert.alert(t("error"), t("paymentValidationFailed"));
     }
   };
 
@@ -376,6 +432,7 @@ function ChargesScreenInner() {
       Alert.alert(t("error"), t("rejectionReasonRequired"));
       return;
     }
+    if (submitting) return;
     try {
       setSubmitting(true);
       await apiRequest(
@@ -383,30 +440,22 @@ function ChargesScreenInner() {
         "PUT",
         {
           approve: false,
-          rejectionReason: rejectReason,
+          rejectionReason: rejectReason.trim(),
         },
         token,
       );
       setRejectModal(null);
       setRejectReason("");
       load(true);
-    } catch {
-      Alert.alert(t("error"), t("paymentRejectionFailed"));
+    } catch (e: any) {
+      Alert.alert(t("error"), e?.message || t("paymentRejectionFailed"));
+      load(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const total = appels.reduce((s, a) => s + a.amount, 0);
-  const collected = appels
-    .filter((a) => a.status === "paid")
-    .reduce((s, a) => s + a.amount, 0);
-  const pending = appels
-    .filter((a) => a.status === "pending")
-    .reduce((s, a) => s + a.amount, 0);
-  const overdue = appels
-    .filter((a) => a.status === "overdue")
-    .reduce((s, a) => s + a.amount, 0);
+  const { total, collected, pending, overdue } = stats;
   const rate = total > 0 ? Math.round((collected / total) * 100) : 0;
 
   const filtered =
@@ -646,7 +695,8 @@ function ChargesScreenInner() {
                           { color: colors.mutedForeground },
                         ]}
                       >
-                        {t("lotLabel")} {appel.lotId.slice(-6)}{" "}
+                        {t("lotLabel")} {appel.lotNumber ?? "—"}
+                        {isAdmin && appel.ownerName ? ` • ${appel.ownerName}` : ""}{" "}
                         {appel.dueDate
                           ? `• ${t("dueDate")}: ${formatDate(appel.dueDate, lang)}`
                           : ""}
@@ -661,6 +711,11 @@ function ChargesScreenInner() {
                       >
                         {formatMAD(appel.amount, lang)}
                       </Text>
+                      {appel.amountPaid > 0 && appel.remaining > 0 ? (
+                        <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: "#f97316" }}>
+                          {t("remainingToPay")}: {formatMAD(appel.remaining, lang)}
+                        </Text>
+                      ) : null}
                       <View
                         style={[
                           styles.statusBadge,
@@ -674,7 +729,7 @@ function ChargesScreenInner() {
                     </View>
                   </View>
 
-                  {appel.status === "paid" && appel.receiptNumber ? (
+                  {(appel.status === "paid" || appel.amountPaid > 0) && appel.receiptNumber ? (
                     <TouchableOpacity
                       style={[
                         styles.receiptRow,
@@ -697,7 +752,7 @@ function ChargesScreenInner() {
                     </TouchableOpacity>
                   ) : null}
 
-                  {appel.status === "rejected" && appel.rejectionReason ? (
+                  {(appel.status === "rejected" || appel.status === "partially_paid") && appel.rejectionReason ? (
                     <View
                       style={[
                         styles.rejectRow,
@@ -731,17 +786,21 @@ function ChargesScreenInner() {
                       <Text style={[styles.receiptText, { color: "#3b82f6" }]}>
                         {t("inProgressPayment")} —{" "}
                         {getPaymentMethodLabel(appel.paymentMethod)}
-                        {appel.proofUrl
-                          ? ` • ${t("attachProofHint").split(",")[0]}`
-                          : ""}
                       </Text>
+                      {isAdmin && appel.proofUrl ? (
+                        <TouchableOpacity onPress={() => openProof(appel)} style={{ marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Feather name="eye" size={12} color="#3b82f6" />
+                          <Text style={[styles.receiptText, { color: "#3b82f6" }]}>{t("viewProof")}</Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
                   ) : null}
 
                   {/* Member actions */}
                   {(appel.status === "pending" ||
                     appel.status === "overdue" ||
-                    appel.status === "rejected") &&
+                    appel.status === "rejected" ||
+                    appel.status === "partially_paid") &&
                   !isAdmin ? (
                     <TouchableOpacity
                       style={[
@@ -753,7 +812,7 @@ function ChargesScreenInner() {
                       ]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setPayModal(appel);
+                        openPayModal(appel);
                       }}
                     >
                       <Feather name="credit-card" size={14} color="#fff" />
@@ -776,11 +835,16 @@ function ChargesScreenInner() {
                       <TouchableOpacity
                         style={[
                           styles.actionBtn,
-                          { backgroundColor: "#10b98115" },
+                          { backgroundColor: "#10b98115", opacity: approvingId ? 0.6 : 1 },
                         ]}
+                        disabled={!!approvingId}
                         onPress={() => handleApprove(appel.id)}
                       >
-                        <Feather name="check" size={14} color="#10b981" />
+                        {approvingId === appel.id ? (
+                          <ActivityIndicator size="small" color="#10b981" />
+                        ) : (
+                          <Feather name="check" size={14} color="#10b981" />
+                        )}
                         <Text
                           style={[styles.actionBtnText, { color: "#10b981" }]}
                         >
@@ -928,7 +992,7 @@ function ChargesScreenInner() {
                   {t("paymentAmountLabel")}
                 </Text>
                 <Text style={[styles.payAmtVal, { color: "#10b981" }]}>
-                  {formatMAD(payModal.amount, lang)}
+                  {formatMAD(payModal.remaining, lang)}
                 </Text>
                 <Text
                   style={[
@@ -940,6 +1004,24 @@ function ChargesScreenInner() {
                 </Text>
               </View>
             ) : null}
+
+            <Text
+              style={[styles.fieldLabel, { color: colors.mutedForeground }]}
+            >
+              {t("declaredAmountLabel")}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
+              ]}
+              keyboardType="decimal-pad"
+              value={payAmount}
+              onChangeText={setPayAmount}
+            />
+            <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: -8 }}>
+              {t("declaredAmountHint")}
+            </Text>
 
             <Text
               style={[styles.fieldLabel, { color: colors.mutedForeground }]}
@@ -1004,19 +1086,28 @@ function ChargesScreenInner() {
             <Text
               style={[styles.fieldLabel, { color: colors.mutedForeground }]}
             >
-              {t("paymentProofLabel")}
+              {t("paymentProofLabel")} *
             </Text>
-            {payProofUri ? (
+            {payProof ? (
               <View style={{ gap: 8 }}>
-                <Image
-                  source={{ uri: payProofUri }}
-                  style={{
-                    width: "100%",
-                    height: 160,
-                    borderRadius: 12,
-                    resizeMode: "cover",
-                  }}
-                />
+                {payProof.type === "application/pdf" ? (
+                  <View style={[styles.methodBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+                    <Feather name="file-text" size={18} color="#3b82f6" />
+                    <Text style={[styles.methodText, { color: colors.foreground }]} numberOfLines={1}>
+                      {payProof.name}
+                    </Text>
+                  </View>
+                ) : (
+                  <Image
+                    source={{ uri: payProof.uri }}
+                    style={{
+                      width: "100%",
+                      height: 160,
+                      borderRadius: 12,
+                      resizeMode: "cover",
+                    }}
+                  />
+                )}
                 {uploadingProof && (
                   <View
                     style={{
@@ -1047,7 +1138,7 @@ function ChargesScreenInner() {
                       paddingVertical: 10,
                     },
                   ]}
-                  onPress={() => setPayProofUri("")}
+                  onPress={() => setPayProof(null)}
                 >
                   <Text
                     style={{
@@ -1071,7 +1162,7 @@ function ChargesScreenInner() {
                     borderStyle: "dashed",
                   },
                 ]}
-                onPress={pickProofImage}
+                onPress={choosePayProof}
                 activeOpacity={0.8}
               >
                 <View
@@ -1103,7 +1194,7 @@ function ChargesScreenInner() {
                       color: colors.mutedForeground,
                     }}
                   >
-                    {t("attachProofHint")}
+                    {t("proofRequiredHint")}
                   </Text>
                 </View>
                 <Feather
@@ -1119,11 +1210,11 @@ function ChargesScreenInner() {
                 styles.submitBtn,
                 {
                   backgroundColor: "#10b981",
-                  opacity: submitting || uploadingProof ? 0.7 : 1,
+                  opacity: submitting || uploadingProof || !payProof ? 0.6 : 1,
                 },
               ]}
               onPress={handlePay}
-              disabled={submitting || uploadingProof}
+              disabled={submitting || uploadingProof || !payProof}
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" size="small" />

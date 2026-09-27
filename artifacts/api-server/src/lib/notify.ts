@@ -1,10 +1,28 @@
 import { db } from "@workspace/db";
 import { alertsTable, usersTable } from "@workspace/db/schema";
-import { and, isNotNull, inArray, eq } from "drizzle-orm";
+import { and, isNotNull, inArray, eq, isNull, or, type SQL } from "drizzle-orm";
 import { logger } from "./logger.js";
 import { sendTransactionalEmail } from "./email/emailService.js";
+import { SYNDICATE_TEAM_ROLES, type UserRole } from "../middleware/auth.js";
 
-const ADMIN_ROLES = ["super_admin", "syndicate_admin"];
+/** Audience "admin" = the syndicate management team (+ platform owner). */
+const ADMIN_ROLES: string[] = ["super_admin", ...SYNDICATE_TEAM_ROLES];
+
+/**
+ * Which alert rows a user may see in the notification center:
+ * their personal notifications, plus broadcasts addressed to their role.
+ * (Syndicate scoping is applied separately by the caller.)
+ */
+export function alertAudienceWhere(userId: string, role: UserRole): SQL | undefined {
+  if (role === "super_admin") return undefined;
+  const targets = ["all"];
+  if (ADMIN_ROLES.includes(role)) targets.push("admin");
+  if (role === "member") targets.push("member");
+  return or(
+    eq(alertsTable.recipientUserId, userId),
+    and(isNull(alertsTable.recipientUserId), inArray(alertsTable.target, targets)),
+  );
+}
 
 /**
  * Sends a transactional email via the centralized EmailService (real Gmail SMTP
@@ -96,6 +114,34 @@ async function sendExpoPush(payload: AlertPayload): Promise<void> {
       data: { alertType: payload.type, syndicateId: payload.syndicateId ?? null },
     })),
   );
+}
+
+/**
+ * Personal notification for one user: an in-app alert only that user can see
+ * (notification center) plus a push notification when a token is registered.
+ * Never throws — a notification failure must not break the business action.
+ */
+export async function notifyUser(
+  userId: string | null | undefined,
+  payload: Omit<AlertPayload, "target">,
+): Promise<void> {
+  if (!userId) return;
+  try {
+    await db.insert(alertsTable).values({
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+      date: new Date().toISOString().split("T")[0],
+      syndicateId: payload.syndicateId ?? null,
+      target: "all",
+      recipientUserId: userId,
+    });
+    await sendPushToUsers([userId], payload.title, payload.message, {
+      alertType: payload.type,
+    });
+  } catch (err: any) {
+    logger.warn({ err: err?.message, userId }, "Personal notification failed");
+  }
 }
 
 /**

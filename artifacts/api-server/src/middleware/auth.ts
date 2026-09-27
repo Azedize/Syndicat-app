@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { createHash, randomUUID } from "node:crypto";
+
+// Tokens are only ever signed and verified with HS256 — pinning the algorithm
+// prevents algorithm-confusion attacks if the secret format ever changes.
+const JWT_ALGORITHM = "HS256" as const;
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -44,7 +49,76 @@ export interface JwtPayload {
   role: UserRole;
   syndicateId?: string;
   name: string;
+  /** "must change password": temporary credentials, restricted session. */
+  mcp?: boolean;
 }
+
+/** Endpoints a restricted (must-change-password) session may still call. */
+const PASSWORD_CHANGE_ALLOWED_PATHS = new Set([
+  "/api/auth/change-password",
+  "/api/auth/me",
+  "/api/auth/logout",
+]);
+
+/** Audience of short-lived download tickets (see signFileTicket). */
+const FILE_TICKET_AUDIENCE = "file";
+const FILE_TICKET_TTL_SECONDS = 5 * 60;
+
+type TokenSource = { raw: string; fromQuery: boolean };
+
+function readRawToken(req: Request): TokenSource | null {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) return { raw: auth.slice(7), fromQuery: false };
+  // PDF/file URLs opened via Linking.openURL or <Image> cannot attach an
+  // Authorization header; they carry a download ticket in ?token= instead.
+  if (typeof req.query.token === "string") {
+    return { raw: req.query.token, fromQuery: true };
+  }
+  return null;
+}
+
+/**
+ * Verifies a token for the channel it arrived on:
+ * - Authorization header → a regular access token (never a download ticket)
+ * - ?token= query string  → only a download ticket, only on GET/HEAD.
+ * A session token therefore never appears in URLs (proxy logs, browser
+ * history, Referer), and a leaked URL is read-only and expires in minutes.
+ */
+function verifyRequestToken(req: Request, source: TokenSource): JwtPayload {
+  const payload = jwt.verify(source.raw, getJwtSecret(), {
+    algorithms: [JWT_ALGORITHM],
+  }) as JwtPayload & { aud?: string | string[] };
+  const isTicket = payload.aud === FILE_TICKET_AUDIENCE;
+  if (source.fromQuery) {
+    if (!isTicket || (req.method !== "GET" && req.method !== "HEAD")) {
+      throw new Error("Query-string tokens must be GET download tickets");
+    }
+  } else if (isTicket) {
+    throw new Error("Download tickets cannot be used as bearer tokens");
+  }
+  return payload;
+}
+
+/** Short-lived, read-only credential for URLs that cannot carry a header. */
+export function signFileTicket(user: JwtPayload): string {
+  return jwt.sign(
+    {
+      userId: user.userId,
+      email: user.email,
+      role: user.role,
+      syndicateId: user.syndicateId,
+      name: user.name,
+    },
+    getJwtSecret(),
+    {
+      algorithm: JWT_ALGORITHM,
+      audience: FILE_TICKET_AUDIENCE,
+      expiresIn: FILE_TICKET_TTL_SECONDS,
+    },
+  );
+}
+
+export { FILE_TICKET_TTL_SECONDS };
 
 declare global {
   namespace Express {
@@ -55,23 +129,30 @@ declare global {
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const auth = req.headers.authorization;
-  // Also accept ?token= query param so PDF/file URLs opened via Linking.openURL
-  // (which cannot attach Authorization headers) still authenticate correctly.
-  const queryToken =
-    typeof req.query.token === "string" ? req.query.token : null;
-  const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
-  if (!rawToken) {
+  const source = readRawToken(req);
+  if (!source) {
     res.status(401).json({ error: "Non authentifié" });
     return;
   }
+  let payload: JwtPayload;
   try {
-    const payload = jwt.verify(rawToken, getJwtSecret()) as JwtPayload;
-    req.user = payload;
-    next();
+    payload = verifyRequestToken(req, source);
   } catch {
     res.status(401).json({ error: "Token invalide ou expiré" });
+    return;
   }
+  if (
+    payload.mcp &&
+    !PASSWORD_CHANGE_ALLOWED_PATHS.has(req.originalUrl.split("?")[0])
+  ) {
+    res.status(403).json({
+      error: "Vous devez changer votre mot de passe temporaire avant de continuer.",
+      code: "PASSWORD_CHANGE_REQUIRED",
+    });
+    return;
+  }
+  req.user = payload;
+  next();
 }
 
 export function requireRole(...roles: UserRole[]) {
@@ -250,14 +331,12 @@ export function softAuth(
   _res: Response,
   next: NextFunction,
 ): void {
-  const auth = req.headers.authorization;
-  const queryToken =
-    typeof req.query.token === "string" ? req.query.token : null;
-  const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
-  if (rawToken) {
+  const source = readRawToken(req);
+  if (source) {
     try {
-      const payload = jwt.verify(rawToken, getJwtSecret()) as JwtPayload;
-      req.user = payload;
+      const payload = verifyRequestToken(req, source);
+      // A restricted session is treated as anonymous by optional-auth routes.
+      if (!payload.mcp) req.user = payload;
     } catch {
       // invalid/expired token — leave req.user unset, let requireAuth reject it
     }
@@ -272,11 +351,27 @@ export function validateAuthConfig(): void {
 
 /** Access token: short-lived (15 min) */
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: "15m" });
+  const { mcp, ...claims } = payload;
+  return jwt.sign(mcp ? { ...claims, mcp: true } : claims, getJwtSecret(), {
+    expiresIn: "15m",
+    algorithm: JWT_ALGORITHM,
+  });
 }
 
 /** Refresh token: long-lived (30 days) — the token itself is just a UUID.
  *  The expiry is enforced by the DB row, not the JWT. */
 export function signRefreshToken(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
+
+/**
+ * One-way digest used to persist bearer secrets (refresh tokens, password
+ * reset tokens). A database leak then exposes no usable session or reset link.
+ * SHA-256 is sufficient because the tokens are high-entropy random values.
+ */
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/** bcrypt cost for password hashes (≈250 ms on commodity hardware). */
+export const BCRYPT_COST = 12;

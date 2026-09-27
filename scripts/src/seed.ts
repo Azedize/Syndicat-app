@@ -12,6 +12,7 @@ import bcrypt from "bcryptjs";
 import { db, pool } from "@workspace/db";
 import {
   syndicatesTable,
+  treasuryAccountsTable,
   refreshTokensTable,
   passwordResetTokensTable,
   usersTable,
@@ -268,6 +269,16 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   // 8. APPELS DE FONDS  (paid, pending, overdue, pending_validation)
   // ─────────────────────────────────────────────────────────────────────────
+  // Treasury accounts (demo): each syndicate has a bank account and a cash
+  // box so payments can be validated and expenses paid. No opening balance:
+  // the journal starts empty, balances are computed from it.
+  await db.insert(treasuryAccountsTable).values([
+    { id: "acct_atlas_bank",  syndicateId: "syn_residence_atlas", kind: "bank", label: "Compte bancaire (démo)", bankName: "Banque démo", accountHolder: "Syndicat Résidence Atlas", openingDate: "2026-01-01", isDefault: true, createdBy: "seed" },
+    { id: "acct_atlas_cash",  syndicateId: "syn_residence_atlas", kind: "cash", label: "Caisse",                 openingDate: "2026-01-01", isDefault: true, createdBy: "seed" },
+    { id: "acct_agdal_bank",  syndicateId: "syn_jardins_agdal",   kind: "bank", label: "Compte bancaire (démo)", bankName: "Banque démo", accountHolder: "Syndicat Les Jardins d'Agdal", openingDate: "2026-01-01", isDefault: true, createdBy: "seed" },
+    { id: "acct_agdal_cash",  syndicateId: "syn_jardins_agdal",   kind: "cash", label: "Caisse",                 openingDate: "2026-01-01", isDefault: true, createdBy: "seed" },
+  ]).onConflictDoNothing();
+
   await db.insert(appelsDeFondsTable).values([
     // Atlas — juillet 2026
     { id: "adf_1",  buildingId: "building_atlas_a", budgetId: "budget_atlas_2026", lotId: "lot_a101", ownerId: "member_1", period: "2026-07", type: "charges_courantes", amount: "450.00", dueDate: "2026-07-10", status: "paid",               paymentMethod: "virement", paidDate: "2026-07-05", receiptNumber: "REC-2026-0701", createdAt: daysAgo(30) },

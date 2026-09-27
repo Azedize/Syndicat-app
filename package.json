@@ -8,8 +8,10 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "db:push": "pnpm --filter @workspace/db run db:push",
+    "db:generate": "pnpm --filter @workspace/db run db:generate",
+    "db:migrate": "pnpm --filter @workspace/db run db:migrate",
     "db:seed": "pnpm --filter @workspace/scripts run seed",
-    "db:setup": "pnpm run db:push && pnpm run db:seed",
+    "db:setup": "pnpm run db:migrate && pnpm run db:seed",
     "db:status": "pnpm --filter @workspace/scripts run db:status"
   },
   "private": true,

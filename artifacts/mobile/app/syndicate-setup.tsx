@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { uploadFileUri } from "@/lib/upload";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -120,9 +121,16 @@ function validateEmail(v: string): string | null {
 
 function validatePhone(v: string): string | null {
   if (!v.trim()) return "setupValidationRequired";
-  const clean = v.replace(/\s/g, "");
+  const clean = normalizeMoroccanPhone(v);
   if (!/^(\+212|0)[0-9]{9}$/.test(clean)) return "setupValidationPhone";
   return null;
+}
+
+function normalizeMoroccanPhone(value: string): string {
+  const compact = value.replace(/[\s().-]/g, "");
+  return /^0[5-7]\d{8}$/.test(compact)
+    ? `+212${compact.slice(1)}`
+    : compact;
 }
 
 function validateRegNumber(v: string): string | null {
@@ -671,9 +679,10 @@ function SyndicateSetupScreenInner() {
     setSmsResendCooldown(60);
     setSmsTimeLeft(600);
     try {
-      await apiRequest("/auth/sms/send", "POST", { phone: form.phone.trim() });
+      const normalizedPhone = normalizeMoroccanPhone(form.phone);
+      await apiRequest("/auth/sms/send", "POST", { phone: normalizedPhone });
       setSmsSendStatus("success");
-       setSmsSendMsg(`${t("smsCodeSentTo")} ${form.phone.trim()}`);
+       setSmsSendMsg(`${t("smsCodeSentTo")} ${normalizedPhone}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => setSmsSendStatus("idle"), 3000);
     } catch (err: any) {
@@ -711,7 +720,10 @@ function SyndicateSetupScreenInner() {
     setSmsVerifying(true);
     setSmsError(null);
     try {
-      await apiRequest("/auth/sms/verify", "POST", { phone: form.phone.trim(), code: full });
+      await apiRequest("/auth/sms/verify", "POST", {
+        phone: normalizeMoroccanPhone(form.phone),
+        code: full,
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPhoneVerified(true);
       setShowSmsModal(false);
@@ -880,7 +892,7 @@ function SyndicateSetupScreenInner() {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) return;
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ["images"],
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.7,
@@ -906,36 +918,12 @@ function SyndicateSetupScreenInner() {
       // Upload logo if a local URI was selected
       if (form.logoUri && !form.logoUrl) {
         try {
-          // Request a presigned upload URL
-          const ext = form.logoUri.split(".").pop() ?? "jpg";
+          const ext = form.logoUri.split("?")[0].split(".").pop()?.toLowerCase() === "png" ? "png" : "jpg";
           const contentType = ext === "png" ? "image/png" : "image/jpeg";
-          const fileName = `logo-${Date.now()}.${ext}`;
-
-          const uploadRequest = await apiRequest<{
-            uploadURL: string;
-            objectPath: string;
-          }>("/storage/uploads/request-url", "POST", {
-            name: fileName,
-            size: 500000,
-            contentType,
-          });
-
-          if (uploadRequest.uploadURL && uploadRequest.objectPath) {
-            const { uploadURL, objectPath } = uploadRequest;
-            // Upload to GCS
-            const imgRes = await fetch(form.logoUri);
-            const blob = await imgRes.blob();
-            const uploadResp = await fetch(uploadURL, {
-              method: "PUT",
-              headers: { "Content-Type": contentType },
-              body: blob,
-            });
-            if (uploadResp.ok) {
-              uploadedLogoUrl = objectPath;
-            }
-          }
+          const { objectPath } = await uploadFileUri(form.logoUri, `logo-${Date.now()}.${ext}`, contentType);
+          uploadedLogoUrl = objectPath;
         } catch {
-          // Logo upload failed — proceed without logo URL
+          // Logo upload failed — the syndicate is still created, without logo.
         }
       }
 
@@ -1116,7 +1104,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupPhoneLabel")} colors={colors} error={errors.phone}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="+212600000000"
+                placeholder="06 00 00 00 00 ou +212 6 00 00 00 00"
                 placeholderTextColor={colors.mutedForeground}
                 value={form.phone}
                 onChangeText={(v) => up("phone", v)}

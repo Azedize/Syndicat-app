@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { otpTokensTable } from "@workspace/db/schema";
 import { lt } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { scheduleJob } from "./scheduler.js";
 
 const OTP_RETENTION_MS = 2 * 60 * 60 * 1_000;
 const OTP_CLEANUP_INTERVAL_MS = 60 * 60 * 1_000;
@@ -19,15 +20,7 @@ export async function cleanupExpiredOtpTokens(): Promise<void> {
 }
 
 export function startOtpRetentionScheduler(): void {
-  cleanupExpiredOtpTokens().catch((error) => {
-    logger.warn({ error }, "Initial OTP cleanup failed");
-  });
-
-  setInterval(() => {
-    cleanupExpiredOtpTokens().catch((error) => {
-      logger.warn({ error }, "Scheduled OTP cleanup failed");
-    });
-  }, OTP_CLEANUP_INTERVAL_MS);
-
-  logger.info("OTP retention scheduler started");
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("otp-retention", OTP_CLEANUP_INTERVAL_MS, cleanupExpiredOtpTokens);
 }

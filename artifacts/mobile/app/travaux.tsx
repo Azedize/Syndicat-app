@@ -178,7 +178,7 @@ const STRINGS = {
   statusPendingValidation: { fr: "À valider", en: "Pending validation", ar: "بانتظار التصديق", es: "Pendiente de validación" },
   assignAction: { fr: "Assigner un prestataire", en: "Assign a provider", ar: "تعيين مزود", es: "Asignar proveedor" },
   reportAction: { fr: "Soumettre le rapport", en: "Submit report", ar: "إرسال التقرير", es: "Enviar informe" },
-  validateAction: { fr: "Valider & payer", en: "Validate & pay", ar: "تصديق ودفع", es: "Validar y pagar" },
+  validateAction: { fr: "Valider l'intervention", en: "Validate the work", ar: "المصادقة على التدخل", es: "Validar la intervención" },
   prestataireIdLabel: { fr: "ID Prestataire *", en: "Provider ID *", ar: "معرف المزود *", es: "ID del proveedor *" },
   reportPdf: { fr: "Rapport d'intervention (PDF)", en: "Intervention report (PDF)", ar: "تقرير التدخل (PDF)", es: "Informe de intervención (PDF)" },
   photoProof: { fr: "Photo de preuve", en: "Proof photo", ar: "صورة إثبات", es: "Foto de prueba" },
@@ -198,7 +198,7 @@ const STRINGS = {
   cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
   confirm: { fr: "Confirmer", en: "Confirm", ar: "تأكيد", es: "Confirmar" },
   worksValidated: { fr: "Travaux validés", en: "Works validated", ar: "تم اعتماد الأشغال", es: "Obras validadas" },
-  worksValidatedMsg: { fr: "L'intervention a été validée avec succès.", en: "The intervention was successfully validated.", ar: "تم اعتماد التدخل بنجاح.", es: "La intervención se ha validado correctamente." },
+  worksValidatedMsg: { fr: "Intervention validée. La dépense est transmise au trésorier pour paiement.", en: "Work validated. The expense has been sent to the treasurer for payment.", ar: "تمت المصادقة على التدخل. أُحيلت النفقة إلى أمين المال للأداء.", es: "Intervención validada. El gasto se ha enviado al tesorero para su pago." },
   validationError: { fr: "Erreur lors de la validation.", en: "Error validating the intervention.", ar: "حدث خطأ أثناء اعتماد التدخل.", es: "Error al validar la intervención." },
   worksCreated: { fr: "Travaux créés", en: "Works created", ar: "تم إنشاء الأشغال", es: "Obras creadas" },
   worksCreatedMsg: { fr: "La demande d'intervention a été enregistrée.", en: "The intervention request has been saved.", ar: "تم تسجيل طلب التدخل.", es: "La solicitud de intervención ha sido registrada." },
@@ -210,7 +210,7 @@ const STRINGS = {
   createAction: { fr: "Créer un bon de travaux", en: "Create a work order", ar: "إنشاء طلب أشغال", es: "Crear una orden de trabajo" },
   retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
   missingDocs: { fr: "Rapport, photo et facture sont obligatoires", en: "Report, photo and invoice are required", ar: "التقرير والصورة والفاتورة مطلوبة", es: "Informe, foto y factura son obligatorios" },
-  validateConfirm: { fr: "Confirmer la validation et le paiement de cette intervention ?", en: "Confirm validation and payment for this intervention?", ar: "تأكيد التصديق ودفع هذا التدخل؟", es: "¿Confirmar validación y pago de esta intervención?" },
+  validateConfirm: { fr: "Confirmer la validation ? Une dépense approuvée sera créée ; le trésorier la paiera depuis « Dépenses ».", en: "Confirm validation? An approved expense will be created; the treasurer pays it from \"Expenses\".", ar: "تأكيد المصادقة؟ ستُنشأ نفقة مصادق عليها يؤديها أمين المال من «النفقات».", es: "¿Confirmar la validación? Se creará un gasto aprobado; el tesorero lo pagará desde «Gastos»." },
   typeEntretien: { fr: "Entretien courant", en: "Routine maintenance", ar: "صيانة دورية", es: "Mantenimiento rutinario" },
   typeReparation: { fr: "Réparation", en: "Repair", ar: "إصلاح", es: "Reparación" },
   typeAmelioration: { fr: "Amélioration", en: "Improvement", ar: "تحسين", es: "Mejora" },
@@ -362,8 +362,9 @@ function TravauxScreenInner() {
             await travauxApi.validate(t.id);
             showToast({ type: "success", title: STRINGS.worksValidated[lang], message: STRINGS.worksValidatedMsg[lang] });
             load(true);
-          } catch {
-            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.validationError[lang] });
+          } catch (e: any) {
+            // e.g. report / photos / invoice missing, already validated
+            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message || STRINGS.validationError[lang] });
           }
         },
       },

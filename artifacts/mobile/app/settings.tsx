@@ -5,6 +5,7 @@ import React from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { ticketedUrl } from "@/services/api";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -36,6 +38,15 @@ export default function SettingsScreen() {
     toggleNotificationChannel,
   } = useData();
   const { showToast } = useToast();
+
+  // Right of access (Loi 09-08): download the personal data held about me.
+  const exportMyData = async () => {
+    try {
+      await Linking.openURL(await ticketedUrl("/me/data-export"));
+    } catch {
+      showToast({ type: "error", title: t("error"), message: t("exportMyDataError") });
+    }
+  };
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -457,6 +468,36 @@ export default function SettingsScreen() {
                   style={[styles.navSub, { color: colors.mutedForeground }]}
                 >
                   {t("viaProfilePage")}
+                </Text>
+              </View>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={colors.mutedForeground}
+              />
+            </TouchableOpacity>
+            <View style={[styles.sep, { backgroundColor: colors.border }]} />
+            <TouchableOpacity
+              style={styles.navRow}
+              onPress={exportMyData}
+              accessibilityRole="button"
+            >
+              <View
+                style={[
+                  styles.rowIcon,
+                  { backgroundColor: colors.primary + "18" },
+                ]}
+              >
+                <Feather name="download" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.navLabel, { color: colors.foreground }]}>
+                  {t("exportMyData")}
+                </Text>
+                <Text
+                  style={[styles.navSub, { color: colors.mutedForeground }]}
+                >
+                  {t("exportMyDataSub")}
                 </Text>
               </View>
               <Feather

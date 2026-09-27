@@ -3,6 +3,7 @@ import { electionsTable, voteReceiptsTable, usersTable, membersTable, lotsTable,
 import { eq, and, inArray } from "drizzle-orm";
 import { createAlert, sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
+import { scheduleJob } from "./scheduler.js";
 
 /** Reminder thresholds, in whole days remaining before an election's voting closes. */
 const THRESHOLDS = [3, 1];
@@ -104,8 +105,7 @@ export async function checkClosingSoonElections(): Promise<void> {
 
 /** Starts the periodic closing-soon check (on boot + every 6 hours — same cadence as contract-expiry). */
 export function startElectionReminderScheduler(): void {
-  checkClosingSoonElections().catch(() => {});
-  setInterval(() => {
-    checkClosingSoonElections().catch(() => {});
-  }, 6 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("election-reminders", 6 * 60 * 60 * 1000, checkClosingSoonElections);
 }

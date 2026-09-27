@@ -5,6 +5,7 @@ export async function apiRequest<T = any>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET",
   body?: unknown,
   token?: string | null,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> {
   const url = `${getApiBaseUrl()}${path.trim()}`;
 
@@ -14,6 +15,7 @@ export async function apiRequest<T = any>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    ...extraHeaders,
   };
   if (resolvedToken) {
     headers["Authorization"] = `Bearer ${resolvedToken}`;

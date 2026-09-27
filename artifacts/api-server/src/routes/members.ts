@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   membersTable,
@@ -11,7 +13,10 @@ import {
   requireAuth,
   requireRole,
   requireOperationalAccess,
+  BCRYPT_COST,
 } from "../middleware/auth.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
+import { welcomeTemplate } from "../lib/email/templates.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { createAlert } from "../lib/notify.js";
@@ -144,6 +149,9 @@ router.post(
       profession: z.string().default(""),
       syndicateId: z.string().optional(),
       joinDate: z.string().default(new Date().toISOString().split("T")[0]),
+      // Also create the co-owner's login (member role, temporary password
+      // that must be changed at first login) and email the invitation.
+      inviteToApp: z.boolean().default(false),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -188,18 +196,63 @@ router.post(
         return void res.status(404).json({ error: "Syndicat introuvable" });
       }
 
+      const { inviteToApp, ...memberData } = result.data;
+      const email = memberData.email.trim().toLowerCase();
+
+      // Email identifies a person across members (ownership) and users
+      // (login): refuse duplicates up front with a clear message.
+      const [existingMember] = await db
+        .select({ id: membersTable.id })
+        .from(membersTable)
+        .where(eq(membersTable.email, email))
+        .limit(1);
+      if (existingMember) {
+        return void res
+          .status(409)
+          .json({ error: "Un membre avec cet email existe déjà", code: "MEMBER_EMAIL_EXISTS" });
+      }
+      if (inviteToApp) {
+        const [existingUser] = await db
+          .select({ id: usersTable.id, syndicateId: usersTable.syndicateId })
+          .from(usersTable)
+          .where(eq(usersTable.email, email))
+          .limit(1);
+        if (existingUser) {
+          return void res.status(409).json({
+            error: "Un compte MIZAN existe déjà pour cet email",
+            code: "USER_EMAIL_EXISTS",
+          });
+        }
+      }
+
       let member: typeof membersTable.$inferSelect;
+      let temporaryPassword: string | null = null;
       await db.transaction(async (tx) => {
         const [m] = await tx
           .insert(membersTable)
           .values({
-            ...result.data,
+            ...memberData,
+            email,
             syndicateId,
             status: "active",
             cotisationStatus: "pending",
           })
           .returning();
         member = m;
+
+        if (inviteToApp) {
+          temporaryPassword = randomBytes(12).toString("base64url");
+          await tx.insert(usersTable).values({
+            name: memberData.name,
+            email,
+            phone: memberData.phone || null,
+            passwordHash: await bcrypt.hash(temporaryPassword, BCRYPT_COST),
+            mustChangePassword: true,
+            role: "member",
+            status: "active",
+            syndicateId,
+          });
+        }
 
         if (syndicateId) {
           await tx
@@ -224,9 +277,21 @@ router.post(
         target: "admin",
       }).catch(() => {});
 
+      if (temporaryPassword) {
+        const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
+        const { subject, html } = welcomeTemplate(member!.name, "member", loginUrl, temporaryPassword);
+        sendTransactionalEmail({ to: email, subject, html, template: "welcome", syndicateId, req }).catch(() => {});
+      }
+
       res
         .status(201)
-        .json({ data: member!, message: "Membre ajouté avec succès" });
+        .json({
+          data: member!,
+          invited: !!temporaryPassword,
+          message: temporaryPassword
+            ? "Membre ajouté — invitation envoyée par email"
+            : "Membre ajouté avec succès",
+        });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

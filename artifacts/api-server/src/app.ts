@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import pinoHttp from "pino-http";
 import compression from "compression";
@@ -61,9 +61,12 @@ if (redisUrl) {
   });
 }
 
-function makeRedisStore() {
+// Each limiter needs its own key prefix, otherwise counters of different
+// limiters overwrite each other in Redis.
+function makeRedisStore(prefix: string) {
   if (!redis) return undefined;
   return new RedisStore({
+    prefix,
     sendCommand: (...args: string[]) => {
       const [cmd, ...rest] = args;
       return (redis as Redis).call(cmd, ...rest) as Promise<number>;
@@ -71,13 +74,42 @@ function makeRedisStore() {
   });
 }
 
-const authLimiter = rateLimit({
+// Strict limits apply only to credential-handling endpoints. Session
+// endpoints (/auth/me, /auth/refresh, /auth/logout) are called routinely by
+// every client and stay under the general API limiter — otherwise residents
+// sharing one public IP (building Wi-Fi, mobile carrier NAT) lock each other out.
+const CREDENTIAL_ENDPOINTS = [
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/change-password",
+  "/api/auth/otp",
+  "/api/auth/sms",
+  "/api/auth/verify-phone",
+];
+
+const credentialLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: "Trop de tentatives de connexion. Réessayez dans 15 minutes." },
+  max: 60,
+  message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
-  store: makeRedisStore(),
+  store: makeRedisStore("rl:cred:"),
+});
+
+// Per-account brute-force protection, independent of the source IP.
+const loginAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Trop de tentatives de connexion pour ce compte. Réessayez dans 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    return email ? `acct:${email}` : `ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
+  store: makeRedisStore("rl:login:"),
 });
 
 const apiLimiter = rateLimit({
@@ -86,7 +118,7 @@ const apiLimiter = rateLimit({
   message: { error: "Trop de requêtes. Réessayez dans une minute." },
   standardHeaders: true,
   legacyHeaders: false,
-  store: makeRedisStore(),
+  store: makeRedisStore("rl:api:"),
 });
 
 app.use(
@@ -139,7 +171,8 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.use("/api/auth", authLimiter);
+app.use(CREDENTIAL_ENDPOINTS, credentialLimiter);
+app.use("/api/auth/login", loginAccountLimiter);
 app.use("/api", apiLimiter);
 
 // Soft JWT decode — populates req.user from the bearer token when present.

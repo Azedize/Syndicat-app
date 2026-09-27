@@ -13,13 +13,25 @@ import {
   bonItemsTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, inArray, and } from "drizzle-orm";
-import { requireAuth, requireFinanceAccess } from "../middleware/auth.js";
+import { requireAuth, requireFinanceAccess, requireRole } from "../middleware/auth.js";
 import {
   syndicateWhere,
   effectiveSyndicateId,
 } from "../lib/syndicate-filter.js";
+import { findForeignReference } from "../lib/scope.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
+import {
+  FinanceError,
+  isoDateSchema,
+  lockAccount,
+  postEntry,
+  sendFinanceError,
+  today,
+} from "../lib/treasury.js";
+
+/** Register types that are money in vs money out of the syndicate. */
+const INFLOW_TYPES = new Set(["cotisation", "recette"]);
 
 const router = Router();
 
@@ -28,22 +40,50 @@ const router = Router();
 router.get(
   "/finance/transactions",
   requireAuth,
-  requireFinanceAccess,
+  // The council controls the syndic's accounts: president and committee
+  // members read the register too (writes stay with admin / treasurer).
+  requireRole("syndicate_admin", "treasurer", "president", "committee_member"),
   async (req, res) => {
     const pagination = getPagination(req);
     try {
-      const where = syndicateWhere(req, transactionsTable.syndicateId);
-      const [rows, [{ value: total }]] = await Promise.all([
+      const from = typeof req.query.from === "string" && isoDateSchema.safeParse(req.query.from).success ? req.query.from : null;
+      const where = and(
+        syndicateWhere(req, transactionsTable.syndicateId),
+        from ? sql`${transactionsTable.date} >= ${from}` : undefined,
+      );
+      const [rows, [{ value: total }], [totals]] = await Promise.all([
         db
           .select()
           .from(transactionsTable)
           .where(where)
-          .orderBy(desc(transactionsTable.createdAt))
+          .orderBy(desc(transactionsTable.date), desc(transactionsTable.createdAt))
           .limit(pagination.limit)
           .offset(pagination.offset),
         db.select({ value: count() }).from(transactionsTable).where(where),
+        // Totals over the whole filter (not just the loaded page).
+        db
+          .select({
+            inflow: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'paid' AND ${transactionsTable.type} IN ('cotisation','recette')), 0)`,
+            outflow: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'paid' AND ${transactionsTable.type} IN ('depense','salaire')), 0)`,
+            pending: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'pending'), 0)`,
+            paidCount: sql<number>`COUNT(*) FILTER (WHERE ${transactionsTable.status} = 'paid')::int`,
+            pendingCount: sql<number>`COUNT(*) FILTER (WHERE ${transactionsTable.status} = 'pending')::int`,
+            overdueCount: sql<number>`COUNT(*) FILTER (WHERE ${transactionsTable.status} = 'overdue')::int`,
+          })
+          .from(transactionsTable)
+          .where(where),
       ]);
-      res.json(buildPagedResponse(rows, Number(total), pagination));
+      res.json({
+        ...buildPagedResponse(rows, Number(total), pagination),
+        totals: {
+          inflow: Number(totals?.inflow ?? 0),
+          outflow: Number(totals?.outflow ?? 0),
+          pending: Number(totals?.pending ?? 0),
+          paidCount: totals?.paidCount ?? 0,
+          pendingCount: totals?.pendingCount ?? 0,
+          overdueCount: totals?.overdueCount ?? 0,
+        },
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -66,6 +106,8 @@ router.post(
         memberId: z.string().optional(),
         syndicateId: z.string().optional(),
         proofUrl: z.string().optional(),
+        // Account credited/debited when the operation is paid (default account otherwise)
+        accountId: z.string().optional(),
       })
       .refine((d) => d.type !== "depense" || !!d.proofUrl, {
         message:
@@ -82,10 +124,51 @@ router.post(
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;
-      const [row] = await db
-        .insert(transactionsTable)
-        .values({ ...data, syndicateId: sid } as any)
-        .returning();
+      // The payer must be a user of this syndicate and the justification a
+      // file uploaded within it — never another syndicate's records.
+      const foreign = await findForeignReference(sid, {
+        userId: data.memberId,
+        objectPath: data.proofUrl,
+      });
+      if (foreign) {
+        res.status(400).json({
+          error:
+            foreign === "objectPath"
+              ? "Le justificatif doit être un fichier téléversé dans ce syndicat."
+              : "Membre introuvable dans ce syndicat.",
+          code: "FOREIGN_REFERENCE",
+        });
+        return;
+      }
+      const { accountId, ...register } = data;
+      // A paid operation is a real cash movement: it is posted to the journal
+      // on a treasury account in the same transaction. Pending / overdue
+      // items are only recorded in the register until they are paid.
+      const row = await db.transaction(async (tx) => {
+        let ledgerEntryId: string | null = null;
+        if (register.status === "paid") {
+          const inflow = INFLOW_TYPES.has(register.type);
+          const account = await lockAccount(tx, sid, { accountId });
+          const entry = await postEntry(tx, {
+            syndicateId: sid,
+            account,
+            direction: inflow ? "in" : "out",
+            amount: register.amount.toFixed(2),
+            entryDate: isoDateSchema.safeParse(register.date).success ? register.date : today(),
+            category: register.type === "salaire" ? "salaires" : inflow ? "recette" : "depense",
+            label: register.label,
+            sourceType: "manual",
+            proofUrl: register.proofUrl,
+            createdBy: req.user!.userId,
+          });
+          ledgerEntryId = entry.id;
+        }
+        const [created] = await tx
+          .insert(transactionsTable)
+          .values({ ...register, amount: register.amount.toFixed(2), syndicateId: sid, ledgerEntryId })
+          .returning();
+        return created;
+      });
       await serverAuditLog(req, {
         action: "CREATE",
         entity: "transaction",
@@ -95,8 +178,7 @@ router.post(
       });
       res.status(201).json({ data: row, message: "Transaction ajoutée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendFinanceError(res, req, err);
     }
   },
 );
@@ -111,6 +193,7 @@ router.patch(
     const id = String(req.params.id);
     const schema = z.object({
       status: z.enum(["paid", "pending", "overdue"]),
+      accountId: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -131,16 +214,49 @@ router.patch(
         res.status(404).json({ error: "Transaction introuvable" });
         return;
       }
-      const [updated] = await db
-        .update(transactionsTable)
-        .set({ status: result.data.status })
-        .where(
-          and(
-            eq(transactionsTable.id, id),
-            eq(transactionsTable.syndicateId, req.user!.syndicateId!),
-          ),
-        )
-        .returning();
+      // A posted movement is part of the journal: it can only be corrected by
+      // a reversal entry, never silently switched back to "pending".
+      if (tx.ledgerEntryId) {
+        throw new FinanceError(
+          409,
+          "LEDGER_POSTED",
+          "Opération comptabilisée : utilisez l'extourne dans le journal de trésorerie.",
+        );
+      }
+      const sid = req.user!.syndicateId!;
+      const updated = await db.transaction(async (dbTx) => {
+        let ledgerEntryId: string | null = null;
+        if (result.data.status === "paid" && tx.status !== "paid") {
+          const inflow = INFLOW_TYPES.has(tx.type);
+          const account = await lockAccount(dbTx, sid, { accountId: result.data.accountId });
+          const entry = await postEntry(dbTx, {
+            syndicateId: sid,
+            account,
+            direction: inflow ? "in" : "out",
+            amount: tx.amount,
+            entryDate: today(),
+            category: tx.type === "salaire" ? "salaires" : inflow ? "recette" : "depense",
+            label: tx.label,
+            sourceType: "manual",
+            proofUrl: tx.proofUrl,
+            createdBy: req.user!.userId,
+          });
+          ledgerEntryId = entry.id;
+        }
+        const [row] = await dbTx
+          .update(transactionsTable)
+          .set({ status: result.data.status, ...(ledgerEntryId ? { ledgerEntryId } : {}) })
+          .where(
+            and(
+              eq(transactionsTable.id, id),
+              eq(transactionsTable.syndicateId, sid),
+              eq(transactionsTable.status, tx.status ?? "pending"),
+            ),
+          )
+          .returning();
+        if (!row) throw new FinanceError(409, "TRANSACTION_STATE_CONFLICT", "Transaction modifiée entre-temps");
+        return row;
+      });
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",
         entity: "transaction",
@@ -150,8 +266,7 @@ router.patch(
       });
       res.json({ data: updated, message: "Statut mis à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendFinanceError(res, req, err);
     }
   },
 );
@@ -225,6 +340,81 @@ router.post(
   },
 );
 
+const paySalarySchema = z
+  .object({
+    status: z.literal("paid"),
+    paidDate: isoDateSchema.optional(),
+    accountId: z.string().optional(),
+  })
+  .strict();
+
+/** Pays a salary: journal entry (out) + register row, once. */
+router.put(
+  "/finance/salaries/:id",
+  requireAuth,
+  requireFinanceAccess,
+  async (req, res) => {
+    const parsed = paySalarySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides", code: "INVALID_SALARY_PAYMENT" });
+      return;
+    }
+    const sid = req.user!.syndicateId!;
+    const id = String(req.params.id);
+    try {
+      const updated = await db.transaction(async (tx) => {
+        const [salary] = await tx
+          .select()
+          .from(salaryRecordsTable)
+          .where(and(eq(salaryRecordsTable.id, id), eq(salaryRecordsTable.syndicateId, sid)))
+          .for("update");
+        if (!salary) throw new FinanceError(404, "SALARY_NOT_FOUND", "Salaire introuvable");
+        if (salary.status === "paid") throw new FinanceError(409, "SALARY_ALREADY_PAID", "Ce salaire est déjà payé");
+        const paidDate = parsed.data.paidDate ?? today();
+        const account = await lockAccount(tx, sid, { accountId: parsed.data.accountId });
+        const entry = await postEntry(tx, {
+          syndicateId: sid,
+          account,
+          direction: "out",
+          amount: salary.amount,
+          entryDate: paidDate,
+          category: "salaires",
+          label: `Salaire ${salary.month} — ${salary.employee}`,
+          sourceType: "salary",
+          sourceId: salary.id,
+          createdBy: req.user!.userId,
+        });
+        await tx.insert(transactionsTable).values({
+          type: "salaire",
+          amount: salary.amount,
+          label: `Salaire ${salary.month} — ${salary.employee}`,
+          date: paidDate,
+          status: "paid",
+          syndicateId: sid,
+          ledgerEntryId: entry.id,
+        });
+        const [row] = await tx
+          .update(salaryRecordsTable)
+          .set({ status: "paid", paidDate, ledgerEntryId: entry.id })
+          .where(and(eq(salaryRecordsTable.id, id), eq(salaryRecordsTable.status, salary.status ?? "pending")))
+          .returning();
+        if (!row) throw new FinanceError(409, "SALARY_ALREADY_PAID", "Ce salaire est déjà payé");
+        return row;
+      });
+      await serverAuditLog(req, {
+        action: "SALARY_PAID",
+        entity: "salary",
+        entityId: id,
+        syndicateId: sid,
+        details: `${updated.employee} — ${updated.month} — ${updated.amount}`,
+      });
+      res.json({ data: updated, message: "Salaire payé" });
+    } catch (err) {
+      sendFinanceError(res, req, err);
+    }
+  },
+);
+
 // ─── Caisse ───────────────────────────────────────────────────────────────────
 
 router.get(
@@ -253,70 +443,16 @@ router.get(
   },
 );
 
-router.post(
-  "/finance/caisse",
-  requireAuth,
-  requireFinanceAccess,
-  async (req, res) => {
-    const schema = z.object({
-      label: z.string().min(1),
-      amount: z.number().positive(),
-      type: z.enum(["encaissement", "decaissement"]),
-      date: z.string(),
-      category: z.string().default(""),
-      syndicateId: z.string().optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const syndicateId = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, ...data } = result.data;
-      let newRow: typeof caisseEntriesTable.$inferSelect;
-
-      await db.transaction(async (tx) => {
-        // Advisory lock keyed on syndicateId — prevents concurrent caisse writes
-        // from reading the same lastBalance and producing wrong running totals.
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtext(${syndicateId}))`,
-        );
-
-        const existing = await tx
-          .select()
-          .from(caisseEntriesTable)
-          .where(eq(caisseEntriesTable.syndicateId, syndicateId))
-          .orderBy(desc(caisseEntriesTable.createdAt))
-          .limit(1);
-
-        const lastBalance = Number(existing[0]?.balance ?? 0);
-        const balance =
-          data.type === "encaissement"
-            ? lastBalance + data.amount
-            : lastBalance - data.amount;
-
-        const [row] = await tx
-          .insert(caisseEntriesTable)
-          .values({ ...data, syndicateId, balance: String(balance) } as any)
-          .returning();
-        newRow = row;
-      });
-
-      await serverAuditLog(req, {
-        action: "CREATE",
-        entity: "caisse_entry",
-        entityId: newRow!.id,
-        syndicateId,
-        details: `${newRow!.label} — ${newRow!.amount}`,
-      });
-      res.status(201).json({ data: newRow!, message: "Entrée caisse ajoutée" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+// The cash book is now the "cash" treasury account: its balance is computed
+// from the journal. Direct entries with a client-side running balance are no
+// longer accepted (they bypassed the journal and could diverge from it).
+router.post("/finance/caisse", requireAuth, requireFinanceAccess, (_req, res) => {
+  res.status(410).json({
+    error:
+      "La caisse est désormais un compte de trésorerie : enregistrez l'opération dans le journal (POST /treasury/entries).",
+    code: "LEGACY_ENDPOINT",
+  });
+});
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
 

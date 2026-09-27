@@ -16,12 +16,19 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
+import { nextSequenceNumber } from "../lib/sequences.js";
+import { syndicateFlows } from "../lib/treasury.js";
+import {
+  canResidentSeeDocument,
+  findForeignReference,
+  resolveDocumentSubject,
+  residentDocumentSubjectWhere,
+} from "../lib/scope.js";
 import { db } from "@workspace/db";
 import {
   documentsTable,
   documentSignaturesTable,
   documentCommentsTable,
-  documentSequencesTable,
   documentVersionsTable,
   syndicatesTable,
   usersTable,
@@ -40,7 +47,6 @@ import {
   meetingsTable,
   meetingAttendeesTable,
   agResolutionsTable,
-  caisseEntriesTable,
   transactionsTable,
   fondsTravauxTable,
   tenantsTable,
@@ -67,7 +73,7 @@ import {
   type OfficeHolders,
   type InlineSignatureInfo,
 } from "../lib/documentPdf.js";
-import { createAlert, sendEmail, sendEmailToMany } from "../lib/notify.js";
+import { createAlert, notifyUser, sendEmail, sendEmailToMany } from "../lib/notify.js";
 import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
 
 const router = Router();
@@ -623,7 +629,7 @@ async function getElectionData(
 }
 
 // ─── Financial dashboard KPI aggregator ────────────────────────────────────────
-// Pulls live aggregated metrics from appelsDeFondsTable, caisseEntriesTable,
+// Pulls live aggregated metrics from appelsDeFondsTable, the journal (ledger_entries),
 // budgetsTable and transactionsTable and returns them as _kpi* keys so the PDF
 // template can render a real enterprise financial dashboard.
 
@@ -640,6 +646,7 @@ async function getFinancialDashboardData(
     //    so KPI values are never silently zero when no buildingId is provided.
     let appels: Array<{
       amount: unknown;
+      amountPaid: unknown;
       status: string | null;
       period: string | null;
     }> = [];
@@ -647,6 +654,7 @@ async function getFinancialDashboardData(
       appels = await db
         .select({
           amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
           status: appelsDeFondsTable.status,
           period: appelsDeFondsTable.period,
         })
@@ -657,6 +665,7 @@ async function getFinancialDashboardData(
       appels = await db
         .select({
           amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
           status: appelsDeFondsTable.status,
           period: appelsDeFondsTable.period,
         })
@@ -668,10 +677,10 @@ async function getFinancialDashboardData(
         .where(eq(buildingsTable.syndicateId, syndicateId));
     }
 
+    // Cancelled calls are not owed; paid = validated payments (partial included).
+    appels = appels.filter((a) => a.status !== "cancelled");
     const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalPaid = appels
-      .filter((a) => a.status === "paid")
-      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalPaid = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
     const outstanding = totalCharged - totalPaid;
     const collectionRate =
       totalCharged > 0 ? Math.round((totalPaid / totalCharged) * 100) : 0;
@@ -684,31 +693,20 @@ async function getFinancialDashboardData(
       (s, a) => s + Number(a.amount ?? 0),
       0,
     );
-    const yearPaid = yearAppels
-      .filter((a) => a.status === "paid")
-      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const yearPaid = yearAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
 
-    // ── 2. Caisse entries (revenue / expenses / cash balance) ─────────────────
+    // ── 2. Journal (revenue / expenses / treasury balance) ────────────────────
     let totalRevenue = 0;
     let totalExpenses = 0;
+    let cashBalance = 0;
     if (syndicateId) {
-      const caisse = await db
-        .select({
-          amount: caisseEntriesTable.amount,
-          type: caisseEntriesTable.type,
-        })
-        .from(caisseEntriesTable)
-        .where(eq(caisseEntriesTable.syndicateId, syndicateId));
-
-      totalRevenue = caisse
-        .filter((e) => e.type === "credit")
-        .reduce((s, e) => s + Number(e.amount ?? 0), 0);
-      totalExpenses = caisse
-        .filter((e) => e.type === "debit")
-        .reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      const flows = await syndicateFlows(syndicateId);
+      totalRevenue = flows.revenue;
+      totalExpenses = flows.expenses;
+      cashBalance = flows.balance;
     }
-    const cashBalance = totalRevenue - totalExpenses;
-    const netBalance = totalPaid + totalRevenue - totalExpenses;
+    // Validated co-owner payments are already part of the journal revenue.
+    const netBalance = totalRevenue - totalExpenses;
 
     // ── 3. Budget consumption ─────────────────────────────────────────────────
     let budgetTotal = 0;
@@ -790,7 +788,7 @@ async function getFinancialDashboardData(
 
 // ─── Per-lot charge aggregation for décompte des charges ──────────────────────
 // Sums actual appels de fonds for a specific lot (provisions versées) and
-// computes a per-lot share of building expenses from caisseEntriesTable using
+// computes a per-lot share of the building expenses paid (journal) using
 // the lot's tantièmes ratio.
 
 async function getDecompteChargesData(
@@ -804,13 +802,19 @@ async function getDecompteChargesData(
     const appels = await db
       .select({
         amount: appelsDeFondsTable.amount,
+        amountPaid: appelsDeFondsTable.amountPaid,
         status: appelsDeFondsTable.status,
         period: appelsDeFondsTable.period,
         type: appelsDeFondsTable.type,
         buildingId: appelsDeFondsTable.buildingId,
       })
       .from(appelsDeFondsTable)
-      .where(eq(appelsDeFondsTable.lotId, lotId));
+      .where(
+        and(
+          eq(appelsDeFondsTable.lotId, lotId),
+          sql`${appelsDeFondsTable.status} <> 'cancelled'`,
+        ),
+      );
 
     // Prefer year-scoped; fall back to all
     const scopedAppels = appels.filter((a) => a.period?.startsWith(targetYear));
@@ -820,12 +824,10 @@ async function getDecompteChargesData(
       (s, a) => s + Number(a.amount ?? 0),
       0,
     );
-    const totalPaid = useAppels
-      .filter((a) => a.status === "paid")
-      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalPaid = useAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
     const totalOverdue = useAppels
       .filter((a) => a.status === "overdue")
-      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      .reduce((s, a) => s + Number(a.amount ?? 0) - Number(a.amountPaid ?? 0), 0);
 
     // Group by type for breakdown
     const byType: Record<string, number> = {};
@@ -861,16 +863,11 @@ async function getDecompteChargesData(
       const tantiemes = Number(lotRow?.tantiemes ?? 0);
 
       if (syndicateId && tantiemes > 0) {
-        const caisse = await db
-          .select({
-            amount: caisseEntriesTable.amount,
-            type: caisseEntriesTable.type,
-          })
-          .from(caisseEntriesTable)
-          .where(eq(caisseEntriesTable.syndicateId, syndicateId));
-        const totalBldgExpenses = caisse
-          .filter((e) => e.type === "debit")
-          .reduce((s, e) => s + Number(e.amount ?? 0), 0);
+        // Expenses paid for this building during the year (journal).
+        const { expenses: totalBldgExpenses } = await syndicateFlows(syndicateId, {
+          buildingId,
+          year: Number(targetYear) || undefined,
+        });
         estimatedRealCharges = Math.round(
           totalBldgExpenses * (tantiemes / 10000),
         );
@@ -970,21 +967,25 @@ async function getAttestationPaiementData(
     const allAppels = await db
       .select({
         amount: appelsDeFondsTable.amount,
+        amountPaid: appelsDeFondsTable.amountPaid,
         status: appelsDeFondsTable.status,
         period: appelsDeFondsTable.period,
         paidDate: appelsDeFondsTable.paidDate,
       })
       .from(appelsDeFondsTable)
-      .where(eq(appelsDeFondsTable.lotId, lotId));
+      .where(
+        and(
+          eq(appelsDeFondsTable.lotId, lotId),
+          sql`${appelsDeFondsTable.status} <> 'cancelled'`,
+        ),
+      );
 
     const periodeAppels = periode
       ? allAppels.filter((a) => a.period?.includes(periode))
       : allAppels;
     const useAppels = periodeAppels.length > 0 ? periodeAppels : allAppels;
 
-    const totalPaid = useAppels
-      .filter((a) => a.status === "paid")
-      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalPaid = useAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
     const totalCharged = useAppels.reduce(
       (s, a) => s + Number(a.amount ?? 0),
       0,
@@ -1005,6 +1006,7 @@ async function getAttestationPaiementData(
         .map((a) => ({
           period: a.period ?? "—",
           amount: Number(a.amount ?? 0),
+          amountPaid: Number(a.amountPaid ?? 0),
           status: a.status ?? "pending",
           paidDate: a.paidDate ?? null,
         })),
@@ -1227,23 +1229,7 @@ async function generateSequentialDocumentNumber(
   template: DocumentTemplate,
 ): Promise<string> {
   const prefix = TEMPLATE_NUMBER_PREFIX[template] ?? template.toUpperCase();
-  const year = new Date().getFullYear();
-  const scopeId = syndicateId || "global";
-
-  const [row] = await db
-    .insert(documentSequencesTable)
-    .values({ syndicateId: scopeId, prefix, year, currentValue: 1 } as any)
-    .onConflictDoUpdate({
-      target: [
-        documentSequencesTable.syndicateId,
-        documentSequencesTable.prefix,
-        documentSequencesTable.year,
-      ],
-      set: { currentValue: sql`${documentSequencesTable.currentValue} + 1` },
-    })
-    .returning({ currentValue: documentSequencesTable.currentValue });
-
-  return `${prefix}-${year}-${String(row.currentValue).padStart(4, "0")}`;
+  return nextSequenceNumber(db, syndicateId || "global", prefix);
 }
 
 // ─── GET /documents ────────────────────────────────────────────────────────────
@@ -1268,9 +1254,11 @@ router.get("/documents", requireAuth, async (req, res) => {
     if (category) conditions.push(eq(documentsTable.category, category as any));
     if (status) conditions.push(eq(documentsTable.status, status));
 
-    // Members and tenants only see published documents
+    // Members and tenants only see published documents, and among personal
+    // documents only those about themselves.
     if (req.user!.role === "member" || req.user!.role === "tenant") {
       conditions.push(eq(documentsTable.status, "published"));
+      conditions.push(residentDocumentSubjectWhere(req.user!) as any);
     }
 
     // Tenants are not co-owners — restrict to documents relevant to their lease only
@@ -1366,6 +1354,7 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
       conditions.push(eq(documentsTable.syndicateId, syndicateId));
     if (req.user!.role === "member" || req.user!.role === "tenant") {
       conditions.push(eq(documentsTable.status, "published"));
+      conditions.push(residentDocumentSubjectWhere(req.user!) as any);
     }
 
     const rows = await db
@@ -3234,6 +3223,8 @@ router.post("/documents/request", requireAuth, async (req, res) => {
         category,
         status: "pending_review",
         syndicateId,
+        // Self-service request: the requester is the person concerned.
+        subjectUserId: user.userId,
         size: generated.fileSizeKo,
         fileUrl: generated.fileUrl || null,
         documentNumber: generated.documentNumber,
@@ -4262,25 +4253,29 @@ router.post(
       const appels = await db
         .select({
           amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
           status: appelsDeFondsTable.status,
           period: appelsDeFondsTable.period,
           paidDate: appelsDeFondsTable.paidDate,
         })
         .from(appelsDeFondsTable)
-        .where(eq(appelsDeFondsTable.lotId, member.lotId));
+        .where(
+          and(
+            eq(appelsDeFondsTable.lotId, member.lotId),
+            sql`${appelsDeFondsTable.status} <> 'cancelled'`,
+          ),
+        );
 
-      const totalPaid = appels
-        .filter((a) => a.status === "paid")
-        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const totalPaid = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
       const totalCharged = appels.reduce(
         (s, a) => s + Number(a.amount ?? 0),
         0,
       );
-      const overdueItems = appels.filter(
-        (a) => a.status === "overdue" || a.status === "pending",
+      const overdueItems = appels.filter((a) =>
+        ["overdue", "pending", "partially_paid", "rejected", "pending_validation"].includes(a.status ?? ""),
       );
       const overdueAmount = overdueItems.reduce(
-        (s, a) => s + Number(a.amount ?? 0),
+        (s, a) => s + Number(a.amount ?? 0) - Number(a.amountPaid ?? 0),
         0,
       );
       const remainingBalance = Math.max(0, totalCharged - totalPaid);
@@ -4349,6 +4344,15 @@ router.post(
         return;
       }
       const { memberId, language = "fr" } = parsed.data;
+      if (
+        syndicateId &&
+        (await findForeignReference(syndicateId, { memberId }))
+      ) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
+      // Recovery letters concern one co-owner: only they (and the team) see them.
+      const recoverySubject = await resolveDocumentSubject(syndicateId, { memberId });
       const docLanguage: DocumentLanguage = language as DocumentLanguage;
 
       const [syndInfo, property, officeHolders, lotMemberData, memberRows] =
@@ -4495,6 +4499,7 @@ router.post(
             category: s.category,
             status: "generated",
             syndicateId,
+            subjectUserId: recoverySubject,
             size: generated.fileSizeKo,
             fileUrl: generated.fileUrl ?? null,
             documentNumber: generated.documentNumber,
@@ -4586,6 +4591,14 @@ router.post("/documents/sale-bundle", requireAuth, async (req, res) => {
     const syndicateId = user.syndicateId ?? null;
     const { lotId, language = "fr" } = parsed.data;
     const docLanguage: DocumentLanguage = language as DocumentLanguage;
+
+    // The lot must belong to the caller's syndicate (any role).
+    if (syndicateId && (await findForeignReference(syndicateId, { lotId }))) {
+      res.status(404).json({ error: "Lot introuvable" });
+      return;
+    }
+    // The sale file concerns the lot owner only.
+    const saleSubject = await resolveDocumentSubject(syndicateId, { lotId });
 
     // Members can only request for their own lot
     if (user.role === "member" || user.role === "tenant") {
@@ -4695,6 +4708,7 @@ router.post("/documents/sale-bundle", requireAuth, async (req, res) => {
           category: item.category,
           status: "generated",
           syndicateId,
+          subjectUserId: saleSubject,
           size: generated.fileSizeKo,
           fileUrl: generated.fileUrl ?? null,
           documentNumber: generated.documentNumber,
@@ -4786,6 +4800,15 @@ router.post(
         language = "fr",
       } = parsed.data;
       const docLanguage: DocumentLanguage = language as DocumentLanguage;
+
+      if (
+        syndicateId &&
+        meetingId &&
+        (await findForeignReference(syndicateId, { meetingId }))
+      ) {
+        res.status(404).json({ error: "Réunion introuvable" });
+        return;
+      }
 
       const [syndInfo, property, officeHolders] = await Promise.all([
         getSyndicateInfo(syndicateId),
@@ -4960,11 +4983,8 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    if (
-      (req.user!.role === "member" || req.user!.role === "tenant") &&
-      doc.status !== "published"
-    ) {
-      res.status(403).json({ error: "Document non publié" });
+    if (!canResidentSeeDocument(req.user!, doc)) {
+      res.status(403).json({ error: "Accès refusé" });
       return;
     }
     res.json({ data: doc });
@@ -5003,6 +5023,7 @@ router.get(
           status: documentsTable.status,
           category: documentsTable.category,
           isDeleted: documentsTable.isDeleted,
+          subjectUserId: documentsTable.subjectUserId,
         })
         .from(documentsTable)
         .where(eq(documentsTable.fileUrl, localPath))
@@ -5026,11 +5047,8 @@ router.get(
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
-      if (
-        (req.user!.role === "member" || req.user!.role === "tenant") &&
-        doc.status !== "published"
-      ) {
-        res.status(403).json({ error: "Document non publié" });
+      if (!canResidentSeeDocument(req.user!, doc)) {
+        res.status(403).json({ error: "Accès refusé" });
         return;
       }
       if (
@@ -5078,11 +5096,8 @@ router.get("/documents/:id/download-url", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    if (
-      (req.user!.role === "member" || req.user!.role === "tenant") &&
-      doc.status !== "published"
-    ) {
-      res.status(403).json({ error: "Document non publié" });
+    if (!canResidentSeeDocument(req.user!, doc)) {
+      res.status(403).json({ error: "Accès refusé" });
       return;
     }
     if (!doc.fileUrl) {
@@ -5240,6 +5255,35 @@ router.post(
       const docLanguage: DocumentLanguage =
         (language as DocumentLanguage) ?? "fr";
 
+      // Every entity whose data is merged into the document must belong to
+      // the caller's syndicate — otherwise any ID from another syndicate
+      // (lot, member, charge, budget, invoice…) would leak into the PDF.
+      if (syndicateId) {
+        const foreign = await findForeignReference(syndicateId, {
+          buildingId,
+          lotId: extraFields.lotId as string | undefined,
+          memberId: extraFields.memberId as string | undefined,
+          meetingId: extraFields.meetingId as string | undefined,
+          appelDeFondsId: extraFields.appelDeFondsId as string | undefined,
+          budgetId: extraFields.budgetId as string | undefined,
+          invoiceId: extraFields.invoiceId as string | undefined,
+          documentId: extraFields._existingDocumentId as string | undefined,
+        });
+        if (foreign) {
+          res.status(404).json({
+            error: "Ressource liée introuvable dans votre syndicat",
+            code: "FOREIGN_REFERENCE",
+            field: foreign,
+          });
+          return;
+        }
+      }
+      // A document generated for a given member/lot is personal to that person.
+      const generationSubject = await resolveDocumentSubject(syndicateId, {
+        memberId: extraFields.memberId as string | undefined,
+        lotId: extraFields.lotId as string | undefined,
+      });
+
       // 1. Fetch full syndicate branding + real residence/office-holder data
       const [syndInfo, property, officeHolders] = await Promise.all([
         getSyndicateInfo(syndicateId),
@@ -5384,6 +5428,7 @@ router.post(
           content,
           status: "generated",
           syndicateId,
+          subjectUserId: generationSubject,
           size: generated.fileSizeKo,
           fileUrl: generated.fileUrl || null,
           documentNumber: generated.documentNumber,
@@ -5570,7 +5615,13 @@ router.put(
             (fieldUpdates.status
               ? `Transition ${existing.status} → ${fieldUpdates.status}`
               : "Modification du contenu"),
-        } as any);
+        } as any)
+          // A status-only change keeps the same content version, whose
+          // snapshot already exists: without this, the second transition
+          // (e.g. validated → published) violated the unique
+          // (document_id, version_number) and returned 500. The transition
+          // itself is recorded in the audit log below.
+          .onConflictDoNothing();
       }
 
       const updates: Record<string, unknown> = {
@@ -5621,18 +5672,31 @@ router.put(
         action: "DOCUMENT_UPDATED",
         entity: "document",
         entityId: id,
-        details: `Champs: ${Object.keys(result.data).join(", ")}, Version: ${doc.version}`,
+        details: fieldUpdates.status
+          ? `Transition ${existing.status} → ${fieldUpdates.status} (version ${doc.version})`
+          : `Champs: ${Object.keys(result.data).join(", ")}, Version: ${doc.version}`,
       });
 
       // Notify members when published
       if (result.data.status === "published" && existing.syndicateId) {
-        createAlert({
-          title: "Nouveau document publié",
-          message: `"${doc.title}" est maintenant disponible dans l'espace Documents.`,
-          type: "success",
-          syndicateId: existing.syndicateId,
-          target: "all",
-        }).catch(() => {});
+        if (existing.subjectUserId) {
+          // Personal document: only the person concerned is told (its title
+          // usually carries their name and situation).
+          void notifyUser(existing.subjectUserId, {
+            title: "Votre document est disponible",
+            message: `"${doc.title}" est disponible dans votre espace Documents.`,
+            type: "success",
+            syndicateId: existing.syndicateId,
+          });
+        } else {
+          createAlert({
+            title: "Nouveau document publié",
+            message: `"${doc.title}" est maintenant disponible dans l'espace Documents.`,
+            type: "success",
+            syndicateId: existing.syndicateId,
+            target: "all",
+          }).catch(() => {});
+        }
       }
 
       // Approval / rejection email + in-app notifications to the document's author
@@ -5646,15 +5710,14 @@ router.put(
           .from(usersTable)
           .where(eq(usersTable.id, existing.createdBy));
         const approved = result.data.status === "validated";
-        createAlert({
+        void notifyUser(existing.createdBy, {
           title: approved ? "Document approuvé" : "Document rejeté",
           message: approved
             ? `"${doc.title}" a été approuvé.`
             : `"${doc.title}" a été rejeté. Motif : ${rejectionReason}`,
           type: approved ? "success" : "error",
           syndicateId: existing.syndicateId,
-          target: "admin",
-        }).catch(() => {});
+        });
         if (author?.email) {
           sendEmail(
             author.email,
@@ -5684,7 +5747,12 @@ router.get("/documents/:id/versions", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const [doc] = await db
-      .select({ syndicateId: documentsTable.syndicateId })
+      .select({
+        syndicateId: documentsTable.syndicateId,
+        status: documentsTable.status,
+        category: documentsTable.category,
+        subjectUserId: documentsTable.subjectUserId,
+      })
       .from(documentsTable)
       .where(eq(documentsTable.id, id));
     if (!doc) {
@@ -5692,8 +5760,9 @@ router.get("/documents/:id/versions", requireAuth, async (req, res) => {
       return;
     }
     if (
-      req.user!.role !== "super_admin" &&
-      doc.syndicateId !== req.user!.syndicateId
+      (req.user!.role !== "super_admin" &&
+        doc.syndicateId !== req.user!.syndicateId) ||
+      !canResidentSeeDocument(req.user!, doc)
     ) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6391,6 +6460,8 @@ router.get("/documents/:id/signers", requireAuth, async (req, res) => {
         status: documentsTable.status,
         syndicateId: documentsTable.syndicateId,
         templateId: documentsTable.templateId,
+        category: documentsTable.category,
+        subjectUserId: documentsTable.subjectUserId,
       })
       .from(documentsTable)
       .where(eq(documentsTable.id, id));
@@ -6400,8 +6471,9 @@ router.get("/documents/:id/signers", requireAuth, async (req, res) => {
       return;
     }
     if (
-      req.user!.role !== "super_admin" &&
-      doc.syndicateId !== req.user!.syndicateId
+      (req.user!.role !== "super_admin" &&
+        doc.syndicateId !== req.user!.syndicateId) ||
+      !canResidentSeeDocument(req.user!, doc)
     ) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6522,6 +6594,8 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
         id: documentsTable.id,
         syndicateId: documentsTable.syndicateId,
         status: documentsTable.status,
+        category: documentsTable.category,
+        subjectUserId: documentsTable.subjectUserId,
       })
       .from(documentsTable)
       .where(
@@ -6537,7 +6611,9 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
     const isAdminOfSyndicate =
       user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
     const isMemberOfSyndicate =
-      user.role === "member" && doc.syndicateId === user.syndicateId;
+      user.role === "member" &&
+      doc.syndicateId === user.syndicateId &&
+      canResidentSeeDocument(user, doc);
     if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6587,6 +6663,9 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
       .select({
         id: documentsTable.id,
         syndicateId: documentsTable.syndicateId,
+        status: documentsTable.status,
+        category: documentsTable.category,
+        subjectUserId: documentsTable.subjectUserId,
       })
       .from(documentsTable)
       .where(
@@ -6602,7 +6681,9 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
     const isAdminOfSyndicate =
       user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
     const isMemberOfSyndicate =
-      user.role === "member" && doc.syndicateId === user.syndicateId;
+      user.role === "member" &&
+      doc.syndicateId === user.syndicateId &&
+      canResidentSeeDocument(user, doc);
     if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
       res.status(403).json({ error: "Accès refusé" });
       return;

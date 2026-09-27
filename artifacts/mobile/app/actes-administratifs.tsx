@@ -22,7 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
-import { getApiBaseUrl, getToken } from "@/services/api";
+import { ticketedUrl } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -202,13 +202,7 @@ function ActesAdministratifsScreenInner() {
   const openPdf = async (acte: ActeAdministratif) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const currentToken = await getToken();
-      const base = getApiBaseUrl();
-      const tokenParam = currentToken
-        ? `?token=${encodeURIComponent(currentToken)}`
-        : "";
-      const url = `${base}/pdf/acte/${acte.id}${tokenParam}`;
-      await Linking.openURL(url);
+      await Linking.openURL(await ticketedUrl(`/pdf/acte/${acte.id}`));
     } catch {
       showToast({
         type: "error",

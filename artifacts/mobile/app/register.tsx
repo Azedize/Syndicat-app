@@ -37,6 +37,13 @@ import { auth as authApi, setPendingRegistration } from "@/services/api";
 const PENDING_PLAN_KEY = "@mizan_pending_plan";
 const PENDING_REGISTER_KEY = "@mizan_pending_register";
 
+function normalizeMoroccanPhone(value: string): string {
+  const compact = value.replace(/[\s().-]/g, "");
+  return /^0[5-7]\d{8}$/.test(compact)
+    ? `+212${compact.slice(1)}`
+    : compact;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function RegisterScreen() {
@@ -92,7 +99,8 @@ export default function RegisterScreen() {
       errs.name = t("authFullNameRequired");
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       errs.email = t("authEmailInvalid");
-    if (phone.trim() && !/^\+212[5-7]\d{8}$/.test(phone.replace(/[\s-]/g, "")))
+    const normalizedPhone = normalizeMoroccanPhone(phone);
+    if (phone.trim() && !/^\+212[5-7]\d{8}$/.test(normalizedPhone))
       errs.phone = t("authPhoneInvalid");
     if (password.length < 8) errs.password = t("authPasswordTooShort");
     if (password !== confirmPassword)
@@ -124,7 +132,7 @@ export default function RegisterScreen() {
         JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          phone: phone.trim() || undefined,
+          phone: phone.trim() ? normalizeMoroccanPhone(phone) : undefined,
           password,
           planId: params.planId ?? undefined,
           planName: params.planName ?? undefined,

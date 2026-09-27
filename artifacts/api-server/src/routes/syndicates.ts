@@ -9,6 +9,7 @@ import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { syndicateCreatedTemplate } from "../lib/email/templates.js";
 import { bustLogoCache } from "../lib/documentPdf.js";
 import { assignTrial } from "./subscriptions.js";
+import { hasRecentlyVerifiedPhone } from "../lib/zimsend.service.js";
 
 const router = Router();
 
@@ -171,6 +172,18 @@ router.post(
         res.status(409).json({ error: "Vous êtes déjà rattaché à un syndicat" });
         return;
       }
+      // Self-service onboarding requires the syndicate's phone to have been
+      // verified by SMS OTP on this server — the mobile flow makes this step
+      // mandatory, and the server must not rely on the client's claim.
+      if (isSelfOnboarding) {
+        if (!data.phone || !(await hasRecentlyVerifiedPhone(data.phone))) {
+          res.status(403).json({
+            error: "Le numéro de téléphone du syndicat doit être vérifié par SMS.",
+            code: "PHONE_VERIFICATION_REQUIRED",
+          });
+          return;
+        }
+      }
       const adminId = isSelfOnboarding ? req.user!.userId : data.adminId;
 
       const [syndicate] = await db.transaction(async (tx) => {
@@ -252,6 +265,8 @@ router.post(
           }
         }
 
+        await assignTrial(s.id, tx);
+
         return [s];
       });
 
@@ -283,11 +298,6 @@ router.post(
           }).catch(() => {});
         }
       }
-
-      // Auto-assign 30-day free trial
-      assignTrial(syndicate.id).catch((e) =>
-        req.log.warn({ err: e }, "Trial auto-assign failed"),
-      );
 
       res
         .status(201)

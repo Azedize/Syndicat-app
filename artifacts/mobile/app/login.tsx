@@ -23,6 +23,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { crossPlatformShadow } from "@/lib/shadow";
+import { getApiBaseUrl } from "@/services/api";
 
 function LoginBgDecor({ isDark }: { isDark: boolean }) {
   const lineStr = isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.04)";
@@ -109,7 +110,25 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       const status = error?.status ?? error?.httpStatus;
-      setError(status === 401 ? t("invalidCredentials") : t("authServerError"));
+      // No HTTP status = the request never reached the API (wrong URL,
+      // server down, network). Otherwise show what the server actually said.
+      // fetch() rejects with a TypeError only when the request could not be
+      // sent (wrong URL, server down, network). Any other error without a
+      // status happened on the device (e.g. storing the session) and must not
+      // be reported as a network problem.
+      const networkFailure = !status && error instanceof TypeError;
+      if (networkFailure) setError(t("authServerError"));
+      else if (status === 401) setError(t("invalidCredentials"));
+      else if (status === 429) setError(t("authTooManyAttempts"));
+      else if (status && status < 500 && error?.message) setError(String(error.message));
+      else setError(t("authUnexpectedError"));
+      if (!status && __DEV__) {
+        console.warn(
+          networkFailure ? "[login] API unreachable at" : "[login] local error after contacting",
+          getApiBaseUrl(),
+          error?.message,
+        );
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);

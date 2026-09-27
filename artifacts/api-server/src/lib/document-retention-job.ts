@@ -23,6 +23,7 @@ import { systemAuditLog } from "./audit.js";
 import { deleteDocumentFromGcs } from "./documentPdf.js";
 import { createAlert } from "./notify.js";
 import { expiryBucket } from "./retention.js";
+import { scheduleJob } from "./scheduler.js";
 
 const PURGE_GRACE_DAYS = Number(process.env.DOCUMENT_PURGE_GRACE_DAYS ?? 30);
 const DRY_RUN = process.env.DOCUMENT_PURGE_DRY_RUN !== "false"; // default: dry-run (safe)
@@ -164,8 +165,7 @@ export async function runRetentionScan(): Promise<RetentionScanResult> {
 
 /** Starts the daily retention scan (on boot + every 24 hours). Dry-run by default. */
 export function startDocumentRetentionScheduler(): void {
-  runRetentionScan().catch((err) => logger.warn({ err }, "Boot retention scan failed"));
-  setInterval(() => {
-    runRetentionScan().catch((err) => logger.warn({ err }, "Scheduled retention scan failed"));
-  }, 24 * 60 * 60 * 1000);
+  // Claimed per run in scheduled_job_runs: executes once per interval
+  // across all API instances, and not again on every restart.
+  scheduleJob("document-retention", 24 * 60 * 60 * 1000, runRetentionScan);
 }

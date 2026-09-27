@@ -10,6 +10,9 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:mark-baseline": "node --env-file=../../.env --import=tsx ./src/mark-baseline.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -18,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "drizzle-kit": "^0.31.6"
+    "drizzle-kit": "^0.31.6",
+    "tsx": "catalog:"
   }
 }

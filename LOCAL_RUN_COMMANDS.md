@@ -63,13 +63,60 @@ $env:PORT = "5000"
 
 ## 3. Schéma et données
 
+Le schéma est versionné dans `lib/db/drizzle/` (migrations SQL).
+
+Base neuve :
+
 ```powershell
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 pnpm db:status
 ```
 
-Le seed est réexécutable et ne doit pas créer de doublons.
+Base existante créée autrefois avec `db:push` (une seule fois) :
+
+```powershell
+pnpm --filter @workspace/db run db:mark-baseline
+pnpm db:migrate
+```
+
+Après une modification de `lib/db/src/schema.ts` :
+
+```powershell
+pnpm db:generate   # crée lib/db/drizzle/NNNN_*.sql — à relire puis commiter
+pnpm db:migrate
+```
+
+`pnpm db:push` reste possible en développement local uniquement, jamais en
+production. Le seed est réexécutable et ne doit pas créer de doublons.
+
+## 3 bis. Tests de régression (API lancée)
+
+Les suites parlent à l’API en HTTP et nettoient les données qu’elles créent.
+Lancer l’API de test **avec l’envoi d’emails désactivé** (sinon les emails
+partent réellement via le SMTP de `.env`) :
+
+```powershell
+cd artifactspi-server
+pnpm run build
+$env:SMTP_HOST = ""; $env:PORT = "5055"
+node --env-file=../../.env ./dist/index.mjs
+```
+
+Dans un autre terminal :
+
+```powershell
+$env:API_BASE_URL = "http://localhost:5055/api"
+pnpm --filter @workspace/scripts run rbac-regression:test
+pnpm --filter @workspace/scripts run auth-security:test
+pnpm --filter @workspace/scripts run finance-integrity:test
+pnpm --filter @workspace/scripts run documents-security:test
+pnpm --filter @workspace/scripts run scenario-e2e:test
+```
+
+`/api/auth` est limité (60 requêtes / 15 min / IP sur les endpoints
+d’identifiants) : redémarrer l’API de test si la suite auth est relancée
+plusieurs fois de suite.
 
 ## 4. Backend Express
 
@@ -77,6 +124,19 @@ Ouvrir un nouveau terminal PowerShell:
 
 ```powershell
 cd C:\Users\Dell\OneDrive\Documents\zip-repl
+Test-NetConnection localhost -Port 5000 -InformationLevel Quiet
+```
+
+Si le résultat est `True`, l'API est déjà démarrée: ne pas relancer une
+seconde instance. Vérifier directement son état:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:5000/api/healthz
+```
+
+Si le résultat est `False`, démarrer l'API:
+
+```powershell
 pnpm --filter @workspace/api-server run dev
 ```
 
@@ -95,7 +155,14 @@ Ouvrir un autre terminal PowerShell:
 ```powershell
 cd C:\Users\Dell\OneDrive\Documents\zip-repl
 $env:EXPO_PUBLIC_API_URL = "http://10.0.2.2:5000/api"
-pnpm --filter @workspace/mobile run dev
+Test-NetConnection localhost -Port 8081 -InformationLevel Quiet
+```
+
+Si le résultat est `True`, Expo est déjà démarré. Si le résultat est `False`,
+lancer Expo:
+
+```powershell
+pnpm --filter @workspace/mobile exec expo start --localhost --clear --port 8081
 ```
 
 Expo démarre sur `http://localhost:8081`. Utiliser le terminal Expo pour

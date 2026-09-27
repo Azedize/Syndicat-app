@@ -17,9 +17,38 @@ import {
   ObjectStorageService,
 } from "../lib/objectStorage.js";
 import { requireAuth, softAuth } from "../middleware/auth.js";
+import { verifyFileSignature } from "../lib/file-signature.js";
+import { canResidentSeeDocument } from "../lib/scope.js";
 import { db } from "@workspace/db";
-import { documentsTable, storageObjectsTable } from "@workspace/db/schema";
+import {
+  appelPaymentsTable,
+  appelsDeFondsTable,
+  documentsTable,
+  expensesTable,
+  ledgerEntriesTable,
+  storageObjectsTable,
+  transactionsTable,
+} from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
+
+/** Roles that review payment proofs and supplier invoices. */
+const FINANCE_PROOF_ROLES = ["syndicate_admin", "treasurer", "president", "committee_member"];
+
+/**
+ * True when the object is a financial justification: a co-owner's payment
+ * proof, a supplier invoice or a journal attachment. Those contain banking
+ * and personal data, so they are not shared with the whole syndicate.
+ */
+async function isFinancialProof(objectPath: string): Promise<boolean> {
+  const checks = await Promise.all([
+    db.select({ id: appelPaymentsTable.id }).from(appelPaymentsTable).where(eq(appelPaymentsTable.proofUrl, objectPath)).limit(1),
+    db.select({ id: appelsDeFondsTable.id }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.proofUrl, objectPath)).limit(1),
+    db.select({ id: expensesTable.id }).from(expensesTable).where(eq(expensesTable.proofUrl, objectPath)).limit(1),
+    db.select({ id: ledgerEntriesTable.id }).from(ledgerEntriesTable).where(eq(ledgerEntriesTable.proofUrl, objectPath)).limit(1),
+    db.select({ id: transactionsTable.id }).from(transactionsTable).where(eq(transactionsTable.proofUrl, objectPath)).limit(1),
+  ]);
+  return checks.some((rows) => rows.length > 0);
+}
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
 const LOCAL_UPLOADS_DIR = path.resolve(process.env.LOCAL_UPLOADS_DIR ?? "uploads");
@@ -55,6 +84,11 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
   ".docx":
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx":
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".zip": "application/zip",
   ".mp4": "video/mp4",
   ".mov": "video/quicktime",
   ".txt": "text/plain",
@@ -204,19 +238,32 @@ router.post(
         res.status(400).json({ error: "Aucun fichier reçu" });
         return;
       }
+      // The declared MIME type passed the allow-list, but it is client
+      // controlled: the bytes must match it, and the stored extension/type
+      // come from the verified content, never from the client's file name.
+      const verified = verifyFileSignature(req.file.buffer, req.file.mimetype);
+      if (!verified) {
+        res.status(415).json({
+          error: "Le contenu du fichier ne correspond pas à un format autorisé.",
+          code: "FILE_TYPE_MISMATCH",
+        });
+        return;
+      }
       await ensureUploadsDir();
-      const ext = path.extname(req.file.originalname || "").toLowerCase();
-      const filename = `${randomUUID()}${ext}`;
+      const filename = `${randomUUID()}${verified.ext}`;
       const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
       await fs.writeFile(filePath, req.file.buffer);
       const objectPath = `/objects/uploads/${filename}`;
+      // Keep the display name only (no path), bounded in length.
+      const originalName =
+        path.basename(req.file.originalname || "").slice(0, 200) || null;
       try {
         await db.insert(storageObjectsTable).values({
           objectPath,
           ownerId: req.user!.userId,
           syndicateId: req.user!.syndicateId ?? null,
-          originalName: req.file.originalname || null,
-          contentType: req.file.mimetype,
+          originalName,
+          contentType: verified.mime,
           size: req.file.size,
         });
       } catch (err) {
@@ -225,8 +272,8 @@ router.post(
       }
       res.json({
         objectPath,
-        fileName: req.file.originalname,
-        contentType: req.file.mimetype,
+        fileName: originalName,
+        contentType: verified.mime,
         size: req.file.size,
       });
     } catch (err) {
@@ -470,6 +517,7 @@ router.get(
           category: documentsTable.category,
           status: documentsTable.status,
           isDeleted: documentsTable.isDeleted,
+          subjectUserId: documentsTable.subjectUserId,
         })
         .from(documentsTable)
         .where(
@@ -513,6 +561,18 @@ router.get(
           res.status(403).json({ error: "Accès refusé" });
           return;
         }
+        // Same syndicate is not enough for a financial proof: only its
+        // uploader and the finance team may open it (a neighbour must never
+        // read a co-owner's bank transfer receipt).
+        if (
+          !isOwner &&
+          !isSupervisedPlatformAccess &&
+          !FINANCE_PROOF_ROLES.includes(req.user.role) &&
+          (await isFinancialProof(objectPath))
+        ) {
+          res.status(403).json({ error: "Accès refusé" });
+          return;
+        }
       }
 
       if (docs.length > 0) {
@@ -542,19 +602,7 @@ router.get(
           ) {
             return false;
           }
-          if (
-            (req.user!.role === "member" || req.user!.role === "tenant") &&
-            doc.status !== "published"
-          ) {
-            return false;
-          }
-          if (
-            req.user!.role === "tenant" &&
-            !["bail", "reglement", "reglement_interieur"].includes(doc.category)
-          ) {
-            return false;
-          }
-          return true;
+          return canResidentSeeDocument(req.user!, doc);
         });
         if (!canAccess) {
           res.status(403).json({ error: "Accès refusé" });

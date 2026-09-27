@@ -1551,6 +1551,23 @@ router.put(
         });
         return;
       }
+      // A syndicate admin may only cancel or toggle auto-renew. Any other
+      // status transition (active, trial, grace…) is a billing decision that
+      // must come from a confirmed payment or from the platform owner —
+      // otherwise a customer could activate their own subscription for free.
+      if (user.role !== "super_admin") {
+        if (status !== undefined && status !== "cancelled") {
+          res.status(403).json({
+            error: "Seul le Super Admin peut modifier le statut de l'abonnement.",
+            code: "SUBSCRIPTION_STATUS_FORBIDDEN",
+          });
+          return;
+        }
+        if (notes !== undefined) {
+          res.status(403).json({ error: "Accès refusé" });
+          return;
+        }
+      }
       if (planId !== undefined) {
         const [plan] = await db
           .select({ id: subscriptionPlansTable.id })
@@ -1736,9 +1753,16 @@ router.put(
 
 // ─── Exported helper ──────────────────────────────────────────────────────
 
-export async function assignTrial(syndicateId: string): Promise<any> {
+type TrialExecutor = Pick<typeof db, "select" | "insert">;
+
+/** Creates the 30-day trial. Pass the onboarding transaction so a syndicate is
+ *  never committed without the subscription that makes it writable. */
+export async function assignTrial(
+  syndicateId: string,
+  executor: TrialExecutor = db,
+): Promise<any> {
   // Find the trial plan
-  const [trialPlan] = await db
+  const [trialPlan] = await executor
     .select()
     .from(subscriptionPlansTable)
     .where(eq(subscriptionPlansTable.isTrial, true))
@@ -1748,7 +1772,7 @@ export async function assignTrial(syndicateId: string): Promise<any> {
   const trialEnd = new Date(now);
   trialEnd.setDate(trialEnd.getDate() + 30);
 
-  const [sub] = await db
+  const [sub] = await executor
     .insert(syndicateSubscriptionsTable)
     .values({
       syndicateId,

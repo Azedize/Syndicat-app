@@ -8,14 +8,20 @@
  *   ZIMSEND_BASE_URL   (e.g. https://app.zimsend.com)
  *
  * OTP policy:
- *   - 6-digit random code
- *   - Expires in 5 minutes
- *   - Max 5 verification attempts per code
- *   - Resend blocked for 60 seconds after last send
+ *   - 6-digit random code, stored hashed in otp_tokens (purpose
+ *     "phone_verification"; the `email` column holds the E.164 number) so it
+ *     works across API instances and is purged by the OTP retention job
+ *   - Moroccan mobile numbers only (+2126… / +2127…) — prevents SMS pumping
+ *     to premium international ranges through this unauthenticated endpoint
+ *   - Expires in 5 minutes, max 5 verification attempts per code
+ *   - Resend blocked for 60 seconds, max 3 codes per number per hour
  */
 
 import axios, { AxiosError } from "axios";
 import { createHash, randomInt } from "node:crypto";
+import { db } from "@workspace/db";
+import { otpTokensTable } from "@workspace/db/schema";
+import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -58,21 +64,16 @@ export function normalizePhone(raw: string): string {
   throw new InvalidPhoneError(`Numéro de téléphone invalide : ${raw}`);
 }
 
-// ─── OTP store (in-memory) ────────────────────────────────────────────────────
+// ─── OTP store (PostgreSQL) ───────────────────────────────────────────────────
 
 const OTP_TTL_MS      = 5 * 60 * 1_000;  // 5 minutes
 const OTP_MAX_TRIES   = 5;
 const OTP_RESEND_COOL = 60 * 1_000;       // 60 seconds
+const OTP_MAX_PER_HOUR = 3;
+export const PHONE_OTP_PURPOSE = "phone_verification";
 
-interface OtpEntry {
-  codeHash: string;   // SHA-256(code) — fast secure comparison
-  expiresAt: number;  // unix ms
-  sentAt: number;     // unix ms — for resend cooldown
-  attempts: number;
-}
-
-// Keyed by normalised E.164 phone number
-const _store = new Map<string, OtpEntry>();
+/** Moroccan mobile numbers in E.164 (+212 6XXXXXXXX / +212 7XXXXXXXX). */
+const MOROCCAN_MOBILE_RE = /^\+212[67]\d{8}$/;
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
@@ -145,32 +146,60 @@ export async function sendOtp(rawPhone: string): Promise<SendOtpResult> {
     return { ok: false, error: `Numéro de téléphone invalide : ${rawPhone}`, errorCode: "INVALID_PHONE" };
   }
 
-  // Resend cooldown
-  const existing = _store.get(phone);
-  if (existing && Date.now() < existing.sentAt + OTP_RESEND_COOL) {
-    const wait = Math.ceil((existing.sentAt + OTP_RESEND_COOL - Date.now()) / 1_000);
-    return { ok: false, error: `Attendez ${wait} secondes avant de renvoyer un code.`, errorCode: "RESEND_TOO_SOON" };
+  if (!MOROCCAN_MOBILE_RE.test(phone)) {
+    return {
+      ok: false,
+      error: "Seuls les numéros mobiles marocains (06/07) sont acceptés.",
+      errorCode: "INVALID_PHONE",
+    };
   }
 
   if (!zimSendConfigured()) {
     return { ok: false, error: "ZimSend non configuré (variables d'env manquantes)", errorCode: "NOT_CONFIGURED" };
   }
 
-  const code = generateOtp();
-  const now  = Date.now();
+  const now = Date.now();
+  const [latest] = await db
+    .select({ createdAt: otpTokensTable.createdAt })
+    .from(otpTokensTable)
+    .where(and(eq(otpTokensTable.email, phone), eq(otpTokensTable.purpose, PHONE_OTP_PURPOSE)))
+    .orderBy(desc(otpTokensTable.createdAt))
+    .limit(1);
+  const lastSentAt = latest?.createdAt?.getTime() ?? 0;
+  if (now < lastSentAt + OTP_RESEND_COOL) {
+    const wait = Math.ceil((lastSentAt + OTP_RESEND_COOL - now) / 1_000);
+    return { ok: false, error: `Attendez ${wait} secondes avant de renvoyer un code.`, errorCode: "RESEND_TOO_SOON" };
+  }
+  const [{ value: sentLastHour }] = await db
+    .select({ value: count() })
+    .from(otpTokensTable)
+    .where(
+      and(
+        eq(otpTokensTable.email, phone),
+        eq(otpTokensTable.purpose, PHONE_OTP_PURPOSE),
+        gt(otpTokensTable.createdAt, new Date(now - 3_600_000)),
+      ),
+    );
+  if (Number(sentLastHour) >= OTP_MAX_PER_HOUR) {
+    return { ok: false, error: "Trop de codes demandés pour ce numéro. Réessayez dans une heure.", errorCode: "RESEND_TOO_SOON" };
+  }
 
-  _store.set(phone, {
-    codeHash:  hashCode(code),
-    expiresAt: now + OTP_TTL_MS,
-    sentAt:    now,
-    attempts:  0,
-  });
+  const code = generateOtp();
+  const [row] = await db
+    .insert(otpTokensTable)
+    .values({
+      email: phone,
+      purpose: PHONE_OTP_PURPOSE,
+      codeHash: hashCode(code),
+      expiresAt: new Date(now + OTP_TTL_MS),
+    })
+    .returning({ id: otpTokensTable.id });
 
   const message = `Votre code de vérification MIZAN est : ${code}. Valable 5 minutes.`;
   const result  = await sendSMS(phone, message);
 
   if (!result.success) {
-    _store.delete(phone);
+    await db.delete(otpTokensTable).where(eq(otpTokensTable.id, row.id));
     return { ok: false, error: result.error ?? "Échec de l'envoi du SMS", errorCode: "SEND_FAILED" };
   }
 
@@ -198,23 +227,33 @@ export async function verifyOtp(rawPhone: string, code: string): Promise<VerifyO
     return { ok: false, error: `Numéro de téléphone invalide : ${rawPhone}`, errorCode: "INVALID_PHONE" };
   }
 
-  const entry = _store.get(phone);
+  const [entry] = await db
+    .select()
+    .from(otpTokensTable)
+    .where(
+      and(
+        eq(otpTokensTable.email, phone),
+        eq(otpTokensTable.purpose, PHONE_OTP_PURPOSE),
+        isNull(otpTokensTable.usedAt),
+      ),
+    )
+    .orderBy(desc(otpTokensTable.createdAt))
+    .limit(1);
   if (!entry) {
     return { ok: false, error: "Aucun code en attente pour ce numéro. Demandez un nouveau code.", errorCode: "NOT_FOUND" };
   }
 
-  if (Date.now() > entry.expiresAt) {
-    _store.delete(phone);
+  if (Date.now() > entry.expiresAt.getTime()) {
     return { ok: false, error: "Code expiré. Demandez un nouveau code.", errorCode: "EXPIRED" };
   }
 
-  if (entry.attempts >= OTP_MAX_TRIES) {
-    _store.delete(phone);
+  if ((entry.attempts ?? 0) >= OTP_MAX_TRIES) {
     return { ok: false, error: "Trop de tentatives incorrectes. Demandez un nouveau code.", errorCode: "MAX_ATTEMPTS" };
   }
 
-  entry.attempts += 1;
-  const attemptsLeft = OTP_MAX_TRIES - entry.attempts;
+  const attempts = (entry.attempts ?? 0) + 1;
+  await db.update(otpTokensTable).set({ attempts }).where(eq(otpTokensTable.id, entry.id));
+  const attemptsLeft = OTP_MAX_TRIES - attempts;
 
   const valid = hashCode(code.trim()) === entry.codeHash;
   if (!valid) {
@@ -228,10 +267,43 @@ export async function verifyOtp(rawPhone: string, code: string): Promise<VerifyO
     };
   }
 
-  // Valid — consume the entry
-  _store.delete(phone);
+  // Valid — consume the code (usedAt also serves as server-side proof that
+  // this number was verified, see hasRecentlyVerifiedPhone).
+  await db
+    .update(otpTokensTable)
+    .set({ usedAt: new Date() })
+    .where(and(eq(otpTokensTable.id, entry.id), isNull(otpTokensTable.usedAt)));
   logger.info({ phone }, "ZimSend OTP: verified successfully");
   return { ok: true, verified: true, phone };
+}
+
+/**
+ * True when `rawPhone` was verified by SMS OTP within `withinMs`. Lets other
+ * flows (syndicate onboarding) trust a phone verification server-side instead
+ * of relying on the client's claim.
+ */
+export async function hasRecentlyVerifiedPhone(
+  rawPhone: string,
+  withinMs = 30 * 60 * 1000,
+): Promise<boolean> {
+  let phone: string;
+  try {
+    phone = normalizePhone(rawPhone);
+  } catch {
+    return false;
+  }
+  const [row] = await db
+    .select({ id: otpTokensTable.id })
+    .from(otpTokensTable)
+    .where(
+      and(
+        eq(otpTokensTable.email, phone),
+        eq(otpTokensTable.purpose, PHONE_OTP_PURPOSE),
+        gt(otpTokensTable.usedAt, new Date(Date.now() - withinMs)),
+      ),
+    )
+    .limit(1);
+  return !!row;
 }
 
 // ─── Error mapper ─────────────────────────────────────────────────────────────

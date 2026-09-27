@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -41,6 +42,9 @@ export default function MembersScreen() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newProfession, setNewProfession] = useState("");
+  // Co-owners need an app account to see their charges and pay: invite by
+  // default; the syndic can opt out (e.g. owner without email access).
+  const [inviteToApp, setInviteToApp] = useState(true);
 
   const [submittingMember, setSubmittingMember] = useState(false);
   const [submittingSyndicate, setSubmittingSyndicate] = useState(false);
@@ -120,6 +124,7 @@ export default function MembersScreen() {
         phone: newPhone.trim(),
         profession: newProfession.trim() || "Non spécifié",
         joinDate: new Date().toISOString().slice(0, 10),
+        inviteToApp: inviteToApp && !!newEmail.trim(),
       });
       const member: Member = {
         id: data.id,
@@ -134,9 +139,13 @@ export default function MembersScreen() {
       };
       addMember(member);
       setShowAdd(false);
-      setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession("");
+      setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession(""); setInviteToApp(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: t("success"), message: `${member.name} — ${t("memberAdded") ?? "ajouté"}` });
+      showToast({
+        type: "success",
+        title: t("success"),
+        message: data.invited ? `${member.name} — ${t("memberInvitedMessage")}` : `${member.name} — ${t("memberAdded") ?? "ajouté"}`,
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("errorGeneric");
       showToast({ type: "error", title: t("error"), message: msg });
@@ -625,6 +634,13 @@ export default function MembersScreen() {
                     />
                   </View>
                 ))}
+                <View style={styles.inviteRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("inviteToAppLabel")}</Text>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{t("inviteToAppSub")}</Text>
+                  </View>
+                  <Switch value={inviteToApp} onValueChange={setInviteToApp} />
+                </View>
                 <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: newName.trim() && !submittingMember ? colors.primary : colors.muted }]}
                   onPress={handleAdd}
@@ -649,6 +665,7 @@ export default function MembersScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  inviteRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { fontSize: 22, fontFamily: "Inter_700Bold" },

@@ -1,36 +1,50 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { parseLoginResponse, resolveApiBaseUrl } from "../lib/login-transport";
 
 const TOKEN_KEY = "@syndycat_token";
 const REFRESH_TOKEN_KEY = "@syndycat_refresh_token";
 const PENDING_REGISTER_KEY = "@mizan_pending_register";
 
+/**
+ * SecureStore only accepts [A-Za-z0-9._-] keys: the historical "@…" names
+ * (still used for AsyncStorage on web and for migrating old sessions) are
+ * invalid there and made every native token write throw.
+ */
+function secureKey(key: string): string {
+  return key.replace(/[^A-Za-z0-9._-]/g, "");
+}
+
 export function getApiBaseUrl(): string {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  // In dev, fall back to the API server port.
   const port = process.env.EXPO_PUBLIC_API_PORT ?? "5000";
-  if (__DEV__) {
-    return `http://localhost:${port}/api`;
+  if (!apiUrl && !domain && !__DEV__) {
+    console.error(
+      "[API] EXPO_PUBLIC_DOMAIN is not set — requests will fail in production.",
+    );
   }
-  console.error(
-    "[API] EXPO_PUBLIC_DOMAIN is not set — requests will fail in production.",
-  );
-  return `http://localhost:${port}/api`;
+  return resolveApiBaseUrl({
+    apiUrl,
+    domain,
+    port,
+    isDev: __DEV__,
+    platform: Platform.OS,
+    hostUri: Constants.expoConfig?.hostUri,
+  });
 }
 
 export async function getToken(): Promise<string | null> {
   try {
     if (Platform.OS !== "web") {
-      const secureToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const secureToken = await SecureStore.getItemAsync(secureKey(TOKEN_KEY));
       if (secureToken) return secureToken;
 
       const legacyToken = await AsyncStorage.getItem(TOKEN_KEY);
       if (legacyToken) {
-        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken);
+        await SecureStore.setItemAsync(secureKey(TOKEN_KEY), legacyToken);
         await AsyncStorage.removeItem(TOKEN_KEY);
       }
       return legacyToken;
@@ -43,7 +57,7 @@ export async function getToken(): Promise<string | null> {
 
 export async function setToken(token: string): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    await SecureStore.setItemAsync(secureKey(TOKEN_KEY), token);
     await AsyncStorage.removeItem(TOKEN_KEY);
     return;
   }
@@ -52,7 +66,7 @@ export async function setToken(token: string): Promise<void> {
 
 export async function removeToken(): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(secureKey(TOKEN_KEY));
   }
   await AsyncStorage.removeItem(TOKEN_KEY);
 }
@@ -60,12 +74,12 @@ export async function removeToken(): Promise<void> {
 export async function getRefreshToken(): Promise<string | null> {
   try {
     if (Platform.OS !== "web") {
-      const secureToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      const secureToken = await SecureStore.getItemAsync(secureKey(REFRESH_TOKEN_KEY));
       if (secureToken) return secureToken;
 
       const legacyToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
       if (legacyToken) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyToken);
+        await SecureStore.setItemAsync(secureKey(REFRESH_TOKEN_KEY), legacyToken);
         await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
       }
       return legacyToken;
@@ -78,7 +92,7 @@ export async function getRefreshToken(): Promise<string | null> {
 
 export async function setRefreshToken(token: string): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    await SecureStore.setItemAsync(secureKey(REFRESH_TOKEN_KEY), token);
     await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
     return;
   }
@@ -87,24 +101,25 @@ export async function setRefreshToken(token: string): Promise<void> {
 
 export async function removeRefreshToken(): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(secureKey(REFRESH_TOKEN_KEY));
   }
   await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export async function clearAllTokens(): Promise<void> {
+  clearFileTicket();
   await Promise.all([removeToken(), removeRefreshToken()]);
 }
 
 export async function getPendingRegistration(): Promise<string | null> {
   try {
     if (Platform.OS !== "web") {
-      const secureData = await SecureStore.getItemAsync(PENDING_REGISTER_KEY);
+      const secureData = await SecureStore.getItemAsync(secureKey(PENDING_REGISTER_KEY));
       if (secureData) return secureData;
 
       const legacyData = await AsyncStorage.getItem(PENDING_REGISTER_KEY);
       if (legacyData) {
-        await SecureStore.setItemAsync(PENDING_REGISTER_KEY, legacyData);
+        await SecureStore.setItemAsync(secureKey(PENDING_REGISTER_KEY), legacyData);
         await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
       }
       return legacyData;
@@ -117,7 +132,7 @@ export async function getPendingRegistration(): Promise<string | null> {
 
 export async function setPendingRegistration(value: string): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.setItemAsync(PENDING_REGISTER_KEY, value);
+    await SecureStore.setItemAsync(secureKey(PENDING_REGISTER_KEY), value);
     await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
     return;
   }
@@ -126,7 +141,7 @@ export async function setPendingRegistration(value: string): Promise<void> {
 
 export async function removePendingRegistration(): Promise<void> {
   if (Platform.OS !== "web") {
-    await SecureStore.deleteItemAsync(PENDING_REGISTER_KEY);
+    await SecureStore.deleteItemAsync(secureKey(PENDING_REGISTER_KEY));
   }
   await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
 }
@@ -240,6 +255,55 @@ async function request<T>(
   return json as T;
 }
 
+// ─── Download tickets ────────────────────────────────────────────────────────
+// URLs opened outside fetch (Linking.openURL, <Image>, WebView) cannot carry an
+// Authorization header. They get a short-lived, GET-only ticket in ?token=
+// instead of the session token, which must never appear in a URL.
+
+let fileTicketCache: { ticket: string; expiresAt: number } | null = null;
+let fileTicketInFlight: Promise<string | null> | null = null;
+
+export async function getFileTicket(): Promise<string | null> {
+  // Reuse a cached ticket while it has at least 60 s of validity left.
+  if (fileTicketCache && fileTicketCache.expiresAt - Date.now() > 60_000) {
+    return fileTicketCache.ticket;
+  }
+  if (!fileTicketInFlight) {
+    fileTicketInFlight = request<{ data: { ticket: string; expiresIn: number } }>(
+      "/auth/file-ticket",
+      { method: "POST" },
+    )
+      .then(({ data }) => {
+        fileTicketCache = {
+          ticket: data.ticket,
+          expiresAt: Date.now() + data.expiresIn * 1000,
+        };
+        return data.ticket;
+      })
+      .catch(() => null)
+      .finally(() => {
+        fileTicketInFlight = null;
+      });
+  }
+  return fileTicketInFlight;
+}
+
+export function clearFileTicket(): void {
+  fileTicketCache = null;
+}
+
+/** Appends a download ticket to an API URL (keeps existing query params). */
+export function withFileTicket(url: string, ticket: string | null): string {
+  if (!ticket) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(ticket)}`;
+}
+
+/** Full API URL for a protected GET resource, ready for Linking.openURL. */
+export async function ticketedUrl(path: string): Promise<string> {
+  const url = path.startsWith("http") ? path : `${getApiBaseUrl()}${path}`;
+  return withFileTicket(url, await getFileTicket());
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface ApiUser {
@@ -265,14 +329,16 @@ export interface ApiUser {
 }
 
 export const auth = {
-  login: (email: string, password: string) =>
-    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      },
-      false,
+  login: async (email: string, password: string) =>
+    parseLoginResponse<ApiUser>(
+      await request<unknown>(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        },
+        false,
+      ),
     ),
 
   refresh: (refreshToken: string) =>

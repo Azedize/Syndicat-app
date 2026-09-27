@@ -26,6 +26,7 @@ const CHART_HEIGHT = 140;
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const STRINGS = {
+  review: { fr: "Examiner", en: "Review", ar: "مراجعة", es: "Revisar" },
   loading: {
     fr: "Chargement du tableau de bord…",
     en: "Loading dashboard…",
@@ -932,13 +933,11 @@ const CAT_COLORS = [
 function PendingActionsPanel({
   items,
   onReview,
-  busyId,
   colors,
   styles,
 }: {
   items: PendingItem[];
-  onReview: (item: PendingItem, action: "approve" | "reject") => void;
-  busyId: string | null;
+  onReview: (item: PendingItem) => void;
   colors: Colors;
   styles: ReturnType<typeof createStyles>;
 }) {
@@ -951,7 +950,6 @@ function PendingActionsPanel({
         <Text style={styles.cardTitle}>{STRINGS.actionRequired[lang]} ({items.length})</Text>
       </View>
       {items.map((item) => {
-        const isBusy = busyId === item.id;
         const isValidation = item.status === "pending_validation";
         return (
           <View key={item.id} style={styles.pendingRow}>
@@ -978,28 +976,17 @@ function PendingActionsPanel({
                 </Text>
               </View>
             </View>
-            {isValidation && item.proof ? (
-              <View style={styles.pendingActions}>
-                <TouchableOpacity
-                  disabled={isBusy}
-                  onPress={() => onReview(item, "reject")}
-                  style={[styles.pendingBtn, { backgroundColor: colors.destructive + "22" }]}
-                >
-                  <Ionicons name="close" size={16} color={colors.destructive} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  disabled={isBusy}
-                  onPress={() => onReview(item, "approve")}
-                  style={[styles.pendingBtn, { backgroundColor: colors.success }]}
-                >
-                  {isBusy ? (
-                    <ActivityIndicator size="small" color={colors.successForeground} />
-                  ) : (
-                    <Ionicons name="checkmark" size={16} color={colors.successForeground} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : null}
+            {/* A payment is validated only after the proof has been looked at:
+                open it in the charges screen (proof viewer, reason on reject). */}
+            <View style={styles.pendingActions}>
+              <TouchableOpacity
+                onPress={() => onReview(item)}
+                style={[styles.pendingBtn, { backgroundColor: isValidation ? colors.warning + "22" : colors.destructive + "22" }]}
+                accessibilityLabel={STRINGS.review[lang]}
+              >
+                <Ionicons name="chevron-forward" size={16} color={isValidation ? colors.warning : colors.destructive} />
+              </TouchableOpacity>
+            </View>
           </View>
         );
       })}
@@ -1037,7 +1024,6 @@ function TableauBordFinancierInner() {
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"finance" | "travaux" | "prestataires">("finance");
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
-  const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
 
   const loadBuildings = useCallback(async () => {
     try {
@@ -1104,20 +1090,13 @@ function TableauBordFinancierInner() {
   }, [selectedId, lang, loadBuildings, loadDashboard, loadPending]);
 
   const handleReview = useCallback(
-    async (item: PendingItem, action: "approve" | "reject") => {
-      if (!item.proof) return;
-      setReviewBusyId(item.id);
-      try {
-        await apiRequest(`/payment-proofs/${item.proof.id}/review`, "PUT", { action });
-        setPendingItems((prev) => prev.filter((p) => p.id !== item.id));
-        if (selectedId) await loadDashboard(selectedId);
-      } catch (e: any) {
-        setError(STRINGS.validationError[lang]);
-      } finally {
-        setReviewBusyId(null);
-      }
+    (item: PendingItem) => {
+      router.push({
+        pathname: "/charges",
+        params: { filter: item.status === "pending_validation" ? "pending_validation" : "overdue" },
+      } as any);
     },
-    [selectedId, loadDashboard, lang],
+    [router],
   );
 
   if (loading) {
@@ -1301,7 +1280,6 @@ function TableauBordFinancierInner() {
                 <PendingActionsPanel
                   items={pendingItems}
                   onReview={handleReview}
-                  busyId={reviewBusyId}
                   colors={colors}
                   styles={styles}
                 />

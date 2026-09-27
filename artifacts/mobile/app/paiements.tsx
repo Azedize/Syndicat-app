@@ -1,13 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
-import QRCode from "react-native-qrcode-svg";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
   FlatList,
+  Linking,
   Modal,
+  RefreshControl,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,7 +18,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -25,8 +25,9 @@ import { apiRequest } from "@/lib/api";
 import { shareContent } from "@/hooks/useShare";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState } from "@/components/DataState";
+import { ticketedUrl } from "@/services/api";
 
-type TxStatus = "paid" | "pending" | "overdue";
+type TxStatus = "paid" | "pending" | "overdue" | "cancelled";
 type TxType = "cotisation" | "depense" | "salaire" | "recette";
 
 interface Transaction {
@@ -45,12 +46,14 @@ const STATUS_ICONS: Record<TxStatus, keyof typeof Feather.glyphMap> = {
   paid:    "check-circle",
   pending: "clock",
   overdue: "alert-circle",
+  cancelled: "slash",
 };
 
 const STATUS_COLORS: Record<TxStatus, { color: string; bg: string }> = {
   paid:    { color: "#10b981", bg: "#10b98115" },
   pending: { color: "#f59e0b", bg: "#f59e0b15" },
   overdue: { color: "#ef4444", bg: "#ef444415" },
+  cancelled: { color: "#6b7280", bg: "#6b728015" },
 };
 
 const TYPE_ICONS: Record<TxType, keyof typeof Feather.glyphMap> = {
@@ -88,29 +91,42 @@ function formatMAD(amount: number, lang: "fr" | "en" | "ar" | "es"): string {
   }
 }
 
-function isWithinPeriod(date: string, period: "7j" | "30j" | "3m" | "12m"): boolean {
-  const timestamp = new Date(date).getTime();
-  if (!Number.isFinite(timestamp)) return true;
+function periodStart(period: "7j" | "30j" | "3m" | "12m"): string {
   const days = period === "7j" ? 7 : period === "30j" ? 30 : period === "3m" ? 92 : 365;
-  return timestamp >= Date.now() - days * 24 * 60 * 60 * 1000;
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+interface RegisterTotals {
+  inflow: number;
+  outflow: number;
+  pending: number;
+  paidCount: number;
+  pendingCount: number;
+  overdueCount: number;
 }
 
 // Paiements — personal payment history for members, tenants, and governance roles.
 // Super Admin must never see individual syndicate financial data.
 export default function PaiementsScreen() {
   return (
-    <RoleGuard allow={["syndicate_admin", "president", "treasurer", "secretary", "committee_member", "member", "tenant"]}>
+    <RoleGuard allow={["syndicate_admin", "president", "treasurer", "committee_member", "member"]}>
       <PaiementsScreenInner />
     </RoleGuard>
   );
 }
 
 function PaiementsScreenInner() {
+  const { user } = useAuth();
+  // A co-owner sees their own payments (declared, validated, rejected) with
+  // real receipts; the syndicate team sees the operations register.
+  return user?.role === "member" ? <MyPaymentsView /> : <RegisterView />;
+}
+
+function RegisterView() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, lang } = useLanguage();
-  const { dataLoading, dataLoadError, refreshData, transactions, updateTransactionStatus } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
@@ -118,23 +134,71 @@ function PaiementsScreenInner() {
   const [tab, setTab] = useState<TabFilter>("all");
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [period, setPeriod] = useState<"7j" | "30j" | "3m" | "12m">("30j");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totals, setTotals] = useState<RegisterTotals | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoadError, setDataLoadError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const filtered = useMemo(() => {
-    return transactions.filter((tx) => {
-      const matchesTab = tab === "all" || tx.status === tab;
-      return matchesTab && isWithinPeriod(tx.date, period);
-    });
-  }, [period, tab, transactions]);
+  // The period is applied by the API and the totals are computed on the whole
+  // period server-side (not on the rows loaded on the phone).
+  const refreshData = useCallback(async () => {
+    setDataLoadError(false);
+    try {
+      const res = await apiRequest<{ data: any[]; totals: RegisterTotals }>(
+        `/finance/transactions?from=${periodStart(period)}&limit=200`,
+      );
+      setTransactions(
+        (res.data ?? []).map((r) => ({
+          id: r.id,
+          type: r.type,
+          amount: Number(r.amount) || 0,
+          label: r.label,
+          date: r.date,
+          status: r.status,
+        })),
+      );
+      setTotals(res.totals ?? null);
+    } catch {
+      setDataLoadError(true);
+    } finally {
+      setDataLoading(false);
+      setRefreshing(false);
+    }
+  }, [period]);
 
-  const periodTransactions = useMemo(
-    () => transactions.filter((tx) => isWithinPeriod(tx.date, period)),
-    [period, transactions],
+  useEffect(() => {
+    setDataLoading(true);
+    refreshData();
+  }, [refreshData]);
+
+  const filtered = useMemo(
+    () => transactions.filter((tx) => tab === "all" || tx.status === tab),
+    [tab, transactions],
   );
+  const periodTransactions = transactions;
 
-  const totalPaid    = periodTransactions.filter((tx) => tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
-  const totalPending = periodTransactions.filter((tx) => tx.status === "pending").reduce((s, tx) => s + tx.amount, 0);
-  const totalOverdue = periodTransactions.filter((tx) => tx.status === "overdue").length;
-  const countPaid    = periodTransactions.filter((tx) => tx.status === "paid").length;
+  const totalPaid    = totals?.inflow ?? 0;
+  const totalPending = totals?.pending ?? 0;
+  const totalOverdue = totals?.overdueCount ?? 0;
+  const countPaid    = totals?.paidCount ?? 0;
+
+  const markAsPaid = async (tx: Transaction) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Posts the movement to the journal on the default account.
+      await apiRequest(`/finance/transactions/${tx.id}/status`, "PATCH", { status: "paid" });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSelected(null);
+      refreshData();
+    } catch (e: any) {
+      Alert.alert(t("error"), e?.message || t("errorGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const typeBreakdown = (["cotisation", "recette", "depense", "salaire"] as TxType[]).map((ty) => ({
     type: ty,
@@ -153,8 +217,8 @@ function PaiementsScreenInner() {
   const TABS: { key: TabFilter; label: string; count: number }[] = [
     { key: "all",     label: t("all"),         count: periodTransactions.length },
     { key: "paid",    label: t("paid"),         count: periodTransactions.filter((tx) => tx.status === "paid").length },
-    { key: "pending", label: t("inProgressPayment") ?? t("statusPending"), count: periodTransactions.filter((tx) => tx.status === "pending").length },
-    { key: "overdue", label: t("latePayment"),  count: periodTransactions.filter((tx) => tx.status === "overdue").length },
+    { key: "pending", label: t("inProgressPayment") ?? t("statusPending"), count: totals?.pendingCount ?? 0 },
+    { key: "overdue", label: t("latePayment"),  count: totals?.overdueCount ?? 0 },
   ];
 
   const PERIOD_LABELS: Record<typeof period, string> = {
@@ -247,7 +311,7 @@ function PaiementsScreenInner() {
               <Text style={styles.kpiLabel}>{t("inProgressPayment")}</Text>
             </View>
             <Text style={styles.kpiValue}>{formatMAD(totalPending, lang)}</Text>
-            <Text style={styles.kpiSub}>{periodTransactions.filter((tx) => tx.status === "pending").length} {t("inProgressPayment").toLowerCase()}</Text>
+            <Text style={styles.kpiSub}>{totals?.pendingCount ?? 0} {t("inProgressPayment").toLowerCase()}</Text>
           </View>
         </View>
 
@@ -325,6 +389,7 @@ function PaiementsScreenInner() {
           keyExtractor={(tx) => tx.id}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); refreshData(); }} />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="credit-card" size={40} color={colors.mutedForeground} />
@@ -334,7 +399,7 @@ function PaiementsScreenInner() {
           renderItem={({ item: tx }) => {
             const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
             const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
-            const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : t("inProgressPayment");
+            const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
             const typeColor    = TYPE_COLORS[tx.type as TxType] ?? "#6b7280";
             const typeIcon     = TYPE_ICONS[tx.type as TxType] ?? "users";
             const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
@@ -397,7 +462,7 @@ function PaiementsScreenInner() {
           const tx = selected;
           const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
           const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
-          const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : t("inProgressPayment");
+          const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
           const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
           const isDebit      = tx.type === "depense" || tx.type === "salaire";
           return (
@@ -416,23 +481,6 @@ function PaiementsScreenInner() {
               </View>
 
               <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
-                {tx.status === "paid" && (
-                  <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={[styles.qrBox, { borderColor: colors.border, backgroundColor: "#fff" }]}>
-                      <QRCode
-                        value={`MIZAN:${formatRef(tx.id)}:${tx.amount}:${tx.date}:PAID`}
-                        size={112}
-                        color="#1a1a1a"
-                        backgroundColor="#ffffff"
-                      />
-                    </View>
-                    <View style={styles.qrInfo}>
-                      <Text style={[styles.qrRef, { color: colors.foreground }]}>{formatRef(tx.id)}</Text>
-                      <Text style={[styles.qrSub, { color: colors.mutedForeground }]}>{t("verifyQr")}</Text>
-                    </View>
-                  </View>
-                )}
-
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
                     { icon: "tag" as const,      label: t("type"),       value: typeLabel },
@@ -456,55 +504,11 @@ function PaiementsScreenInner() {
                 </View>
 
                 <View style={styles.actionBtns}>
-                  {tx.status === "paid" && (
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        const receiptText =
-                          `${t("paymentReceiptTitle")}\n` +
-                          `${t("reference")} : ${formatRef(tx.id)}\n` +
-                          `${t("label")} : ${tx.label}\n` +
-                          `${t("amount")} : ${formatMAD(tx.amount, lang)}\n` +
-                          `${t("date")} : ${tx.date}\n` +
-                          `${t("status")} : ${t("paid")} ✓`;
-                        shareContent(receiptText, `${t("paymentReceiptLabel")} ${formatRef(tx.id)}`);
-                      }}
-                    >
-                      <Feather name="download" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>{t("downloadReceiptLabel")}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {tx.status === "overdue" && (
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={async () => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                        try {
-                          await updateTransactionStatus(tx.id, "overdue");
-                          Alert.alert(t("reminderSentTitle"), t("reminderSentMsg"));
-                          setSelected(null);
-                        } catch {
-                          Alert.alert(t("error"), t("errorGeneric"));
-                        }
-                      }}
-                    >
-                      <Feather name="send" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>{t("sendReminderLabel")}</Text>
-                    </TouchableOpacity>
-                  )}
                   {tx.status === "pending" && isAdmin && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={async () => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        try {
-                          await updateTransactionStatus(tx.id, "paid");
-                          setSelected(null);
-                        } catch {
-                          Alert.alert(t("error"), t("errorGeneric"));
-                        }
-                      }}
+                      disabled={busy}
+                      onPress={() => markAsPaid(tx)}
                     >
                       <Feather name="check" size={16} color="#fff" />
                       <Text style={styles.actionBtnText}>{t("markAsPaidBtn")}</Text>
@@ -605,3 +609,146 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 15, borderRadius: 14 },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
 });
+
+
+// ─── Co-owner: own payment history ────────────────────────────────────────────
+
+interface MyPayment {
+  id: string;
+  appelId: string;
+  amount: string;
+  method: string;
+  reference: string | null;
+  status: "pending" | "validated" | "rejected" | "reversed";
+  rejectionReason: string | null;
+  receiptNumber: string | null;
+  declaredAt: string;
+  period: string;
+  lotNumber: string | null;
+}
+
+const MY_STATUS: Record<MyPayment["status"], { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  pending: { color: "#3b82f6", icon: "loader" },
+  validated: { color: "#10b981", icon: "check-circle" },
+  rejected: { color: "#ef4444", icon: "x-circle" },
+  reversed: { color: "#6b7280", icon: "slash" },
+};
+
+function MyPaymentsView() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { t, lang } = useLanguage();
+  const { isWide } = useBreakpoints();
+  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const [rows, setRows] = useState<MyPayment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setError(false);
+    try {
+      const res = await apiRequest<{ data: MyPayment[] }>("/me/payments");
+      setRows(res.data ?? []);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const statusLabel = (st: MyPayment["status"]) =>
+    st === "validated" ? t("paid") : st === "rejected" ? t("statusRejected") : st === "reversed" ? t("statusCancelled") : t("inValidation");
+  const validatedTotal = rows.filter((r) => r.status === "validated").reduce((s, r) => s + Number(r.amount), 0);
+
+  const openReceipt = async (p: MyPayment) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Linking.openURL(await ticketedUrl(`/appels-de-fonds/${p.appelId}/receipt?paymentId=${p.id}`));
+    } catch {
+      Alert.alert(t("error"), t("errorGeneric"));
+    }
+  };
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Feather name="arrow-left" size={22} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>{t("paymentHistory")}</Text>
+            <Text style={styles.headerSub}>{formatMAD(validatedTotal, lang)} · {t("paid")}</Text>
+          </View>
+        </View>
+      </View>
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : error ? (
+        <ErrorState
+          title={t("paymentsLoadErrorTitle")}
+          description={t("paymentsLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => { setLoading(true); load(); }}
+          accentColor={colors.primary}
+        />
+      ) : (
+        <FlatList
+          data={rows}
+          keyExtractor={(r) => r.id}
+          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Feather name="credit-card" size={40} color={colors.mutedForeground} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noTransactions")}</Text>
+              <TouchableOpacity onPress={() => router.push("/charges" as any)}>
+                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", marginTop: 8 }}>{t("chargesAppels")}</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          renderItem={({ item: p }) => {
+            const st = MY_STATUS[p.status] ?? MY_STATUS.pending;
+            return (
+              <View style={[styles.payCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.payTop}>
+                  <View style={[styles.payAvatar, { backgroundColor: st.color + "18" }]}>
+                    <Feather name={st.icon} size={18} color={st.color} />
+                  </View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={[styles.payLabel, { color: colors.foreground }]}>
+                      {p.period}{p.lotNumber ? ` · ${t("lotLabel")} ${p.lotNumber}` : ""}
+                    </Text>
+                    <Text style={[styles.payDate, { color: st.color }]}>{statusLabel(p.status)}</Text>
+                    {p.status === "rejected" && p.rejectionReason ? (
+                      <Text style={[styles.payDate, { color: "#ef4444" }]}>{p.rejectionReason}</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 4 }}>
+                    <Text style={[styles.payAmount, { color: colors.foreground }]}>{formatMAD(Number(p.amount), lang)}</Text>
+                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{String(p.declaredAt).slice(0, 10)}</Text>
+                  </View>
+                </View>
+                {p.status === "validated" && p.receiptNumber ? (
+                  <TouchableOpacity style={styles.payMeta} onPress={() => openReceipt(p)}>
+                    <View style={styles.metaItem}>
+                      <Feather name="download" size={12} color="#10b981" />
+                      <Text style={[styles.metaText, { color: "#10b981" }]}>{t("paymentReceiptLabel")} {p.receiptNumber}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            );
+          }}
+        />
+      )}
+    </View>
+  );
+}

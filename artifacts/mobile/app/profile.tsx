@@ -23,7 +23,9 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { auth as authApi, getApiBaseUrl, getToken } from "@/services/api";
+import { useMyCharges } from "@/hooks/useMyCharges";
+import { auth as authApi, getApiBaseUrl, ticketedUrl, withFileTicket } from "@/services/api";
+import { useFileTicket } from "@/hooks/useFileTicket";
 import { pickAndUploadPhoto } from "@/lib/upload";
 import { useToast } from "@/context/ToastContext";
 
@@ -31,15 +33,15 @@ function getAvatarBaseUrl(): string {
   return getApiBaseUrl();
 }
 
-/** Server-hosted avatars are private object paths protected by the session token. */
+/** Server-hosted avatars are private object paths, fetched with a download ticket. */
 function resolveAvatarUrl(
   raw: string | null | undefined,
-  token: string | null,
+  ticket: string | null,
 ): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
-  if (raw.startsWith("/objects/") && token) {
-    return `${getAvatarBaseUrl()}/storage${raw}?token=${encodeURIComponent(token)}`;
+  if (raw.startsWith("/objects/") && ticket) {
+    return withFileTicket(`${getAvatarBaseUrl()}/storage${raw}`, ticket);
   }
   return null;
 }
@@ -48,6 +50,8 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, updateUser, token } = useAuth();
+  const myCharges = useMyCharges(user?.role === "member");
+  const fileTicket = useFileTicket(!!token);
   const { cotisations, transactions, elections } = useData();
   const { t, isRTL } = useLanguage();
   const [editing, setEditing] = useState(false);
@@ -153,10 +157,7 @@ export default function ProfileScreen() {
   const handleAttestation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const currentToken = await getToken();
-      const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
-      const url = `${getApiBaseUrl()}/pdf/membership/${user?.id}${tokenParam}`;
-      await Linking.openURL(url);
+      await Linking.openURL(await ticketedUrl(`/pdf/membership/${user?.id}`));
     } catch {
       showToast({ type: "error", title: t("error"), message: t("profileAttestationError") });
     }
@@ -167,10 +168,7 @@ export default function ProfileScreen() {
   const handleDownloadBadgeCard = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const currentToken = await getToken();
-      const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
-      const url = `${getApiBaseUrl()}/pdf/badge/${user?.id}${tokenParam}`;
-      await Linking.openURL(url);
+      await Linking.openURL(await ticketedUrl(`/pdf/badge/${user?.id}`));
     } catch {
       showToast({ type: "error", title: t("error"), message: t("profileBadgeError") });
     }
@@ -180,12 +178,11 @@ export default function ProfileScreen() {
 
   const QUICK_ACTIONS = [
     { icon: "award" as const, label: t("profileMembershipCertificate"), color: colors.primary, onPress: handleAttestation },
-    { icon: "credit-card" as const, label: t("profileContributions"), color: "#3b82f6", onPress: () => router.push("/cotisations" as any) },
+    { icon: "credit-card" as const, label: t("profileContributions"), color: "#3b82f6", onPress: () => router.push("/charges" as any) },
     { icon: "lock" as const, label: t("profileChangePassword"), color: "#f59e0b", onPress: () => setShowPwd(true) },
     { icon: "grid" as const, label: t("profileMemberQr"), color: "#8b5cf6", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
     { icon: "credit-card" as const, label: t("profileMemberCard"), color: "#2563EB", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
     { icon: "inbox" as const, label: t("profileRequests"), color: "#ec4899", onPress: () => router.push("/support" as any) },
-    { icon: "activity" as const, label: t("profileSocialProtection"), color: "#10b981", onPress: () => router.push("/cotisations" as any) },
     { icon: "shopping-bag" as const, label: t("profileMyShop"), color: "#10b981", onPress: () => router.push("/my-shop" as any) },
     { icon: "package" as const, label: t("profileOrders"), color: "#1F5EFF", onPress: () => router.push("/orders" as any) },
     { icon: "headphones" as const, label: t("profileSyndicateSupport"), color: "#ef4444", onPress: () => router.push("/support" as any) },
@@ -217,8 +214,8 @@ export default function ProfileScreen() {
             disabled={!editing || avatarUploading}
             activeOpacity={editing ? 0.7 : 1}
           >
-            {resolveAvatarUrl(user?.avatar, token) ? (
-              <Image source={{ uri: resolveAvatarUrl(user?.avatar, token)! }} style={styles.heroAvatarImage} />
+            {resolveAvatarUrl(user?.avatar, fileTicket) ? (
+              <Image source={{ uri: resolveAvatarUrl(user?.avatar, fileTicket)! }} style={styles.heroAvatarImage} />
             ) : (
               <Text style={styles.heroAvatarText}>{initials}</Text>
             )}
@@ -342,9 +339,10 @@ export default function ProfileScreen() {
             <View style={[styles.cotCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cotRow}>
                 {[
-                  { value: String(cotisations.filter((c: any) => c.status === "paid").length), label: t("profilePaid"), color: colors.success },
-                  { value: String(cotisations.filter((c: any) => c.status === "pending").length), label: t("profilePending"), color: "#f59e0b" },
-                  { value: String(cotisations.filter((c: any) => c.status === "overdue").length), label: t("profileOverdue"), color: colors.destructive },
+                  // Real calls for funds (server-scoped to this co-owner).
+                  { value: myCharges.isLoading ? "…" : String(myCharges.data?.paidCount ?? 0), label: t("profilePaid"), color: colors.success },
+                  { value: myCharges.isLoading ? "…" : String(myCharges.data?.openCount ?? 0), label: t("profilePending"), color: "#f59e0b" },
+                  { value: myCharges.isLoading ? "…" : String(myCharges.data?.overdueCount ?? 0), label: t("profileOverdue"), color: colors.destructive },
                 ].map((item) => (
                   <View key={item.label} style={[styles.cotItem, { backgroundColor: item.color + "15" }]}>
                     <Text style={[styles.cotValue, { color: item.color }]}>{item.value}</Text>
@@ -354,7 +352,7 @@ export default function ProfileScreen() {
               </View>
               <TouchableOpacity
                 style={[styles.cotHistoryBtn, { borderColor: colors.primary + "40", backgroundColor: colors.primary + "08" }]}
-                onPress={() => router.push("/cotisations" as any)}
+                onPress={() => router.push("/paiements" as any)}
               >
                 <Feather name="clock" size={14} color={colors.primary} />
                 <Text style={[styles.cotHistoryBtnText, { color: colors.primary }]}>{t("profileHistory")}</Text>
