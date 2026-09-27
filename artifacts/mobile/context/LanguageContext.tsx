@@ -19827,10 +19827,10 @@ export const TRANSLATIONS: Translations = {
     es: "Asambleas\ngenerales",
   },
   authFeatureDocuments: {
-    fr: "Documents\ncertifiés",
-    en: "Certified\ndocuments",
-    ar: "وثائق\nموثقة",
-    es: "Documentos\ncertificados",
+    fr: "Documents\narchivés",
+    en: "Archived\ndocuments",
+    ar: "وثائق\nمؤرشفة",
+    es: "Documentos\narchivados",
   },
   authFeatureSignatures: {
     fr: "Signature\nélectronique",
