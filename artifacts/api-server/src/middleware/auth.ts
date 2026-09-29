@@ -306,6 +306,15 @@ export function requireOperationalAccess(
 }
 
 /**
+ * Residence structure and occupants (buildings, lots/tantièmes, co-owners,
+ * tenants) are administered by the syndicate_admin only — the mobile UI's
+ * "write:buildings" / "write:members" permissions. Use after
+ * requireOperationalAccess, which already enforces tenant scope and
+ * super_admin supervision; other team roles keep read access.
+ */
+export const requireResidenceAdmin = requireRole("super_admin", "syndicate_admin");
+
+/**
  * Asserts that the authenticated user may access a resource belonging to the given syndicate.
  * Returns true if access is allowed, false otherwise.
  * Use this inside route handlers after fetching the resource, to enforce row-level syndicate isolation.

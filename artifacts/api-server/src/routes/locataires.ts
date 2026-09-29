@@ -7,6 +7,7 @@ import {
   requireAdmin,
   requireRole,
   requireOperationalAccess,
+  requireResidenceAdmin,
 } from "../middleware/auth.js";
 import { z } from "zod";
 
@@ -251,6 +252,7 @@ router.post(
   "/locataires",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     const schema = z.object({
       name: z.string().min(1),
@@ -375,6 +377,7 @@ router.put(
   "/locataires/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     const schema = z.object({
       name: z.string().min(1).optional(),
@@ -501,6 +504,7 @@ router.delete(
   "/locataires/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;

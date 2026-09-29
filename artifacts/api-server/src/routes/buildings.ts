@@ -12,6 +12,7 @@ import {
   isSyndicateTeamRole,
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
 } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getUserBuildingIds, getUserLotIds } from "../lib/scope.js";
@@ -253,6 +254,7 @@ router.post(
   "/buildings",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;
@@ -338,6 +340,7 @@ router.put(
   "/buildings/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;

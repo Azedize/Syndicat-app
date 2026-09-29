@@ -13,6 +13,7 @@ import {
   requireAuth,
   requireRole,
   requireOperationalAccess,
+  requireResidenceAdmin,
   BCRYPT_COST,
 } from "../middleware/auth.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
@@ -141,6 +142,7 @@ router.post(
   "/members",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     const schema = z.object({
       name: z.string().min(1),
@@ -347,6 +349,7 @@ router.put(
   "/members/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({
@@ -409,6 +412,7 @@ router.put(
   "/members/:id/status",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({

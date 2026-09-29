@@ -989,6 +989,10 @@ router.put("/notifications/preferences/:id", requireAuth, async (req, res) => {
         ),
       )
       .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Préférence introuvable" });
+      return;
+    }
     res.json({ data: updated });
   } catch (err) {
     req.log.error(err);

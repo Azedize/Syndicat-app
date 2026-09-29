@@ -861,7 +861,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(reclamationsTable).values([
     {
-      id: "rec_1", reference: "REC-2026-048", type: "salaire", statut: "en_instruction", priorite: "haute",
+      id: "rec_1", syndicateId: "syn_residence_atlas", reference: "REC-2026-048", type: "salaire", statut: "en_instruction", priorite: "haute",
       titre: "Non-versement de la prime d'ancienneté", description: "Prime d'ancienneté due depuis janvier 2026 non versée malgré 12 ans de service.",
       memberId: "user_member_1", memberName: "Mohammed Alaoui", service: "Maintenance",
       dateDepot: "2026-06-01", dateEcheance: "2026-06-30", traitePar: "Fatima Zahra El Alami",
@@ -875,7 +875,7 @@ async function main() {
       anonymous: false, createdAt: daysAgo(43),
     },
     {
-      id: "rec_2", reference: "REC-2026-046", type: "condition_travail", statut: "transmise_direction", priorite: "normale",
+      id: "rec_2", syndicateId: "syn_residence_atlas", reference: "REC-2026-046", type: "condition_travail", statut: "transmise_direction", priorite: "normale",
       titre: "Locaux de travail insalubres — Bâtiment C", description: "Problèmes d'humidité et de ventilation depuis octobre 2025, pathologies respiratoires signalées.",
       memberId: "user_member_2", memberName: "Khadija Tahiri", service: "Administration",
       dateDepot: "2026-06-05", dateEcheance: "2026-06-30", traitePar: "Rachid Bennis",
@@ -889,7 +889,7 @@ async function main() {
       anonymous: false, createdAt: daysAgo(39),
     },
     {
-      id: "rec_3", reference: "REC-2026-045", type: "harcelement", statut: "en_mediation", priorite: "urgente",
+      id: "rec_3", syndicateId: "syn_residence_atlas", reference: "REC-2026-045", type: "harcelement", statut: "en_mediation", priorite: "urgente",
       titre: "Harcèlement moral — Comportement du chef de service", description: "Comportement harcelant d'un responsable hiérarchique direct : pressions, humiliations, surcharge délibérée.",
       memberId: null, memberName: "Anonyme", service: "Non communiqué",
       dateDepot: "2026-06-08", dateEcheance: "2026-06-22", traitePar: "Amina Tazi",
@@ -902,7 +902,7 @@ async function main() {
       anonymous: true, createdAt: daysAgo(36),
     },
     {
-      id: "rec_4", reference: "REC-2026-041", type: "avancement", statut: "resolue", priorite: "normale",
+      id: "rec_4", syndicateId: "syn_jardins_agdal", reference: "REC-2026-041", type: "avancement", statut: "resolue", priorite: "normale",
       titre: "Blocage injustifié d'avancement — Grade A1", description: "Bloqué au même échelon depuis 4 ans malgré évaluations positives et ancienneté.",
       memberId: "user_member_3", memberName: "Rachid El Amrani", service: "Production",
       dateDepot: "2026-05-15", dateCloture: "2026-06-03", traitePar: "Fatima Zahra El Alami",
@@ -917,7 +917,7 @@ async function main() {
       anonymous: false, createdAt: daysAgo(60),
     },
     {
-      id: "rec_5", reference: "REC-2026-039", type: "licenciement", statut: "contentieux", priorite: "urgente",
+      id: "rec_5", syndicateId: "syn_jardins_agdal", reference: "REC-2026-039", type: "licenciement", statut: "contentieux", priorite: "urgente",
       titre: "Licenciement abusif sans cause réelle", description: "Licenciement prononcé sans motif réel ni sérieux, sans respect de la procédure légale.",
       memberId: "user_member_4", memberName: "Amina Rachidi", service: "Commercial",
       dateDepot: "2026-05-14", dateEcheance: "2026-07-14", traitePar: "Amina Tazi",
@@ -932,7 +932,7 @@ async function main() {
       anonymous: false, createdAt: daysAgo(61),
     },
     {
-      id: "rec_6", reference: "REC-2026-038", type: "conge", statut: "resolue", priorite: "basse",
+      id: "rec_6", syndicateId: "syn_residence_atlas", reference: "REC-2026-038", type: "conge", statut: "resolue", priorite: "basse",
       titre: "Refus de congé de formation syndicale", description: "Demande de congé de 5 jours pour formation syndicale refusée sans motif valable.",
       memberId: "user_member_1", memberName: "Mohammed Alaoui", service: "Logistique",
       dateDepot: "2026-05-10", dateCloture: "2026-05-22", traitePar: "Rachid Bennis",

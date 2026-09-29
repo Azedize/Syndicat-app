@@ -112,6 +112,8 @@ pnpm --filter @workspace/scripts run auth-security:test
 pnpm --filter @workspace/scripts run finance-integrity:test
 pnpm --filter @workspace/scripts run documents-security:test
 pnpm --filter @workspace/scripts run scenario-e2e:test
+pnpm --filter @workspace/scripts run journeys:test
+pnpm --filter @workspace/scripts run audit-regression:test
 ```
 
 `/api/auth` est limité (60 requêtes / 15 min / IP sur les endpoints

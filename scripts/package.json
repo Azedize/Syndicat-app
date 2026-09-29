@@ -14,6 +14,7 @@
     "documents-security:test": "node --env-file=../.env --import=tsx ./src/documents-security-test.ts",
     "scenario-e2e:test": "node --env-file=../.env --import=tsx ./src/scenario-e2e-test.ts",
     "journeys:test": "node --env-file=../.env --import=tsx ./src/journeys-test.ts",
+    "audit-regression:test": "node --env-file=../.env --import=tsx ./src/audit-regression-test.ts",
     "finance-integrity:test": "node --env-file=../.env --import=tsx ./src/finance-integrity-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

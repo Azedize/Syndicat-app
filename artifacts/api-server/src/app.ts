@@ -186,8 +186,21 @@ app.use("/api", router);
 // Catches any error thrown/rejected in route handlers (including async ones).
 // Without this, unhandled promise rejections leave the connection hanging.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { status?: number; statusCode?: number; code?: string; expose?: boolean }, req: Request, res: Response, _next: NextFunction) => {
   const log = (req as any).log ?? logger;
+  const status = err.status ?? err.statusCode;
+  // Deliberate client errors (scope/authorization helpers throw
+  // { status: 403 }, body-parser throws 400/413) keep their status and message.
+  // Everything else is a server fault: logged in full, never detailed to the client.
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    log.warn({ err: err.message, status }, "Client error");
+    if (res.headersSent) return;
+    res.status(status).json({
+      error: status === 400 || status === 413 ? "Requête invalide" : err.message,
+      ...(typeof err.code === "string" && /^[A-Z_]+$/.test(err.code) ? { code: err.code } : {}),
+    });
+    return;
+  }
   log.error({ err: err.message, stack: err.stack }, "Unhandled route error");
   if (res.headersSent) return;
   res.status(500).json({ error: "Erreur serveur inattendue" });

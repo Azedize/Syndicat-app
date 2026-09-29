@@ -55,7 +55,7 @@ import {
   prestatairesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, type JwtPayload } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import {
   generateAndUploadDocument,
@@ -6586,7 +6586,21 @@ router.get(
 
 // ─── Comments: GET /documents/:id/comments ───────────────────────────────────
 
-router.get("/:id/comments", requireAuth, async (req, res) => {
+/**
+ * Same visibility rule as GET /documents/:id: the document's own syndicate
+ * (team roles see every document, residents only what canResidentSeeDocument
+ * allows) or the platform owner.
+ */
+function canCommentOnDocument(
+  user: JwtPayload,
+  doc: { syndicateId: string | null; status: string | null; subjectUserId: string | null; category: string },
+): boolean {
+  if (user.role === "super_admin") return true;
+  if (!user.syndicateId || doc.syndicateId !== user.syndicateId) return false;
+  return canResidentSeeDocument(user, doc);
+}
+
+router.get("/documents/:id/comments", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const [doc] = await db
@@ -6607,14 +6621,7 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
     }
 
     const user = req.user!;
-    const isSuperAdmin = user.role === "super_admin";
-    const isAdminOfSyndicate =
-      user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
-    const isMemberOfSyndicate =
-      user.role === "member" &&
-      doc.syndicateId === user.syndicateId &&
-      canResidentSeeDocument(user, doc);
-    if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+    if (!canCommentOnDocument(user, doc)) {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
@@ -6636,7 +6643,11 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
       .where(eq(documentCommentsTable.documentId, id))
       .orderBy(documentCommentsTable.createdAt);
 
-    res.json({ data: comments });
+    res.json({
+      data: comments.map((c) =>
+        c.isDeleted ? { ...c, content: "" } : c,
+      ),
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -6650,7 +6661,7 @@ const CommentCreateSchema = z.object({
   parentId: z.string().optional(),
 });
 
-router.post("/:id/comments", requireAuth, async (req, res) => {
+router.post("/documents/:id/comments", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const parsed = CommentCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -6677,16 +6688,25 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
     }
 
     const user = req.user!;
-    const isSuperAdmin = user.role === "super_admin";
-    const isAdminOfSyndicate =
-      user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
-    const isMemberOfSyndicate =
-      user.role === "member" &&
-      doc.syndicateId === user.syndicateId &&
-      canResidentSeeDocument(user, doc);
-    if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+    if (!canCommentOnDocument(user, doc)) {
       res.status(403).json({ error: "Accès refusé" });
       return;
+    }
+
+    if (parsed.data.parentId) {
+      const [parent] = await db
+        .select({ id: documentCommentsTable.id })
+        .from(documentCommentsTable)
+        .where(
+          and(
+            eq(documentCommentsTable.id, parsed.data.parentId),
+            eq(documentCommentsTable.documentId, id),
+          ),
+        );
+      if (!parent) {
+        res.status(400).json({ error: "Commentaire parent invalide" });
+        return;
+      }
     }
 
     const [comment] = await db
@@ -6714,7 +6734,7 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
 
 // ─── Comments: DELETE /documents/:id/comments/:commentId ─────────────────────
 
-router.delete("/:id/comments/:commentId", requireAuth, async (req, res) => {
+router.delete("/documents/:id/comments/:commentId", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const commentId = String(req.params.commentId);
   try {

@@ -165,3 +165,27 @@
 - `.env` uses `ZIMSEND_CLES_API` whereas the code reads `ZIMSEND_API_KEY` — SMS is not configured.
 - CIN encryption at rest not implemented (no API write path exists yet); CNDP declaration, processing register and hosting/transfer authorization are legal steps.
 - Test runs earlier today sent 7 real emails through the configured SMTP (syndicate-created to example.invalid, 2 support-ticket notifications) before SMTP was disabled for tests.
+
+## 2026-09-29 — Production-readiness audit
+
+### Completed
+- Réclamations (grievances) were not tenant-scoped: any syndicate_admin could list, read and update every syndicate's grievances (harassment, discrimination…). Added `reclamations.syndicate_id` (FK, index, migration `0004` with backfill from the author), scoped list/detail/update with `syndicateWhere` / `assertSyndicateAccess` (foreign rows answer 404), new grievances stamped with the author's syndicate. Legacy anonymous rows that cannot be attributed stay visible to super_admin only.
+- Residence structure writes (lots/tantièmes, buildings, co-owners, tenants) were open to every team role, including `committee_member` and `treasurer`. Restricted to `syndicate_admin` (and super_admin in supervision) with `requireResidenceAdmin`, matching the mobile `write:buildings` / `write:members` permissions; reads unchanged.
+- Document comments were mounted at `/api/:id/comments` while the app calls `/documents/:id/comments` (feature returned 404, and the root route matched any 2-segment path). Moved under `/documents`, same visibility rule as `GET /documents/:id` (team roles now included, tenants per document category), `parentId` must belong to the same document, deleted comment text is no longer returned.
+- `POST /test-email` restricted to admins (it consumed the shared SMTP quota for any user).
+- `PUT /notifications/preferences/:id` answers 404 for another user's preference instead of 200 with empty data.
+- Global error handler keeps 4xx statuses from scope helpers / body-parser (was 500) and never echoes parser details.
+- Mobile session: a refresh that failed for network, 429 or 5xx reasons cleared the tokens and signed the user out (every cold start offline after the 15-min access token expired). Tokens are now cleared only on an explicit refusal (400/401/403); otherwise a 503 `SESSION_REFRESH_UNAVAILABLE` is raised and the session kept. The last profile is cached (`@syndycat_user`, cleared on logout / refused session) so the app opens offline.
+- New suite `scripts/src/audit-regression-test.ts` (26 checks) — 24 of them fail on the previous API code.
+
+### Validation
+- Fresh PostgreSQL 16: `db:migrate` (0000→0004) + `db:seed` on an empty database; `drizzle-kit generate` reports no drift.
+- `pnpm run typecheck` (libs, api-server, mobile, scripts) and api-server build passed.
+- Suites against a running API (SMTP disabled): audit-regression 26/26, RBAC 35/35, auth-security 44/44, finance-integrity 35/35, documents-security 28/28, scenario-e2e 48/48, journeys 129/129.
+
+### Remaining
+- A syndicate_admin can approve an expense they created (kept for single-admin syndicates); consider a configurable four-eyes rule.
+- Access tokens carry role/syndicate for 15 min; deactivation or role change takes effect at the next refresh.
+- `/verify/badge/:userId` is public by design (QR badge) and reveals name, role and residence for a known user id.
+- Mobile: verify the offline start and refresh behaviour on Android/iOS builds.
+- Items from 2026-09-26 "Remaining" still apply (legacy trade-union modules incl. réclamation types, per-copropriété funds, CMI, SMS key name, CIN encryption, CNDP steps).

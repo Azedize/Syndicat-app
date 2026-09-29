@@ -71,6 +71,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Last known profile, so a signed-in resident still opens the app when the API
+ * is unreachable at launch (offline, server restart). Non-secret data only;
+ * tokens stay in SecureStore. Cleared on logout and on a refused session.
+ */
+const USER_CACHE_KEY = "@syndycat_user";
+
+async function cacheUser(u: AuthUser): Promise<void> {
+  try {
+    await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(u));
+  } catch {
+    // Cache is a convenience; the live session does not depend on it.
+  }
+}
+
+async function readCachedUser(): Promise<AuthUser | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 function mapApiUser(u: Record<string, unknown>): AuthUser {
   return {
     id: String(u.id ?? ""),
@@ -107,11 +131,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTokenState(storedToken);
           try {
             const res = await authApi.me();
-            setUser(mapApiUser(res.data as unknown as Record<string, unknown>));
+            const u = mapApiUser(res.data as unknown as Record<string, unknown>);
+            setUser(u);
+            await cacheUser(u);
           } catch (err: any) {
             if (err?.status === 401) {
+              // The server refused the session (expired or revoked).
               await clearAllTokens();
+              await AsyncStorage.removeItem(USER_CACHE_KEY).catch(() => {});
               setTokenState(null);
+            } else {
+              // API unreachable: keep the session and open with the last known
+              // profile; requests resume once the network is back.
+              const cached = await readCachedUser();
+              if (cached) setUser(cached);
             }
           }
         }
@@ -133,7 +166,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await setToken(newToken);
         if (refreshToken) await setRefreshToken(refreshToken);
         setTokenState(newToken);
-        setUser(mapApiUser(u as unknown as Record<string, unknown>));
+        const mapped = mapApiUser(u as unknown as Record<string, unknown>);
+        setUser(mapped);
+        await cacheUser(mapped);
         return true;
       } catch (error: any) {
         if (error?.status === 401 || error?.httpStatus === 401) {
@@ -154,7 +189,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await setToken(newToken);
       await setRefreshToken(newRefreshToken);
       setTokenState(newToken);
-      setUser(mapApiUser(u));
+      const mapped = mapApiUser(u);
+      setUser(mapped);
+      await cacheUser(mapped);
     },
     [],
   );
@@ -172,7 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (newRefreshToken) await setRefreshToken(newRefreshToken);
       // Re-fetch user to get updated syndicateId
       const meRes = await authApi.me();
-      setUser(mapApiUser(meRes.data as unknown as Record<string, unknown>));
+      const u = mapApiUser(meRes.data as unknown as Record<string, unknown>);
+      setUser(u);
+      await cacheUser(u);
     } catch (err) {
       // Silently fail — user will get stale data but remains logged in
     }
@@ -186,13 +225,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
     await clearAllTokens();
-    await AsyncStorage.multiRemove(["@syndycat_user", "@syndycat_demo_email"]);
+    await AsyncStorage.multiRemove([USER_CACHE_KEY, "@syndycat_demo_email"]);
     setTokenState(null);
     setUser(null);
   }, []);
 
   const updateUser = useCallback((data: Partial<AuthUser>) => {
-    setUser((prev) => (prev ? { ...prev, ...data } : prev));
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...data };
+      void cacheUser(next);
+      return next;
+    });
   }, []);
 
   return (

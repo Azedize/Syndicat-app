@@ -14,6 +14,7 @@ import {
   requireAuth,
   requireAdmin,
   requireOperationalAccess,
+  requireResidenceAdmin,
 } from "../middleware/auth.js";
 import { getUserLotIds } from "../lib/scope.js";
 
@@ -438,6 +439,7 @@ router.post(
   "/lots",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;
@@ -511,6 +513,7 @@ router.put(
   "/lots/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;
@@ -577,6 +580,7 @@ router.delete(
   "/lots/:id",
   requireAuth,
   requireOperationalAccess,
+  requireResidenceAdmin,
   async (req, res) => {
     try {
       const user = req.user!;

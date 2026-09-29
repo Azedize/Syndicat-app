@@ -15,8 +15,9 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-// POST /test-email — any authenticated user can verify SMTP delivery works end to end.
-router.post("/test-email", requireAuth, async (req, res) => {
+// POST /test-email — admins verify SMTP delivery end to end. Not open to every
+// user: each call consumes the shared SMTP sending quota (Gmail ≈500/day).
+router.post("/test-email", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { subject, html } = testEmailTemplate(req.user!.name);
     const result = await sendTransactionalEmail({

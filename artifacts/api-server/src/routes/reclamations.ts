@@ -3,7 +3,8 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import { reclamationsTable } from "@workspace/db/schema";
 import { eq, and, desc, or, ilike, count } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, assertSyndicateAccess } from "../middleware/auth.js";
+import { syndicateWhere } from "../lib/syndicate-filter.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { createIncidentConversation, addResponsibleToIncidentConversation } from "./chat.js";
@@ -35,6 +36,9 @@ router.get("/reclamations", requireAuth, async (req, res) => {
   const pagination = getPagination(req, 50);
   try {
     const conditions: any[] = [];
+    // Tenant guard: a syndicate never sees another syndicate's grievances.
+    const scope = syndicateWhere(req, reclamationsTable.syndicateId);
+    if (scope) conditions.push(scope);
     // IDOR guard: non-admins only ever see their own grievances.
     if (!isAdminRole(req.user!.role)) {
       conditions.push(eq(reclamationsTable.memberId, req.user!.userId));
@@ -58,7 +62,10 @@ router.get("/reclamations", requireAuth, async (req, res) => {
     ]);
 
     res.json(buildPagedResponse(rows.map(serialize), Number(total), pagination));
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err: any) {
+    if (err?.status) { res.status(err.status).json({ error: err.message, ...(err.code ? { code: err.code } : {}) }); return; }
+    req.log.error(err); res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── GET /reclamations/:id ────────────────────────────────────────────────────
@@ -66,7 +73,8 @@ router.get("/reclamations/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const [row] = await db.select().from(reclamationsTable).where(eq(reclamationsTable.id, id));
-    if (!row) { res.status(404).json({ error: "Réclamation introuvable" }); return; }
+    // Another syndicate's grievance is reported as not found, not forbidden.
+    if (!row || !assertSyndicateAccess(req, row.syndicateId)) { res.status(404).json({ error: "Réclamation introuvable" }); return; }
     if (!isAdminRole(req.user!.role) && row.memberId !== req.user!.userId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
@@ -86,12 +94,15 @@ router.post("/reclamations", requireAuth, async (req, res) => {
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return; }
 
+  if (!req.user!.syndicateId) { res.status(403).json({ error: "Syndicat non défini dans le token" }); return; }
+
   try {
     const { titre, description, type, anonymous, service } = result.data;
     const reference = `REC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
     const nowIso = new Date().toISOString();
 
     const [row] = await db.insert(reclamationsTable).values({
+      syndicateId: req.user!.syndicateId,
       reference,
       titre,
       description,
@@ -137,7 +148,7 @@ router.put("/reclamations/:id", requireAuth, requireAdmin, async (req, res) => {
 
   try {
     const [existing] = await db.select().from(reclamationsTable).where(eq(reclamationsTable.id, id));
-    if (!existing) { res.status(404).json({ error: "Réclamation introuvable" }); return; }
+    if (!existing || !assertSyndicateAccess(req, existing.syndicateId)) { res.status(404).json({ error: "Réclamation introuvable" }); return; }
 
     const { statut, priorite, traitePar, commentaireAdmin, etapeAction } = result.data;
     const updates: Record<string, any> = {};

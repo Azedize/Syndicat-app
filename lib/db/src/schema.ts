@@ -2336,6 +2336,9 @@ export const reclamationsTable = pgTable(
     description: text("description").notNull(),
     // Not FK'd on purpose: anonymous submissions store null so identity is not
     // recoverable even from the DB, matching the "protected anonymity" promise.
+    // Tenant scope. Nullable only for legacy rows that could not be attributed
+    // (historical anonymous submissions): those are visible to super_admin only.
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     memberId: text("member_id"),
     memberName: text("member_name"),
     service: text("service").default(""),
@@ -2350,6 +2353,7 @@ export const reclamationsTable = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
+    index("reclamations_syndicate_id_idx").on(t.syndicateId),
     index("reclamations_member_id_idx").on(t.memberId),
     index("reclamations_statut_idx").on(t.statut),
     index("reclamations_priorite_idx").on(t.priorite),

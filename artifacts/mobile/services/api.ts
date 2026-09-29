@@ -148,10 +148,27 @@ export async function removePendingRegistration(): Promise<void> {
 
 // ─── Token Refresh Logic ──────────────────────────────────────────────────────
 
-let isRefreshing = false;
-let refreshQueue: Array<(token: string | null) => void> = [];
+/**
+ * Outcome of a refresh attempt:
+ * - token:    a new access token was issued;
+ * - rejected: the server refused the refresh token (revoked/expired) — the
+ *             session is over and the stored tokens have been cleared;
+ * - neither:  the server could not be reached or failed (offline, 5xx, 429) —
+ *             the session is kept, the caller should retry later.
+ */
+type RefreshOutcome = { token: string | null; rejected: boolean };
 
-async function attemptTokenRefresh(): Promise<string | null> {
+let isRefreshing = false;
+let refreshQueue: Array<(outcome: RefreshOutcome) => void> = [];
+
+function settleRefresh(outcome: RefreshOutcome): RefreshOutcome {
+  isRefreshing = false;
+  refreshQueue.forEach((cb) => cb(outcome));
+  refreshQueue = [];
+  return outcome;
+}
+
+async function attemptTokenRefresh(): Promise<RefreshOutcome> {
   if (isRefreshing) {
     return new Promise((resolve) => {
       refreshQueue.push(resolve);
@@ -163,10 +180,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
   try {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) {
-      isRefreshing = false;
-      refreshQueue.forEach((cb) => cb(null));
-      refreshQueue = [];
-      return null;
+      return settleRefresh({ token: null, rejected: true });
     }
 
     const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
@@ -176,11 +190,13 @@ async function attemptTokenRefresh(): Promise<string | null> {
     });
 
     if (!res.ok) {
-      isRefreshing = false;
-      refreshQueue.forEach((cb) => cb(null));
-      refreshQueue = [];
-      await clearAllTokens();
-      return null;
+      // Only an explicit refusal ends the session. A rate limit (429) or a
+      // server failure (5xx) must not sign a resident out.
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        await clearAllTokens();
+        return settleRefresh({ token: null, rejected: true });
+      }
+      return settleRefresh({ token: null, rejected: false });
     }
 
     const json = await res.json();
@@ -190,16 +206,10 @@ async function attemptTokenRefresh(): Promise<string | null> {
     if (newToken) await setToken(newToken);
     if (newRefreshToken) await setRefreshToken(newRefreshToken);
 
-    isRefreshing = false;
-    refreshQueue.forEach((cb) => cb(newToken));
-    refreshQueue = [];
-
-    return newToken;
+    return settleRefresh({ token: newToken ?? null, rejected: !newToken });
   } catch {
-    isRefreshing = false;
-    refreshQueue.forEach((cb) => cb(null));
-    refreshQueue = [];
-    return null;
+    // Network error (offline, DNS, timeout): keep the stored session.
+    return settleRefresh({ token: null, rejected: false });
   }
 }
 
@@ -227,11 +237,18 @@ async function request<T>(
   });
 
   if (res.status === 401 && withAuth && !_isRetry) {
-    const newToken = await attemptTokenRefresh();
-    if (newToken) {
+    const outcome = await attemptTokenRefresh();
+    if (outcome.token) {
       return request<T>(path, options, withAuth, true);
     }
-    // Refresh failed — propagate 401 so AuthContext can sign the user out
+    if (!outcome.rejected) {
+      // The session may still be valid; the API is just unreachable right now.
+      const err: any = new Error("Service indisponible, réessayez plus tard");
+      err.status = 503;
+      err.code = "SESSION_REFRESH_UNAVAILABLE";
+      throw err;
+    }
+    // Refresh refused — propagate 401 so AuthContext can sign the user out
     const errJson = await res.json().catch(() => ({}));
     const err: any = new Error((errJson as any).error || "Session expirée");
     err.status = 401;
