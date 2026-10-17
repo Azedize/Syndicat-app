@@ -10,7 +10,7 @@ import {
   transactionsTable,
   treasuryAccountsTable,
 } from "@workspace/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { nextSequenceNumber } from "./sequences.js";
 
 /**
@@ -380,10 +380,13 @@ async function reconciledAmountCents(tx: Tx, entryId: string): Promise<number> {
  * Reverses a journal entry with an opposite entry and undoes its business
  * effect (payment → reversed and the call's paid amount reduced; expense /
  * salary → back to payable; transfer → both legs). Nothing is deleted.
+ * `kind` only names the correction: "refund" = money given back to the payer,
+ * "reversal" = the movement did not happen or was wrong (bounced cheque…).
+ * Both have the same accounting effect.
  */
 export async function reverseEntry(
   tx: Tx,
-  input: { syndicateId: string; entryId: string; reason: string; userId: string },
+  input: { syndicateId: string; entryId: string; reason: string; userId: string; kind?: "reversal" | "refund" },
 ): Promise<{ reversals: LedgerEntry[]; effect: string; appelId?: string; paymentId?: string }> {
   const [entry] = await tx
     .select()
@@ -457,7 +460,7 @@ export async function reverseEntry(
         amount: leg.amount,
         entryDate: today(),
         category: leg.category,
-        label: `Extourne ${leg.entryNumber} — ${input.reason}`,
+        label: `${input.kind === "refund" ? "Remboursement" : "Extourne"} ${leg.entryNumber} — ${input.reason}`,
         reference: leg.entryNumber,
         sourceType: "reversal",
         sourceId: leg.id,
@@ -493,14 +496,22 @@ export async function reverseEntry(
       appel.status === "pending_validation"
         ? "pending_validation"
         : settlementStatus(toCents(appel.amount), paidCents, appel.dueDate);
+    // The receipt of a reversed payment is no longer valid: the call keeps
+    // the receipt of its latest payment that is still validated.
+    const [stillValid] = await tx
+      .select({ receiptNumber: appelPaymentsTable.receiptNumber })
+      .from(appelPaymentsTable)
+      .where(and(eq(appelPaymentsTable.appelId, appel.id), eq(appelPaymentsTable.status, "validated")))
+      .orderBy(desc(appelPaymentsTable.reviewedAt))
+      .limit(1);
     await tx
       .update(appelsDeFondsTable)
       .set({
         amountPaid: fromCents(paidCents),
         status,
-        // The receipt of a reversed payment is no longer valid.
-        receiptNumber: paidCents === 0 ? null : appel.receiptNumber,
-        paidDate: paidCents === 0 ? null : appel.paidDate,
+        receiptNumber: paidCents === 0 ? null : (stillValid?.receiptNumber ?? null),
+        // Fully settled no more: no settlement date.
+        paidDate: status === "paid" ? appel.paidDate : null,
       })
       .where(eq(appelsDeFondsTable.id, appel.id));
     return { reversals, effect: "payment_reversed", appelId: appel.id, paymentId: payment.id };

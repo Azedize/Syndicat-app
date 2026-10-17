@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -32,7 +33,7 @@ import { ErrorState } from "@/components/DataState";
 /**
  * Treasury of the syndicate: bank / cash accounts with balances computed by
  * the server from the journal, the journal itself (append-only, corrections
- * by reversal), supplier expenses (submitted → approved → paid) and bank
+ * by reversal), supplier expenses (draft → submitted → approved → paid) and bank
  * reconciliation. Read: admin, treasurer, president, council. Write: admin,
  * treasurer. Expense approval: admin, president.
  */
@@ -89,7 +90,14 @@ const S = {
   method: { fr: "Mode de paiement", en: "Payment method", ar: "طريقة الأداء", es: "Método de pago" },
   account: { fr: "Compte", en: "Account", ar: "الحساب", es: "Cuenta" },
   viewInvoice: { fr: "Voir la facture", en: "View invoice", ar: "عرض الفاتورة", es: "Ver factura" },
+  st_draft: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" },
   st_submitted: { fr: "À approuver", en: "To approve", ar: "للمصادقة", es: "Por aprobar" },
+  saveDraft: { fr: "Enregistrer en brouillon", en: "Save as draft", ar: "حفظ كمسودة", es: "Guardar borrador" },
+  submitForApproval: { fr: "Soumettre pour approbation", en: "Submit for approval", ar: "إرسال للمصادقة", es: "Enviar a aprobación" },
+  submit: { fr: "Soumettre", en: "Submit", ar: "إرسال", es: "Enviar" },
+  kindReversal: { fr: "Extourne (opération erronée, chèque impayé)", en: "Reversal (wrong entry, bounced cheque)", ar: "عكس (خطأ، شيك بدون رصيد)", es: "Anulación (error, cheque impagado)" },
+  kindRefund: { fr: "Remboursement au payeur", en: "Refund to the payer", ar: "استرجاع للدافع", es: "Reembolso al pagador" },
+  statements: { fr: "Relevés bancaires et clôture", en: "Bank statements & closing", ar: "كشوف الحساب والإقفال", es: "Extractos y cierre" },
   st_approved: { fr: "À payer", en: "To pay", ar: "للأداء", es: "Por pagar" },
   st_paid: { fr: "Payée", en: "Paid", ar: "مؤداة", es: "Pagado" },
   st_rejected: { fr: "Rejetée", en: "Rejected", ar: "مرفوضة", es: "Rechazado" },
@@ -218,6 +226,7 @@ function TresorerieInner() {
   const [transferForm, setTransferForm] = useState({ fromAccountId: "", toAccountId: "", amount: "" });
   const [reverseTarget, setReverseTarget] = useState<any | null>(null);
   const [reason, setReason] = useState("");
+  const [reverseKind, setReverseKind] = useState<"reversal" | "refund">("reversal");
   const [expenseModal, setExpenseModal] = useState(false);
   const [expenseForm, setExpenseForm] = useState({ label: "", category: "entretien", amount: "", supplierName: "", invoiceNumber: "", proofUrl: "" });
   const [payTarget, setPayTarget] = useState<any | null>(null);
@@ -324,7 +333,7 @@ function TresorerieInner() {
       Alert.alert(tr("error"), tr("required"));
       return;
     }
-    const ok = await run(() => apiRequest(`/treasury/entries/${reverseTarget.id}/reverse`, "POST", { reason: reason.trim() }));
+    const ok = await run(() => apiRequest(`/treasury/entries/${reverseTarget.id}/reverse`, "POST", { reason: reason.trim(), kind: reverseKind }));
     if (ok) {
       setReverseTarget(null);
       setReason("");
@@ -340,7 +349,7 @@ function TresorerieInner() {
     }
   };
 
-  const submitExpense = async () => {
+  const submitExpense = async (draft: boolean) => {
     const f = expenseForm;
     const amount = parseAmount(f.amount);
     if (f.label.trim().length < 2 || !amount || !f.supplierName.trim() || !f.proofUrl) {
@@ -351,7 +360,7 @@ function TresorerieInner() {
       apiRequest(
         "/expenses",
         "POST",
-        { label: f.label.trim(), category: f.category, amount, supplierName: f.supplierName.trim(), invoiceNumber: f.invoiceNumber.trim() || undefined, proofUrl: f.proofUrl },
+        { label: f.label.trim(), category: f.category, amount, supplierName: f.supplierName.trim(), invoiceNumber: f.invoiceNumber.trim() || undefined, proofUrl: f.proofUrl, draft },
         undefined,
         { "Idempotency-Key": idemKey.current },
       ),
@@ -524,10 +533,12 @@ function TresorerieInner() {
                     onLongPress={() => {
                       setReverseTarget(e);
                       setReason("");
+                      setReverseKind("reversal");
                     }}
                     onPress={() => {
                       setReverseTarget(e);
                       setReason("");
+                      setReverseKind("reversal");
                     }}
                   >
                     <View style={styles.row}>
@@ -569,6 +580,7 @@ function TresorerieInner() {
                 onChange={setExpenseFilter}
                 options={[
                   { key: "all", label: tr("all") },
+                  { key: "draft", label: tr("st_draft") },
                   { key: "submitted", label: tr("st_submitted") },
                   { key: "approved", label: tr("st_approved") },
                   { key: "paid", label: tr("st_paid") },
@@ -597,6 +609,9 @@ function TresorerieInner() {
                         <Feather name="file-text" size={13} color={colors.primary} />
                         <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("viewInvoice")}</Text>
                       </TouchableOpacity>
+                      {canWrite && x.status === "draft" && (
+                        <Btn busy={busy} label={tr("submit")} color={colors.primary} onPress={() => run(() => apiRequest(`/expenses/${x.id}/submit`, "POST"))} />
+                      )}
                       {canApprove && x.status === "submitted" && (
                         <>
                           <Btn busy={busy} label={tr("approve")} color="#10b981" onPress={() => run(() => apiRequest(`/expenses/${x.id}/approve`, "POST"))} />
@@ -632,6 +647,7 @@ function TresorerieInner() {
                     onChange={(k) => { setBankId(k); setLoading(true); }}
                     options={activeAccounts.filter((a) => a.kind === "bank").map((a) => ({ key: a.id, label: a.label }))}
                   />
+                  <Btn busy={busy} color="#0f766e" label={tr("statements")} icon="book-open" onPress={() => router.push({ pathname: "/releves", params: { accountId: bankId } } as any)} />
                   {canWrite && <Btn busy={busy} color={colors.primary} label={tr("importStatement")} icon="upload" onPress={() => setImportModal(true)} />}
                   {lines.length === 0 ? (
                     <Text style={[styles.empty, { color: colors.mutedForeground }]}>{tr("empty")}</Text>
@@ -690,6 +706,7 @@ function TresorerieInner() {
             {reverseTarget.entryNumber} — {reverseTarget.label} ({mad(reverseTarget.amount, L)})
           </Text>
         )}
+        <Chips colors={colors} value={reverseKind} onChange={(k) => setReverseKind(k as "reversal" | "refund")} options={[{ key: "reversal", label: tr("kindReversal") }, { key: "refund", label: tr("kindRefund") }]} />
         <TextInput style={[...input, { minHeight: 80 }]} multiline placeholder={tr("reverseReason")} placeholderTextColor={colors.mutedForeground} value={reason} onChangeText={setReason} />
         <Btn busy={busy} label={tr("reverse")} color="#ef4444" icon="rotate-ccw" onPress={submitReverse} />
       </Sheet>
@@ -706,7 +723,8 @@ function TresorerieInner() {
           <Feather name={expenseForm.proofUrl ? "check-circle" : "paperclip"} size={16} color={expenseForm.proofUrl ? "#10b981" : colors.primary} />
           <Text style={{ color: colors.foreground }}>{expenseForm.proofUrl ? tr("invoiceAttached") : tr("attachInvoice")}</Text>
         </TouchableOpacity>
-        <Btn busy={busy} color={colors.primary} label={tr("save")} icon="check" onPress={submitExpense} />
+        <Btn busy={busy} color={colors.primary} label={tr("submitForApproval")} icon="send" onPress={() => submitExpense(false)} />
+        <Btn busy={busy} color="#64748b" label={tr("saveDraft")} icon="edit-3" onPress={() => submitExpense(true)} />
       </Sheet>
 
       {/* Pay an approved expense */}

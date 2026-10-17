@@ -213,11 +213,14 @@ export async function finalizeSuccessfulPayment(
   providerReference?: string,
 ) {
   return db.transaction(async (tx) => {
+    // Row lock: two deliveries of the same confirmation (provider retry,
+    // double click) are serialized, and the second one sees "succeeded".
     const [payment] = await tx
       .select()
       .from(subscriptionPaymentsTable)
       .where(eq(subscriptionPaymentsTable.id, paymentId))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!payment)
       throw Object.assign(new Error("Paiement introuvable"), {
         status: 404,

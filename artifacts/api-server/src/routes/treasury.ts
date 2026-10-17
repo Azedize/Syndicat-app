@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   bankStatementLinesTable,
+  bankStatementsTable,
   ledgerEntriesTable,
   reconciliationMatchesTable,
   treasuryAccountsTable,
@@ -37,6 +38,8 @@ import {
   today,
   uniqueViolation,
 } from "../lib/treasury.js";
+import { statementReport } from "../lib/reconciliation.js";
+import { financialOverview } from "../lib/finance-metrics.js";
 
 const router = Router();
 
@@ -384,6 +387,9 @@ const manualEntrySchema = z
   })
   .strict();
 
+/** Outflows that may be posted without the expense workflow (no supplier invoice). */
+const MANUAL_OUTFLOW_CATEGORIES = ["frais_bancaires", "agios", "regularisation", "remboursement"];
+
 /**
  * Manual journal entry (bank fees, interest, regularisation…). Expenses with a
  * supplier invoice go through /expenses; co-owner payments through the calls
@@ -405,6 +411,15 @@ router.post("/treasury/entries", requireAuth, requireFinanceAccess, async (req, 
         .from(ledgerEntriesTable)
         .where(and(eq(ledgerEntriesTable.syndicateId, sid), eq(ledgerEntriesTable.idempotencyKey, key)));
       if (existing) return void res.status(200).json({ data: existing, replayed: true, message: "Écriture déjà enregistrée" });
+    }
+    // A supplier is paid through the expenses (approval); a manual outflow is
+    // limited to movements without a supplier invoice.
+    if (data.direction === "out" && !MANUAL_OUTFLOW_CATEGORIES.includes(data.category)) {
+      throw new FinanceError(
+        409,
+        "USE_EXPENSES",
+        `Une sortie manuelle est réservée à : ${MANUAL_OUTFLOW_CATEGORIES.join(", ")}. Un fournisseur se paie par le circuit des dépenses.`,
+      );
     }
     if (data.direction === "out" && !data.proofUrl && data.category !== "frais_bancaires") {
       throw new FinanceError(400, "PROOF_REQUIRED", "Un justificatif est obligatoire pour toute sortie de fonds");
@@ -527,7 +542,9 @@ router.post("/treasury/transfers", requireAuth, requireFinanceAccess, async (req
   }
 });
 
-const reverseSchema = z.object({ reason: z.string().trim().min(3).max(300) }).strict();
+const reverseSchema = z
+  .object({ reason: z.string().trim().min(3).max(300), kind: z.enum(["reversal", "refund"]).default("reversal") })
+  .strict();
 
 router.post("/treasury/entries/:id/reverse", requireAuth, requireFinanceAccess, async (req, res) => {
   const parsed = reverseSchema.safeParse(req.body);
@@ -537,14 +554,20 @@ router.post("/treasury/entries/:id/reverse", requireAuth, requireFinanceAccess, 
   const sid = req.user!.syndicateId!;
   try {
     const result = await db.transaction((tx) =>
-      reverseEntry(tx, { syndicateId: sid, entryId: String(req.params.id), reason: parsed.data.reason, userId: req.user!.userId }),
+      reverseEntry(tx, {
+        syndicateId: sid,
+        entryId: String(req.params.id),
+        reason: parsed.data.reason,
+        kind: parsed.data.kind,
+        userId: req.user!.userId,
+      }),
     );
     await serverAuditLog(req, {
       action: "LEDGER_ENTRY_REVERSED",
       entity: "ledger_entry",
       entityId: String(req.params.id),
       syndicateId: sid,
-      details: JSON.stringify({ reason: parsed.data.reason, effect: result.effect, reversals: result.reversals.map((r) => r.entryNumber) }),
+      details: JSON.stringify({ kind: parsed.data.kind, reason: parsed.data.reason, effect: result.effect, reversals: result.reversals.map((r) => r.entryNumber) }),
     });
     if (result.paymentId) {
       // Tell the co-owner their payment was cancelled (e.g. bounced cheque).
@@ -555,8 +578,8 @@ router.post("/treasury/entries/:id/reverse", requireAuth, requireFinanceAccess, 
         .where(eq(appelPaymentsTable.id, result.paymentId));
       if (payment) {
         void notifyUser(payment.declaredBy, {
-          title: "Paiement annulé",
-          message: `Votre paiement de ${payment.amount} MAD (appel ${payment.period}) a été annulé : ${parsed.data.reason}.`,
+          title: parsed.data.kind === "refund" ? "Paiement remboursé" : "Paiement annulé",
+          message: `Votre paiement de ${payment.amount} MAD (appel ${payment.period}) a été ${parsed.data.kind === "refund" ? "remboursé" : "annulé"} : ${parsed.data.reason}.`,
           type: "warning",
           syndicateId: sid,
         });
@@ -572,8 +595,13 @@ router.post("/treasury/entries/:id/reverse", requireAuth, requireFinanceAccess, 
 
 router.get("/treasury/summary", requireAuth, requireTreasuryRead, async (req, res) => {
   const sid = req.user!.syndicateId!;
+  const period = z.object({ from: isoDateSchema.optional(), to: isoDateSchema.optional() }).safeParse(req.query);
+  if (!period.success || (period.data.from && period.data.to && period.data.from > period.data.to)) {
+    return void res.status(400).json({ error: "Période invalide", code: "INVALID_PERIOD" });
+  }
   try {
-    const [accounts, [pendingPayments], [expenseTotals], [unmatchedLines]] = await Promise.all([
+    const [overview, accounts, [pendingPayments], [expenseTotals], [unmatchedLines]] = await Promise.all([
+      financialOverview(sid, period.data),
       accountSummaries(sid),
       db
         .select({ n: sql<number>`COUNT(*)::int`, total: sql<string>`COALESCE(SUM(${appelPaymentsTable.amount}), 0)` })
@@ -607,6 +635,8 @@ router.get("/treasury/summary", requireAuth, requireTreasuryRead, async (req, re
           toPayTotal: fromCents(toCents(expenseTotals?.approvedTotal)),
         },
         statementLinesToReview: unmatchedLines?.n ?? 0,
+        // Every figure of the period with its definition (same as the reports).
+        overview,
       },
     });
   } catch (err) {
@@ -750,6 +780,18 @@ function lineStatus(lineAmountCents: number, matchedCents: number): "unmatched" 
   return matchedCents >= Math.abs(lineAmountCents) ? "matched" : "partial";
 }
 
+/** A line printed on a closed statement is frozen (reopen the statement first). */
+async function assertLineEditable(executor: Pick<typeof db, "select">, line: { statementId: string | null }) {
+  if (!line.statementId) return;
+  const [st] = await executor
+    .select({ status: bankStatementsTable.status })
+    .from(bankStatementsTable)
+    .where(eq(bankStatementsTable.id, line.statementId));
+  if (st?.status === "closed") {
+    throw new FinanceError(409, "STATEMENT_CLOSED", "Relevé clôturé : rouvrez-le avant de modifier son rapprochement");
+  }
+}
+
 const matchSchema = z
   .object({
     statementLineId: z.string().min(1),
@@ -775,6 +817,7 @@ router.post("/treasury/reconciliation/matches", requireAuth, requireFinanceAcces
       if (line.status === "ignored" || line.status === "anomaly") {
         throw new FinanceError(409, "LINE_NOT_MATCHABLE", "Ligne marquée ignorée / en anomalie : réinitialisez-la d'abord");
       }
+      await assertLineEditable(tx, line);
       const [entry] = await tx
         .select()
         .from(ledgerEntriesTable)
@@ -852,6 +895,7 @@ router.delete("/treasury/reconciliation/matches/:id", requireAuth, requireFinanc
         .from(bankStatementLinesTable)
         .where(eq(bankStatementLinesTable.id, match.statementLineId))
         .for("update");
+      await assertLineEditable(tx, line);
       await tx.delete(reconciliationMatchesTable).where(eq(reconciliationMatchesTable.id, match.id));
       const newMatched = Math.max(0, toCents(line.matchedAmount) - toCents(match.amount));
       await tx
@@ -879,7 +923,8 @@ router.delete("/treasury/reconciliation/matches/:id", requireAuth, requireFinanc
 const flagSchema = z
   .object({ status: z.enum(["anomaly", "ignored", "unmatched"]), note: z.string().trim().max(500).optional() })
   .strict()
-  .refine((d) => d.status !== "anomaly" || !!d.note, { message: "Décrivez l'anomalie", path: ["note"] });
+  .refine((d) => d.status !== "anomaly" || !!d.note, { message: "Décrivez l'anomalie", path: ["note"] })
+  .refine((d) => d.status !== "ignored" || !!d.note, { message: "Indiquez pourquoi la ligne est ignorée (doublon d'import, erreur…)", path: ["note"] });
 
 router.post("/treasury/statement-lines/:id/status", requireAuth, requireFinanceAccess, async (req, res) => {
   const parsed = flagSchema.safeParse(req.body);
@@ -895,6 +940,7 @@ router.post("/treasury/statement-lines/:id/status", requireAuth, requireFinanceA
         .where(and(eq(bankStatementLinesTable.id, String(req.params.id)), eq(bankStatementLinesTable.syndicateId, sid)))
         .for("update");
       if (!line) throw new FinanceError(404, "LINE_NOT_FOUND", "Ligne de relevé introuvable");
+      await assertLineEditable(tx, line);
       if (parsed.data.status === "ignored" && toCents(line.matchedAmount) > 0) {
         throw new FinanceError(409, "LINE_PARTIALLY_MATCHED", "Annulez d'abord les rapprochements de cette ligne");
       }
@@ -956,14 +1002,426 @@ router.get("/treasury/accounts/:id/reconciliation", requireAuth, requireTreasury
       `),
     ]);
     const statementTotal = lineStats.filter((s) => s.status !== "ignored").reduce((s, r) => s + toCents(r.total), 0);
+    const [lastClosed] = await db
+      .select({ id: bankStatementsTable.id, periodEnd: bankStatementsTable.periodEnd, closingBalance: bankStatementsTable.closingBalance })
+      .from(bankStatementsTable)
+      .where(and(eq(bankStatementsTable.accountId, accountId), eq(bankStatementsTable.status, "closed")))
+      .orderBy(desc(bankStatementsTable.periodEnd))
+      .limit(1);
     res.json({
       data: {
+        // Reconciled only up to the end of the last closed bank statement.
+        reconciledThrough: lastClosed?.periodEnd ?? null,
+        lastClosedStatement: lastClosed ?? null,
         ledgerBalance: fromCents(ledgerBalance),
         statementTotal: fromCents(statementTotal),
         lines: Object.fromEntries(lineStats.map((s) => [s.status, s.n])),
         unreconciledEntries: unreconciled,
       },
     });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+// ─── Bank statements (period reconciliation) ─────────────────────────────────
+// A reconciliation is only "complete" for a statement the bank issued, with
+// its printed balances, once it is closed. Without imported statements the
+// app never claims the bank account is reconciled.
+
+const signedAmountSchema = z
+  .union([z.number(), z.string().trim()])
+  .transform((v) => String(v))
+  .refine((v) => /^-?\d+(\.\d{1,2})?$/.test(v), { message: "Solde invalide (2 décimales maximum)" })
+  .transform((v) => fromCents(toCents(v)));
+
+const statementSchema = z
+  .object({
+    reference: z.string().trim().max(80).optional(),
+    periodStart: isoDateSchema,
+    periodEnd: isoDateSchema,
+    openingBalance: signedAmountSchema,
+    closingBalance: signedAmountSchema,
+    lines: z.array(statementLineSchema).max(1000).default([]),
+  })
+  .strict()
+  .refine((d) => d.periodEnd >= d.periodStart, { message: "La fin de période précède le début", path: ["periodEnd"] })
+  .refine((d) => d.periodEnd <= today(), { message: "Un relevé ne peut pas couvrir une période future", path: ["periodEnd"] })
+  .refine((d) => d.lines.every((l) => l.valueDate >= d.periodStart && l.valueDate <= d.periodEnd), {
+    message: "Une ligne est datée hors de la période du relevé",
+    path: ["lines"],
+  });
+
+async function loadStatement(id: string, sid: string) {
+  const [st] = await db
+    .select()
+    .from(bankStatementsTable)
+    .where(and(eq(bankStatementsTable.id, id), eq(bankStatementsTable.syndicateId, sid)));
+  if (!st) throw new FinanceError(404, "STATEMENT_NOT_FOUND", "Relevé introuvable");
+  return st;
+}
+
+/** Records a statement (period + printed balances) and its lines. */
+router.post("/treasury/accounts/:id/statements", requireAuth, requireFinanceAccess, async (req, res) => {
+  const parsed = statementSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Relevé invalide", code: "INVALID_STATEMENT" });
+  }
+  const sid = req.user!.syndicateId!;
+  const d = parsed.data;
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [account] = await tx
+        .select()
+        .from(treasuryAccountsTable)
+        .where(and(eq(treasuryAccountsTable.id, String(req.params.id)), eq(treasuryAccountsTable.syndicateId, sid)))
+        .for("update");
+      if (!account) throw new FinanceError(404, "ACCOUNT_NOT_FOUND", "Compte introuvable");
+      if (account.kind !== "bank") throw new FinanceError(400, "NOT_A_BANK_ACCOUNT", "Le rapprochement ne concerne que les comptes bancaires");
+      const [overlap] = await tx
+        .select({ id: bankStatementsTable.id })
+        .from(bankStatementsTable)
+        .where(
+          and(
+            eq(bankStatementsTable.accountId, account.id),
+            lte(bankStatementsTable.periodStart, d.periodEnd),
+            gte(bankStatementsTable.periodEnd, d.periodStart),
+          ),
+        );
+      if (overlap) throw new FinanceError(409, "STATEMENT_OVERLAP", "Un relevé couvre déjà tout ou partie de cette période");
+      const [statement] = await tx
+        .insert(bankStatementsTable)
+        .values({
+          syndicateId: sid,
+          accountId: account.id,
+          reference: d.reference ?? null,
+          periodStart: d.periodStart,
+          periodEnd: d.periodEnd,
+          openingBalance: d.openingBalance,
+          closingBalance: d.closingBalance,
+          createdBy: req.user!.userId,
+        })
+        .returning();
+      const seen = new Map<string, number>();
+      const batchId = randomUUID();
+      const values = d.lines.map((l) => {
+        const cents = toCents(l.amount);
+        const base = `${l.valueDate}|${cents}|${l.label}|${l.reference ?? ""}`;
+        const rank = (seen.get(base) ?? 0) + 1;
+        seen.set(base, rank);
+        return {
+          syndicateId: sid,
+          accountId: account.id,
+          statementId: statement.id,
+          valueDate: l.valueDate,
+          amount: fromCents(cents),
+          label: l.label,
+          reference: l.reference ?? null,
+          externalId: l.externalId ?? createHash("sha256").update(`${base}|${rank}`).digest("hex"),
+          importBatchId: batchId,
+          importedBy: req.user!.userId,
+        };
+      });
+      const inserted = values.length
+        ? await tx
+            .insert(bankStatementLinesTable)
+            .values(values)
+            .onConflictDoNothing({ target: [bankStatementLinesTable.accountId, bankStatementLinesTable.externalId] })
+            .returning({ id: bankStatementLinesTable.id })
+        : [];
+      // Lines imported earlier without a statement are attached to it.
+      const attached = values.length
+        ? await tx
+            .update(bankStatementLinesTable)
+            .set({ statementId: statement.id })
+            .where(
+              and(
+                eq(bankStatementLinesTable.accountId, account.id),
+                sql`${bankStatementLinesTable.statementId} IS NULL`,
+                inArray(bankStatementLinesTable.externalId, values.map((v) => v.externalId)),
+              ),
+            )
+            .returning({ id: bankStatementLinesTable.id })
+        : [];
+      return { statement, inserted: inserted.length, attached: attached.length, duplicates: values.length - inserted.length - attached.length };
+    });
+    await serverAuditLog(req, {
+      action: "BANK_STATEMENT_RECORDED",
+      entity: "bank_statement",
+      entityId: result.statement.id,
+      syndicateId: sid,
+      details: `${result.statement.periodStart} → ${result.statement.periodEnd} ; ${result.statement.openingBalance} → ${result.statement.closingBalance} ; ${result.inserted} ligne(s), ${result.attached} rattachée(s), ${result.duplicates} doublon(s)`,
+    });
+    res.status(201).json({ data: result });
+  } catch (err) {
+    if (uniqueViolation(err)?.includes("bank_statements")) {
+      return void res.status(409).json({ error: "Un relevé commence déjà à cette date", code: "STATEMENT_OVERLAP" });
+    }
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Adds lines forgotten at import to an open statement (same dedupe rule). */
+router.post("/treasury/statements/:id/lines", requireAuth, requireFinanceAccess, async (req, res) => {
+  const parsed = z.object({ lines: z.array(statementLineSchema).min(1).max(1000) }).strict().safeParse(req.body);
+  if (!parsed.success) {
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Lignes invalides", code: "INVALID_STATEMENT" });
+  }
+  const sid = req.user!.syndicateId!;
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [st] = await tx
+        .select()
+        .from(bankStatementsTable)
+        .where(and(eq(bankStatementsTable.id, String(req.params.id)), eq(bankStatementsTable.syndicateId, sid)))
+        .for("update");
+      if (!st) throw new FinanceError(404, "STATEMENT_NOT_FOUND", "Relevé introuvable");
+      if (st.status === "closed") throw new FinanceError(409, "STATEMENT_CLOSED", "Relevé clôturé : rouvrez-le d'abord");
+      if (parsed.data.lines.some((l) => l.valueDate < st.periodStart || l.valueDate > st.periodEnd)) {
+        throw new FinanceError(400, "LINE_OUTSIDE_PERIOD", "Une ligne est datée hors de la période du relevé");
+      }
+      const existing = await tx
+        .select({ externalId: bankStatementLinesTable.externalId })
+        .from(bankStatementLinesTable)
+        .where(eq(bankStatementLinesTable.statementId, st.id));
+      // Rank continues after the lines already on the statement, so an
+      // identical second line (two equal fees the same day) is kept.
+      const seen = new Map<string, number>();
+      const known = new Set(existing.map((e) => e.externalId));
+      const batchId = randomUUID();
+      const values = parsed.data.lines.map((l) => {
+        const cents = toCents(l.amount);
+        const base = `${l.valueDate}|${cents}|${l.label}|${l.reference ?? ""}`;
+        let rank = (seen.get(base) ?? 0) + 1;
+        let externalId = l.externalId ?? createHash("sha256").update(`${base}|${rank}`).digest("hex");
+        while (!l.externalId && known.has(externalId)) {
+          rank += 1;
+          externalId = createHash("sha256").update(`${base}|${rank}`).digest("hex");
+        }
+        seen.set(base, rank);
+        known.add(externalId);
+        return {
+          syndicateId: sid,
+          accountId: st.accountId,
+          statementId: st.id,
+          valueDate: l.valueDate,
+          amount: fromCents(cents),
+          label: l.label,
+          reference: l.reference ?? null,
+          externalId,
+          importBatchId: batchId,
+          importedBy: req.user!.userId,
+        };
+      });
+      const inserted = await tx
+        .insert(bankStatementLinesTable)
+        .values(values)
+        .onConflictDoNothing({ target: [bankStatementLinesTable.accountId, bankStatementLinesTable.externalId] })
+        .returning({ id: bankStatementLinesTable.id });
+      return { statementId: st.id, inserted: inserted.length, duplicates: values.length - inserted.length };
+    });
+    await serverAuditLog(req, {
+      action: "BANK_STATEMENT_LINES_ADDED",
+      entity: "bank_statement",
+      entityId: result.statementId,
+      syndicateId: sid,
+      details: `${result.inserted} ligne(s) ajoutée(s), ${result.duplicates} doublon(s)`,
+    });
+    res.status(201).json({ data: result });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+router.get("/treasury/accounts/:id/statements", requireAuth, requireTreasuryRead, async (req, res) => {
+  const sid = req.user!.syndicateId!;
+  try {
+    const rows = await db
+      .select({
+        statement: bankStatementsTable,
+        lines: sql<number>`(SELECT COUNT(*)::int FROM bank_statement_lines l WHERE l.statement_id = ${bankStatementsTable.id})`,
+        unresolved: sql<number>`(SELECT COUNT(*)::int FROM bank_statement_lines l WHERE l.statement_id = ${bankStatementsTable.id} AND l.status IN ('unmatched', 'partial', 'anomaly'))`,
+      })
+      .from(bankStatementsTable)
+      .where(and(eq(bankStatementsTable.syndicateId, sid), eq(bankStatementsTable.accountId, String(req.params.id))))
+      .orderBy(desc(bankStatementsTable.periodEnd));
+    res.json({ data: rows.map((r) => ({ ...r.statement, closingReport: undefined, lines: r.lines, unresolved: r.unresolved })) });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Statement, its lines and the live reconciliation report (frozen one when closed). */
+router.get("/treasury/statements/:id", requireAuth, requireTreasuryRead, async (req, res) => {
+  const sid = req.user!.syndicateId!;
+  try {
+    const st = await loadStatement(String(req.params.id), sid);
+    const [lines, report] = await Promise.all([
+      db
+        .select()
+        .from(bankStatementLinesTable)
+        .where(eq(bankStatementLinesTable.statementId, st.id))
+        .orderBy(bankStatementLinesTable.valueDate, bankStatementLinesTable.createdAt),
+      st.status === "closed" && st.closingReport ? Promise.resolve(st.closingReport) : statementReport(db, st),
+    ]);
+    res.json({ data: { statement: { ...st, closingReport: undefined }, lines, report } });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/**
+ * Closes a statement: allowed only when the report has no blocking issue.
+ * The report is frozen in the statement and its lines can no longer change.
+ */
+router.post("/treasury/statements/:id/close", requireAuth, requireFinanceAccess, async (req, res) => {
+  const sid = req.user!.syndicateId!;
+  try {
+    const outcome = await db.transaction(async (tx) => {
+      const [st] = await tx
+        .select()
+        .from(bankStatementsTable)
+        .where(and(eq(bankStatementsTable.id, String(req.params.id)), eq(bankStatementsTable.syndicateId, sid)))
+        .for("update");
+      if (!st) throw new FinanceError(404, "STATEMENT_NOT_FOUND", "Relevé introuvable");
+      if (st.status === "closed") throw new FinanceError(409, "STATEMENT_CLOSED", "Relevé déjà clôturé");
+      // Serialize with matches on the same account while the report is computed.
+      await tx.select({ id: treasuryAccountsTable.id }).from(treasuryAccountsTable).where(eq(treasuryAccountsTable.id, st.accountId)).for("update");
+      const report = await statementReport(tx, st);
+      if (!report.canClose) return { closed: false as const, report };
+      const frozen = { ...report, statement: { ...report.statement, status: "closed" }, closedAt: new Date().toISOString() };
+      const [row] = await tx
+        .update(bankStatementsTable)
+        .set({ status: "closed", closingReport: frozen, closedBy: req.user!.userId, closedAt: new Date() })
+        .where(eq(bankStatementsTable.id, st.id))
+        .returning();
+      return { closed: true as const, report: frozen, statement: row };
+    });
+    if (!outcome.closed) {
+      return void res.status(409).json({
+        error: "Rapprochement incomplet : le relevé ne peut pas être clôturé",
+        code: "STATEMENT_NOT_RECONCILED",
+        blocking: outcome.report.blocking,
+        report: outcome.report,
+      });
+    }
+    await serverAuditLog(req, {
+      action: "BANK_STATEMENT_CLOSED",
+      entity: "bank_statement",
+      entityId: outcome.statement.id,
+      syndicateId: sid,
+      details: `${outcome.statement.periodStart} → ${outcome.statement.periodEnd} ; solde ${outcome.statement.closingBalance} ; en transit ${outcome.report.balances.inTransit}`,
+    });
+    res.json({ data: { statement: { ...outcome.statement, closingReport: undefined }, report: outcome.report }, message: "Relevé rapproché et clôturé" });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Reopens a closed statement (syndic only, with a reason, audited). */
+router.post("/treasury/statements/:id/reopen", requireAuth, requireFinanceAccess, async (req, res) => {
+  const parsed = z.object({ reason: z.string().trim().min(3).max(300) }).strict().safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: "Un motif est obligatoire", code: "REASON_REQUIRED" });
+  if (req.user!.role !== "syndicate_admin") return void res.status(403).json({ error: "Réservé au syndic", code: "FORBIDDEN" });
+  const sid = req.user!.syndicateId!;
+  try {
+    const [row] = await db
+      .update(bankStatementsTable)
+      .set({ status: "open", closingReport: null, reopenedBy: req.user!.userId, reopenedAt: new Date(), reopenReason: parsed.data.reason })
+      .where(and(eq(bankStatementsTable.id, String(req.params.id)), eq(bankStatementsTable.syndicateId, sid), eq(bankStatementsTable.status, "closed")))
+      .returning();
+    if (!row) {
+      await loadStatement(String(req.params.id), sid);
+      throw new FinanceError(409, "STATEMENT_NOT_CLOSED", "Ce relevé n'est pas clôturé");
+    }
+    await serverAuditLog(req, { action: "BANK_STATEMENT_REOPENED", entity: "bank_statement", entityId: row.id, syndicateId: sid, details: parsed.data.reason });
+    res.json({ data: { ...row, closingReport: undefined } });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Categories a bank line may be booked under directly (no supplier involved). */
+const BANK_LINE_CATEGORIES = {
+  out: ["frais_bancaires", "agios", "regularisation"],
+  in: ["interets_bancaires", "regularisation"],
+} as const;
+
+/**
+ * Books a bank line that has no journal counterpart (bank fees, interest…)
+ * and matches it in the same transaction. The statement line is the proof.
+ */
+router.post("/treasury/statement-lines/:id/post-entry", requireAuth, requireFinanceAccess, async (req, res) => {
+  const parsed = z
+    .object({ category: categorySchema, label: z.string().trim().min(2).max(200).optional() })
+    .strict()
+    .safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides", code: "INVALID_ENTRY" });
+  const sid = req.user!.syndicateId!;
+  try {
+    const { entry, line } = await db.transaction(async (tx) => {
+      const [line] = await tx
+        .select()
+        .from(bankStatementLinesTable)
+        .where(and(eq(bankStatementLinesTable.id, String(req.params.id)), eq(bankStatementLinesTable.syndicateId, sid)))
+        .for("update");
+      if (!line) throw new FinanceError(404, "LINE_NOT_FOUND", "Ligne de relevé introuvable");
+      await assertLineEditable(tx, line);
+      if (line.status === "ignored") throw new FinanceError(409, "LINE_NOT_MATCHABLE", "Ligne ignorée : réinitialisez-la d'abord");
+      const lineCents = toCents(line.amount);
+      const remaining = Math.abs(lineCents) - toCents(line.matchedAmount);
+      if (remaining <= 0) throw new FinanceError(409, "LINE_ALREADY_MATCHED", "Ligne déjà entièrement rapprochée");
+      const direction = lineCents > 0 ? "in" : "out";
+      if (!(BANK_LINE_CATEGORIES[direction] as readonly string[]).includes(parsed.data.category)) {
+        throw new FinanceError(
+          409,
+          direction === "out" ? "USE_EXPENSES" : "INVALID_CATEGORY",
+          `Catégories possibles : ${BANK_LINE_CATEGORIES[direction].join(", ")}. ${direction === "out" ? "Un fournisseur se paie par le circuit des dépenses." : "Un paiement de copropriétaire se valide sur son appel de fonds."}`,
+        );
+      }
+      const account = await lockAccount(tx, sid, { accountId: line.accountId });
+      const entry = await postEntry(tx, {
+        syndicateId: sid,
+        account,
+        direction,
+        amount: fromCents(remaining),
+        entryDate: line.valueDate,
+        category: parsed.data.category,
+        label: parsed.data.label ?? line.label,
+        reference: line.reference,
+        sourceType: "manual",
+        createdBy: req.user!.userId,
+      });
+      await recordOperation(tx, {
+        syndicateId: sid,
+        type: direction === "in" ? "recette" : "depense",
+        amount: entry.amount,
+        label: entry.label,
+        date: entry.entryDate,
+        ledgerEntryId: entry.id,
+      });
+      await tx.insert(reconciliationMatchesTable).values({
+        syndicateId: sid,
+        statementLineId: line.id,
+        ledgerEntryId: entry.id,
+        amount: entry.amount,
+        matchedBy: req.user!.userId,
+      });
+      const matched = toCents(line.matchedAmount) + remaining;
+      await tx
+        .update(bankStatementLinesTable)
+        .set({ matchedAmount: fromCents(matched), status: lineStatus(lineCents, matched) })
+        .where(eq(bankStatementLinesTable.id, line.id));
+      return { entry, line };
+    });
+    await serverAuditLog(req, {
+      action: "STATEMENT_LINE_BOOKED",
+      entity: "bank_statement_line",
+      entityId: line.id,
+      syndicateId: sid,
+      details: `${entry.entryNumber} ${entry.direction} ${entry.amount} ${entry.category}`,
+    });
+    res.status(201).json({ data: entry, message: `Écriture ${entry.entryNumber} passée et rapprochée` });
   } catch (err) {
     sendFinanceError(res, req, err);
   }

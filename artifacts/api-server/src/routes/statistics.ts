@@ -24,7 +24,37 @@ import { eq, and, or, count, sum, gte, lt, desc, sql, inArray } from "drizzle-or
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere } from "../lib/syndicate-filter.js";
 
-import { syndicateFlows } from "../lib/treasury.js";
+import { fromCents } from "../lib/treasury.js";
+import { METRIC_DEFINITIONS, cashBalances, collectionRate, ledgerFlows, ymd } from "../lib/finance-metrics.js";
+
+/**
+ * Income / expenses of one currency from ledgerFlows rows, in currency units
+ * (2 decimals). Charts and counters below all use the journal, never the
+ * operations register, so they agree with the treasury screens.
+ */
+function flowsIn(rows: { currency: string; income: number; expenses: number }[], currency: string) {
+  let income = 0;
+  let expenses = 0;
+  for (const r of rows) {
+    if (r.currency !== currency) continue;
+    income += r.income;
+    expenses += r.expenses;
+  }
+  return { income: Number(fromCents(income)), expenses: Number(fromCents(expenses)) };
+}
+
+async function syndicateCurrency(syndicateId: string | null): Promise<string> {
+  if (!syndicateId) return "MAD";
+  const [row] = await db.select({ currency: syndicatesTable.currency }).from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId));
+  return row?.currency ?? "MAD";
+}
+
+/** Syndicate a statistics request is scoped to (null: the whole platform, super admin only). */
+function statisticsScope(req: any): string | null {
+  syndicateWhere(req, syndicatesTable.id); // validates supervision / token scope
+  if (req.user!.role === "super_admin") return (req.query.syndicateId as string | undefined) || null;
+  return req.user!.syndicateId!;
+}
 
 const router = Router();
 
@@ -147,8 +177,7 @@ router.get(
         syndicatesRows,
         totalMembersRow,
         activeMembersRow,
-        revenueRow,
-        expensesRow,
+        platformFlows,
         openTicketsRow,
         activeSubs,
       ] = await Promise.all([
@@ -160,28 +189,7 @@ router.get(
           .select({ value: count() })
           .from(membersTable)
           .where(eq(membersTable.status, "active")),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              sql`${transactionsTable.type} IN ('cotisation','recette')`,
-              eq(transactionsTable.status, "paid"),
-            ),
-          ),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              sql`${transactionsTable.type} IN ('depense','salaire')`,
-              eq(transactionsTable.status, "paid"),
-            ),
-          ),
+        ledgerFlows({ syndicateId: null }),
         db
           .select({ value: count() })
           .from(supportTicketsTable)
@@ -192,35 +200,17 @@ router.get(
           .where(eq(syndicatesTable.status, "active")),
       ]);
 
-      // Monthly revenue chart (last 6 months from transactions)
-      const allTransactions = await db
-        .select({
-          amount: transactionsTable.amount,
-          type: transactionsTable.type,
-          status: transactionsTable.status,
-          createdAt: transactionsTable.createdAt,
-        })
-        .from(transactionsTable)
-        .where(gte(transactionsTable.createdAt, months[0].from));
+      // Monthly charts (last 6 months) from the journal, MAD only.
+      const dailyFlows = (await ledgerFlows({ syndicateId: null }, { from: ymd(months[0].from), byDay: true })).filter((f) => f.currency === "MAD");
+      const inMonth = (m: { from: Date; to: Date }) => dailyFlows.filter((f) => f.day! >= ymd(m.from) && f.day! <= ymd(m.to));
+      const platformTotals = flowsIn(platformFlows, "MAD");
 
       const allMembers = await db
         .select({ createdAt: membersTable.createdAt })
         .from(membersTable)
         .where(gte(membersTable.createdAt, months[0].from));
 
-      const revenueChart = months.map((m) => {
-        const val = allTransactions
-          .filter(
-            (t) =>
-              t.createdAt &&
-              t.createdAt >= m.from &&
-              t.createdAt <= m.to &&
-              (t.type === "cotisation" || t.type === "recette") &&
-              t.status === "paid",
-          )
-          .reduce((s, t) => s + Number(t.amount ?? 0), 0);
-        return { label: m.label, value: Math.round(val) };
-      });
+      const revenueChart = months.map((m) => ({ label: m.label, value: flowsIn(inMonth(m), "MAD").income }));
 
       const membersChart = months.map((m) => {
         const val = allMembers.filter(
@@ -230,19 +220,7 @@ router.get(
         return { label: m.label, value: val };
       });
 
-      const expensesChart = months.map((m) => {
-        const val = allTransactions
-          .filter(
-            (t) =>
-              t.createdAt &&
-              t.createdAt >= m.from &&
-              t.createdAt <= m.to &&
-              (t.type === "depense" || t.type === "salaire") &&
-              t.status === "paid",
-          )
-          .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
-        return { label: m.label, value: Math.round(val) };
-      });
+      const expensesChart = months.map((m) => ({ label: m.label, value: flowsIn(inMonth(m), "MAD").expenses }));
 
       res.json({
         data: {
@@ -250,8 +228,10 @@ router.get(
           activeSyndicates: Number(activeSubs[0].value),
           totalMembers: Number(totalMembersRow[0].value),
           activeMembers: Number(activeMembersRow[0].value),
-          totalRevenue: Math.round(Number(revenueRow[0].value)),
-          totalExpenses: Math.round(Number(expensesRow[0].value)),
+          totalRevenue: platformTotals.income,
+          totalExpenses: platformTotals.expenses,
+          currency: "MAD",
+          definitions: { totalRevenue: METRIC_DEFINITIONS.income, totalExpenses: METRIC_DEFINITIONS.expenses },
           openTickets: Number(openTicketsRow[0].value),
           charts: {
             revenue: revenueChart,
@@ -392,81 +372,33 @@ router.get(
   async (req, res) => {
     try {
       const syndicateId = await resolveScopedSyndicateId(req);
-      const txWhere = eq(transactionsTable.syndicateId, syndicateId);
-
       const now = new Date();
-      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const [
-        latestCaisse,
-        thisMonthRevenue,
-        thisMonthExpenses,
-        totalRevenue,
-        totalExpenses,
-      ] = await Promise.all([
-        syndicateFlows(syndicateId),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              txWhere,
-              sql`${transactionsTable.type} IN ('cotisation','recette')`,
-              eq(transactionsTable.status, "paid"),
-              gte(transactionsTable.createdAt, thisMonthStart),
-            ),
-          ),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              txWhere,
-              sql`${transactionsTable.type} IN ('depense','salaire')`,
-              eq(transactionsTable.status, "paid"),
-              gte(transactionsTable.createdAt, thisMonthStart),
-            ),
-          ),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              txWhere,
-              sql`${transactionsTable.type} IN ('cotisation','recette')`,
-              eq(transactionsTable.status, "paid"),
-            ),
-          ),
-        db
-          .select({
-            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            and(
-              txWhere,
-              sql`${transactionsTable.type} IN ('depense','salaire')`,
-              eq(transactionsTable.status, "paid"),
-            ),
-          ),
+      const monthStart = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+      const [currency, month, allTime, balances] = await Promise.all([
+        syndicateCurrency(syndicateId),
+        ledgerFlows({ syndicateId }, { from: monthStart }),
+        ledgerFlows({ syndicateId }),
+        cashBalances({ syndicateId }),
       ]);
-
-      // Treasury balance = sum of the syndicate's journal (all accounts).
-      const caisseBalance = latestCaisse.balance;
+      const m = flowsIn(month, currency);
+      const all = flowsIn(allTime, currency);
 
       res.json({
         data: {
-          caisseBalance: Math.round(caisseBalance),
-          monthlyRevenue: Math.round(Number(thisMonthRevenue[0].value)),
-          monthlyExpenses: Math.round(Number(thisMonthExpenses[0].value)),
-          totalRevenue: Math.round(Number(totalRevenue[0].value)),
-          totalExpenses: Math.round(Number(totalExpenses[0].value)),
+          currency,
+          caisseBalance: Number(fromCents(balances.get(currency) ?? 0)),
+          monthlyRevenue: m.income,
+          monthlyExpenses: m.expenses,
+          totalRevenue: all.income,
+          totalExpenses: all.expenses,
+          period: { monthFrom: monthStart },
+          definitions: {
+            caisseBalance: METRIC_DEFINITIONS.cashBalance,
+            monthlyRevenue: METRIC_DEFINITIONS.income,
+            monthlyExpenses: METRIC_DEFINITIONS.expenses,
+            totalRevenue: `${METRIC_DEFINITIONS.income} (depuis l'ouverture)`,
+            totalExpenses: `${METRIC_DEFINITIONS.expenses} (depuis l'ouverture)`,
+          },
         },
       });
     } catch (err) {
@@ -961,11 +893,11 @@ router.get(
   requireRole("super_admin", "syndicate_admin", "treasurer"),
   async (req, res) => {
     const period = (req.query.period as string) || "month";
-    const txWhere = syndicateWhere(req, transactionsTable.syndicateId);
     const memWhere = syndicateWhere(req, membersTable.syndicateId);
-    const cotWhere = syndicateWhere(req, cotisationsTable.syndicateId);
 
     try {
+      const scopeId = statisticsScope(req);
+      const currency = await syndicateCurrency(scopeId);
       const now = new Date();
 
       // ── Period window ──────────────────────────────────────────────────────
@@ -1017,20 +949,9 @@ router.get(
         });
       }
 
-      // ── Transactions for window ────────────────────────────────────────────
-      const allTx = await db
-        .select({
-          amount: transactionsTable.amount,
-          type: transactionsTable.type,
-          status: transactionsTable.status,
-          createdAt: transactionsTable.createdAt,
-        })
-        .from(transactionsTable)
-        .where(
-          txWhere
-            ? and(txWhere, gte(transactionsTable.createdAt, windowStart))
-            : gte(transactionsTable.createdAt, windowStart),
-        );
+      // ── Journal flows for the window (by entry date) ──────────────────────
+      const daily = (await ledgerFlows({ syndicateId: scopeId }, { from: ymd(windowStart), byDay: true })).filter((f) => f.currency === currency);
+      const inBucket = (b: { from: Date; to: Date }) => daily.filter((f) => f.day! >= ymd(b.from) && f.day! <= ymd(b.to));
 
       // ── New members for window ─────────────────────────────────────────────
       const allNewMembers = await db
@@ -1042,44 +963,13 @@ router.get(
             : gte(membersTable.createdAt, windowStart),
         );
 
-      // ── Cotisation rate (all-time for syndicate) ───────────────────────────
-      const [allCot, paidCot] = await Promise.all([
-        db
-          .select({ value: count() })
-          .from(cotisationsTable)
-          .where(cotWhere ?? undefined),
-        db
-          .select({ value: count() })
-          .from(cotisationsTable)
-          .where(
-            cotWhere
-              ? and(cotWhere, eq(cotisationsTable.status, "paid"))
-              : eq(cotisationsTable.status, "paid"),
-          ),
-      ]);
-      const cotisationRate =
-        Number(allCot[0].value) > 0
-          ? Math.round(
-              (Number(paidCot[0].value) / Number(allCot[0].value)) * 100,
-            )
-          : 0;
+      // ── Collection rate of the calls due in the window ─────────────────────
+      const rate = await collectionRate({ syndicateId: scopeId }, ymd(windowStart), ymd(now));
+      // null: no call for funds falls due in the window (not "0 %").
+      const cotisationRate = rate === null ? null : Math.round(rate);
 
       // ── Chart buckets ──────────────────────────────────────────────────────
-      const revenueChart = buckets.map((b) => ({
-        label: b.label,
-        value: Math.round(
-          allTx
-            .filter(
-              (t) =>
-                t.createdAt &&
-                t.createdAt >= b.from &&
-                t.createdAt <= b.to &&
-                (t.type === "cotisation" || t.type === "recette") &&
-                t.status === "paid",
-            )
-            .reduce((s, t) => s + Number(t.amount ?? 0), 0),
-        ),
-      }));
+      const revenueChart = buckets.map((b) => ({ label: b.label, value: flowsIn(inBucket(b), currency).income }));
 
       const membersChart = buckets.map((b) => ({
         label: b.label,
@@ -1089,20 +979,7 @@ router.get(
       }));
 
       // ── Period KPIs ────────────────────────────────────────────────────────
-      const revenues = allTx
-        .filter(
-          (t) =>
-            (t.type === "cotisation" || t.type === "recette") &&
-            t.status === "paid",
-        )
-        .reduce((s, t) => s + Number(t.amount ?? 0), 0);
-      const expenses = allTx
-        .filter(
-          (t) =>
-            (t.type === "depense" || t.type === "salaire") &&
-            t.status === "paid",
-        )
-        .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
+      const { income: revenues, expenses } = flowsIn(daily, currency);
       const memberGrowth = allNewMembers.length;
 
       res.json({
@@ -1110,10 +987,17 @@ router.get(
           revenueChart,
           membersChart,
           kpi: {
-            revenues: Math.round(revenues),
-            expenses: Math.round(expenses),
+            revenues,
+            expenses,
             memberGrowth,
             cotisationRate,
+          },
+          currency,
+          window: { from: ymd(windowStart), to: ymd(now) },
+          definitions: {
+            revenues: METRIC_DEFINITIONS.income,
+            expenses: METRIC_DEFINITIONS.expenses,
+            cotisationRate: METRIC_DEFINITIONS.collectionRate,
           },
         },
       });

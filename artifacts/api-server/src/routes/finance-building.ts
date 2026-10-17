@@ -254,15 +254,27 @@ router.get(
         .filter((a) => a.type === "fonds_reserve")
         .reduce((s, a) => s + paidOf(a), 0);
 
-      // Validated payments, dated by their validation (cash actually received).
+      // Collections from the journal (same definition as the treasury): the
+      // receipt counts in the month it was posted, a later reversal counts
+      // negatively in the month of the reversal.
       const appelIds = owedAppels.map((a) => a.id);
-      const validatedPayments = appelIds.length
+      const collected = (await db.execute(sql`
+        SELECT to_char(le.entry_date, 'YYYY-MM') AS month,
+               SUM(CASE WHEN le.source_type = 'reversal' THEN -le.amount ELSE le.amount END) AS amount
+        FROM ledger_entries le
+        LEFT JOIN ledger_entries o ON o.id = le.reverses_entry_id
+        WHERE le.building_id = ${buildingId}
+          AND (le.source_type = 'appel_payment' OR (le.source_type = 'reversal' AND o.source_type = 'appel_payment'))
+        GROUP BY 1
+      `)) as unknown as { month: string; amount: string }[];
+      const collectedByMonth = new Map(collected.map((c) => [c.month, Number(c.amount)]));
+      const withHistory = appelIds.length
         ? await db
-            .select({ appelId: appelPaymentsTable.appelId, amount: appelPaymentsTable.amount, reviewedAt: appelPaymentsTable.reviewedAt })
+            .selectDistinct({ appelId: appelPaymentsTable.appelId })
             .from(appelPaymentsTable)
-            .where(and(inArray(appelPaymentsTable.appelId, appelIds), eq(appelPaymentsTable.status, "validated")))
+            .where(inArray(appelPaymentsTable.appelId, appelIds))
         : [];
-      const appelsWithHistory = new Set(validatedPayments.map((p) => p.appelId));
+      const appelsWithHistory = new Set(withHistory.map((p) => p.appelId));
 
       // ── Monthly history (last 6 months) ──────────────────────────────────
       const now = new Date();
@@ -281,11 +293,7 @@ router.get(
           .filter((a) => a.status === "paid" && a.paidDate?.startsWith(prefix))
           .filter((a) => !appelsWithHistory.has(a.id))
           .reduce((s, a) => s + paidOf(a), 0);
-        const paid =
-          legacyPaid +
-          validatedPayments
-            .filter((p) => p.reviewedAt && p.reviewedAt.toISOString().startsWith(prefix))
-            .reduce((s, p) => s + Number(p.amount ?? 0), 0);
+        const paid = legacyPaid + (collectedByMonth.get(prefix) ?? 0);
 
         const due = owedAppels
           .filter((a) => a.dueDate?.startsWith(prefix))

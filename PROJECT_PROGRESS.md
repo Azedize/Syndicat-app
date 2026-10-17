@@ -353,3 +353,100 @@ la fois (le « contexte » de la session).
 - Pas d'écran mobile pour créer une société (réservé à la plateforme, API seule)
   ni pour modifier les paramètres d'une copropriété (API `PATCH
   /condominiums/:id/settings` seule).
+
+## 2026-10-17 — Finance : circuit opérationnel complet, indicateurs, rapprochement
+
+Pas de second journal ni de second système de paiement : tout passe par
+`ledger_entries` (journal unique, append-only) et les circuits existants.
+
+### Modèle des opérations (inventaire)
+| Opération | Où elle vit | Effet comptable |
+|---|---|---|
+| Paiement d'un copropriétaire | `appel_payments` (déclaré `pending` → `validated` / `rejected` / `reversed`) | écriture `appel_payment` à la validation seulement ; reçu REC-… par paiement validé |
+| Autre recette | `/treasury/entries` (in) ou registre type `recette` | écriture `manual` immédiate |
+| Dépense fournisseur | `expenses` : `draft` → `submitted` → `approved` → `paid` (ou `rejected` / `cancelled`) | écriture `expense` au paiement seulement ; « approuvée » = engagement |
+| Salaire | `salary_records` | écriture `salary` au paiement |
+| Frais / agios / intérêts | `/treasury/entries` ou depuis une ligne de relevé | écriture `manual` |
+| Virement interne | `/treasury/transfers` | deux écritures `transfer`, hors recettes/dépenses |
+| Extourne / remboursement | `/treasury/entries/:id/reverse` (`kind` = reversal / refund) | écriture `reversal` opposée ; paiement → `reversed`, appel rouvert, reçu retiré |
+| Ajustement | catégorie `regularisation` (écriture manuelle justifiée) | écriture `manual` |
+
+Un paiement en attente n'est ni un encaissement ni une déduction du reste dû ;
+un paiement rejeté ne change rien ; une extourne compte dans la période où elle
+est passée, contre le flux qu'elle annule.
+
+### Voies parallèles fermées
+- `POST /finance/transactions` : seule une recette encaissée est acceptée (et
+  comptabilisée). Cotisation → `USE_CALL_FOR_FUNDS`, dépense → `USE_EXPENSES`,
+  salaire → `USE_PAYROLL`, « pending » → `NOT_A_MOVEMENT`.
+- Sortie manuelle du journal limitée à frais bancaires, agios, régularisation,
+  remboursement : un fournisseur se paie par les dépenses.
+- Défaut corrigé : une ligne héritée `revenue` « marquée payée » passait une
+  **sortie** au journal.
+- Déclaration de paiement : corps strict (payeur, montant payé, statut ne
+  peuvent pas être envoyés).
+
+### Corrections
+- Après extourne d'un paiement partiel, l'appel garde le reçu du dernier
+  paiement encore valide (il gardait le reçu annulé).
+- Confirmation de paiement d'abonnement : ligne verrouillée (`FOR UPDATE`) ;
+  deux confirmations simultanées ne peuvent plus traiter deux fois le même
+  paiement.
+- Dépenses : brouillon, modification avant approbation (chaque champ journalisé
+  ancien → nouveau), dépense approuvée figée, séparation des tâches : celui qui
+  soumet n'approuve pas s'il existe un autre approbateur (sinon approbation
+  tracée « auto-approbation »).
+
+### Indicateurs (`lib/finance-metrics.ts`, définitions renvoyées par l'API)
+Trésorerie, statistiques, rapports, registre, tableau de bord d'immeuble et
+portefeuille lisent les mêmes définitions : trésorerie = somme du journal à la
+date de fin ; encaissements / décaissements = journal par date d'écriture, nets
+des extournes, hors virements internes et reprises de solde ; reste dû = appels
+non soldés non annulés ; paiements en attente, dépenses à approuver et
+engagements affichés à part ; montants par devise. Les statistiques lisaient
+auparavant le registre par date de création et l'ancien module cotisations.
+Taux de recouvrement `null` (affiché « — ») quand aucun appel n'échoit dans la
+période. Lignes de registre jamais comptabilisées (données héritées) marquées
+« hors journal » et exclues des totaux.
+
+### Rapprochement bancaire (migration `0007_bank_statements`)
+- Aucune API bancaire n'est connectée : relevés saisis / importés (CSV collé).
+- `bank_statements` : période et soldes imprimés par la banque ; lignes
+  rattachées au relevé ; ajout de lignes oubliées.
+- Rapport (méthode des soldes) : banque + opérations en transit = journal +
+  lignes non comptabilisées ; contrôles : relevé complet (ouverture + lignes =
+  clôture), continuité avec le relevé précédent, références en double, montants
+  différents, extournes compensées, opérations en transit de plus de 60 jours,
+  écart inexpliqué.
+- Clôture refusée tant qu'un point bloque ; rapport figé à la clôture ; lignes
+  d'un relevé clôturé gelées ; réouverture par le syndic avec motif. Le compte
+  n'est dit rapproché que jusqu'à la fin du dernier relevé clôturé.
+- Ligne bancaire sans écriture (frais, intérêts) comptabilisée et rapprochée en
+  une opération ; ignorer une ligne exige un motif.
+
+### Mobile
+- Trésorerie : brouillons et soumission, choix extourne / remboursement, accès
+  aux relevés.
+- Nouvel écran « Relevés bancaires » (`app/releves.tsx`) : création, rapport,
+  comptabilisation des frais, clôture, réouverture.
+- Rapports : taux de recouvrement « — » sans appel échu.
+
+### Tests (exécutés le 2026-10-17, API de test 5055)
+- Nouvelle suite `finance-workflow:test` : 89/89.
+- auth 44/44, rbac 35/35, finance 35/35, documents 28/28, scénario 48/48,
+  lots 65/65, parcours 135/135, copropriétés 62/62.
+- Migrations 0000→0007 sur base vierge (115 tables) ; `drizzle-kit check` OK ;
+  typecheck API et mobile ; bundles Android / iOS exportés.
+
+### Non fait / limites
+- Aucune intégration bancaire ni passerelle de paiement des charges : les
+  relevés sont saisis ou collés. Stripe (abonnements) n'est pas configuré dans
+  cet environnement : la double confirmation est testée par la route de
+  confirmation, pas par un vrai webhook signé.
+- Remboursement partiel d'un paiement non géré (extourne totale puis nouvelle
+  déclaration).
+- Pas de seuil d'approbation configurable : toute dépense passe par
+  l'approbation.
+- Les chiffres arrondis à l'unité du tableau de bord d'immeuble (héritage) sont
+  conservés.
+- Pas de test sur appareil.

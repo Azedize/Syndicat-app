@@ -16,6 +16,7 @@
     "journeys:test": "node --env-file=../.env --import=tsx ./src/journeys-test.ts",
     "units:test": "node --env-file=../.env --import=tsx ./src/units-test.ts",
     "condominiums:test": "node --env-file=../.env --import=tsx ./src/condominiums-test.ts",
+    "finance-workflow:test": "node --env-file=../.env --import=tsx ./src/finance-workflow-test.ts",
     "finance-integrity:test": "node --env-file=../.env --import=tsx ./src/finance-integrity-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

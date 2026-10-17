@@ -114,7 +114,14 @@ pnpm --filter @workspace/scripts run documents-security:test
 pnpm --filter @workspace/scripts run scenario-e2e:test
 pnpm --filter @workspace/scripts run units:test
 pnpm --filter @workspace/scripts run condominiums:test
+pnpm --filter @workspace/scripts run finance-workflow:test
 ```
+
+`finance-workflow:test` crée sa propre copropriété (en base), puis passe tout
+le circuit financier par l'API : paiements déclarés / rejetés / validés /
+remboursés, paiements partiels, dépenses, confirmation de paiement reçue en
+double, relevé bancaire et clôture du rapprochement, et compare les chiffres
+de tous les écrans. Elle supprime tout à la fin.
 
 `condominiums:test` crée une société de syndic réelle (inscription par OTP),
 trois copropriétés et deux comptes, vérifie l'isolation, les changements de

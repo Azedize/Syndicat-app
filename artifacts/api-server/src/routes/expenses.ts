@@ -9,7 +9,7 @@ import {
   prestatairesTable,
   treasuryAccountsTable,
 } from "@workspace/db/schema";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireFinanceAccess } from "../middleware/auth.js";
 import { findForeignReference } from "../lib/scope.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
@@ -31,11 +31,14 @@ import {
 
 /**
  * Syndicate expenses — workflow:
- *   submitted (treasurer / admin, with the supplier invoice)
- *     → approved (admin / president) | rejected
- *     → paid (treasurer / admin: journal entry on a treasury account)
- *   submitted | approved → cancelled
- * A paid expense can only be undone by reversing its journal entry.
+ *   draft (prepared, editable, no effect)
+ *     → submitted (treasurer / admin, with the supplier invoice; still editable)
+ *     → approved (admin / president: a commitment, no cash effect) | rejected
+ *     → paid (treasurer / admin: supplier paid, journal entry posted)
+ *   draft | submitted | approved → cancelled
+ * An approved expense is frozen. A paid expense can only be undone by
+ * reversing its journal entry. Whoever submitted an expense cannot approve it
+ * when another approver exists in the condominium.
  */
 const router = Router();
 
@@ -107,7 +110,7 @@ router.get("/expenses/:id", requireAuth, requireRoles(READ_ROLES), async (req, r
   }
 });
 
-const createExpenseSchema = z
+const expenseFields = z
   .object({
     label: z.string().trim().min(2).max(200),
     category: categorySchema,
@@ -120,11 +123,56 @@ const createExpenseSchema = z
     proofUrl: z.string().startsWith("/objects/", { message: "La facture doit être téléversée sur MIZAN" }).max(500),
     budgetLineId: z.string().optional(),
   })
-  .strict()
+  .strict();
+
+const createExpenseSchema = expenseFields
+  .extend({ draft: z.boolean().optional() })
   .refine((d) => !!d.supplierName || !!d.prestataireId, {
     message: "Le fournisseur est obligatoire",
     path: ["supplierName"],
   });
+
+type ExpenseRefs = Partial<Pick<z.infer<typeof expenseFields>, "invoiceDate" | "proofUrl" | "buildingId" | "prestataireId" | "supplierName" | "budgetLineId">>;
+
+/**
+ * Checks that everything an expense points to belongs to the syndicate
+ * (invoice file, building, supplier, budget line) and completes the building
+ * and supplier name. Throws a FinanceError otherwise.
+ */
+async function checkExpenseReferences(sid: string, data: ExpenseRefs): Promise<void> {
+  if (data.invoiceDate && data.invoiceDate > today()) {
+    throw new FinanceError(400, "INVOICE_DATE_IN_FUTURE", "La date de facture ne peut pas être dans le futur");
+  }
+  const foreign = await findForeignReference(sid, { objectPath: data.proofUrl, buildingId: data.buildingId });
+  if (foreign) {
+    throw new FinanceError(
+      400,
+      "FOREIGN_REFERENCE",
+      foreign === "objectPath" ? "La facture doit être un fichier téléversé dans ce syndicat." : "Immeuble introuvable dans votre syndicat",
+    );
+  }
+  if (data.prestataireId) {
+    const [prest] = await db
+      .select({ id: prestatairesTable.id, name: prestatairesTable.name })
+      .from(prestatairesTable)
+      .where(and(eq(prestatairesTable.id, data.prestataireId), eq(prestatairesTable.syndicateId, sid)));
+    if (!prest) throw new FinanceError(400, "FOREIGN_REFERENCE", "Prestataire introuvable dans votre syndicat");
+    data.supplierName ??= prest.name;
+  }
+  if (data.budgetLineId) {
+    const [line] = await db
+      .select({ id: budgetLinesTable.id, buildingId: budgetsTable.buildingId })
+      .from(budgetLinesTable)
+      .innerJoin(budgetsTable, eq(budgetsTable.id, budgetLinesTable.budgetId))
+      .innerJoin(buildingsTable, eq(buildingsTable.id, budgetsTable.buildingId))
+      .where(and(eq(budgetLinesTable.id, data.budgetLineId), eq(buildingsTable.syndicateId, sid)));
+    if (!line) throw new FinanceError(400, "FOREIGN_REFERENCE", "Ligne budgétaire introuvable dans votre syndicat");
+    if (data.buildingId && data.buildingId !== line.buildingId) {
+      throw new FinanceError(400, "BUILDING_MISMATCH", "La ligne budgétaire concerne un autre immeuble");
+    }
+    data.buildingId ??= line.buildingId;
+  }
+}
 
 router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => {
   const parsed = createExpenseSchema.safeParse(req.body);
@@ -145,38 +193,7 @@ router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => 
         .where(and(eq(expensesTable.syndicateId, sid), eq(expensesTable.idempotencyKey, rawKey)));
       if (existing) return void res.status(200).json({ data: existing, replayed: true, message: "Dépense déjà enregistrée" });
     }
-    if (data.invoiceDate && data.invoiceDate > today()) {
-      throw new FinanceError(400, "INVOICE_DATE_IN_FUTURE", "La date de facture ne peut pas être dans le futur");
-    }
-    const foreign = await findForeignReference(sid, { objectPath: data.proofUrl, buildingId: data.buildingId });
-    if (foreign) {
-      throw new FinanceError(
-        400,
-        "FOREIGN_REFERENCE",
-        foreign === "objectPath" ? "La facture doit être un fichier téléversé dans ce syndicat." : "Immeuble introuvable dans votre syndicat",
-      );
-    }
-    if (data.prestataireId) {
-      const [prest] = await db
-        .select({ id: prestatairesTable.id, name: prestatairesTable.name })
-        .from(prestatairesTable)
-        .where(and(eq(prestatairesTable.id, data.prestataireId), eq(prestatairesTable.syndicateId, sid)));
-      if (!prest) throw new FinanceError(400, "FOREIGN_REFERENCE", "Prestataire introuvable dans votre syndicat");
-      data.supplierName ??= prest.name;
-    }
-    if (data.budgetLineId) {
-      const [line] = await db
-        .select({ id: budgetLinesTable.id, buildingId: budgetsTable.buildingId })
-        .from(budgetLinesTable)
-        .innerJoin(budgetsTable, eq(budgetsTable.id, budgetLinesTable.budgetId))
-        .innerJoin(buildingsTable, eq(buildingsTable.id, budgetsTable.buildingId))
-        .where(and(eq(budgetLinesTable.id, data.budgetLineId), eq(buildingsTable.syndicateId, sid)));
-      if (!line) throw new FinanceError(400, "FOREIGN_REFERENCE", "Ligne budgétaire introuvable dans votre syndicat");
-      if (data.buildingId && data.buildingId !== line.buildingId) {
-        throw new FinanceError(400, "BUILDING_MISMATCH", "La ligne budgétaire concerne un autre immeuble");
-      }
-      data.buildingId ??= line.buildingId;
-    }
+    await checkExpenseReferences(sid, data);
 
     if (!data.buildingId) {
       // A syndicate with a single building: the expense is that building's
@@ -208,7 +225,7 @@ router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => 
             invoiceDate: data.invoiceDate ?? null,
             proofUrl: data.proofUrl,
             budgetLineId: data.budgetLineId ?? null,
-            status: "submitted",
+            status: data.draft ? "draft" : "submitted",
             createdBy: req.user!.userId,
             idempotencyKey: rawKey,
           })
@@ -222,24 +239,137 @@ router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => 
       }
     });
     await serverAuditLog(req, {
-      action: "EXPENSE_SUBMITTED",
+      action: expense.status === "draft" ? "EXPENSE_DRAFTED" : "EXPENSE_SUBMITTED",
       entity: "expense",
       entityId: expense.id,
       syndicateId: sid,
       details: `${expense.reference} — ${expense.label} — ${expense.amount}`,
     });
-    createAlert({
-      title: "Dépense à approuver",
-      message: `${expense.reference} : ${expense.label} (${expense.amount} MAD) attend une approbation.`,
-      type: "info",
-      syndicateId: sid,
-      target: "admin",
-    }).catch(() => {});
-    res.status(201).json({ data: expense, message: `Dépense ${expense.reference} soumise` });
+    if (expense.status === "submitted") alertApprovers(sid, expense);
+    res.status(201).json({
+      data: expense,
+      message: expense.status === "draft" ? `Brouillon ${expense.reference} enregistré` : `Dépense ${expense.reference} soumise`,
+    });
   } catch (err) {
     sendFinanceError(res, req, err);
   }
 });
+
+function alertApprovers(sid: string, expense: { reference: string; label: string; amount: string }) {
+  createAlert({
+    title: "Dépense à approuver",
+    message: `${expense.reference} : ${expense.label} (${expense.amount} MAD) attend une approbation.`,
+    type: "info",
+    syndicateId: sid,
+    target: "admin",
+  }).catch(() => {});
+}
+
+const updateExpenseSchema = expenseFields.partial().refine((d) => Object.keys(d).length > 0, { message: "Aucune modification" });
+const EDITABLE_FIELDS = ["label", "category", "amount", "supplierName", "prestataireId", "invoiceNumber", "invoiceDate", "proofUrl", "budgetLineId", "buildingId"] as const;
+
+/**
+ * Edits a draft or a submitted expense (before approval). Every changed
+ * field is written to the audit log with its old and new value. An approved
+ * expense is frozen: cancel it and create a new one.
+ */
+router.patch("/expenses/:id", requireAuth, requireFinanceAccess, async (req, res) => {
+  const parsed = updateExpenseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides", code: "INVALID_EXPENSE" });
+  }
+  const sid = req.user!.syndicateId!;
+  const id = String(req.params.id);
+  try {
+    const current = await loadScopedExpense(id, sid);
+    if (!current) throw new FinanceError(404, "EXPENSE_NOT_FOUND", "Dépense introuvable");
+    if (!["draft", "submitted"].includes(current.status)) {
+      throw new FinanceError(409, "EXPENSE_FROZEN", `Une dépense « ${current.status} » ne se modifie plus : annulez-la et créez-en une nouvelle.`);
+    }
+    const next: Record<string, unknown> & typeof parsed.data = { ...parsed.data };
+    const refs: ExpenseRefs = {
+      invoiceDate: next.invoiceDate,
+      proofUrl: next.proofUrl,
+      buildingId: next.buildingId ?? (next.budgetLineId ? undefined : current.buildingId ?? undefined),
+      prestataireId: next.prestataireId,
+      supplierName: next.supplierName,
+      budgetLineId: next.budgetLineId,
+    };
+    await checkExpenseReferences(sid, refs);
+    if (next.prestataireId) next.supplierName ??= refs.supplierName;
+    if (next.budgetLineId) next.buildingId ??= refs.buildingId;
+    const changes: string[] = [];
+    const set: Record<string, unknown> = {};
+    for (const f of EDITABLE_FIELDS) {
+      if (next[f] === undefined) continue;
+      const before = (current as Record<string, unknown>)[f] ?? null;
+      if (String(before ?? "") === String(next[f])) continue;
+      set[f] = next[f];
+      changes.push(`${f}: ${before ?? "—"} → ${String(next[f])}`);
+    }
+    if (changes.length === 0) return void res.json({ data: current, message: "Aucune modification" });
+    const [row] = await db
+      .update(expensesTable)
+      .set(set)
+      // Conditional on the status read: an approval in between wins.
+      .where(and(eq(expensesTable.id, id), eq(expensesTable.syndicateId, sid), eq(expensesTable.status, current.status)))
+      .returning();
+    if (!row) throw new FinanceError(409, "EXPENSE_STATE_CONFLICT", "La dépense a changé entre-temps : rechargez-la");
+    await serverAuditLog(req, {
+      action: "EXPENSE_UPDATED",
+      entity: "expense",
+      entityId: id,
+      syndicateId: sid,
+      details: `${row.reference} — ${changes.join(" ; ")}`,
+    });
+    res.json({ data: row });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+router.post("/expenses/:id/submit", requireAuth, requireFinanceAccess, async (req, res) => {
+  const sid = req.user!.syndicateId!;
+  try {
+    const [row] = await db
+      .update(expensesTable)
+      .set({ status: "submitted" })
+      .where(and(eq(expensesTable.id, String(req.params.id)), eq(expensesTable.syndicateId, sid), eq(expensesTable.status, "draft")))
+      .returning();
+    if (!row) {
+      const current = await loadScopedExpense(String(req.params.id), sid);
+      if (!current) throw new FinanceError(404, "EXPENSE_NOT_FOUND", "Dépense introuvable");
+      throw new FinanceError(409, "EXPENSE_STATE_CONFLICT", `Seul un brouillon peut être soumis (statut : ${current.status})`);
+    }
+    await serverAuditLog(req, { action: "EXPENSE_SUBMITTED", entity: "expense", entityId: row.id, syndicateId: sid, details: `${row.reference} — ${row.amount}` });
+    alertApprovers(sid, row);
+    res.json({ data: row, message: `Dépense ${row.reference} soumise` });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/**
+ * People other than `userId` who can approve expenses in the syndicate
+ * (syndic or president, through their account, an assignment or the company).
+ */
+async function otherApprovers(sid: string, userId: string): Promise<number> {
+  const [row] = (await db.execute(sql`
+    SELECT COUNT(DISTINCT uid)::int AS n FROM (
+      SELECT u.id AS uid FROM users u
+        WHERE u.syndicate_id = ${sid} AND u.role IN ('syndicate_admin', 'president') AND u.status = 'active'
+      UNION
+      SELECT m.user_id FROM syndicate_memberships m JOIN users u ON u.id = m.user_id
+        WHERE m.syndicate_id = ${sid} AND m.status = 'active' AND m.role IN ('syndicate_admin', 'president') AND u.status = 'active'
+      UNION
+      SELECT om.user_id FROM organization_members om
+        JOIN syndicates s ON s.organization_id = om.organization_id
+        JOIN users u ON u.id = om.user_id
+        WHERE s.id = ${sid} AND om.status = 'active' AND om.role = 'org_admin' AND u.status = 'active'
+    ) a WHERE uid <> ${userId}
+  `)) as unknown as { n: number }[];
+  return Number(row?.n ?? 0);
+}
 
 async function transition(
   req: Request,
@@ -289,14 +419,30 @@ function inArrayStatus(statuses: string[]) {
   return inArray(expensesTable.status, statuses);
 }
 
-router.post("/expenses/:id/approve", requireAuth, requireRoles(APPROVER_ROLES), (req, res) =>
-  transition(req, res, {
-    from: ["submitted"],
-    to: "approved",
-    set: { approvedBy: req.user!.userId, approvedAt: new Date() },
-    action: "EXPENSE_APPROVED",
-  }),
-);
+router.post("/expenses/:id/approve", requireAuth, requireRoles(APPROVER_ROLES), async (req, res) => {
+  const sid = req.user!.syndicateId!;
+  try {
+    const current = await loadScopedExpense(String(req.params.id), sid);
+    let selfApproved = false;
+    if (current && current.createdBy === req.user!.userId) {
+      // Four eyes: the person who submitted the expense does not approve it,
+      // unless nobody else in the condominium can (recorded in the audit).
+      if ((await otherApprovers(sid, req.user!.userId)) > 0) {
+        throw new FinanceError(409, "SELF_APPROVAL", "Vous avez soumis cette dépense : un autre approbateur (syndic ou président) doit l'approuver.");
+      }
+      selfApproved = true;
+    }
+    return transition(req, res, {
+      from: ["submitted"],
+      to: "approved",
+      set: { approvedBy: req.user!.userId, approvedAt: new Date() },
+      action: "EXPENSE_APPROVED",
+      details: selfApproved ? "auto-approbation : aucun autre approbateur dans la copropriété" : undefined,
+    });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
 
 const reasonSchema = z.object({ reason: z.string().trim().min(3).max(500) }).strict();
 
@@ -316,7 +462,7 @@ router.post("/expenses/:id/cancel", requireAuth, requireFinanceAccess, (req, res
   const parsed = reasonSchema.safeParse(req.body);
   if (!parsed.success) return void res.status(400).json({ error: "Un motif d'annulation est obligatoire", code: "REASON_REQUIRED" });
   return transition(req, res, {
-    from: ["submitted", "approved"],
+    from: ["draft", "submitted", "approved"],
     to: "cancelled",
     set: { rejectionReason: parsed.data.reason },
     action: "EXPENSE_CANCELLED",

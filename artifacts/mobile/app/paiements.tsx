@@ -38,7 +38,16 @@ interface Transaction {
   date: string;
   status: TxStatus;
   member?: string;
+  // false: historical row never posted to the journal (not in the totals)
+  posted?: boolean;
 }
+
+const NOT_POSTED: Record<string, string> = {
+  fr: "Historique hors journal — non compté dans les totaux",
+  en: "History outside the journal — not in the totals",
+  ar: "سجل خارج اليومية — غير محتسب",
+  es: "Histórico fuera del diario — no cuenta en los totales",
+};
 
 type TabFilter = "all" | TxStatus;
 
@@ -157,6 +166,7 @@ function RegisterView() {
           label: r.label,
           date: r.date,
           status: r.status,
+          posted: r.posted !== false,
         })),
       );
       setTotals(res.totals ?? null);
@@ -428,6 +438,9 @@ function RegisterView() {
                       </View>
                     </View>
                     <Text style={[styles.payLabel, { color: colors.foreground }]} numberOfLines={2}>{tx.label}</Text>
+                    {tx.posted === false ? (
+                      <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{NOT_POSTED[lang] ?? NOT_POSTED.fr}</Text>
+                    ) : null}
                   </View>
 
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -504,7 +517,7 @@ function RegisterView() {
                 </View>
 
                 <View style={styles.actionBtns}>
-                  {tx.status === "pending" && isAdmin && (
+                  {tx.status === "pending" && isAdmin && ["recette", "revenue"].includes(tx.type as string) && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
                       disabled={busy}

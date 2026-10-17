@@ -2778,7 +2778,11 @@ export const appelPaymentsTable = pgTable(
   ],
 );
 
-/** Syndicate expenses: submitted → approved → paid (or rejected / cancelled). */
+/**
+ * Syndicate expenses: draft → submitted → approved → paid (or rejected /
+ * cancelled). "approved" is a commitment (engagement); "paid" means the
+ * supplier was paid and the journal entry posted — the two are separate.
+ */
 export const expensesTable = pgTable(
   "expenses",
   {
@@ -2800,7 +2804,7 @@ export const expensesTable = pgTable(
     budgetLineId: text("budget_line_id").references(() => budgetLinesTable.id, { onDelete: "set null" }),
     // Set when the expense comes from a validated work order (one per work order)
     travauxId: text("travaux_id").references(() => travauxTable.id, { onDelete: "set null" }),
-    // submitted | approved | rejected | paid | cancelled
+    // draft | submitted | approved | rejected | paid | cancelled
     status: text("status").notNull().default("submitted"),
     createdBy: text("created_by").notNull(),
     approvedBy: text("approved_by"),
@@ -2824,11 +2828,50 @@ export const expensesTable = pgTable(
     uniqueIndex("expenses_travaux_uq").on(t.travauxId).where(sql`${t.travauxId} IS NOT NULL`),
     uniqueIndex("expenses_idempotency_uq").on(t.syndicateId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
     check("expenses_amount_chk", sql`${t.amount} > 0`),
-    check("expenses_status_chk", sql`${t.status} IN ('submitted', 'approved', 'rejected', 'paid', 'cancelled')`),
+    check("expenses_status_chk", sql`${t.status} IN ('draft', 'submitted', 'approved', 'rejected', 'paid', 'cancelled')`),
     check(
       "expenses_payment_method_chk",
       sql`${t.paymentMethod} IS NULL OR ${t.paymentMethod} IN ('virement', 'cheque', 'especes', 'prelevement')`,
     ),
+  ],
+);
+
+/**
+ * A bank statement as issued by the bank: period and the opening / closing
+ * balances printed on it. It is the source record a reconciliation is checked
+ * against; it can only be closed when its lines add up and every line is
+ * explained (see routes/treasury.ts).
+ */
+export const bankStatementsTable = pgTable(
+  "bank_statements",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    accountId: text("account_id").notNull().references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    // Statement number printed by the bank (optional)
+    reference: text("reference"),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    // Signed balances as printed by the bank
+    openingBalance: money("opening_balance").notNull(),
+    closingBalance: money("closing_balance").notNull(),
+    // open | closed
+    status: text("status").notNull().default("open"),
+    // Reconciliation report frozen at closing (figures and outstanding items)
+    closingReport: jsonb("closing_report"),
+    closedBy: text("closed_by"),
+    closedAt: timestamp("closed_at"),
+    reopenedBy: text("reopened_by"),
+    reopenedAt: timestamp("reopened_at"),
+    reopenReason: text("reopen_reason"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("bank_statements_account_period_idx").on(t.accountId, t.periodEnd),
+    uniqueIndex("bank_statements_account_start_uq").on(t.accountId, t.periodStart),
+    check("bank_statements_status_chk", sql`${t.status} IN ('open', 'closed')`),
+    check("bank_statements_period_chk", sql`${t.periodEnd} >= ${t.periodStart}`),
   ],
 );
 
@@ -2839,6 +2882,8 @@ export const bankStatementLinesTable = pgTable(
     id: id(),
     syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
     accountId: text("account_id").notNull().references(() => treasuryAccountsTable.id, { onDelete: "restrict" }),
+    // Statement the line was printed on (null: imported without a statement)
+    statementId: text("statement_id").references(() => bankStatementsTable.id, { onDelete: "restrict" }),
     valueDate: date("value_date").notNull(),
     // > 0 credit (money in), < 0 debit (money out)
     amount: money("amount").notNull(),
@@ -2857,6 +2902,7 @@ export const bankStatementLinesTable = pgTable(
   (t) => [
     uniqueIndex("bank_statement_lines_external_uq").on(t.accountId, t.externalId),
     index("bank_statement_lines_account_status_idx").on(t.accountId, t.status),
+    index("bank_statement_lines_statement_idx").on(t.statementId),
     check("bank_statement_lines_amount_chk", sql`${t.amount} <> 0`),
     check(
       "bank_statement_lines_status_chk",

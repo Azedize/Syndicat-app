@@ -30,8 +30,24 @@ import {
   today,
 } from "../lib/treasury.js";
 
+import { METRIC_DEFINITIONS, ledgerFlows } from "../lib/finance-metrics.js";
+
 /** Register types that are money in vs money out of the syndicate. */
-const INFLOW_TYPES = new Set(["cotisation", "recette"]);
+const INFLOW_TYPES = new Set(["cotisation", "recette", "revenue"]);
+
+/**
+ * The operations register is a view of what the workflows posted. It is not a
+ * second way to record money: co-owner payments go through the calls for
+ * funds, supplier payments through the expenses (approval), salaries through
+ * the payroll. Only "other income" (recette) can be recorded here, and it is
+ * posted to the journal at once.
+ */
+const WORKFLOW_FOR_TYPE: Record<string, { code: string; message: string }> = {
+  cotisation: { code: "USE_CALL_FOR_FUNDS", message: "Un paiement de copropriétaire s'enregistre sur son appel de fonds (déclaration puis validation)." },
+  depense: { code: "USE_EXPENSES", message: "Une dépense passe par le circuit des dépenses (soumission, approbation, paiement)." },
+  expense: { code: "USE_EXPENSES", message: "Une dépense passe par le circuit des dépenses (soumission, approbation, paiement)." },
+  salaire: { code: "USE_PAYROLL", message: "Un salaire se paie depuis la fiche de paie." },
+};
 
 const router = Router();
 
@@ -47,6 +63,7 @@ router.get(
     const pagination = getPagination(req);
     try {
       const from = typeof req.query.from === "string" && isoDateSchema.safeParse(req.query.from).success ? req.query.from : null;
+      const scopeId = req.user!.role === "super_admin" ? ((req.query.syndicateId as string | undefined) || null) : req.user!.syndicateId!;
       const where = and(
         syndicateWhere(req, transactionsTable.syndicateId),
         from ? sql`${transactionsTable.date} >= ${from}` : undefined,
@@ -60,11 +77,12 @@ router.get(
           .limit(pagination.limit)
           .offset(pagination.offset),
         db.select({ value: count() }).from(transactionsTable).where(where),
-        // Totals over the whole filter (not just the loaded page).
+        // Counters of the register rows over the whole filter. Money totals
+        // come from the journal (same definition as every other screen):
+        // rows that were never posted (history predating the journal) and
+        // reversed rows do not count.
         db
           .select({
-            inflow: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'paid' AND ${transactionsTable.type} IN ('cotisation','recette')), 0)`,
-            outflow: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'paid' AND ${transactionsTable.type} IN ('depense','salaire')), 0)`,
             pending: sql<string>`COALESCE(SUM(${transactionsTable.amount}) FILTER (WHERE ${transactionsTable.status} = 'pending'), 0)`,
             paidCount: sql<number>`COUNT(*) FILTER (WHERE ${transactionsTable.status} = 'paid')::int`,
             pendingCount: sql<number>`COUNT(*) FILTER (WHERE ${transactionsTable.status} = 'pending')::int`,
@@ -73,16 +91,27 @@ router.get(
           .from(transactionsTable)
           .where(where),
       ]);
+      const flows = await ledgerFlows({ syndicateId: scopeId }, { from });
+      const currency = flows[0]?.currency ?? "MAD";
+      const inCurrency = flows.filter((f) => f.currency === currency);
+      const inflowCents = inCurrency.reduce((s, f) => s + f.income, 0);
+      const outflowCents = inCurrency.reduce((s, f) => s + f.expenses, 0);
       res.json({
-        ...buildPagedResponse(rows, Number(total), pagination),
+        ...buildPagedResponse(
+          rows.map((r) => ({ ...r, posted: !!r.ledgerEntryId })),
+          Number(total),
+          pagination,
+        ),
         totals: {
-          inflow: Number(totals?.inflow ?? 0),
-          outflow: Number(totals?.outflow ?? 0),
+          currency,
+          inflow: inflowCents / 100,
+          outflow: outflowCents / 100,
           pending: Number(totals?.pending ?? 0),
           paidCount: totals?.paidCount ?? 0,
           pendingCount: totals?.pendingCount ?? 0,
           overdueCount: totals?.overdueCount ?? 0,
         },
+        definitions: { inflow: METRIC_DEFINITIONS.income, outflow: METRIC_DEFINITIONS.expenses },
       });
     } catch (err) {
       req.log.error(err);
@@ -122,6 +151,15 @@ router.post(
       return;
     }
     try {
+      const workflow = WORKFLOW_FOR_TYPE[result.data.type];
+      if (workflow) throw new FinanceError(409, workflow.code, workflow.message);
+      if (result.data.status !== "paid") {
+        throw new FinanceError(
+          409,
+          "NOT_A_MOVEMENT",
+          "Seule une recette encaissée s'enregistre ici ; une somme due par un copropriétaire est un appel de fonds.",
+        );
+      }
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;
       // The payer must be a user of this syndicate and the justification a
@@ -223,6 +261,10 @@ router.patch(
           "Opération comptabilisée : utilisez l'extourne dans le journal de trésorerie.",
         );
       }
+      // An old pending item can only become a real receipt if it is "other
+      // income"; payments and expenses go through their workflows.
+      const workflow = WORKFLOW_FOR_TYPE[tx.type];
+      if (workflow && result.data.status === "paid") throw new FinanceError(409, workflow.code, workflow.message);
       const sid = req.user!.syndicateId!;
       const updated = await db.transaction(async (dbTx) => {
         let ledgerEntryId: string | null = null;
@@ -235,7 +277,7 @@ router.patch(
             direction: inflow ? "in" : "out",
             amount: tx.amount,
             entryDate: today(),
-            category: tx.type === "salaire" ? "salaires" : inflow ? "recette" : "depense",
+            category: inflow ? "recette" : "depense",
             label: tx.label,
             sourceType: "manual",
             proofUrl: tx.proofUrl,

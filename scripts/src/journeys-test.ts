@@ -593,6 +593,7 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
       for (const table of [
         "reconciliation_matches",
         "bank_statement_lines",
+        "bank_statements",
       ]) {
         await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE syndicate_id IN (${list})`);
       }

@@ -1774,7 +1774,7 @@ export const statistics = {
           revenues: number;
           expenses: number;
           memberGrowth: number;
-          cotisationRate: number;
+          cotisationRate: number | null;
         };
       };
     }>(`/statistics/reports?period=${period}`),

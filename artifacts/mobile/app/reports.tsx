@@ -30,7 +30,8 @@ interface ReportData {
     revenues: number;
     expenses: number;
     memberGrowth: number;
-    cotisationRate: number;
+    // null when no call for funds falls due in the period
+    cotisationRate: number | null;
   };
 }
 
@@ -196,7 +197,7 @@ function ReportsScreenInner() {
       `${t("rptKpiExpenses")} : ${formatMad(kpi.expenses)}\n` +
       `${t("rptBalanceSurplus")} : ${formatMad(kpi.revenues - kpi.expenses)}\n` +
       `${t("rptKpiGrowth")} : +${kpi.memberGrowth} ${t("rptKpiMembersUnit")}\n` +
-      `${t("rptKpiCotisationRate")} : ${kpi.cotisationRate}%\n` +
+      `${t("rptKpiCotisationRate")} : ${kpi.cotisationRate === null ? "—" : `${kpi.cotisationRate}%`}\n` +
       `${t("rptExportedOn")} ${new Intl.DateTimeFormat(locale).format(new Date())}\n` +
       `MIZAN`;
     Share.share({ title: reportLabel, message: summary }).catch(() =>
@@ -361,16 +362,16 @@ function ReportsScreenInner() {
               },
               {
                 label: t("rptKpiCotisationRate"),
-                value: `${pd.kpi.cotisationRate}%`,
+                value: pd.kpi.cotisationRate === null ? "—" : `${pd.kpi.cotisationRate}%`,
                 icon: "credit-card" as const,
                 color: "#f59e0b",
                 change:
-                  pd.kpi.cotisationRate >= 85
-                    ? t("rptKpiRateGood")
-                    : pd.kpi.cotisationRate > 0
-                      ? t("rptKpiRateLow")
-                      : "—",
-                up: pd.kpi.cotisationRate >= 85,
+                  pd.kpi.cotisationRate === null
+                    ? "—"
+                    : pd.kpi.cotisationRate >= 85
+                      ? t("rptKpiRateGood")
+                      : t("rptKpiRateLow"),
+                up: (pd.kpi.cotisationRate ?? 0) >= 85,
               },
             ].map((kpi) => (
               <View

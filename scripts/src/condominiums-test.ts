@@ -266,6 +266,7 @@ async function purge(ids: string[], orgs: string[], emails: string[], run: numbe
       for (const q of [
         sql`DELETE FROM reconciliation_matches WHERE syndicate_id IN (${list})`,
         sql`DELETE FROM bank_statement_lines WHERE syndicate_id IN (${list})`,
+        sql`DELETE FROM bank_statements WHERE syndicate_id IN (${list})`,
         sql`DELETE FROM transactions WHERE syndicate_id IN (${list})`,
         sql`DELETE FROM appel_payments WHERE syndicate_id IN (${list})`,
         sql`DELETE FROM expenses WHERE syndicate_id IN (${list})`,

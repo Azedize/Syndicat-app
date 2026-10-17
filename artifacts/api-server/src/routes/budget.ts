@@ -84,7 +84,10 @@ const submitPaymentSchema = z.object({
   amount: amountSchema.optional(),
   // Transfer reference or cheque number
   reference: z.string().trim().max(100).optional(),
-});
+})
+  // Payer, call, amount paid and status are decided by the server: a body
+  // trying to set them is refused instead of being silently ignored.
+  .strict();
 
 const generateAppelsSchema = z.object({
   period: z

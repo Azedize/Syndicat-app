@@ -169,7 +169,13 @@ async function main() {
     const tx = await post("/finance/transactions", { type: "recette", amount: 10, label: "x", date: "2026-09-26", memberId: "user_member_3" }, adminAtlas);
     expectStatus("transaction attributed to another syndicate's user refused", tx.status, 400);
     const txProof = await post("/finance/transactions", { type: "depense", amount: 10, label: "x", date: "2026-09-26", proofUrl: "/objects/uploads/not-ours.pdf" }, adminAtlas);
-    expectStatus("expense justified by a foreign/unknown file refused", txProof.status, 400);
+    // Expenses are no longer recorded through the register at all (they go
+    // through the approval workflow), so this is refused before any check.
+    record(
+      "expense through the register (with a foreign file) refused",
+      txProof.status === 409 && txProof.json?.code === "USE_EXPENSES",
+      `status=${txProof.status} code=${txProof.json?.code}`,
+    );
     const audit = await post("/audit", { action: "payment_approved", entity: "appel_de_fonds" }, owner);
     expectStatus("residents cannot write audit entries", audit.status, 403);
 
