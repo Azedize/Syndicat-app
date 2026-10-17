@@ -112,6 +112,7 @@ pnpm --filter @workspace/scripts run auth-security:test
 pnpm --filter @workspace/scripts run finance-integrity:test
 pnpm --filter @workspace/scripts run documents-security:test
 pnpm --filter @workspace/scripts run scenario-e2e:test
+pnpm --filter @workspace/scripts run units:test
 ```
 
 Parcours réels complets (Ahmed / Résidence Hayat, Ali / Résidence Hadika,

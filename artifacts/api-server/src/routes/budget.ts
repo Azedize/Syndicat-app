@@ -20,7 +20,8 @@ import {
   appelPaymentsTable,
   expensesTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, sum, or, inArray, isNull } from "drizzle-orm";
+import { chargesOfPersonSql, currentOwnersOf, isDebtorOfCharge, memberIdsOf } from "../lib/units.js";
 import {
   requireAuth,
   requireAdmin,
@@ -763,10 +764,18 @@ router.post(
         });
       }
 
+      // Archived lots receive no new calls; a lot without tantièmes has no
+      // share of the charges (no 0 MAD call is issued to it).
       const lots = await db
         .select()
         .from(lotsTable)
-        .where(eq(lotsTable.buildingId, budget.buildingId));
+        .where(
+          and(
+            eq(lotsTable.buildingId, budget.buildingId),
+            isNull(lotsTable.archivedAt),
+            sql`COALESCE(${lotsTable.tantiemes}, 0) > 0`,
+          ),
+        );
 
       if (lots.length === 0)
         return void res
@@ -796,11 +805,14 @@ router.post(
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
 
+      // Debtors of each call = the lot's co-owners right now (snapshot).
+      const owners = await currentOwnersOf(lots.map((l) => l.id));
       const appels = lots.map((lot, i) => ({
         buildingId: budget.buildingId,
         budgetId: budget.id,
         lotId: lot.id,
         ownerId: lot.ownerId ?? null,
+        debtorMemberIds: (owners.get(lot.id) ?? []).map((o) => o.memberId),
         period,
         type: chargeType,
         amount: (shares[i] / 100).toFixed(2),
@@ -992,34 +1004,16 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
 
-    // Members see only their own charges.
-    // ownerId may store membersTable.id (seeded) or usersTable.id — try both.
+    // Members see the calls issued to them, and the calls of a lot they
+    // owned (any share) when the call was issued — co-owners included,
+    // previous owners keep their own history.
     if (user.role === "member") {
       if (!user.syndicateId) {
         return void res
           .status(403)
           .json({ error: "Syndicat non défini dans le token" });
       }
-      const [member] = await db
-        .select({ id: membersTable.id })
-        .from(membersTable)
-        .where(
-          and(
-            eq(membersTable.email, user.email),
-            eq(membersTable.syndicateId, user.syndicateId),
-          ),
-        )
-        .limit(1);
-      if (member) {
-        conditions.push(
-          or(
-            eq(appelsDeFondsTable.ownerId, member.id),
-            eq(appelsDeFondsTable.ownerId, user.userId),
-          ),
-        );
-      } else {
-        conditions.push(eq(appelsDeFondsTable.ownerId, user.userId));
-      }
+      conditions.push(chargesOfPersonSql(await memberIdsOf(user)));
     }
 
     const where = conditions.length ? and(...conditions) : undefined;
@@ -1130,22 +1124,11 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     }
 
     if (!isAdmin) {
-      // Resolve member record by email (seeded rows use membersTable.id as ownerId)
-      const [member] = await db
-        .select({ id: membersTable.id })
-        .from(membersTable)
-        .where(
-          and(
-            eq(membersTable.email, user.email),
-            eq(membersTable.syndicateId, user.syndicateId!),
-          ),
-        )
-        .limit(1);
-      const memberId = member?.id;
+      // The debtor: the person the call was issued to, or a co-owner of the
+      // lot at issue time.
       const isOwner =
         appelBuilding?.syndicateId === user.syndicateId &&
-        (appel.ownerId === user.userId ||
-          (memberId && appel.ownerId === memberId));
+        (await isDebtorOfCharge(user, appel.id));
       if (!isOwner) {
         return void res.status(403).json({
           error:
@@ -1544,8 +1527,7 @@ router.get("/appels-de-fonds/:id/payments", requireAuth, async (req, res) => {
     }
     const financeReader = ["syndicate_admin", "treasurer", "president", "committee_member"].includes(user.role);
     if (!financeReader) {
-      const ownerUserId = await resolveOwnerUserId(db, appel.ownerId, appel.syndicateId);
-      if (user.role !== "member" || ownerUserId !== user.userId) {
+      if (user.role !== "member" || !(await isDebtorOfCharge(user, appel.id))) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
     }
@@ -1690,20 +1672,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       user.role === "syndicate_admin" ||
       user.role === "treasurer";
     if (!isAdmin) {
-      const [member] = await db
-        .select({ id: membersTable.id })
-        .from(membersTable)
-        .where(
-          and(
-            eq(membersTable.email, user.email),
-            eq(membersTable.syndicateId, user.syndicateId!),
-          ),
-        )
-        .limit(1);
-      const isOwner =
-        appel.ownerId === user.userId ||
-        (member && appel.ownerId === member.id);
-      if (!isOwner) return void res.status(403).json({ error: "Accès refusé" });
+      if (!(await isDebtorOfCharge(user, appel.id))) return void res.status(403).json({ error: "Accès refusé" });
     }
 
     // One receipt per validated payment (?paymentId=…, default: the latest).

@@ -16,7 +16,7 @@ import {
 } from "../middleware/auth.js";
 import { createAlert, sendEmailToMany } from "../lib/notify.js";
 import { incidentNotificationTemplate } from "../lib/email/templates.js";
-import { getUserBuildingIds } from "../lib/scope.js";
+import { getUserBuildingIds, getUserLotIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -230,14 +230,9 @@ router.post("/sinistres", requireAuth, async (req, res) => {
       if (!lot || lot.buildingId !== String(buildingId)) {
         return void res.status(400).json({ error: "Lot ou immeuble invalide" });
       }
-      if (user.role === "member" && lot.ownerId !== user.userId) {
-        const [member] = await db
-          .select({ id: membersTable.id })
-          .from(membersTable)
-          .where(eq(membersTable.email, user.email))
-          .limit(1);
-        if (!member || lot.ownerId !== member.id)
-          return void res.status(403).json({ error: "Accès refusé" });
+      // Current owner or co-owner of the lot (ownership register).
+      if (user.role === "member" && !(await getUserLotIds(user)).includes(String(lotId))) {
+        return void res.status(403).json({ error: "Accès refusé" });
       }
       if (user.role === "tenant" && lot.tenantId !== user.userId) {
         const [tenant] = await db

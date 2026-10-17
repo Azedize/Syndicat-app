@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   RefreshControl,
+  TextInput,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +23,32 @@ import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
+
+// Unit types accepted by the API (routes/lots.ts LOT_TYPES).
+const CREATE_TYPES = ["appartement", "duplex", "studio", "villa", "bureau", "commerce", "local", "parking", "cave", "box", "terrain", "autre"];
+const FLOORLESS = new Set(["parking", "cave", "box", "terrain", "villa"]);
+const L_STR = {
+  create: { fr: "Créer un lot", en: "Create unit", ar: "إنشاء وحدة", es: "Crear lote" },
+  search: { fr: "Rechercher : référence, propriétaire, locataire, titre foncier", en: "Search: reference, owner, tenant, land title", ar: "بحث: المرجع، المالك، المكتري", es: "Buscar: referencia, propietario, inquilino" },
+  building: { fr: "Immeuble *", en: "Building *", ar: "العمارة *", es: "Edificio *" },
+  reference: { fr: "Référence du lot *", en: "Unit reference *", ar: "مرجع الوحدة *", es: "Referencia *" },
+  type: { fr: "Type *", en: "Type *", ar: "النوع *", es: "Tipo *" },
+  floor: { fr: "Étage", en: "Floor", ar: "الطابق", es: "Planta" },
+  floorRequired: { fr: "Étage obligatoire pour ce type de lot", en: "Floor required for this unit type", ar: "الطابق إلزامي لهذا النوع", es: "Planta obligatoria" },
+  surface: { fr: "Surface m² (facultatif)", en: "Area m² (optional)", ar: "المساحة (اختياري)", es: "Superficie (opcional)" },
+  tantiemes: { fr: "Tantièmes *", en: "Shares (tantièmes) *", ar: "الأنصبة *", es: "Cuotas *" },
+  owner: { fr: "Propriétaire (facultatif, 100 %)", en: "Owner (optional, 100 %)", ar: "المالك (اختياري)", es: "Propietario (opcional)" },
+  noOwner: { fr: "Aucun", en: "None", ar: "لا أحد", es: "Ninguno" },
+  save: { fr: "Créer", en: "Create", ar: "إنشاء", es: "Crear" },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  required: { fr: "Obligatoire", en: "Required", ar: "إلزامي", es: "Obligatorio" },
+  invalid: { fr: "Valeur invalide", en: "Invalid value", ar: "قيمة غير صالحة", es: "Valor no válido" },
+  error: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
+  created: { fr: "Lot créé", en: "Unit created", ar: "تم إنشاء الوحدة", es: "Lote creado" },
+  rented: { fr: "Loué", en: "Rented", ar: "مكترى", es: "Alquilado" },
+  archived: { fr: "Archivés", en: "Archived", ar: "مؤرشفة", es: "Archivados" },
+} as const;
 
 const LOT_TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   appartement: "home",
@@ -42,6 +70,7 @@ const LOT_TYPE_COLORS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   occupied: "#10b981",
+  rented: "#8b5cf6",
   vacant: "#f59e0b",
   for_sale: "#3b82f6",
   for_rent: "#8b5cf6",
@@ -63,7 +92,7 @@ type Lot = {
 
 export default function LotsScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "secretary", "president", "treasurer", "committee_member"]}>
       <LotsScreenInner />
     </RoleGuard>
   );
@@ -72,8 +101,10 @@ export default function LotsScreen() {
 function LotsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { lang, t } = useLanguage();
+  const ls = (k: keyof typeof L_STR) => (L_STR[k] as Record<string, string>)[lang] ?? L_STR[k].fr;
+  const canCreate = user?.role === "syndicate_admin" || user?.role === "secretary";
   const { isWide } = useBreakpoints();
   const params = useLocalSearchParams<{
     buildingId?: string;
@@ -86,6 +117,21 @@ function LotsScreenInner() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [total, setTotal] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [form, setForm] = useState({ buildingId: "", number: "", type: "appartement", floor: "", surfaceM2: "", tantiemes: "", ownerId: "" });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const h = setTimeout(() => setDebouncedQuery(query.trim()), 350);
+    return () => clearTimeout(h);
+  }, [query]);
 
   const load = useCallback(
     async (silent = false) => {
@@ -94,9 +140,17 @@ function LotsScreenInner() {
           setLoading(true);
           setLoadError(false);
         }
-        const qs = params.buildingId ? `?buildingId=${params.buildingId}` : "";
-        const data = await apiRequest(`/lots${qs}`, "GET", undefined, token);
+        // Search and filters run on the server (whole register, not a page).
+        const qs = new URLSearchParams({ limit: "200" });
+        if (params.buildingId) qs.set("buildingId", params.buildingId);
+        if (debouncedQuery) qs.set("q", debouncedQuery);
+        if (filter === "archived") qs.set("archived", "only");
+        else if (["vacant", "rented", "occupied"].includes(filter)) qs.set("status", filter);
+        else if (filter !== "all") qs.set("type", filter);
+        const data = await apiRequest(`/lots?${qs.toString()}`, "GET", undefined, token);
         setLots(data.data ?? []);
+        setTotal(Number(data.total ?? (data.data ?? []).length));
+        setStatusCounts(data.statusCounts ?? {});
       } catch {
         if (!silent) setLoadError(true);
       } finally {
@@ -104,8 +158,66 @@ function LotsScreenInner() {
         setRefreshing(false);
       }
     },
-    [token, params.buildingId],
+    [token, params.buildingId, debouncedQuery, filter],
   );
+
+  const openCreate = async () => {
+    setForm({ buildingId: params.buildingId ?? "", number: "", type: "appartement", floor: "", surfaceM2: "", tantiemes: "", ownerId: "" });
+    setFormErrors({});
+    setCreateOpen(true);
+    try {
+      const [b, m] = await Promise.all([
+        apiRequest<{ data: any[] }>("/buildings", "GET", undefined, token),
+        apiRequest<{ data: any[] }>("/members?limit=200", "GET", undefined, token),
+      ]);
+      setBuildings((b.data ?? []).map((x) => ({ id: x.id, name: x.name })));
+      setOwners((m.data ?? []).map((x) => ({ id: x.id, name: x.name })));
+      if (!params.buildingId && (b.data ?? []).length === 1) setForm((f) => ({ ...f, buildingId: b.data[0].id }));
+    } catch {
+      setBuildings([]);
+    }
+  };
+
+  const submitCreate = async () => {
+    if (creating) return;
+    // Same rules as the API, shown before submitting.
+    const errors: Record<string, string> = {};
+    if (!form.buildingId) errors.buildingId = ls("required");
+    if (!form.number.trim()) errors.number = ls("required");
+    if (!FLOORLESS.has(form.type) && form.floor.trim() === "") errors.floor = ls("floorRequired");
+    if (form.floor.trim() !== "" && !Number.isInteger(Number(form.floor))) errors.floor = ls("invalid");
+    if (form.surfaceM2.trim() !== "" && !(Number(form.surfaceM2.replace(",", ".")) > 0)) errors.surfaceM2 = ls("invalid");
+    if (form.tantiemes.trim() === "" || !Number.isInteger(Number(form.tantiemes)) || Number(form.tantiemes) < 0) errors.tantiemes = ls("invalid");
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
+    setCreating(true);
+    try {
+      const created = await apiRequest<any>(
+        "/lots",
+        "POST",
+        {
+          buildingId: form.buildingId,
+          number: form.number.trim(),
+          type: form.type,
+          ...(form.floor.trim() !== "" ? { floor: Number(form.floor) } : {}),
+          ...(form.surfaceM2.trim() !== "" ? { surfaceM2: form.surfaceM2.replace(",", ".") } : {}),
+          tantiemes: Number(form.tantiemes),
+          ...(form.ownerId ? { ownerId: form.ownerId } : {}),
+        },
+        token,
+      );
+      setCreateOpen(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      load(true);
+      router.push({ pathname: "/lot-detail", params: { id: created.id ?? created.data?.id } } as any);
+    } catch (e: any) {
+      // Server reason: duplicate reference, building of another syndicate…
+      if (e?.code === "LOT_REFERENCE_EXISTS") setFormErrors({ number: e.message });
+      else Alert.alert(ls("error"), e?.message || ls("invalid"));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -115,21 +227,20 @@ function LotsScreenInner() {
     load(true);
   };
 
-  const filtered =
-    filter === "all"
-      ? lots
-      : lots.filter((l) => l.type === filter || l.status === filter);
+  // The list is already filtered by the server.
+  const filtered = lots;
 
   const stats = {
-    total: lots.length,
-    occupied: lots.filter((l) => l.status === "occupied").length,
-    vacant: lots.filter((l) => l.status === "vacant").length,
+    total,
+    occupied: (statusCounts.occupied ?? 0) + (statusCounts.rented ?? 0),
+    vacant: statusCounts.vacant ?? 0,
     overdue: lots.filter((l) => (l.chargeStats?.overdue ?? 0) > 0).length,
   };
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       occupied: t("lotStatusOccupied"),
+      rented: ls("rented"),
       vacant: t("lotStatusVacant"),
       for_sale: t("lotStatusForSale"),
       for_rent: t("lotStatusForRent"),
@@ -170,6 +281,8 @@ function LotsScreenInner() {
     { key: "commerce", label: t("filterCommerce") },
     { key: "parking", label: t("filterParkings") },
     { key: "vacant", label: t("filterVacant") },
+    { key: "rented", label: ls("rented") },
+    { key: "archived", label: ls("archived") },
   ];
 
   // Skeleton loading card
@@ -269,6 +382,19 @@ function LotsScreenInner() {
         ]}
       />
 
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}>
+        <TextInput
+          style={[formStyles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+          placeholder={ls("search")}
+          placeholderTextColor={colors.mutedForeground}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {canCreate && <ActionButton label={ls("create")} icon="plus" onPress={openCreate} />}
+      </View>
+
       <FilterChips
         options={FILTERS}
         value={filter}
@@ -339,7 +465,7 @@ function LotsScreenInner() {
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedLot(lot);
+                    router.push({ pathname: "/lot-detail", params: { id: lot.id } } as any);
                   }}
                   activeOpacity={0.8}
                 >
@@ -493,288 +619,24 @@ function LotsScreenInner() {
         </ScrollView>
       )}
 
-      {/* Lot detail modal */}
-      <Modal
-        visible={!!selectedLot}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedLot(null)}
-      >
-        {selectedLot ? (
-          <View
-            style={[styles.modalRoot, { backgroundColor: colors.background }]}
-          >
-            <View
-              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                {t("lotLabel")} {selectedLot.number}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedLot(null)}>
-                <Feather name="x" size={22} color={colors.foreground} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              contentContainerStyle={{
-                padding: 20,
-                gap: 14,
-                paddingBottom: 40,
-              }}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Type + Status hero */}
-              <View
-                style={[
-                  styles.modalHero,
-                  {
-                    backgroundColor:
-                      (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "15",
-                    borderColor:
-                      (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "40",
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.modalHeroIcon,
-                    {
-                      backgroundColor:
-                        (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "25",
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={LOT_TYPE_ICONS[selectedLot.type] ?? "home"}
-                    size={28}
-                    color={LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB"}
-                  />
-                </View>
-                <Text
-                  style={[styles.modalHeroTitle, { color: colors.foreground }]}
-                >
-                  {getLotTypeLabel(selectedLot.type)} — {t("lotLabel")}{" "}
-                  {selectedLot.number}
-                </Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor:
-                        (STATUS_COLORS[selectedLot.status] ?? "#6b7280") + "20",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: STATUS_COLORS[selectedLot.status] ?? "#6b7280" },
-                    ]}
-                  >
-                    {getStatusLabel(selectedLot.status)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Lot details */}
-              <View
-                style={[
-                  styles.detailCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                {[
-                  {
-                    icon: "layers" as const,
-                    label: t("floor"),
-                    value: selectedLot.floor.toString(),
-                  },
-                  {
-                    icon: "maximize" as const,
-                    label: t("surface"),
-                    value: selectedLot.surfaceM2
-                      ? `${selectedLot.surfaceM2} m²`
-                      : "—",
-                  },
-                  {
-                    icon: "percent" as const,
-                    label: t("tantiemes"),
-                    value: `${selectedLot.tantiemes} ‰`,
-                  },
-                ].map((row, i) => (
-                  <View key={row.label}>
-                    {i > 0 ? (
-                      <View
-                        style={[
-                          styles.sep2,
-                          { backgroundColor: colors.border },
-                        ]}
-                      />
-                    ) : null}
-                    <View style={styles.detailRow}>
-                      <View style={styles.detailLabelRow}>
-                        <Feather
-                          name={row.icon}
-                          size={14}
-                          color={colors.mutedForeground}
-                        />
-                        <Text
-                          style={[
-                            styles.detailLabel,
-                            { color: colors.mutedForeground },
-                          ]}
-                        >
-                          {row.label}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.detailValue,
-                          { color: colors.foreground },
-                        ]}
-                      >
-                        {row.value}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              {/* Owner */}
-              <View
-                style={[
-                  styles.detailCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                <Text
-                  style={[styles.sectionTitle, { color: colors.foreground }]}
-                >
-                  {t("ownerLabel")}
-                </Text>
-                {selectedLot.owner ? (
-                  <>
-                    <View
-                      style={[styles.sep2, { backgroundColor: colors.border }]}
-                    />
-                    {[
-                      { label: t("name"), value: selectedLot.owner.name },
-                      { label: t("email"), value: selectedLot.owner.email },
-                      { label: t("phone"), value: selectedLot.owner.phone },
-                    ].map((row, i) => (
-                      <View key={row.label}>
-                        {i > 0 ? (
-                          <View
-                            style={[
-                              styles.sep2,
-                              { backgroundColor: colors.border },
-                            ]}
-                          />
-                        ) : null}
-                        <View style={styles.detailRow}>
-                          <Text
-                            style={[
-                              styles.detailLabel,
-                              { color: colors.mutedForeground },
-                            ]}
-                          >
-                            {row.label}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.detailValue,
-                              { color: colors.foreground },
-                            ]}
-                          >
-                            {row.value || "—"}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <View
-                      style={[styles.sep2, { backgroundColor: colors.border }]}
-                    />
-                    <Text
-                      style={[
-                        styles.detailLabel,
-                        { color: "#f59e0b", paddingVertical: 8 },
-                      ]}
-                    >
-                      {t("noOwnerLabel")}
-                    </Text>
-                  </>
-                )}
-              </View>
-
-              {/* Charges */}
-              {selectedLot.chargeStats &&
-              (selectedLot.chargeStats.pending > 0 ||
-                selectedLot.chargeStats.overdue > 0) ? (
-                <View
-                  style={[
-                    styles.detailCard,
-                    { backgroundColor: colors.card, borderColor: "#ef444440" },
-                  ]}
-                >
-                  <Text
-                    style={[styles.sectionTitle, { color: colors.foreground }]}
-                  >
-                    {t("financialSituation")}
-                  </Text>
-                  <View
-                    style={[styles.sep2, { backgroundColor: colors.border }]}
-                  />
-                  {[
-                    {
-                      label: t("pendingCalls"),
-                      value: selectedLot.chargeStats.pending.toString(),
-                      color: "#f59e0b",
-                    },
-                    {
-                      label: t("overdueCalls"),
-                      value: selectedLot.chargeStats.overdue.toString(),
-                      color: "#ef4444",
-                    },
-                    {
-                      label: t("amountDue"),
-                      value: formatMad(selectedLot.chargeStats.pendingAmount),
-                      color: "#ef4444",
-                    },
-                  ].map((row, i) => (
-                    <View key={row.label}>
-                      {i > 0 ? (
-                        <View
-                          style={[
-                            styles.sep2,
-                            { backgroundColor: colors.border },
-                          ]}
-                        />
-                      ) : null}
-                      <View style={styles.detailRow}>
-                        <Text
-                          style={[
-                            styles.detailLabel,
-                            { color: colors.mutedForeground },
-                          ]}
-                        >
-                          {row.label}
-                        </Text>
-                        <Text
-                          style={[styles.detailValue, { color: row.color }]}
-                        >
-                          {row.value}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </ScrollView>
-          </View>
-        ) : null}
-      </Modal>
+      {/* Create unit */}
+      <FormSheet visible={createOpen} title={ls("create")} onClose={() => setCreateOpen(false)} closeLabel={ls("cancel")}>
+        <FieldLabel label={ls("building")} error={formErrors.buildingId} />
+        <ChoiceChips value={form.buildingId} onChange={(k) => setForm((f) => ({ ...f, buildingId: k }))} options={buildings.map((b) => ({ key: b.id, label: b.name }))} />
+        <FieldLabel label={ls("reference")} error={formErrors.number} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.number ? "#ef4444" : colors.border, color: colors.foreground }]} autoCapitalize="characters" value={form.number} onChangeText={(v) => setForm((f) => ({ ...f, number: v }))} />
+        <FieldLabel label={ls("type")} />
+        <ChoiceChips value={form.type} onChange={(k) => setForm((f) => ({ ...f, type: k }))} options={CREATE_TYPES.map((k) => ({ key: k, label: getLotTypeLabel(k) }))} />
+        <FieldLabel label={`${ls("floor")}${FLOORLESS.has(form.type) ? "" : " *"}`} error={formErrors.floor} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.floor ? "#ef4444" : colors.border, color: colors.foreground }]} keyboardType="numbers-and-punctuation" value={form.floor} onChangeText={(v) => setForm((f) => ({ ...f, floor: v }))} />
+        <FieldLabel label={ls("surface")} error={formErrors.surfaceM2} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]} keyboardType="decimal-pad" value={form.surfaceM2} onChangeText={(v) => setForm((f) => ({ ...f, surfaceM2: v }))} />
+        <FieldLabel label={ls("tantiemes")} error={formErrors.tantiemes} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.tantiemes ? "#ef4444" : colors.border, color: colors.foreground }]} keyboardType="number-pad" value={form.tantiemes} onChangeText={(v) => setForm((f) => ({ ...f, tantiemes: v }))} />
+        <FieldLabel label={ls("owner")} />
+        <ChoiceChips value={form.ownerId} onChange={(k) => setForm((f) => ({ ...f, ownerId: k }))} options={[{ key: "", label: ls("noOwner") }, ...owners.map((o) => ({ key: o.id, label: o.name }))]} />
+        <ActionButton label={ls("save")} icon="check" onPress={submitCreate} busy={creating} />
+      </FormSheet>
     </View>
   );
 }

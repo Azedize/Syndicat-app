@@ -199,29 +199,33 @@ router.post(
       const { inviteToApp, ...memberData } = result.data;
       const email = memberData.email.trim().toLowerCase();
 
-      // Email identifies a person across members (ownership) and users
-      // (login): refuse duplicates up front with a clear message.
+      // One member record per person and syndicate: the same person may own
+      // lots in several syndicates, but not be registered twice in one.
       const [existingMember] = await db
         .select({ id: membersTable.id })
         .from(membersTable)
-        .where(eq(membersTable.email, email))
+        .where(and(sql`lower(${membersTable.email}) = ${email}`, eq(membersTable.syndicateId, syndicateId)))
         .limit(1);
       if (existingMember) {
         return void res
           .status(409)
-          .json({ error: "Un membre avec cet email existe déjà", code: "MEMBER_EMAIL_EXISTS" });
+          .json({ error: "Un copropriétaire avec cet email existe déjà dans ce syndicat", code: "MEMBER_EMAIL_EXISTS" });
       }
+      // A login account belongs to one syndicate. If this person already has
+      // one (here or elsewhere), the member is registered without a second
+      // account and the syndic is told why no invitation was sent.
+      let accountNotice: string | null = null;
       if (inviteToApp) {
         const [existingUser] = await db
           .select({ id: usersTable.id, syndicateId: usersTable.syndicateId })
           .from(usersTable)
-          .where(eq(usersTable.email, email))
+          .where(sql`lower(${usersTable.email}) = ${email}`)
           .limit(1);
         if (existingUser) {
-          return void res.status(409).json({
-            error: "Un compte MIZAN existe déjà pour cet email",
-            code: "USER_EMAIL_EXISTS",
-          });
+          accountNotice =
+            existingUser.syndicateId === syndicateId
+              ? "Cette personne a déjà un compte MIZAN dans ce syndicat : aucune nouvelle invitation."
+              : "Cette personne a déjà un compte MIZAN rattaché à un autre syndicat : enregistrée comme copropriétaire, sans accès à l'application ici.";
         }
       }
 
@@ -240,7 +244,7 @@ router.post(
           .returning();
         member = m;
 
-        if (inviteToApp) {
+        if (inviteToApp && !accountNotice) {
           temporaryPassword = randomBytes(12).toString("base64url");
           await tx.insert(usersTable).values({
             name: memberData.name,
@@ -288,9 +292,10 @@ router.post(
         .json({
           data: member!,
           invited: !!temporaryPassword,
+          ...(accountNotice ? { accountNotice } : {}),
           message: temporaryPassword
             ? "Membre ajouté — invitation envoyée par email"
-            : "Membre ajouté avec succès",
+            : accountNotice ?? "Membre ajouté avec succès",
         });
     } catch (err) {
       req.log.error(err);

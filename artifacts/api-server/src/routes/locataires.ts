@@ -10,6 +10,8 @@ import {
 } from "../middleware/auth.js";
 import { z } from "zod";
 
+import { lotHasOtherActiveTenancy, syncLotOccupancy } from "../lib/units.js";
+
 const router = Router();
 
 function getMutationSyndicate(
@@ -340,6 +342,13 @@ router.post(
         }
       }
 
+      if (data.lotId && data.status === "active" && (await lotHasOtherActiveTenancy(data.lotId))) {
+        return void res.status(409).json({
+          error: "Ce lot a déjà un bail en cours : enregistrez d'abord le départ du locataire actuel.",
+          code: "TENANCY_ACTIVE",
+        });
+      }
+
       const [row] = await db
         .insert(tenantsTable)
         .values({
@@ -359,6 +368,8 @@ router.post(
           status: data.status,
         } as any)
         .returning();
+      // The lot follows its current lease (tenant_id, rented / vacant).
+      if (row.lotId) await syncLotOccupancy(db, row.lotId);
 
       res
         .status(201)
@@ -403,6 +414,8 @@ router.put(
         .select({
           syndicateId: tenantsTable.syndicateId,
           buildingId: tenantsTable.buildingId,
+          lotId: tenantsTable.lotId,
+          status: tenantsTable.status,
         })
         .from(tenantsTable)
         .where(
@@ -475,6 +488,14 @@ router.put(
         }
       }
 
+      const nextLotId = result.data.lotId ?? existing.lotId;
+      const nextStatus = result.data.status ?? existing.status;
+      if (nextLotId && nextStatus === "active" && (await lotHasOtherActiveTenancy(nextLotId, String(req.params.id)))) {
+        return void res.status(409).json({
+          error: "Ce lot a déjà un bail en cours : enregistrez d'abord le départ du locataire actuel.",
+          code: "TENANCY_ACTIVE",
+        });
+      }
       const [updated] = await db
         .update(tenantsTable)
         .set(updates)
@@ -488,6 +509,9 @@ router.put(
 
       if (!updated)
         return void res.status(404).json({ error: "Locataire introuvable" });
+      for (const lotId of new Set([existing.lotId, updated.lotId].filter((v): v is string => !!v))) {
+        await syncLotOccupancy(db, lotId);
+      }
       res.json({ data: updated, message: "Locataire mis à jour" });
     } catch (e) {
       console.error(e);
@@ -506,6 +530,16 @@ router.delete(
       const user = req.user!;
       const effectiveSyndicateId = getMutationSyndicate(req, res);
       if (!effectiveSyndicateId) return;
+      const [target] = await db
+        .select({ lotId: tenantsTable.lotId, status: tenantsTable.status })
+        .from(tenantsTable)
+        .where(and(eq(tenantsTable.id, String(req.params.id)), eq(tenantsTable.syndicateId, effectiveSyndicateId)));
+      if (target?.lotId && target.status === "active") {
+        return void res.status(409).json({
+          error: "Ce locataire occupe un lot : enregistrez son départ au lieu de supprimer sa fiche.",
+          code: "TENANCY_ACTIVE",
+        });
+      }
       const [deleted] = await db
         .delete(tenantsTable)
         .where(
@@ -518,6 +552,7 @@ router.delete(
 
       if (!deleted)
         return void res.status(404).json({ error: "Locataire introuvable" });
+      if (deleted.lotId) await syncLotOccupancy(db, deleted.lotId);
       res.json({ message: "Locataire supprimé" });
     } catch (e) {
       console.error(e);

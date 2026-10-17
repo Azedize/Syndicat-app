@@ -72,7 +72,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     titleKey: "menuSectionBuilding",
     items: [
       { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#2563EB", roles: ["syndicate_admin"] },
-      { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin"] },
+      { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin", "secretary", "president", "treasurer", "committee_member"] },
       { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["syndicate_admin"] },
       { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["syndicate_admin"] },
     ],

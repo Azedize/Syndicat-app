@@ -156,7 +156,9 @@ export const membersTable = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("members_email_unique_idx").on(t.email),
+    // One record per person and syndicate: the same person may own lots in
+    // several syndicates (each syndicate keeps its own register).
+    uniqueIndex("members_syndicate_email_uq").on(t.syndicateId, sql`lower(${t.email})`),
     index("members_syndicate_id_idx").on(t.syndicateId),
     index("members_status_idx").on(t.status),
   ],
@@ -199,15 +201,33 @@ export const lotsTable = pgTable(
     surfaceCadastrale: money("surface_cadastrale"),
     tantiemes: integer("tantiemes").default(0),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    // Main owner (largest current share), kept in sync with lot_ownerships
+    // by the ownership workflow — read by charge generation and legacy code.
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
+    // Current tenancy (tenants.id), kept in sync by the tenancy workflow.
     tenantId: text("tenant_id"),
+    // Occupancy: occupied (by the owner) | rented | vacant
     status: text("status").default("occupied"),
     description: text("description"),
+    // Lifecycle: an archived lot keeps its whole history but receives no new
+    // calls for funds and leaves the active lists.
+    archivedAt: timestamp("archived_at"),
+    archivedBy: text("archived_by"),
+    archiveReason: text("archive_reason"),
+    // Optimistic concurrency: every update must present the version it read.
+    version: integer("version").notNull().default(0),
+    updatedAt: timestamp("updated_at"),
     createdAt: createdAt(),
   },
   (t) => [
     index("lots_building_id_idx").on(t.buildingId),
     index("lots_owner_id_idx").on(t.ownerId),
+    // A reference is unique within its building among active lots.
+    uniqueIndex("lots_building_number_active_uq")
+      .on(t.buildingId, sql`lower(${t.number})`)
+      .where(sql`${t.archivedAt} IS NULL`),
+    check("lots_tantiemes_chk", sql`${t.tantiemes} >= 0`),
+    check("lots_status_chk", sql`${t.status} IN ('occupied', 'rented', 'vacant')`),
   ],
 );
 
@@ -289,8 +309,13 @@ export const appelsDeFondsTable = pgTable(
     id: id(),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     budgetId: text("budget_id").references(() => budgetsTable.id, { onDelete: "set null" }),
-    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "cascade" }),
+    // restrict: a lot with calls for funds is archived, never deleted.
+    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "restrict" }),
+    // Owner at issue time — never rewritten when the lot changes hands.
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
+    // Every co-owner of the lot when the call was issued (snapshot): they are
+    // its debtors. Never rewritten when ownership changes later.
+    debtorMemberIds: text("debtor_member_ids").array().notNull().default(sql`'{}'::text[]`),
     period: text("period").notNull(),
     type: text("type").default("charges_courantes"),
     amount: money("amount").notNull(),
@@ -2834,5 +2859,35 @@ export const reconciliationMatchesTable = pgTable(
     uniqueIndex("reconciliation_matches_pair_uq").on(t.statementLineId, t.ledgerEntryId),
     index("reconciliation_matches_ledger_entry_idx").on(t.ledgerEntryId),
     check("reconciliation_matches_amount_chk", sql`${t.amount} > 0`),
+  ],
+);
+
+// ─── Lot ownership (co-ownership, shares, history) ──────────────────────────
+// One row per owner and period. Current owners have no end_date; a transfer
+// closes rows instead of rewriting them, so history (and the debts issued to
+// the previous owner) stays intact.
+
+export const lotOwnershipsTable = pgTable(
+  "lot_ownerships",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "restrict" }),
+    memberId: text("member_id").notNull().references(() => membersTable.id, { onDelete: "restrict" }),
+    // Share of the lot, in percent (co-owners' current shares sum to 100).
+    sharePercent: numeric("share_percent", { precision: 5, scale: 2 }).notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"),
+    endReason: text("end_reason"),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("lot_ownerships_lot_id_idx").on(t.lotId),
+    index("lot_ownerships_member_id_idx").on(t.memberId),
+    index("lot_ownerships_syndicate_id_idx").on(t.syndicateId),
+    uniqueIndex("lot_ownerships_current_uq").on(t.lotId, t.memberId).where(sql`${t.endDate} IS NULL`),
+    check("lot_ownerships_share_chk", sql`${t.sharePercent} > 0 AND ${t.sharePercent} <= 100`),
+    check("lot_ownerships_dates_chk", sql`${t.endDate} IS NULL OR ${t.endDate} >= ${t.startDate}`),
   ],
 );

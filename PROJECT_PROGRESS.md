@@ -219,3 +219,56 @@ La suite finance modifiait l'appel de démo `adf_4` ; elle a validé une vraie
 déclaration faite depuis l'app (compte de Mohammed) puis « restauré » l'appel.
 Données remises dans leur état réel (déclaration en attente) ; la suite utilise
 désormais ses propres appels sur `2099-05`.
+
+## 2026-10-17 — Lots : propriété, copropriété, occupation, cycle de vie
+
+Hiérarchie de l'application : syndicat (la copropriété, client de la
+plateforme) → immeuble → étage → lot. Pas de niveau « organisation de syndic »
+au-dessus : un compte syndic gère un syndicat.
+
+### Base (migrations `0004_lot_ownership`, `0005_appel_debtors`)
+- `lot_ownerships` : une ligne par propriétaire et par période (quote-part %,
+  date de début / fin, motif). Une vente ou une donation ferme des périodes,
+  n'en réécrit aucune. Reprise : 8 périodes créées depuis `lots.owner_id`.
+- `lots` : `archived_at/by/reason`, `version` (modifications concurrentes),
+  `updated_at` ; référence unique par immeuble parmi les lots actifs
+  (insensible à la casse) ; `status` limité à occupied / rented / vacant ;
+  `tenant_id` resynchronisé depuis les baux actifs.
+- `appels_de_fonds.lot_id` passe en `ON DELETE RESTRICT` (un lot avec des
+  appels ne peut plus être supprimé en effaçant l'historique financier).
+- `appels_de_fonds.debtor_member_ids` : débiteurs figés à l'émission (les
+  copropriétaires du moment). Une vente ne transfère jamais une dette.
+- `members` : email unique **par syndicat** (une personne peut être
+  copropriétaire dans plusieurs syndicats).
+
+### API (`routes/lots.ts`, `lib/units.ts`)
+- Liste : recherche (référence, propriétaire, locataire, titre foncier),
+  filtres (immeuble, étage, type, occupation, propriétaire, archivés), tri,
+  pagination, compteurs serveur.
+- Fiche selon le rôle : équipe (tout), copropriétaire (ses lots, ses appels,
+  ses périodes), locataire (lot + son bail, aucune donnée financière).
+- Création validée et transactionnelle (types, étage obligatoire selon le
+  type, propriétaires du syndicat, quotes-parts = 100 %), édition avec
+  contrôle de version, changement de propriétaires avec date d'effet et
+  confirmation obligatoire en cas d'impayés, entrée / sortie de locataire,
+  archivage / restauration, suppression seulement sans historique, import
+  avec rapport ligne par ligne (dry-run).
+- Accès des résidents recalculés depuis le registre : un vendeur ou un
+  locataire parti perd l'accès au lot ; contrôles centralisés dans travaux,
+  travaux privatifs, sinistres, parking ; `/locataires` resynchronise le lot.
+- Génération d'appels : lots archivés et lots à 0 tantième exclus.
+- Rôles : registre (secrétaire, syndic) ; propriété, archivage, suppression
+  (syndic) ; trésorier et conseil en lecture.
+
+### Mobile
+- Liste des lots : recherche et filtres serveur, création avec validation.
+- Nouvel écran « Fiche du lot » (`app/lot-detail.tsx`) : identité, propriétaires
+  et historique, occupation, situation financière par débiteur, documents,
+  journal ; actions selon les permissions renvoyées par l'API.
+- `components/FormSheet.tsx` : composants de formulaire partagés.
+
+### Tests
+- Nouvelle suite `units:test` : 65/65.
+- Référence 190/190, parcours 135/135 (suites adaptées : étage fourni à la
+  création, nettoyage des périodes de propriété).
+- Migrations 0000→0005 sur base vierge (111 tables) ; bundles Android / iOS.

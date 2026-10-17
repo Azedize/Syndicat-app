@@ -29,6 +29,20 @@
       "when": 1790429521525,
       "tag": "0003_finance_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792244611250,
+      "tag": "0004_lot_ownership",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792245449818,
+      "tag": "0005_appel_debtors",
+      "breakpoints": true
     }
   ]
 }

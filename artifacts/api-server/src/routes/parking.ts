@@ -444,12 +444,8 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
       if (!lot) return void res.status(400).json({ error: "Lot introuvable" });
       await assertBuildingAccess(user, lot.buildingId);
       if (user.role === "member") {
-        const [member] = await db
-          .select({ id: membersTable.id })
-          .from(membersTable)
-          .where(eq(membersTable.email, user.email))
-          .limit(1);
-        if (![user.userId, member?.id].includes(lot.ownerId ?? "")) {
+        // Current owner or co-owner of the lot (ownership register).
+        if (!(await getUserLotIds(user)).includes(parsed.data.lotId)) {
           return void res
             .status(403)
             .json({ error: "Ce lot n'est pas rattaché à votre compte" });

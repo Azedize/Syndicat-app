@@ -35,7 +35,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
-import { assertUserCanAccessBuilding } from "../lib/scope.js";
+import { assertUserCanAccessBuilding, getUserLotIds } from "../lib/scope.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -114,13 +114,8 @@ async function assertRequestedLotAccess(
   }
 
   if (user.role === "member") {
-    if (lot.ownerId === user.userId) return;
-    const [member] = await db
-      .select({ id: membersTable.id })
-      .from(membersTable)
-      .where(eq(membersTable.email, user.email))
-      .limit(1);
-    if (member && lot.ownerId === member.id) return;
+    // Current owner or co-owner of the lot (ownership register).
+    if ((await getUserLotIds(user)).includes(lotId)) return;
     throw Object.assign(new Error("Accès refusé à ce lot"), { status: 403 });
   }
 

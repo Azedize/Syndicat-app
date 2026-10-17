@@ -28,6 +28,7 @@ import {
   appelsDeFondsTable,
   auditLogsTable,
   ledgerEntriesTable,
+  lotOwnershipsTable,
   documentsTable,
   emailLogsTable,
   lotsTable,
@@ -226,7 +227,7 @@ async function main() {
     });
     step("co-owner sets their own password", changed.status === 200);
 
-    const lot = await api(admin, "/lots", "POST", { number: `T-${Date.now() % 100000}`, buildingId: "building_atlas_a", tantiemes: 10, ownerId: newMemberId });
+    const lot = await api(admin, "/lots", "POST", { number: `T-${Date.now() % 100000}`, type: "appartement", floor: 1, buildingId: "building_atlas_a", tantiemes: 10, ownerId: newMemberId });
     newLotId = lot.json?.id ?? lot.json?.data?.id ?? null;
     step("syndic assigns a lot to the new co-owner", (lot.status === 201 || lot.status === 200) && !!newLotId, `status=${lot.status}`);
     const secondLogin = await api(null, "/auth/login", "POST", { email: NEW_OWNER_EMAIL, password: "Salma-Own-Pass-9" });
@@ -264,6 +265,9 @@ async function main() {
     step("neighbour gets no notification about it", !(await alertsOf(khadija)).some((a) => String(a.message).includes("Mohammed Alaoui")));
   } finally {
     if (personalDocId) await db.delete(documentsTable).where(eq(documentsTable.id, personalDocId));
+    // Ownership history protects lots and members: remove the test rows first.
+    if (newLotId) await db.delete(lotOwnershipsTable).where(eq(lotOwnershipsTable.lotId, newLotId));
+    if (newMemberId) await db.delete(lotOwnershipsTable).where(eq(lotOwnershipsTable.memberId, newMemberId));
     if (newLotId) await db.delete(lotsTable).where(eq(lotsTable.id, newLotId));
     if (newMemberId) await db.delete(membersTable).where(eq(membersTable.id, newMemberId));
     await db.delete(usersTable).where(eq(usersTable.email, NEW_OWNER_EMAIL));

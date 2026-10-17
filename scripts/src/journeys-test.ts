@@ -206,7 +206,7 @@ async function setUpResidence(syndic: Session, label: string, lots: { number: st
   const buildingId = building.json?.data?.id ?? building.json?.id;
   const lotIds: string[] = [];
   for (const l of lots) {
-    const r = await syndic.api("/lots", "POST", { number: l.number, buildingId, tantiemes: l.tantiemes, ownerId: l.ownerId });
+    const r = await syndic.api("/lots", "POST", { number: l.number, type: "appartement", floor: 1, buildingId, tantiemes: l.tantiemes, ownerId: l.ownerId });
     lotIds.push(r.json?.id ?? r.json?.data?.id);
   }
   step(`${label}: syndic creates and assigns the lots`, lotIds.every(Boolean));
@@ -595,6 +595,7 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
       await tx.execute(sql`DELETE FROM expenses WHERE syndicate_id IN (${list})`);
       await tx.execute(sql`DELETE FROM ledger_entries WHERE syndicate_id IN (${list})`);
       await tx.execute(sql`DELETE FROM treasury_accounts WHERE syndicate_id IN (${list})`);
+      await tx.execute(sql`DELETE FROM lot_ownerships WHERE syndicate_id IN (${list})`);
       for (const table of ["subscription_payments", "billing_invoices", "syndicate_subscriptions", "cotisations", "audit_logs", "alerts", "email_logs", "documents", "support_tickets"]) {
         await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE syndicate_id IN (${list})`);
       }
