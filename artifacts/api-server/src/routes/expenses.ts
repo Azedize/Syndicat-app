@@ -178,6 +178,18 @@ router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => 
       data.buildingId ??= line.buildingId;
     }
 
+    if (!data.buildingId) {
+      // A syndicate with a single building: the expense is that building's
+      // (so it counts in its budget). With several buildings it stays
+      // unassigned until the syndic says which one.
+      const buildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, sid))
+        .limit(2);
+      if (buildings.length === 1) data.buildingId = buildings[0].id;
+    }
+
     const expense = await db.transaction(async (tx) => {
       const reference = await nextSequenceNumber(tx, sid, "DEP", 4);
       try {

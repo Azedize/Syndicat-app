@@ -34,6 +34,9 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET is required to mint test tokens");
 
 const ATLAS = "syn_residence_atlas";
 const TEST_PERIOD = "2099-01";
+// The payment lifecycle runs on calls generated for this period only: the
+// suite never touches seeded calls a person may be using in the app.
+const LIFECYCLE_PERIOD = "2099-05";
 
 type User = typeof usersTable.$inferSelect;
 const results: { name: string; pass: boolean; detail: string }[] = [];
@@ -96,11 +99,17 @@ async function main() {
   const adminAtlas = await user("user_admin_atlas");
   const adminAgdal = await user("user_admin_agdal");
   const treasurerAtlas = await user("user_treasurer_atlas");
-  const member1 = await user("user_member_1"); // members.member_1 → owns adf_4
-  const member5 = await user("user_member_5"); // members.member_3 → owns adf_5
+  const member1 = await user("user_member_1"); // members.member_1 → owns lot_a301
+  const member5 = await user("user_member_5"); // members.member_3 → owns lot_a205
 
-  const approveTarget = await appel("adf_4");
-  const rejectTarget = await appel("adf_5");
+  await api(`/budgets/budget_atlas_2026/generate-appels`, tokenFor(treasurerAtlas), "POST", { period: LIFECYCLE_PERIOD });
+  const lifecycle = await db
+    .select()
+    .from(appelsDeFondsTable)
+    .where(and(eq(appelsDeFondsTable.period, LIFECYCLE_PERIOD), eq(appelsDeFondsTable.budgetId, "budget_atlas_2026")));
+  const approveTarget = lifecycle.find((a) => a.lotId === "lot_a301");
+  const rejectTarget = lifecycle.find((a) => a.lotId === "lot_a205");
+  if (!approveTarget || !rejectTarget) throw new Error("Lifecycle calls not generated — run pnpm db:seed");
   const subsBefore = await db
     .select()
     .from(syndicateSubscriptionsTable)
@@ -357,10 +366,8 @@ async function main() {
       .select({ id: appelPaymentsTable.id, ledgerEntryId: appelPaymentsTable.ledgerEntryId })
       .from(appelPaymentsTable)
       .where(
-        and(
-          inArray(appelPaymentsTable.appelId, [approveTarget.id, rejectTarget.id]),
-          gte(appelPaymentsTable.createdAt, startedAt),
-        ),
+        // Test-owned calls: every payment on them belongs to this run.
+        inArray(appelPaymentsTable.appelId, [approveTarget.id, rejectTarget.id]),
       );
     const entryIds = runPayments.map((p) => p.ledgerEntryId).filter((v): v is string => !!v);
     await db.transaction(async (tx) => {
@@ -371,17 +378,13 @@ async function main() {
       }
       if (entryIds.length) await tx.delete(ledgerEntriesTable).where(inArray(ledgerEntriesTable.id, entryIds));
     });
-    for (const original of [approveTarget, rejectTarget]) {
-      const { id, ...rest } = original;
-      await db.update(appelsDeFondsTable).set(rest).where(eq(appelsDeFondsTable.id, id));
-    }
     for (const s of subsBefore) {
       await db
         .update(syndicateSubscriptionsTable)
         .set({ status: s.status, gracePeriodEnd: s.gracePeriodEnd, autoRenew: s.autoRenew })
         .where(eq(syndicateSubscriptionsTable.id, s.id));
     }
-    await db.delete(appelsDeFondsTable).where(eq(appelsDeFondsTable.period, TEST_PERIOD));
+    await db.delete(appelsDeFondsTable).where(inArray(appelsDeFondsTable.period, [TEST_PERIOD, LIFECYCLE_PERIOD]));
     await db.delete(storageObjectsTable).where(inArray(storageObjectsTable.objectPath, proofPaths));
     await db
       .delete(auditLogsTable)

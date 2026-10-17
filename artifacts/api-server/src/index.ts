@@ -11,9 +11,19 @@ import { startDocumentExpiryScheduler } from "./lib/document-expiry-job.js";
 import { startSubscriptionReminderScheduler } from "./lib/subscription-reminders.js";
 import { startOtpRetentionScheduler } from "./lib/otp-retention.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
+import { zimSendConfigProblems } from "./lib/zimsend.service.js";
 
 // Fail fast on missing auth config — do not wait for first request
 validateAuthConfig();
+
+// SMS is optional for running the API, but without it a syndic cannot
+// verify the syndicate phone and self-onboarding is blocked. Names only.
+{
+  const smsProblems = zimSendConfigProblems();
+  if (smsProblems.length) {
+    logger.warn({ problems: smsProblems }, "SMS (ZimSend) not configured — syndic self-onboarding phone verification will fail");
+  }
+}
 
 // Non-blocking SMTP health check — logs whether Gmail delivery is ready without
 // preventing the API from starting if the mailbox is down/misconfigured.

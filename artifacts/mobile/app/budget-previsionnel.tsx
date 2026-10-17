@@ -38,7 +38,6 @@ interface LigneBudget {
 }
 
 // Income categories used to split budget lines from the API
-const INCOME_CATEGORIES = new Set(["Cotisations", "Subventions", "Marketplace", "Revenus", "Recettes", "cotisation", "subvention", "revenu"]);
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", maximumFractionDigits: 0 }).format(n) + " MAD";
 const pct = (realise: number, prevu: number) => prevu > 0 ? Math.min(100, Math.round((realise / prevu) * 100)) : 0;
@@ -72,6 +71,7 @@ function BudgetPrevisionnelScreenInner() {
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,20 +85,43 @@ function BudgetPrevisionnelScreenInner() {
         const budget = data[0];
         setBudgetId(budget.id ?? null);
         if (budget.year) setAnnee(String(budget.year));
-        const lines: LigneBudget[] = (budget.lines || []).map((l: any, i: number) => ({
-          id: l.id || `line-${i}`,
+        // Planned vs actual comes from the server: paid expenses per budget
+        // line, and calls for funds collected for the revenue side.
+        const exec = await apiRequest<{ data: any }>(`/budgets/${budget.id}/execution`);
+        if (cancelled) return;
+        const ex = exec.data;
+        setRecettes([
+          {
+            id: "appels",
+            categorie: "appels_de_fonds",
+            libelle: t("budgetRevenueCalls"),
+            prevu: Number(ex.revenue.planned) || 0,
+            realise: Number(ex.revenue.collected) || 0,
+            icon: "trending-up" as any,
+            color: "#3b82f6",
+          },
+        ]);
+        const expenseLines: LigneBudget[] = (ex.lines || []).map((l: any) => ({
+          id: l.id,
           categorie: l.category || "Divers",
           libelle: l.label || "",
-          prevu: parseFloat(l.amountAnnual || "0"),
-          // Use realised/spent amount from API response; fall back through several field names
-          realise: parseFloat(l.realise ?? l.amountRealise ?? l.amountSpent ?? l.spent ?? "0"),
+          prevu: Number(l.planned) || 0,
+          realise: Number(l.actual) || 0,
           icon: "file-text" as any,
-          color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#2563EB",
+          color: "#2563EB",
         }));
-        const r = lines.filter((l) => INCOME_CATEGORIES.has(l.categorie));
-        const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));
-        setRecettes(r.length > 0 ? r : lines.slice(0, Math.ceil(lines.length / 2)));
-        setDepenses(d.length > 0 ? d : lines.slice(Math.ceil(lines.length / 2)));
+        if (Number(ex.outsideBudget?.actual) > 0) {
+          expenseLines.push({
+            id: "hors-budget",
+            categorie: "hors_budget",
+            libelle: t("budgetOutsideLines"),
+            prevu: 0,
+            realise: Number(ex.outsideBudget.actual) || 0,
+            icon: "alert-triangle" as any,
+            color: "#ef4444",
+          });
+        }
+        setDepenses(expenseLines);
       } catch {
         if (!cancelled) setLoadError(true);
       } finally {
@@ -107,7 +130,7 @@ function BudgetPrevisionnelScreenInner() {
     };
     loadBudget();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   // Local aliases so existing JSX references still resolve
   const RECETTES = recettes;
@@ -176,34 +199,7 @@ function BudgetPrevisionnelScreenInner() {
           title={t("budgetLoadErrorTitle")}
           description={t("budgetLoadErrorDescription")}
           retryLabel={t("retry")}
-          onRetry={() => {
-            setLoadError(false);
-            setLoading(true);
-            apiRequest<{ data: any[] }>("/budgets")
-              .then(({ data }) => {
-                const budget = data?.[0];
-                if (budget) {
-                  setBudgetId(budget.id ?? null);
-                  if (budget.year) setAnnee(String(budget.year));
-                  const lines: LigneBudget[] = (budget.lines || []).map((l: any, i: number) => ({
-                    id: l.id || `line-${i}`,
-                    categorie: l.category || "Divers",
-                    libelle: l.label || "",
-                    prevu: parseFloat(l.amountAnnual || "0"),
-                    realise: parseFloat(l.realise ?? l.amountRealise ?? l.amountSpent ?? l.spent ?? "0"),
-                    icon: "file-text" as any,
-                    color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#2563EB",
-                  }));
-                  const r = lines.filter((l) => INCOME_CATEGORIES.has(l.categorie));
-                  const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));
-                  setRecettes(r.length > 0 ? r : lines.slice(0, Math.ceil(lines.length / 2)));
-                  setDepenses(d.length > 0 ? d : lines.slice(Math.ceil(lines.length / 2)));
-                }
-                setLoadError(false);
-              })
-              .catch(() => setLoadError(true))
-              .finally(() => setLoading(false));
-          }}
+          onRetry={() => setReloadKey((k) => k + 1)}
           accentColor={colors.primary}
         />
       </View>

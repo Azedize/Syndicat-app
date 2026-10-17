@@ -50,6 +50,25 @@ export function zimSendConfigured(): boolean {
   );
 }
 
+/**
+ * Startup check: names (never values) of the missing SMS settings, plus a
+ * hint for the misspelled key that once disabled SMS silently. Without SMS,
+ * syndic self-onboarding (phone verification) cannot complete.
+ */
+export function zimSendConfigProblems(): string[] {
+  const problems: string[] = [];
+  for (const name of ["ZIMSEND_API_KEY", "ZIMSEND_CLIENT_ID", "ZIMSEND_DEVICE_ID", "ZIMSEND_BASE_URL"]) {
+    if (!process.env[name]) problems.push(`${name} manquant`);
+  }
+  if (process.env.ZIMSEND_CLES_API && !process.env.ZIMSEND_API_KEY) {
+    problems.push("ZIMSEND_CLES_API est défini : renommez-le en ZIMSEND_API_KEY");
+  }
+  if (process.env.ZIMSEND_BASE_URL && !/^https:\/\//.test(process.env.ZIMSEND_BASE_URL)) {
+    problems.push("ZIMSEND_BASE_URL doit commencer par https://");
+  }
+  return problems;
+}
+
 // ─── Phone normalisation ──────────────────────────────────────────────────────
 
 /**

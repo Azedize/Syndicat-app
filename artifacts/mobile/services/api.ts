@@ -151,6 +151,22 @@ export async function removePendingRegistration(): Promise<void> {
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
+// Session events, so the auth state follows what happens to the tokens in
+// the background (renewed after 15 min, or revoked on the server).
+type SessionListener = { expired?: () => void; renewed?: (token: string) => void };
+const sessionListeners = new Set<SessionListener>();
+export function subscribeSession(listener: SessionListener): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+/** Renews the access token with the stored refresh token (single flight). */
+export function refreshAccessToken(): Promise<string | null> {
+  return attemptTokenRefresh();
+}
+
 async function attemptTokenRefresh(): Promise<string | null> {
   if (isRefreshing) {
     return new Promise((resolve) => {
@@ -179,7 +195,12 @@ async function attemptTokenRefresh(): Promise<string | null> {
       isRefreshing = false;
       refreshQueue.forEach((cb) => cb(null));
       refreshQueue = [];
-      await clearAllTokens();
+      // Only a definitive refusal ends the session. Rate limiting or a server
+      // error is transient: keep the tokens and let the user retry.
+      if (res.status === 401 || res.status === 403) {
+        await clearAllTokens();
+        sessionListeners.forEach((l) => l.expired?.());
+      }
       return null;
     }
 
@@ -193,6 +214,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
     isRefreshing = false;
     refreshQueue.forEach((cb) => cb(newToken));
     refreshQueue = [];
+    if (newToken) sessionListeners.forEach((l) => l.renewed?.(newToken));
 
     return newToken;
   } catch {

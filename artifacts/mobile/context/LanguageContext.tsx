@@ -257,6 +257,8 @@ export const TRANSLATIONS: Translations = {
   myChargesLabel: { fr: "Mes charges", en: "My charges", ar: "تكاليفي", es: "Mis cargos" },
   unavailable: { fr: "Indisponible", en: "Unavailable", ar: "غير متوفر", es: "No disponible" },
   treasuryMenu: { fr: "Trésorerie & dépenses", en: "Treasury & expenses", ar: "الخزينة والنفقات", es: "Tesorería y gastos" },
+  budgetRevenueCalls: { fr: "Appels de fonds encaissés", en: "Calls for funds collected", ar: "نداءات الأموال المحصلة", es: "Derramas cobradas" },
+  budgetOutsideLines: { fr: "Dépenses hors budget", en: "Expenses outside the budget", ar: "نفقات خارج الميزانية", es: "Gastos fuera del presupuesto" },
   statusPartiallyPaid: {
     fr: "Partiellement payé",
     en: "Partially paid",

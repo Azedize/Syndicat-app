@@ -1,4 +1,4 @@
-import { getApiBaseUrl, getToken } from "../services/api";
+import { getApiBaseUrl, getToken, refreshAccessToken } from "../services/api";
 
 export async function apiRequest<T = any>(
   path: string,
@@ -9,8 +9,9 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const url = `${getApiBaseUrl()}${path.trim()}`;
 
-  // Auto-fetch token from storage if not passed explicitly
-  const resolvedToken = token ?? (await getToken());
+  // The stored token is the source of truth (it is renewed in the background);
+  // a token passed by the caller may be stale.
+  const resolvedToken = (await getToken()) ?? token;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -21,11 +22,25 @@ export async function apiRequest<T = any>(
     headers["Authorization"] = `Bearer ${resolvedToken}`;
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+  // Access tokens live 15 minutes: renew once with the refresh token and
+  // replay the request, like services/api does. Auth endpoints are excluded.
+  if (response.status === 401 && resolvedToken && !path.startsWith("/auth/")) {
+    const renewed = await refreshAccessToken();
+    if (renewed) {
+      headers["Authorization"] = `Bearer ${renewed}`;
+      response = await fetch(url, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    }
+  }
 
   let data: any;
   try {

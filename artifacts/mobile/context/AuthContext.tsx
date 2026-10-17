@@ -15,6 +15,7 @@ import {
   setRefreshToken,
   removeRefreshToken,
   clearAllTokens,
+  subscribeSession,
 } from "../services/api";
 
 /**
@@ -98,6 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Follow background token changes: a renewed token replaces the stale one
+  // in state; a session revoked on the server signs the user out (back to
+  // the login screen) instead of leaving every screen failing with 401.
+  useEffect(
+    () =>
+      subscribeSession({
+        renewed: (t) => setTokenState(t),
+        expired: () => {
+          setTokenState(null);
+          setUser(null);
+        },
+      }),
+    [],
+  );
 
   useEffect(() => {
     (async () => {

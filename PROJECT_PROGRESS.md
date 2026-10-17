@@ -165,3 +165,57 @@
 - `.env` uses `ZIMSEND_CLES_API` whereas the code reads `ZIMSEND_API_KEY` — SMS is not configured.
 - CIN encryption at rest not implemented (no API write path exists yet); CNDP declaration, processing register and hosting/transfer authorization are legal steps.
 - Test runs earlier today sent 7 real emails through the configured SMTP (syndicate-created to example.invalid, 2 support-ticket notifications) before SMTP was disabled for tests.
+
+## 2026-10-05 — Finance réelle par syndicat + parcours réels Android/iOS
+
+### Finance (migration `0003_finance_ledger`)
+- Nouvelles tables : `treasury_accounts` (banque / caisse, RIB marocain vérifié
+  par clé mod 97), `ledger_entries` (journal numéroté JRN-AAAA-NNNNNN,
+  **append-only** par trigger PostgreSQL ; corrections par extourne),
+  `appel_payments` (historique des déclarations, paiements partiels),
+  `expenses` (soumise → approuvée → payée), `bank_statement_lines` et
+  `reconciliation_matches` (rapprochement bancaire manuel, sans API bancaire).
+- `appels_de_fonds.amount_paid` (+ statuts `partially_paid`, `cancelled`).
+- Soldes toujours calculés depuis le journal ; un virement validé crédite le
+  compte bancaire (plus la caisse) ; la caisse ne peut pas devenir négative.
+- Validation de paiement : verrou de ligne + transaction (reçu, écriture,
+  registre) ; budget voté en AG requis pour émettre des appels ; justificatif
+  obligatoire dès la déclaration.
+- Routes : `/treasury/*`, `/expenses/*`, `/appels-de-fonds/:id/payments`,
+  `/appels-de-fonds/:id/cancel`, `/budgets/:id/execution`, `/me/payments`,
+  `PUT /finance/salaries/:id` (paiement réel d'un salaire).
+- Modules hérités fermés en écriture (410) : `cotisations` (paiement membre
+  impossible, reçus hors journal), `payment-proofs`, `POST /payslips`,
+  `POST /finance/caisse`. Lecture conservée pour l'historique.
+- Validation de travaux : crée une dépense approuvée (une seule), le
+  paiement passe par le trésorier.
+- Fuite corrigée : les justificatifs financiers ne sont plus lisibles par les
+  autres résidents du même syndicat.
+
+### Mobile (Android / iOS)
+- Envoi de fichiers natif réparé (`FormData` `{uri,name,type}`) : justificatifs,
+  factures, photos, logo — tous les uploads échouaient sur téléphone.
+- SecureStore : clés invalides (`@…`) corrigées — la connexion échouait sur
+  Android/iOS ; renouvellement automatique du jeton (15 min) dans `apiRequest`
+  et retour à la connexion si la session est révoquée.
+- Charges : paiement partiel, justificatif obligatoire (photo / galerie / PDF),
+  vrai n° de lot, totaux serveur, justificatif consultable par le trésorier.
+- Nouvel écran Trésorerie (comptes, journal, extourne, dépenses, rapprochement).
+- Paiements : vue « Mes paiements » avec vrais reçus pour les copropriétaires ;
+  registre avec totaux serveur ; faux QR « PAID », faux reçu texte et faux
+  « rappel envoyé » supprimés.
+- Accueil / profil : statut de charges réel (plus l'ancien module cotisations).
+- Retirés : faux assistant « IA » (réponses figées, délai simulé, modules
+  inexistants), badges « ISO 27001 / RGPD-CNDP / Cloud Maroc / 99.9% SLA ».
+
+### Tests
+- Référence 190/190 (rbac 35, finance 35, documents 28, scénarios 48, auth 44).
+- Nouveaux parcours `journeys:test` : 135/135 (Hayat / Hadika de bout en bout).
+- Migrations vérifiées sur base vierge (4 migrations, 110 tables, 2 triggers).
+- Bundles natifs exportés (Android et iOS, Hermes).
+
+### Incident de test (corrigé)
+La suite finance modifiait l'appel de démo `adf_4` ; elle a validé une vraie
+déclaration faite depuis l'app (compte de Mohammed) puis « restauré » l'appel.
+Données remises dans leur état réel (déclaration en attente) ; la suite utilise
+désormais ses propres appels sur `2099-05`.

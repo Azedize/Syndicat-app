@@ -351,6 +351,17 @@ async function main() {
       "Ahmed: sees his payment history (validated, rejected, validated)",
       (history.json?.data ?? []).map((p: any) => p.status).sort().join() === "rejected,validated,validated",
     );
+    const myPayments = await ahmed.api("/me/payments");
+    const validatedRows = (myPayments.json?.data ?? []).filter((r: any) => r.status === "validated");
+    step(
+      "Ahmed: 'My payments' lists his 3 payments with receipt numbers on validated ones",
+      (myPayments.json?.data ?? []).length === 3 && validatedRows.length === 2 && validatedRows.every((r: any) => /^REC-/.test(r.receiptNumber) && r.lotNumber === "A-12"),
+    );
+    const perPayment = await ahmed.api(`/appels-de-fonds/${myCall.id}/receipt?paymentId=${validatedRows[1]?.id}`);
+    step("Ahmed: downloads the receipt of a specific payment", perPayment.status === 200, `status=${perPayment.status}`);
+    const leilaPayments = await leila.api("/me/payments");
+    step("Leila: her payment history never contains Ahmed's payments", (leilaPayments.json?.data ?? []).length === 0);
+
     const journalSum = await db
       .select({ total: sql<string>`SUM(${ledgerEntriesTable.amount})` })
       .from(ledgerEntriesTable)
@@ -451,6 +462,20 @@ async function main() {
     step("Ali: pays the approved expense once (double tap)", [e1.status, e2.status].sort().join() === "200,409", `${e1.status}/${e2.status}`);
     const journal = await ali.api("/treasury/journal");
     step("Ali: journal shows receipts, transfer and expense", (journal.json?.data ?? []).length === 4 && journal.json?.totals?.inflow === "1000.00" && journal.json?.totals?.outflow === "850.00", JSON.stringify(journal.json?.totals));
+
+    const execution = await ali.api(`/budgets/${hadikaSetup.budgetId}/execution`);
+    step(
+      "Ali: budget execution shows the expense (outside budget lines) and the charges collected",
+      execution.status === 200 && execution.json?.data?.outsideBudget?.actual === "350.00" && execution.json?.data?.revenue?.collected === "500.00" && execution.json?.data?.revenue?.planned === "6000.00",
+      JSON.stringify(execution.json?.data?.revenue),
+    );
+    step("Ahmed: cannot read Hadika's budget execution", [403, 404].includes((await ahmed.api(`/budgets/${hadikaSetup.budgetId}/execution`)).status));
+    const register = await ali.api(`/finance/transactions?from=${YEAR}-01-01`);
+    step(
+      "Ali: operations register totals are computed by the server",
+      register.json?.totals?.inflow === 500 && register.json?.totals?.outflow === 350,
+      JSON.stringify(register.json?.totals),
+    );
 
     // Bank reconciliation
     const lines = [

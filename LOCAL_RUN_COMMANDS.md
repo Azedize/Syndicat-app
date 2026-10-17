@@ -114,9 +114,22 @@ pnpm --filter @workspace/scripts run documents-security:test
 pnpm --filter @workspace/scripts run scenario-e2e:test
 ```
 
+Parcours réels complets (Ahmed / Résidence Hayat, Ali / Résidence Hadika,
+construits de zéro par l’API puis supprimés) :
+
+```powershell
+pnpm --filter @workspace/scripts run journeys:test
+```
+
+Pour **garder** ces deux résidences et rejouer les parcours à la main sur un
+téléphone, ajouter `$env:KEEP_FIXTURES = "1"` avant la commande : les emails et
+mots de passe d’Ahmed, Leila, Karim, Samira et Ali sont affichés à la fin.
+
 `/api/auth` est limité (60 requêtes / 15 min / IP sur les endpoints
-d’identifiants) : redémarrer l’API de test si la suite auth est relancée
-plusieurs fois de suite.
+d’identifiants) et la suite des parcours se connecte de nombreuses fois :
+**redémarrer l’API de test entre `journeys:test` et `auth-security:test`**.
+Les suites ne modifient plus les appels de fonds de démonstration
+(`adf_*`) : elles génèrent leurs propres appels sur des périodes `2099-*`.
 
 ## 4. Backend Express
 
@@ -168,6 +181,17 @@ pnpm --filter @workspace/mobile exec expo start --localhost --clear --port 8081
 Expo démarre sur `http://localhost:8081`. Utiliser le terminal Expo pour
 ouvrir l’application dans un émulateur, un appareil connecté ou le navigateur.
 
+Téléphone physique : l’adresse `10.0.2.2` n’existe que dans l’émulateur
+Android. En développement, l’app la remplace automatiquement par l’IP du PC
+vue par Metro, mais le téléphone doit pouvoir joindre le port 5000 : même
+Wi-Fi classé « Privé » dans Windows (un réseau « Public » ou un Wi-Fi de café
+bloque la connexion), ou en USB :
+
+```powershell
+adb reverse tcp:5000 tcp:5000
+$env:EXPO_PUBLIC_API_URL = "http://localhost:5000/api"
+```
+
 ## 6. Lancement rapide
 
 Terminal 1, PostgreSQL:
@@ -202,6 +226,11 @@ pnpm run typecheck
 pnpm db:status
 Invoke-WebRequest -UseBasicParsing http://localhost:5000/api/healthz
 ```
+
+Les SMS (ZimSend) sont nécessaires pour l’inscription d’un syndic
+(vérification du téléphone) : variables `ZIMSEND_API_KEY`,
+`ZIMSEND_CLIENT_ID`, `ZIMSEND_DEVICE_ID`, `ZIMSEND_BASE_URL` (en `https://`).
+L’API signale au démarrage les variables manquantes ou mal nommées.
 
 Redis et SMTP sont optionnels en local. Sans `REDIS_URL`, le rate limiting
 utilise la mémoire; sans SMTP, les emails ne sont pas envoyés. Pour Gmail,

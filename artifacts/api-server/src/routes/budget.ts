@@ -18,6 +18,7 @@ import {
   meetingsTable,
   storageObjectsTable,
   appelPaymentsTable,
+  expensesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
 import {
@@ -364,6 +365,119 @@ router.get(
     } catch (e) {
       req.log.error(e);
       res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// GET /budgets/:id/execution — planned vs actual, computed from the journal
+// flows of the budget's building and year:
+//  • expenses: per budget line, paid expenses (actual) and approved ones not
+//    yet paid (committed). Expenses not linked to a line are attributed by
+//    category, the rest is reported as "outside the budget".
+//  • revenue: calls for funds issued on this budget vs amounts received.
+router.get(
+  "/budgets/:id/execution",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const user = req.user!;
+      if (!["syndicate_admin", "treasurer", "president", "committee_member"].includes(user.role) || !user.syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      const [budget] = await db
+        .select({ budget: budgetsTable, syndicateId: buildingsTable.syndicateId })
+        .from(budgetsTable)
+        .innerJoin(buildingsTable, eq(buildingsTable.id, budgetsTable.buildingId))
+        .where(eq(budgetsTable.id, String(req.params.id)));
+      if (!budget || budget.syndicateId !== user.syndicateId) {
+        return void res.status(404).json({ error: "Budget introuvable" });
+      }
+      const b = budget.budget;
+      const [lines, expenses, [calls]] = await Promise.all([
+        db.select().from(budgetLinesTable).where(eq(budgetLinesTable.budgetId, b.id)),
+        db
+          .select({
+            amount: expensesTable.amount,
+            status: expensesTable.status,
+            category: expensesTable.category,
+            budgetLineId: expensesTable.budgetLineId,
+          })
+          .from(expensesTable)
+          .where(
+            and(
+              eq(expensesTable.syndicateId, user.syndicateId),
+              eq(expensesTable.buildingId, b.buildingId),
+              inArray(expensesTable.status, ["approved", "paid"]),
+              sql`EXTRACT(YEAR FROM COALESCE(${expensesTable.invoiceDate}, ${expensesTable.createdAt}::date)) = ${b.year}`,
+            ),
+          ),
+        db
+          .select({
+            called: sql<string>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} <> 'cancelled'), 0)`,
+            collected: sql<string>`COALESCE(SUM(${appelsDeFondsTable.amountPaid}), 0)`,
+          })
+          .from(appelsDeFondsTable)
+          .where(eq(appelsDeFondsTable.budgetId, b.id)),
+      ]);
+
+      const lineById = new Map(lines.map((l) => [l.id, l]));
+      const lineByCategory = new Map<string, string>();
+      for (const l of lines) if (!lineByCategory.has(l.category)) lineByCategory.set(l.category, l.id);
+      const actual = new Map<string, number>();
+      const committed = new Map<string, number>();
+      let outsideActual = 0;
+      let outsideCommitted = 0;
+      for (const e of expenses) {
+        const lineId =
+          (e.budgetLineId && lineById.has(e.budgetLineId) ? e.budgetLineId : null) ?? lineByCategory.get(e.category) ?? null;
+        const cents = toCents(e.amount);
+        if (!lineId) {
+          if (e.status === "paid") outsideActual += cents;
+          else outsideCommitted += cents;
+          continue;
+        }
+        const bucket = e.status === "paid" ? actual : committed;
+        bucket.set(lineId, (bucket.get(lineId) ?? 0) + cents);
+      }
+
+      const data = lines.map((l) => {
+        const planned = toCents(l.amountAnnual);
+        const spent = actual.get(l.id) ?? 0;
+        const engaged = committed.get(l.id) ?? 0;
+        return {
+          id: l.id,
+          category: l.category,
+          label: l.label,
+          planned: fromCents(planned),
+          actual: fromCents(spent),
+          committed: fromCents(engaged),
+          remaining: fromCents(planned - spent - engaged),
+          usedPercent: planned > 0 ? Math.round(((spent + engaged) / planned) * 100) : null,
+        };
+      });
+      const plannedTotal = lines.reduce((s, l) => s + toCents(l.amountAnnual), 0);
+      const actualTotal = [...actual.values()].reduce((s, v) => s + v, 0) + outsideActual;
+      const committedTotal = [...committed.values()].reduce((s, v) => s + v, 0) + outsideCommitted;
+
+      res.json({
+        data: {
+          budget: { id: b.id, year: b.year, status: b.status, buildingId: b.buildingId },
+          lines: data,
+          outsideBudget: { actual: fromCents(outsideActual), committed: fromCents(outsideCommitted) },
+          expenses: {
+            planned: fromCents(plannedTotal),
+            actual: fromCents(actualTotal),
+            committed: fromCents(committedTotal),
+          },
+          revenue: {
+            planned: fromCents(toCents(b.chargesAmount) + toCents(b.fondsReserve)),
+            called: fromCents(toCents(calls?.called)),
+            collected: fromCents(toCents(calls?.collected)),
+          },
+        },
+      });
+    } catch (e) {
+      sendFinanceError(res, req, e, "Server error");
     }
   },
 );
