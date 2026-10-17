@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { syndicatesTable, usersTable } from "@workspace/db/schema";
+import { organizationMembersTable, organizationsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
@@ -151,6 +151,8 @@ export const createSyndicateSchema = z.object({
   membersCount: z.number().int().min(0).default(0),
   // Optional: designate an existing user as admin
   adminId: z.string().optional(),
+  // Optional (super admin): attach to an existing syndic company
+  organizationId: z.string().optional(),
 });
 
 router.post(
@@ -238,6 +240,27 @@ router.post(
           adminId,
           status: "active",
         };
+        // The syndic company: a self-onboarding syndic founds their own
+        // company and becomes its administrator; a super admin may attach the
+        // condominium to an existing company.
+        let organizationId: string | null = data.organizationId ?? null;
+        if (organizationId) {
+          const [org] = await tx.select({ id: organizationsTable.id }).from(organizationsTable).where(eq(organizationsTable.id, organizationId));
+          if (!org || isSelfOnboarding) {
+            throw Object.assign(new Error("Société de syndic introuvable"), { status: 400 });
+          }
+        } else {
+          const [org] = await tx
+            .insert(organizationsTable)
+            .values({ name: data.name, email: data.email || undefined, phone: data.phone || undefined, city: data.city, createdBy: req.user!.userId })
+            .returning();
+          organizationId = org.id;
+          if (adminId) {
+            await tx.insert(organizationMembersTable).values({ organizationId, userId: adminId, role: "org_admin", grantedBy: req.user!.userId });
+          }
+        }
+        insertValues.organizationId = organizationId;
+
         const [s] = await tx
           .insert(syndicatesTable)
           .values(insertValues as any)
@@ -336,7 +359,8 @@ const updateSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   logoUrl: z.string().optional().or(z.literal("")),
-  status: z.enum(["active", "inactive"]).optional(),
+  // Lifecycle changes go through POST /condominiums/:id/status (audited,
+  // with allowed transitions) — never through a plain update.
   adminId: z.string().optional(),
   // Banking — used on payment demands, invoices, and legal enforcement letters
   bankName: z.string().max(100).optional(),
@@ -368,7 +392,7 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
   const schema =
     user.role === "super_admin"
       ? updateSchema
-      : updateSchema.omit({ status: true, adminId: true });
+      : updateSchema.omit({ adminId: true });
   const result = schema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: "Données invalides" });

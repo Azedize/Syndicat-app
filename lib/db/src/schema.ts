@@ -34,7 +34,19 @@ export const syndicatesTable = pgTable("syndicates", {
   sector: text("sector"),
   region: text("region"),
   adminId: text("admin_id"),
+  // Syndic company managing this condominium (one company, many condominiums).
+  organizationId: text("organization_id").references((): AnyPgColumn => organizationsTable.id, { onDelete: "restrict" }),
+  // Lifecycle: draft (being configured) | active | suspended (read-only) | archived
   status: text("status").default("active"),
+  statusReason: text("status_reason"),
+  statusChangedAt: timestamp("status_changed_at"),
+  archivedAt: timestamp("archived_at"),
+  // Management settings
+  currency: text("currency").notNull().default("MAD"),
+  defaultLanguage: text("default_language").notNull().default("fr"),
+  fiscalYearStartMonth: integer("fiscal_year_start_month").notNull().default(1),
+  // Retry-safe creation (Idempotency-Key of the creating request)
+  creationKey: text("creation_key"),
   membersCount: integer("members_count").default(0),
   // Contact
   email: text("email"),
@@ -63,7 +75,16 @@ export const syndicatesTable = pgTable("syndicates", {
   // Legal escalation threshold (months of non-payment before legal action)
   legalThresholdMonths: integer("legal_threshold_months").default(18),
   createdAt: createdAt(),
-});
+}, (t) => [
+  index("syndicates_organization_id_idx").on(t.organizationId),
+  // No two live condominiums with the same name in one syndic company.
+  uniqueIndex("syndicates_org_name_uq").on(t.organizationId, sql`lower(${t.name})`).where(sql`${t.status} <> 'archived'`),
+  uniqueIndex("syndicates_creation_key_uq").on(t.organizationId, t.creationKey).where(sql`${t.creationKey} IS NOT NULL`),
+  check("syndicates_status_chk", sql`${t.status} IN ('draft', 'active', 'suspended', 'archived')`),
+  check("syndicates_currency_chk", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+  check("syndicates_language_chk", sql`${t.defaultLanguage} IN ('fr', 'ar', 'en', 'es')`),
+  check("syndicates_fiscal_month_chk", sql`${t.fiscalYearStartMonth} BETWEEN 1 AND 12`),
+]);
 
 // ─── Users & Auth ───────────────────────────────────────────────────────────
 
@@ -97,6 +118,8 @@ export const refreshTokensTable = pgTable(
     token: text("token").notNull().unique(),
     expiresAt: timestamp("expires_at").notNull(),
     revokedAt: timestamp("revoked_at"),
+    // Condominium selected for this session (null = the account's home context).
+    contextSyndicateId: text("context_syndicate_id"),
     createdAt: createdAt(),
   },
   (t) => [index("refresh_tokens_user_id_idx").on(t.userId)],
@@ -2889,5 +2912,81 @@ export const lotOwnershipsTable = pgTable(
     uniqueIndex("lot_ownerships_current_uq").on(t.lotId, t.memberId).where(sql`${t.endDate} IS NULL`),
     check("lot_ownerships_share_chk", sql`${t.sharePercent} > 0 AND ${t.sharePercent} <= 100`),
     check("lot_ownerships_dates_chk", sql`${t.endDate} IS NULL OR ${t.endDate} >= ${t.startDate}`),
+  ],
+);
+
+// ─── Syndic companies & per-condominium assignments ─────────────────────────
+// A syndic company (organization) manages several condominiums (syndicates).
+// org_admin: manages every condominium of the company (acts as
+// syndicate_admin in each). org_staff: only the condominiums they are
+// assigned to, with the role of each assignment.
+
+export const organizationsTable = pgTable(
+  "organizations",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    legalName: text("legal_name"),
+    iceNumber: text("ice_number"),
+    email: text("email"),
+    phone: text("phone"),
+    address: text("address"),
+    city: text("city"),
+    // active | suspended
+    status: text("status").notNull().default("active"),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [check("organizations_status_chk", sql`${t.status} IN ('active', 'suspended')`)],
+);
+
+export const organizationMembersTable = pgTable(
+  "organization_members",
+  {
+    id: id(),
+    organizationId: text("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "restrict" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    // org_admin | org_staff
+    role: text("role").notNull(),
+    // active | revoked (rows are kept for the audit trail)
+    status: text("status").notNull().default("active"),
+    grantedBy: text("granted_by"),
+    revokedAt: timestamp("revoked_at"),
+    revokedBy: text("revoked_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("organization_members_user_idx").on(t.userId),
+    uniqueIndex("organization_members_active_uq").on(t.organizationId, t.userId).where(sql`${t.status} = 'active'`),
+    check("organization_members_role_chk", sql`${t.role} IN ('org_admin', 'org_staff')`),
+    check("organization_members_status_chk", sql`${t.status} IN ('active', 'revoked')`),
+  ],
+);
+
+/** A person's role in one condominium, in addition to their home context. */
+export const syndicateMembershipsTable = pgTable(
+  "syndicate_memberships",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    // syndicate_admin | president | treasurer | secretary | committee_member
+    role: text("role").notNull(),
+    status: text("status").notNull().default("active"),
+    grantedBy: text("granted_by"),
+    revokedAt: timestamp("revoked_at"),
+    revokedBy: text("revoked_by"),
+    revokeReason: text("revoke_reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("syndicate_memberships_user_idx").on(t.userId),
+    index("syndicate_memberships_syndicate_idx").on(t.syndicateId),
+    uniqueIndex("syndicate_memberships_active_uq").on(t.syndicateId, t.userId).where(sql`${t.status} = 'active'`),
+    check(
+      "syndicate_memberships_role_chk",
+      sql`${t.role} IN ('syndicate_admin', 'president', 'treasurer', 'secretary', 'committee_member')`,
+    ),
+    check("syndicate_memberships_status_chk", sql`${t.status} IN ('active', 'revoked')`),
   ],
 );

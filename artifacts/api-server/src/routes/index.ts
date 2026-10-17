@@ -49,6 +49,7 @@ import organigrammeRouter from "./organigramme.js";
 import stripeRouter from "./stripe.js";
 import meRouter from "./me.js";
 import treasuryRouter from "./treasury.js";
+import organizationsRouter from "./organizations.js";
 import expensesRouter from "./expenses.js";
 
 const router: IRouter = Router();
@@ -67,6 +68,9 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   // cancelled, or awaiting payment; otherwise the customer cannot renew or
   // retry the payment that would restore access.
   if (req.path.startsWith("/subscriptions")) return next();
+  // Company-level management (condominium creation, lifecycle, staff) does
+  // not depend on the subscription of the condominium currently open.
+  if (req.path.startsWith("/organizations") || req.path.startsWith("/condominiums")) return next();
   return requireActiveSubscription(req, res, next);
 });
 
@@ -79,6 +83,7 @@ router.use(electionsRouter);
 router.use(meetingsRouter);
 router.use(financeRouter);
 router.use(treasuryRouter);
+router.use(organizationsRouter);
 router.use(expensesRouter);
 router.use(marketplaceRouter);
 router.use(chatRouter);

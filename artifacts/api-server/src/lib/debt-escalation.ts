@@ -21,7 +21,7 @@ import {
   syndicatesTable,
   usersTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, ne } from "drizzle-orm";
+import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import { createAlert, sendPushToUsers, sendEmail } from "./notify.js";
 import { logger } from "./logger.js";
 import { paymentReminderTemplate, latePaymentWarningTemplate } from "./email/templates.js";
@@ -95,10 +95,18 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
   };
 
   try {
+    // Only operating condominiums: no escalation (letters, alerts) for a
+    // draft, suspended or archived one.
     const unpaidAppels = await db
       .select()
       .from(appelsDeFondsTable)
-      .where(inArray(appelsDeFondsTable.status, ["pending", "overdue", "partially_paid"]));
+      .where(
+        and(
+          inArray(appelsDeFondsTable.status, ["pending", "overdue", "partially_paid"]),
+          sql`EXISTS (SELECT 1 FROM buildings b JOIN syndicates s ON s.id = b.syndicate_id
+                      WHERE b.id = ${appelsDeFondsTable.buildingId} AND s.status = 'active')`,
+        ),
+      );
 
     if (unpaidAppels.length === 0) return result;
 

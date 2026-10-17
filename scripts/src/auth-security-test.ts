@@ -19,6 +19,8 @@ import { eq, inArray } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 import {
   auditLogsTable,
+  organizationMembersTable,
+  organizationsTable,
   otpTokensTable,
   passwordResetTokensTable,
   refreshTokensTable,
@@ -225,7 +227,13 @@ async function main() {
     if (createdSyndicateId) {
       await db.delete(syndicateSubscriptionsTable).where(eq(syndicateSubscriptionsTable.syndicateId, createdSyndicateId));
       await db.delete(auditLogsTable).where(eq(auditLogsTable.entityId, createdSyndicateId));
+      // Onboarding also created the founder's company.
+      const [created] = await db.select({ orgId: syndicatesTable.organizationId }).from(syndicatesTable).where(eq(syndicatesTable.id, createdSyndicateId));
       await db.delete(syndicatesTable).where(eq(syndicatesTable.id, createdSyndicateId));
+      if (created?.orgId) {
+        await db.delete(organizationMembersTable).where(eq(organizationMembersTable.organizationId, created.orgId));
+        await db.delete(organizationsTable).where(eq(organizationsTable.id, created.orgId));
+      }
     }
     await db.delete(usersTable).where(inArray(usersTable.id, [normal.id, invited.id, founder.id]));
   }

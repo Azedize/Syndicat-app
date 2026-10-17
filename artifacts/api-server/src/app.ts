@@ -8,6 +8,7 @@ import compression from "compression";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { softAuth } from "./middleware/auth.js";
+import { enforceSessionContext } from "./lib/access.js";
 import Redis from "ioredis";
 import { processStripeWebhook } from "./lib/stripeWebhook.js";
 
@@ -179,6 +180,9 @@ app.use("/api", apiLimiter);
 // This runs before route handlers so subscription enforcement middleware can
 // read req.user for write-method checks without requiring auth to be global.
 app.use(softAuth);
+// Every token is re-checked against the database (revoked assignment,
+// disabled account, condominium lifecycle) before any route runs.
+app.use(enforceSessionContext);
 
 app.use("/api", router);
 

@@ -272,3 +272,84 @@ au-dessus : un compte syndic gère un syndicat.
 - Référence 190/190, parcours 135/135 (suites adaptées : étage fourni à la
   création, nettoyage des périodes de propriété).
 - Migrations 0000→0005 sur base vierge (111 tables) ; bundles Android / iOS.
+
+## 2026-10-17 — Sociétés de syndic, multi-copropriétés, contexte, portefeuille
+
+Remplace la note « pas de niveau organisation » ci-dessus. Hiérarchie :
+société de syndic (`organizations`) → copropriété (`syndicates`) → immeuble →
+étage → lot. Une personne a un seul compte ; elle agit dans une copropriété à
+la fois (le « contexte » de la session).
+
+### Base (migration `0006_organizations`)
+- `organizations`, `organization_members` (`org_admin` : syndic de toutes les
+  copropriétés de la société ; `org_staff` : seulement celles où il est
+  affecté), `syndicate_memberships` (un rôle d'équipe par copropriété, révocable,
+  historisé : qui, quand, motif).
+- `syndicates` : `organization_id`, cycle de vie `draft / active / suspended /
+  archived` (motif, date, `archived_at`), devise ISO, langue, mois de début
+  d'exercice, `creation_key` (idempotence) ; nom unique par société parmi les
+  copropriétés non archivées.
+- `refresh_tokens.context_syndicate_id` : un jeton de rafraîchissement reste
+  attaché à la copropriété choisie.
+- Reprise : chaque syndicat existant devient une société (`org_<id>`) dont ses
+  syndics actifs sont administrateurs ; statut `inactive` → `suspended`.
+
+### Contrôle d'accès (`lib/access.ts`, appliqué à chaque requête)
+- Le rôle dans une copropriété est recalculé en base à chaque requête :
+  administrateur de société → affectation active → rattachement du compte.
+  Un jeton dont le droit a disparu (affectation retirée, rôle changé, compte
+  désactivé, copropriété archivée) est refusé immédiatement (401
+  `SESSION_CONTEXT_REVOKED`), y compris pour les tickets de fichiers ; les
+  jetons de rafraîchissement du contexte retiré sont révoqués.
+- Cycle de vie : brouillon (équipe seulement, pas d'appels de fonds), suspendue
+  (lecture seule, 423), archivée (lecture seule, visible des seuls
+  administrateurs de la société). Relances d'impayés limitées aux copropriétés
+  actives. Société suspendue ⇒ ses copropriétés en lecture seule.
+- `POST /auth/context` : changement de copropriété ; le serveur décide du rôle,
+  l'ancien jeton de rafraîchissement est révoqué, l'action est journalisée.
+  Un identifiant modifié dans l'URL, le corps ou un jeton forgé ne donne
+  aucun accès.
+
+### API (`routes/organizations.ts`)
+- Sociétés : mes sociétés, création (plateforme), membres (dernier
+  administrateur non retirable).
+- Copropriétés : création en brouillon (validation, `Idempotency-Key`, nom
+  unique), paramètres (devise verrouillée dès qu'il existe des écritures ou
+  des appels), transitions de statut contrôlées (activation ⇒ au moins un
+  immeuble ; archivage ⇒ motif et aucun paiement en attente de validation ;
+  rien n'est supprimé ni transféré).
+- Affectations par copropriété : affecter par email, changer le rôle, retirer.
+- Portefeuille : chiffres calculés par PostgreSQL par copropriété, définitions
+  renvoyées avec les chiffres, montants par devise, copropriétaires distincts
+  (une personne présente dans deux copropriétés comptée une fois), détail des
+  impayés et des incidents d'une copropriété autorisée.
+- L'inscription d'un syndic (`POST /syndicates`) crée aussi sa société.
+
+### Mobile (Android / iOS)
+- « Mes copropriétés » (`app/coproprietes.tsx`) : copropriétés accessibles,
+  rôle dans chacune, changement de contexte.
+- « Portefeuille » (`app/portefeuille.tsx`) : totaux et définitions, liste par
+  copropriété, détail impayés / incidents, création, statut, équipe.
+- Au changement de copropriété, toutes les données en mémoire sont
+  reconstruites (`ContextScope` dans `_layout.tsx` : `DataProvider` remonté,
+  cache de requêtes vidé) et la navigation repart des onglets.
+
+### Tests (exécutés le 2026-10-17, API de test sur 5055)
+- Nouvelle suite `condominiums:test` : 62/62.
+- auth 44/44, rbac 35/35, finance 35/35, documents 28/28, scénario 48/48,
+  lots 65/65, parcours 135/135.
+- Migrations 0000→0006 sur base vierge (114 tables) ; typecheck API et mobile ;
+  bundles Android / iOS exportés.
+- Corrections de suites : purge des sociétés créées par l'inscription
+  (`auth-security`, `journeys`) ; les 5 contrôles « jeton non rattaché » de
+  `rbac` acceptent 401 (le jeton forgé est désormais refusé dès l'authentification).
+
+### Non fait / limites
+- Pas de test sur appareil physique (seulement bundles exportés).
+- Une personne garde un seul compte : les contextes se changent, ils ne se
+  cumulent pas dans un même écran.
+- Seules les relances d'impayés sont filtrées par statut ; les autres tâches
+  planifiées ne le sont pas encore.
+- Pas d'écran mobile pour créer une société (réservé à la plateforme, API seule)
+  ni pour modifier les paramètres d'une copropriété (API `PATCH
+  /condominiums/:id/settings` seule).

@@ -10,7 +10,7 @@
  * may not contain a generic private upload, then removes that row in finally.
  */
 import jwt from "jsonwebtoken";
-import { and, eq } from "drizzle-orm";
+import { asc, and, eq } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 import {
   budgetsTable,
@@ -181,12 +181,16 @@ async function main(): Promise<void> {
       .select({ id: buildingsTable.id })
       .from(buildingsTable)
       .where(eq(buildingsTable.syndicateId, adminA.syndicateId!))
+      // Deterministic fixture: the oldest building (the one with the budget).
+      .orderBy(asc(buildingsTable.createdAt))
       .limit(1)
       .then((rows) => rows[0]),
     db
       .select({ id: buildingsTable.id })
       .from(buildingsTable)
       .where(eq(buildingsTable.syndicateId, adminB.syndicateId!))
+      // Deterministic fixture: the oldest building (the one with the budget).
+      .orderBy(asc(buildingsTable.createdAt))
       .limit(1)
       .then((rows) => rows[0]),
     db
@@ -297,32 +301,35 @@ async function main(): Promise<void> {
       401,
     );
 
-    // Missing JWT scope must fail closed across scoped list routes.
+    // Missing JWT scope must fail closed across scoped list routes. Such a
+    // token (a scoped admin with the condominium removed) matches no grant
+    // of the account: the session check refuses it (401) before the route
+    // (which would answer 403). Either way no global data is returned.
     expectStatus(
       "unscoped manager elections",
       (await api("/elections", { token: tokens.unscopedAdmin })).status,
-      403,
+      [401, 403],
     );
     expectStatus(
       "unscoped manager AG list",
       (await api("/ag-meetings", { token: tokens.unscopedAdmin })).status,
-      403,
+      [401, 403],
     );
     expectStatus(
       "unscoped manager statistics",
       (await api("/statistics/hr", { token: tokens.unscopedAdmin })).status,
-      403,
+      [401, 403],
     );
     expectStatus(
       "unscoped manager budgets",
       (await api("/budgets", { token: tokens.unscopedAdmin })).status,
-      403,
+      [401, 403],
     );
     expectStatus(
       "unscoped manager document",
       (await api(`/documents/${documentA.id}`, { token: tokens.unscopedAdmin }))
         .status,
-      403,
+      [401, 403],
     );
 
     // Cross-syndicate reads and mutations.

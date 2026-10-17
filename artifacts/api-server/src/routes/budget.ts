@@ -755,6 +755,17 @@ router.post(
         }
       }
 
+      // A condominium still being configured (draft) issues no calls.
+      if (building?.syndicateId) {
+        const [condo] = await db.select({ status: syndicatesTable.status }).from(syndicatesTable).where(eq(syndicatesTable.id, building.syndicateId));
+        if (condo && condo.status !== "active") {
+          return void res.status(409).json({
+            error: "La copropriété doit être active pour émettre des appels de fonds.",
+            code: "CONDOMINIUM_NOT_ACTIVE",
+          });
+        }
+      }
+
       // Charges are called on the budget voted by the general assembly —
       // never on a draft the syndic can still change alone.
       if (budget.status !== "approved") {

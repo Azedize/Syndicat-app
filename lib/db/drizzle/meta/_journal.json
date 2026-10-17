@@ -43,6 +43,13 @@
       "when": 1792245449818,
       "tag": "0005_appel_debtors",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792246374918,
+      "tag": "0006_organizations",
+      "breakpoints": true
     }
   ]
 }

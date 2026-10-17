@@ -102,6 +102,21 @@ function AuthGate() {
   );
 }
 
+/**
+ * Everything that holds condominium data lives below this key: switching
+ * condominium (or role) remounts it, so no list, counter, selection, timer or
+ * in-flight request of the previous condominium can surface in the new one.
+ */
+function ContextScope({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const scope = `${user?.id ?? "anon"}:${user?.syndicateId ?? "none"}:${user?.role ?? "none"}`;
+  useEffect(() => {
+    // Cached queries belong to the previous context.
+    queryClient.clear();
+  }, [scope]);
+  return <DataProvider key={scope}>{children}</DataProvider>;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -129,7 +144,7 @@ export default function RootLayout() {
               <ThemeProvider>
                 <LanguageProvider>
                   <AuthProvider>
-                    <DataProvider>
+                    <ContextScope>
                       <ToastProvider>
                         <ActivityProvider>
                           <FavoritesProvider>
@@ -141,7 +156,7 @@ export default function RootLayout() {
                           </FavoritesProvider>
                         </ActivityProvider>
                       </ToastProvider>
-                    </DataProvider>
+                    </ContextScope>
                   </AuthProvider>
                 </LanguageProvider>
               </ThemeProvider>

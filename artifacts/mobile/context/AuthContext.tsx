@@ -66,6 +66,8 @@ interface AuthContextType {
     user: Record<string, unknown>,
   ) => Promise<void>;
   refreshSession: () => Promise<void>;
+  /** Switches to another condominium; the data layer is rebuilt for it. */
+  switchContext: (syndicateId: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<AuthUser>) => void;
 }
@@ -175,6 +177,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const switchContext = useCallback(async (syndicateId: string): Promise<void> => {
+    const refreshTokenValue = await getRefreshToken();
+    if (!refreshTokenValue) throw Object.assign(new Error("Session expirée"), { status: 401 });
+    const res = await authApi.switchContext(syndicateId, refreshTokenValue);
+    await setToken(res.data.token);
+    await setRefreshToken(res.data.refreshToken);
+    const me = await authApi.me();
+    setTokenState(res.data.token);
+    // A new user object (new syndicateId / role) remounts the data providers.
+    setUser(mapApiUser(me.data as unknown as Record<string, unknown>));
+  }, []);
+
   const refreshSession = useCallback(async (): Promise<void> => {
     try {
       const refreshTokenValue = await getRefreshToken();
@@ -219,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         loginWithTokens,
+        switchContext,
         refreshSession,
         logout,
         updateUser,

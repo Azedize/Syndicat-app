@@ -8,6 +8,7 @@ import {
   refreshTokensTable,
   passwordResetTokensTable,
   otpTokensTable,
+  syndicatesTable,
 } from "@workspace/db/schema";
 import { eq, and, gt, isNull, desc, count } from "drizzle-orm";
 import {
@@ -22,6 +23,8 @@ import {
 } from "../middleware/auth.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { passwordResetTemplate } from "../lib/email/templates.js";
+import { serverAuditLog } from "../lib/audit.js";
+import { listContexts, resolveContextRole, type ContextRole } from "../lib/access.js";
 
 /**
  * Sends a password reset email via the centralized EmailService (real Gmail SMTP,
@@ -60,24 +63,38 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync("mizan-timing-equalizer", BCRYPT_COS
 
 type SessionUser = typeof usersTable.$inferSelect;
 
-function accessTokenFor(user: SessionUser): string {
+/** Access token for the account, in a condominium context (default: home). */
+function accessTokenFor(user: SessionUser, context?: ContextRole | null): string {
   return signToken({
     userId: user.id,
     email: user.email,
-    role: user.role as JwtPayload["role"],
-    syndicateId: user.syndicateId ?? undefined,
+    role: (context?.role ?? user.role) as JwtPayload["role"],
+    syndicateId: context?.syndicateId ?? user.syndicateId ?? undefined,
     name: user.name,
     mcp: user.mustChangePassword || undefined,
   });
 }
 
-/** Issues a refresh token; only its SHA-256 digest is stored. */
-async function issueRefreshToken(userId: string): Promise<string> {
+/**
+ * Context a new session starts in: the home condominium, or — for an account
+ * that only works through assignments (company staff) — the first
+ * condominium it can act in.
+ */
+async function defaultContext(user: SessionUser): Promise<ContextRole | null> {
+  if (user.role === "super_admin") return null;
+  if (user.syndicateId) return resolveContextRole(user.id, user.syndicateId);
+  const [first] = (await listContexts(user.id)).filter((c) => c.status !== "archived");
+  return first ? { syndicateId: first.syndicateId, role: first.role, via: first.via } : null;
+}
+
+/** Issues a refresh token bound to a context; only its SHA-256 digest is stored. */
+async function issueRefreshToken(userId: string, contextSyndicateId?: string | null): Promise<string> {
   const token = signRefreshToken();
   await db.insert(refreshTokensTable).values({
     userId,
     token: hashToken(token),
     expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+    contextSyndicateId: contextSyndicateId ?? null,
   });
   return token;
 }
@@ -211,15 +228,16 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const accessToken = accessTokenFor(user);
-    const refreshTokenValue = await issueRefreshToken(user.id);
+    const context = await defaultContext(user);
+    const accessToken = accessTokenFor(user, context);
+    const refreshTokenValue = await issueRefreshToken(user.id, context?.syndicateId);
 
     const { passwordHash: _, ...safeUser } = user;
     res.json({
       data: {
         token: accessToken,
         refreshToken: refreshTokenValue,
-        user: safeUser,
+        user: { ...safeUser, role: context?.role ?? safeUser.role, syndicateId: context?.syndicateId ?? safeUser.syndicateId },
       },
     });
   } catch (err) {
@@ -286,6 +304,12 @@ router.post("/auth/refresh", async (req, res) => {
       return;
     }
 
+    // The session keeps the condominium it selected, as long as the grant
+    // still exists; otherwise it falls back to the account's default context.
+    const context =
+      (tokenRow.contextSyndicateId ? await resolveContextRole(user.id, tokenRow.contextSyndicateId) : null) ??
+      (await defaultContext(user));
+
     // Rotate atomically: only the request that actually revokes the old token
     // may issue a new pair (a concurrent refresh loses and gets 401).
     const newRefreshToken = signRefreshToken();
@@ -305,6 +329,7 @@ router.post("/auth/refresh", async (req, res) => {
         userId: user.id,
         token: hashToken(newRefreshToken),
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+        contextSyndicateId: context?.syndicateId ?? null,
       });
       return true;
     });
@@ -314,7 +339,7 @@ router.post("/auth/refresh", async (req, res) => {
     }
 
     res.json({
-      data: { token: accessTokenFor(user), refreshToken: newRefreshToken },
+      data: { token: accessTokenFor(user, context), refreshToken: newRefreshToken },
     });
   } catch (err) {
     req.log.error(err);
@@ -354,7 +379,118 @@ router.get("/auth/me", requireAuth, async (req, res) => {
       return;
     }
     const { passwordHash: _, ...safeUser } = user;
-    res.json({ data: safeUser });
+    // Role and condominium are those of the session's current context.
+    const [syndicate] = req.user!.syndicateId
+      ? await db
+          .select({ name: syndicatesTable.name, status: syndicatesTable.status, organizationId: syndicatesTable.organizationId })
+          .from(syndicatesTable)
+          .where(eq(syndicatesTable.id, req.user!.syndicateId))
+      : [];
+    res.json({
+      data: {
+        ...safeUser,
+        role: req.user!.role,
+        syndicateId: req.user!.syndicateId ?? null,
+        syndicateName: syndicate?.name ?? null,
+        syndicateStatus: syndicate?.status ?? null,
+        organizationId: syndicate?.organizationId ?? null,
+        homeSyndicateId: safeUser.syndicateId,
+        homeRole: safeUser.role,
+      },
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── Condominium context ─────────────────────────────────────────────────────
+
+/** Condominiums the signed-in person can switch to, with their role in each. */
+router.get("/me/contexts", requireAuth, async (req, res) => {
+  try {
+    const contexts = await listContexts(req.user!.userId);
+    res.json({ data: contexts.map((c) => ({ ...c, current: c.syndicateId === req.user!.syndicateId })) });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+const switchContextSchema = z.object({ syndicateId: z.string().min(1), refreshToken: z.string().min(1) }).strict();
+
+/**
+ * Switches the session to another condominium. The server decides the role
+ * there (assignment / company / home) — the client only names the target.
+ * The presented refresh token is revoked and a new pair bound to the new
+ * context is issued, so the previous context cannot be resumed by a refresh.
+ */
+router.post("/auth/context", requireAuth, async (req, res) => {
+  const parsed = switchContextSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Copropriété et session requises", code: "INVALID_CONTEXT" });
+    return;
+  }
+  try {
+    const userId = req.user!.userId;
+    const context = await resolveContextRole(userId, parsed.data.syndicateId);
+    if (!context) {
+      res.status(403).json({ error: "Vous n'avez pas accès à cette copropriété", code: "CONTEXT_FORBIDDEN" });
+      return;
+    }
+    const [syndicate] = await db
+      .select({ status: syndicatesTable.status, name: syndicatesTable.name })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, context.syndicateId));
+    if (syndicate?.status === "archived" && context.via !== "org_admin") {
+      res.status(403).json({ error: "Cette copropriété est archivée", code: "CONDOMINIUM_ARCHIVED" });
+      return;
+    }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user || user.status !== "active") {
+      res.status(401).json({ error: "Compte désactivé", code: "ACCOUNT_DISABLED" });
+      return;
+    }
+    const newRefreshToken = signRefreshToken();
+    const switched = await db.transaction(async (tx) => {
+      const [revoked] = await tx
+        .update(refreshTokensTable)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(refreshTokensTable.token, hashToken(parsed.data.refreshToken)),
+            eq(refreshTokensTable.userId, userId),
+            isNull(refreshTokensTable.revokedAt),
+          ),
+        )
+        .returning({ id: refreshTokensTable.id });
+      if (!revoked) return false;
+      await tx.insert(refreshTokensTable).values({
+        userId,
+        token: hashToken(newRefreshToken),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+        contextSyndicateId: context.syndicateId,
+      });
+      return true;
+    });
+    if (!switched) {
+      res.status(401).json({ error: "Session invalide : reconnectez-vous", code: "INVALID_SESSION" });
+      return;
+    }
+    await serverAuditLog(req, {
+      action: "CONTEXT_SWITCHED",
+      entity: "syndicate",
+      entityId: context.syndicateId,
+      syndicateId: context.syndicateId,
+      details: `${context.role} (${context.via})`,
+    });
+    res.json({
+      data: {
+        token: accessTokenFor(user, context),
+        refreshToken: newRefreshToken,
+        context: { syndicateId: context.syndicateId, role: context.role, via: context.via, name: syndicate?.name, status: syndicate?.status },
+      },
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

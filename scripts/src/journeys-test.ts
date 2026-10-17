@@ -580,6 +580,12 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
   const objects = sids.length
     ? await db.select({ objectPath: storageObjectsTable.objectPath }).from(storageObjectsTable).where(inArray(storageObjectsTable.syndicateId, sids))
     : [];
+  // Syndic companies founded by the onboarding of these syndicates.
+  const orgIds = sids.length
+    ? (await db.select({ id: syndicatesTable.organizationId }).from(syndicatesTable).where(inArray(syndicatesTable.id, sids)))
+        .map((r) => r.id)
+        .filter((v): v is string => !!v)
+    : [];
   if (sids.length) {
     await db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL mizan.ledger_maintenance = 'on'`);
@@ -596,6 +602,7 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
       await tx.execute(sql`DELETE FROM ledger_entries WHERE syndicate_id IN (${list})`);
       await tx.execute(sql`DELETE FROM treasury_accounts WHERE syndicate_id IN (${list})`);
       await tx.execute(sql`DELETE FROM lot_ownerships WHERE syndicate_id IN (${list})`);
+      await tx.execute(sql`DELETE FROM syndicate_memberships WHERE syndicate_id IN (${list})`);
       for (const table of ["subscription_payments", "billing_invoices", "syndicate_subscriptions", "cotisations", "audit_logs", "alerts", "email_logs", "documents", "support_tickets"]) {
         await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE syndicate_id IN (${list})`);
       }
@@ -607,6 +614,11 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
     });
   }
   await db.delete(usersTable).where(inArray(usersTable.email, emails));
+  if (orgIds.length) {
+    const ol = sql.join(orgIds.map((o) => sql`${o}`), sql`, `);
+    await db.execute(sql`DELETE FROM organization_members WHERE organization_id IN (${ol})`);
+    await db.execute(sql`DELETE FROM organizations WHERE id IN (${ol}) AND NOT EXISTS (SELECT 1 FROM syndicates s WHERE s.organization_id = organizations.id)`);
+  }
   await db.delete(otpTokensTable).where(inArray(otpTokensTable.email, emails));
   await db.execute(sql`DELETE FROM otp_tokens WHERE email LIKE ${"+2126" + "%" + String(RUN).slice(-6)}`);
   for (const o of objects) await fs.unlink(path.join(UPLOADS_DIR, path.basename(o.objectPath))).catch(() => {});

@@ -113,7 +113,14 @@ pnpm --filter @workspace/scripts run finance-integrity:test
 pnpm --filter @workspace/scripts run documents-security:test
 pnpm --filter @workspace/scripts run scenario-e2e:test
 pnpm --filter @workspace/scripts run units:test
+pnpm --filter @workspace/scripts run condominiums:test
 ```
+
+`condominiums:test` crée une société de syndic réelle (inscription par OTP),
+trois copropriétés et deux comptes, vérifie l'isolation, les changements de
+copropriété, la révocation immédiate, le cycle de vie et le portefeuille, puis
+supprime tout. Elle se connecte plusieurs fois : la lancer sur une API de test
+fraîchement redémarrée (comme `journeys:test`).
 
 Parcours réels complets (Ahmed / Résidence Hayat, Ali / Résidence Hadika,
 construits de zéro par l’API puis supprimés) :

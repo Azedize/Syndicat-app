@@ -71,6 +71,8 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionBuilding",
     items: [
+      { labelKey: "mesCoproprietes",     icon: "repeat",     route: "/coproprietes", color: "#7C3AED", roles: RESIDENTS },
+      { labelKey: "portefeuilleSociete", icon: "pie-chart",  route: "/portefeuille", color: "#0f766e", roles: ALL_TEAM },
       { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#2563EB", roles: ["syndicate_admin"] },
       { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin", "secretary", "president", "treasurer", "committee_member"] },
       { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["syndicate_admin"] },
