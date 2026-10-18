@@ -356,6 +356,10 @@ export const appelsDeFondsTable = pgTable(
     notes: text("notes"),
     // Allocation that computed this call (null for calls issued before it)
     allocationId: text("allocation_id"),
+    // Date the obligation was issued (YYYY-MM-DD, condominium time zone)
+    issueDate: text("issue_date"),
+    // Amount at issue; "amount" changes only through appel_adjustments rows
+    originalAmount: money("original_amount"),
     paidDate: text("paid_date"),
     receiptNumber: text("receipt_number"),
     rejectionReason: text("rejection_reason"),
@@ -3308,9 +3312,13 @@ export const allocationsTable = pgTable(
     period: text("period").notNull(),
     // Type of the calls for funds issued (charges_courantes, fonds_reserve, appel_special)
     chargeType: text("charge_type").notNull(),
-    // finalized | corrected | reversed
+    // draft (saved preview, no obligation) | finalized (published) | corrected | reversed
     status: text("status").notNull().default("finalized"),
     totalAmount: money("total_amount").notNull(),
+    issueDate: date("issue_date"),
+    dueDate: date("due_date"),
+    publishedAt: timestamp("published_at"),
+    publishedBy: text("published_by"),
     // Everything the calculation used (sources, key versions, coefficients,
     // rounding rule): enough to reproduce it without reading live data.
     inputs: jsonb("inputs").notNull(),
@@ -3329,7 +3337,8 @@ export const allocationsTable = pgTable(
     uniqueIndex("allocations_reference_uq").on(t.syndicateId, t.reference),
     uniqueIndex("allocations_idempotency_uq").on(t.syndicateId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
     index("allocations_building_period_idx").on(t.buildingId, t.period),
-    check("allocations_status_chk", sql`${t.status} IN ('finalized', 'corrected', 'reversed')`),
+    check("allocations_status_chk", sql`${t.status} IN ('draft', 'finalized', 'corrected', 'reversed')`),
+    check("allocations_dates_chk", sql`${t.dueDate} IS NULL OR ${t.issueDate} IS NULL OR ${t.dueDate} >= ${t.issueDate}`),
   ],
 );
 
@@ -3373,4 +3382,48 @@ export const allocationLinesTable = pgTable(
     explanation: text("explanation").notNull(),
   },
   (t) => [index("allocation_lines_allocation_lot_idx").on(t.allocationId, t.lotId)],
+);
+
+/**
+ * Controlled change of one obligation's amount (wrong figure, unit situation
+ * changed…). The obligation keeps its original amount and payments; the new
+ * amount can never go below what was already paid.
+ */
+export const appelAdjustmentsTable = pgTable(
+  "appel_adjustments",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    appelId: text("appel_id").notNull().references(() => appelsDeFondsTable.id, { onDelete: "restrict" }),
+    previousAmount: money("previous_amount").notNull(),
+    newAmount: money("new_amount").notNull(),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("appel_adjustments_appel_idx").on(t.appelId),
+    check("appel_adjustments_amount_chk", sql`${t.newAmount} > 0 AND ${t.newAmount} <> ${t.previousAmount}`),
+  ],
+);
+
+/** Reminders actually sent for an obligation (one automatic overdue reminder at most). */
+export const appelRemindersTable = pgTable(
+  "appel_reminders",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    appelId: text("appel_id").notNull().references(() => appelsDeFondsTable.id, { onDelete: "restrict" }),
+    // overdue (automatic, once) | manual (by the finance team)
+    kind: text("kind").notNull(),
+    remaining: money("remaining").notNull(),
+    recipients: integer("recipients").notNull().default(0),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("appel_reminders_appel_idx").on(t.appelId, t.createdAt),
+    uniqueIndex("appel_reminders_overdue_uq").on(t.appelId).where(sql`${t.kind} = 'overdue'`),
+    check("appel_reminders_kind_chk", sql`${t.kind} IN ('overdue', 'manual')`),
+  ],
 );

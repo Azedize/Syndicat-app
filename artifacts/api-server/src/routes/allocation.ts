@@ -29,6 +29,15 @@ import {
   type SourceRequest,
 } from "../lib/allocation.js";
 import { endAllocation, finalizeAllocation } from "../lib/allocation-store.js";
+import { addDays, isPastDue, localToday, APP_TIMEZONE } from "../lib/charge-time.js";
+import { adjustObligation, reconcileCall, reminderBlocker, sendManualReminder } from "../lib/funds-calls.js";
+import {
+  allocationsTable as callsTable,
+  appelAdjustmentsTable,
+  appelPaymentsTable,
+  appelRemindersTable,
+  treasuryAccountsTable,
+} from "@workspace/db/schema";
 import { resolveOwnerUserId } from "./budget.js";
 
 /**
@@ -279,6 +288,7 @@ const runSchema = z
     period: PERIOD,
     chargeType: z.enum(CHARGE_TYPES),
     sources: z.array(sourceSchema).min(1, "Sélectionnez au moins une dépense ou ligne budgétaire").max(50),
+    issueDate: isoDate.optional(),
     dueDate: isoDate.optional(),
   })
   .strict();
@@ -302,11 +312,19 @@ async function compute(sid: string, d: z.infer<typeof runSchema>, ignoreAllocati
   const { sources, errors } = await loadSources(sid, d.buildingId, d.period, d.sources as SourceRequest[]);
   const c = await computeAllocation(d.buildingId, d.period, sources, errors);
   const dup = await alreadyAllocated(c, d.period, d.chargeType, ignoreAllocationId);
-  if (dup.length) {
-    c.errors.push(...dup);
+  // Dates of the obligations (condominium time zone): due date not passed.
+  const issueDate = d.issueDate ?? localToday();
+  const dueDate = d.dueDate ?? addDays(issueDate, 30);
+  const dateErrors = [];
+  if (dueDate < issueDate) dateErrors.push({ code: "INVALID_DATES", message: `L'échéance (${dueDate}) précède la date d'émission (${issueDate})` });
+  if (isPastDue(dueDate)) dateErrors.push({ code: "DUE_DATE_PASSED", message: `L'échéance du ${dueDate} est déjà passée (${APP_TIMEZONE}) : les obligations seraient en retard dès leur émission` });
+  const archived = (await buildingLots(d.buildingId)).filter((l) => l.archivedAt);
+  for (const l of archived) c.warnings.push({ code: "INACTIVE_UNIT", lotId: l.id, lotNumber: l.number, message: `Lot ${l.number} archivé : il ne reçoit pas d'obligation` });
+  if (dup.length || dateErrors.length) {
+    c.errors.push(...dup, ...dateErrors);
     c.valid = false;
   }
-  return c;
+  return Object.assign(c, { issueDate, dueDate });
 }
 
 router.post("/allocations/preview", requireAuth, async (req, res) => {
@@ -315,7 +333,7 @@ router.post("/allocations/preview", requireAuth, async (req, res) => {
     const parsed = runSchema.safeParse(req.body);
     if (!parsed.success) return void res.status(400).json({ error: parsed.error.issues[0]?.message, code: "INVALID_ALLOCATION" });
     const c = await compute(sid, parsed.data, typeof req.query.correctionOf === "string" ? req.query.correctionOf : undefined);
-    res.json({ data: computationView(c) });
+    res.json({ data: { ...computationView(c), issueDate: c.issueDate, dueDate: c.dueDate, timezone: APP_TIMEZONE } });
   } catch (err) {
     sendFinanceError(res, req, err);
   }
@@ -331,7 +349,7 @@ async function notifyDebtors(appels: { ownerId: string | null; amount: string; d
 router.post("/allocations", requireAuth, async (req, res) => {
   try {
     const { user, sid } = ctx(req, FINANCE, "Réservé au syndic et au trésorier");
-    const parsed = runSchema.extend({ previewHash: z.string().length(64, "Prévisualisez avant de confirmer") }).strict().safeParse(req.body);
+    const parsed = runSchema.extend({ previewHash: z.string().length(64, "Prévisualisez avant de confirmer"), draft: z.boolean().default(false) }).strict().safeParse(req.body);
     if (!parsed.success) return void res.status(400).json({ error: parsed.error.issues[0]?.message, code: "INVALID_ALLOCATION" });
     const d = parsed.data;
     const key = idemKey(req);
@@ -347,7 +365,20 @@ router.post("/allocations", requireAuth, async (req, res) => {
     }
     let out;
     try {
-      out = await db.transaction((tx) => finalizeAllocation(tx, { syndicateId: sid, buildingId: d.buildingId, period: d.period, chargeType: d.chargeType, computation: c, userId: user.userId, idempotencyKey: key, dueDate: d.dueDate }));
+      out = await db.transaction((tx) =>
+        finalizeAllocation(tx, {
+          syndicateId: sid,
+          buildingId: d.buildingId,
+          period: d.period,
+          chargeType: d.chargeType,
+          computation: c,
+          userId: user.userId,
+          idempotencyKey: key,
+          issueDate: c.issueDate,
+          dueDate: c.dueDate,
+          mode: d.draft ? "draft" : "publish",
+        }),
+      );
     } catch (err) {
       if (key && err instanceof FinanceError && err.code === "IDEMPOTENCY_CONFLICT") {
         const [done] = await db.select().from(allocationsTable).where(and(eq(allocationsTable.syndicateId, sid), eq(allocationsTable.idempotencyKey, key)));
@@ -355,7 +386,7 @@ router.post("/allocations", requireAuth, async (req, res) => {
       }
       throw err;
     }
-    await serverAuditLog(req, { action: "ALLOCATION_FINALIZED", entity: "allocation", entityId: out.allocation.id, syndicateId: sid, details: `${out.allocation.reference} — ${d.period} — ${d.chargeType} — ${out.allocation.totalAmount} — ${out.appels.length} appel(s)` });
+    await serverAuditLog(req, { action: d.draft ? "FUNDS_CALL_DRAFTED" : "ALLOCATION_FINALIZED", entity: "allocation", entityId: out.allocation.id, syndicateId: sid, details: `${out.allocation.reference} — ${d.period} — ${d.chargeType} — ${out.allocation.totalAmount} — émis ${c.issueDate}, échéance ${c.dueDate} — ${out.appels.length} obligation(s)` });
     void notifyDebtors(out.appels, sid).catch(() => {});
     res.status(201).json({ data: out.allocation, calls: out.appels.length });
   } catch (err) {
@@ -422,7 +453,7 @@ router.post("/allocations/:id/correct", requireAuth, async (req, res) => {
     const [orig] = await db.select().from(allocationsTable).where(and(eq(allocationsTable.id, String(req.params.id)), eq(allocationsTable.syndicateId, sid)));
     if (!orig) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Répartition introuvable");
     if (orig.status !== "finalized") throw new FinanceError(409, "ALLOCATION_ENDED", "Cette répartition n'est plus en vigueur");
-    const run = { buildingId: orig.buildingId, period: orig.period, chargeType: orig.chargeType as (typeof CHARGE_TYPES)[number], sources: (parsed.data.sources ?? requestsOf(orig.inputs)) as any, dueDate: parsed.data.dueDate };
+    const run = { buildingId: orig.buildingId, period: orig.period, chargeType: orig.chargeType as (typeof CHARGE_TYPES)[number], sources: (parsed.data.sources ?? requestsOf(orig.inputs)) as any, dueDate: parsed.data.dueDate ?? orig.dueDate ?? undefined };
     const c = await compute(sid, run, orig.id);
     const view = computationView(c);
     if (!parsed.data.previewHash) return void res.json({ data: { preview: view, original: { ...orig, inputs: undefined } } });
@@ -431,7 +462,7 @@ router.post("/allocations/:id/correct", requireAuth, async (req, res) => {
     if (c.inputsHash === orig.inputsHash) throw new FinanceError(409, "NOTHING_TO_CORRECT", "Le nouveau calcul est identique à la répartition existante");
     const out = await db.transaction(async (tx) => {
       const ended = await endAllocation(tx, { syndicateId: sid, allocationId: orig.id, status: "corrected", reason: parsed.data.reason, userId: user.userId });
-      const next = await finalizeAllocation(tx, { syndicateId: sid, buildingId: orig.buildingId, period: orig.period, chargeType: orig.chargeType, computation: c, userId: user.userId, correctionOf: orig.id, correctionReason: parsed.data.reason, dueDate: parsed.data.dueDate });
+      const next = await finalizeAllocation(tx, { syndicateId: sid, buildingId: orig.buildingId, period: orig.period, chargeType: orig.chargeType, computation: c, userId: user.userId, correctionOf: orig.id, correctionReason: parsed.data.reason, issueDate: c.issueDate, dueDate: c.dueDate });
       return { ended, next };
     });
     await serverAuditLog(req, { action: "ALLOCATION_CORRECTED", entity: "allocation", entityId: orig.id, syndicateId: sid, details: `${orig.reference} → ${out.next.allocation.reference} — ${parsed.data.reason} — ${out.ended.cancelledCalls} appel(s) annulé(s), ${out.next.appels.length} émis` });
@@ -497,6 +528,229 @@ router.get("/appels-de-fonds/:id/allocation", requireAuth, async (req, res) => {
         })),
       },
     });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+// ─── Drafts: edit, publish, delete ────────────────────────────────────────────
+
+async function loadDraft(id: string, sid: string) {
+  const [a] = await db.select().from(callsTable).where(and(eq(callsTable.id, id), eq(callsTable.syndicateId, sid)));
+  if (!a) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Appel de fonds introuvable");
+  if (a.status !== "draft") throw new FinanceError(409, "NOT_A_DRAFT", "Cet appel de fonds est déjà publié : utilisez la correction ou l'annulation");
+  return a;
+}
+
+/** Rewrites a draft (new sources, dates or keys). */
+router.put("/allocations/:id", requireAuth, async (req, res) => {
+  try {
+    const { user, sid } = ctx(req, FINANCE, "Réservé au syndic et au trésorier");
+    const draft = await loadDraft(String(req.params.id), sid);
+    const parsed = runSchema.extend({ previewHash: z.string().length(64) }).strict().safeParse(req.body);
+    if (!parsed.success) return void res.status(400).json({ error: parsed.error.issues[0]?.message, code: "INVALID_ALLOCATION" });
+    if (parsed.data.buildingId !== draft.buildingId) throw new FinanceError(400, "BUILDING_FIXED", "L'immeuble d'un brouillon ne change pas");
+    const c = await compute(sid, parsed.data, draft.id);
+    if (!c.valid) return void res.status(422).json({ error: c.errors[0]?.message, code: "ALLOCATION_INVALID", errors: c.errors, preview: computationView(c) });
+    if (c.inputsHash !== parsed.data.previewHash) return void res.status(409).json({ error: "Les données ont changé depuis la prévisualisation", code: "PREVIEW_STALE", preview: computationView(c) });
+    const out = await db.transaction((tx) =>
+      finalizeAllocation(tx, { syndicateId: sid, buildingId: draft.buildingId, period: parsed.data.period, chargeType: parsed.data.chargeType, computation: c, userId: user.userId, issueDate: c.issueDate, dueDate: c.dueDate, mode: "draft", draftId: draft.id }),
+    );
+    if (out.allocation.period !== parsed.data.period || out.allocation.chargeType !== parsed.data.chargeType) {
+      await db.update(callsTable).set({ period: parsed.data.period, chargeType: parsed.data.chargeType }).where(eq(callsTable.id, draft.id));
+    }
+    await serverAuditLog(req, { action: "FUNDS_CALL_DRAFT_UPDATED", entity: "allocation", entityId: draft.id, syndicateId: sid, details: `${draft.reference} — ${out.allocation.totalAmount}` });
+    res.json({ data: { ...out.allocation, inputs: undefined } });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/**
+ * Publication of a draft. Without previewHash: the draft is recalculated on
+ * today's data and returned for review (changed = data moved since the
+ * draft). With the hash of that review: revalidated and published in one
+ * transaction (obligations created).
+ */
+router.post("/allocations/:id/publish", requireAuth, async (req, res) => {
+  try {
+    const { user, sid } = ctx(req, FINANCE, "Réservé au syndic et au trésorier");
+    const parsed = z.object({ previewHash: z.string().length(64).optional() }).strict().safeParse(req.body ?? {});
+    if (!parsed.success) return void res.status(400).json({ error: "Requête invalide", code: "INVALID_PUBLICATION" });
+    const draft = await loadDraft(String(req.params.id), sid);
+    const run = { buildingId: draft.buildingId, period: draft.period, chargeType: draft.chargeType as (typeof CHARGE_TYPES)[number], sources: requestsOf(draft.inputs) as any, issueDate: draft.issueDate ?? undefined, dueDate: draft.dueDate ?? undefined };
+    const c = await compute(sid, run, draft.id);
+    const view = { ...computationView(c), issueDate: c.issueDate, dueDate: c.dueDate, changed: c.inputsHash !== draft.inputsHash };
+    if (!parsed.data.previewHash) return void res.json({ data: { preview: view, draft: { ...draft, inputs: undefined } } });
+    if (!c.valid) return void res.status(422).json({ error: c.errors[0]?.message, code: "ALLOCATION_INVALID", errors: c.errors, preview: view });
+    if (c.inputsHash !== parsed.data.previewHash) return void res.status(409).json({ error: "Les données ont changé depuis la vérification : revoyez l'appel", code: "PREVIEW_STALE", preview: view });
+    let out;
+    try {
+      out = await db.transaction((tx) =>
+        finalizeAllocation(tx, { syndicateId: sid, buildingId: draft.buildingId, period: draft.period, chargeType: draft.chargeType, computation: c, userId: user.userId, issueDate: c.issueDate, dueDate: c.dueDate, mode: "publish", draftId: draft.id }),
+      );
+    } catch (err) {
+      // A concurrent publication of the same draft: the first one won.
+      if (err instanceof FinanceError && err.code === "NOT_A_DRAFT") {
+        const [done] = await db.select().from(callsTable).where(eq(callsTable.id, draft.id));
+        if (done?.status === "finalized") return void res.json({ data: { ...done, inputs: undefined }, replayed: true });
+      }
+      throw err;
+    }
+    await serverAuditLog(req, { action: "ALLOCATION_FINALIZED", entity: "allocation", entityId: draft.id, syndicateId: sid, details: `${draft.reference} publié — ${out.allocation.totalAmount} — ${out.appels.length} obligation(s), échéance ${c.dueDate}` });
+    void notifyDebtors(out.appels, sid).catch(() => {});
+    res.status(201).json({ data: { ...out.allocation, inputs: undefined }, calls: out.appels.length });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** A draft has no financial effect: it can be deleted (audited). */
+router.delete("/allocations/:id", requireAuth, async (req, res) => {
+  try {
+    const { sid } = ctx(req, FINANCE, "Réservé au syndic et au trésorier");
+    const draft = await loadDraft(String(req.params.id), sid);
+    await db.transaction(async (tx) => {
+      const [locked] = await tx.select({ status: callsTable.status }).from(callsTable).where(eq(callsTable.id, draft.id)).for("update");
+      if (locked?.status !== "draft") throw new FinanceError(409, "NOT_A_DRAFT", "Cet appel de fonds vient d'être publié");
+      await tx.delete(allocationLinesTable).where(eq(allocationLinesTable.allocationId, draft.id));
+      await tx.delete(allocationSourcesTable).where(eq(allocationSourcesTable.allocationId, draft.id));
+      await tx.delete(callsTable).where(eq(callsTable.id, draft.id));
+    });
+    await serverAuditLog(req, { action: "FUNDS_CALL_DRAFT_DELETED", entity: "allocation", entityId: draft.id, syndicateId: sid, details: `${draft.reference} — ${draft.totalAmount}` });
+    res.json({ message: "Brouillon supprimé" });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+router.get("/allocations/:id/reconciliation", requireAuth, async (req, res) => {
+  try {
+    const { sid } = ctx(req, READERS, "Réservé à l'équipe");
+    const [a] = await db.select({ id: callsTable.id, reference: callsTable.reference, status: callsTable.status }).from(callsTable).where(and(eq(callsTable.id, String(req.params.id)), eq(callsTable.syndicateId, sid)));
+    if (!a) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Appel de fonds introuvable");
+    res.json({ data: { ...a, ...(await reconcileCall(a.id)) } });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+// ─── Obligations: account, adjustment, reminder ──────────────────────────────
+
+async function scopedObligation(req: Request) {
+  const user = req.user!;
+  const [row] = await db
+    .select({ a: appelsDeFondsTable, syndicateId: buildingsTable.syndicateId, lotNumber: lotsTable.number })
+    .from(appelsDeFondsTable)
+    .innerJoin(buildingsTable, eq(buildingsTable.id, appelsDeFondsTable.buildingId))
+    .innerJoin(lotsTable, eq(lotsTable.id, appelsDeFondsTable.lotId))
+    .where(eq(appelsDeFondsTable.id, String(req.params.id)));
+  if (!row || !user.syndicateId || row.syndicateId !== user.syndicateId) throw new FinanceError(404, "APPEL_NOT_FOUND", "Appel de fonds introuvable");
+  const team = READERS.has(user.role);
+  if (!team && !(await isDebtorOfCharge(user, row.a.id))) throw new FinanceError(404, "APPEL_NOT_FOUND", "Appel de fonds introuvable");
+  return { ...row, team };
+}
+
+/**
+ * Everything a debtor needs about one obligation: amounts, dates, status
+ * (with the overdue rule), payments of every status, adjustments, reminders
+ * and how to pay. A declared payment is listed as pending, never as paid.
+ */
+router.get("/appels-de-fonds/:id/account", requireAuth, async (req, res) => {
+  try {
+    const { a, syndicateId, lotNumber, team } = await scopedObligation(req);
+    const [payments, adjustments, reminders, [call], bank] = await Promise.all([
+      db.select().from(appelPaymentsTable).where(eq(appelPaymentsTable.appelId, a.id)).orderBy(asc(appelPaymentsTable.createdAt)),
+      db.select().from(appelAdjustmentsTable).where(eq(appelAdjustmentsTable.appelId, a.id)).orderBy(asc(appelAdjustmentsTable.createdAt)),
+      db.select().from(appelRemindersTable).where(eq(appelRemindersTable.appelId, a.id)).orderBy(asc(appelRemindersTable.createdAt)),
+      a.allocationId ? db.select({ reference: callsTable.reference, status: callsTable.status }).from(callsTable).where(eq(callsTable.id, a.allocationId)) : Promise.resolve([undefined]),
+      db.select({ label: treasuryAccountsTable.label, bankName: treasuryAccountsTable.bankName, rib: treasuryAccountsTable.rib }).from(treasuryAccountsTable).where(and(eq(treasuryAccountsTable.syndicateId, syndicateId!), eq(treasuryAccountsTable.kind, "bank"), eq(treasuryAccountsTable.status, "active"), eq(treasuryAccountsTable.isDefault, true))),
+    ]);
+    const remaining = Math.max(0, Math.round((Number(a.amount) - Number(a.amountPaid)) * 100)) / 100;
+    const open = !["paid", "cancelled"].includes(a.status ?? "");
+    res.json({
+      data: {
+        id: a.id,
+        callReference: call?.reference ?? null,
+        callStatus: call?.status ?? null,
+        lotNumber,
+        period: a.period,
+        type: a.type,
+        originalAmount: a.originalAmount ?? a.amount,
+        amount: a.amount,
+        amountPaid: a.amountPaid,
+        remaining: remaining.toFixed(2),
+        issueDate: a.issueDate,
+        dueDate: a.dueDate,
+        status: a.status,
+        overdue: open && remaining > 0 && isPastDue(a.dueDate),
+        dueRule: `Payable jusqu'au ${a.dueDate} inclus (${APP_TIMEZONE}) ; en retard à partir du lendemain. Aucune pénalité n'est appliquée automatiquement.`,
+        cancellationReason: a.cancellationReason,
+        payments: payments.map((p) => ({
+          id: p.id,
+          amount: p.amount,
+          method: p.method,
+          reference: p.reference,
+          status: p.status,
+          declaredAt: p.createdAt,
+          reviewedAt: p.reviewedAt,
+          receiptNumber: p.status === "validated" ? p.receiptNumber : null,
+          rejectionReason: p.rejectionReason,
+        })),
+        pendingAmount: payments.filter((p) => p.status === "pending").reduce((t, p) => t + Number(p.amount), 0).toFixed(2),
+        adjustments: adjustments.map((j) => ({ previousAmount: j.previousAmount, newAmount: j.newAmount, reason: j.reason, at: j.createdAt })),
+        reminders: reminders.map((r) => ({ kind: r.kind, remaining: r.remaining, at: r.createdAt })),
+        paymentOptions: open && remaining > 0
+          ? {
+              methods: ["virement", "cheque", "especes"],
+              online: false,
+              note: "Le paiement en ligne n'est pas disponible : déclarez votre paiement avec son justificatif ; il compte une fois validé par le trésorier.",
+              bankAccount: bank[0] ? { label: bank[0].label, bankName: bank[0].bankName, rib: bank[0].rib } : null,
+            }
+          : null,
+      },
+    });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Controlled change of one obligation's amount (syndic, reason required). */
+router.post("/appels-de-fonds/:id/adjust", requireAuth, async (req, res) => {
+  try {
+    const { user, sid } = ctx(req, KEY_ADMINS, "Un ajustement est décidé par le syndic");
+    const parsed = z
+      .object({ newAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Montant invalide (2 décimales)"), reason: z.string().trim().min(5, "Indiquez la raison de l'ajustement").max(500) })
+      .strict()
+      .safeParse(req.body);
+    if (!parsed.success) return void res.status(400).json({ error: parsed.error.issues[0]?.message, code: "INVALID_ADJUSTMENT" });
+    if (Number(parsed.data.newAmount) <= 0) throw new FinanceError(400, "USE_CANCELLATION", "Pour ramener une obligation à zéro, annulez-la (motif) au lieu de l'ajuster");
+    const out = await db.transaction((tx) => adjustObligation(tx, { syndicateId: sid, appelId: String(req.params.id), newAmount: parsed.data.newAmount, reason: parsed.data.reason, userId: user.userId }));
+    await serverAuditLog(req, { action: "APPEL_ADJUSTED", entity: "appel_de_fonds", entityId: out.after.id, syndicateId: sid, details: `${out.before.amount} → ${out.after.amount} — ${parsed.data.reason}` });
+    res.json({ data: out.after });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+router.post("/appels-de-fonds/:id/remind", requireAuth, async (req, res) => {
+  try {
+    const { user } = ctx(req, FINANCE, "Réservé au syndic et au trésorier");
+    const { a } = await scopedObligation(req);
+    const r = await sendManualReminder(a.id, user.userId);
+    res.status(201).json({ data: r });
+  } catch (err) {
+    sendFinanceError(res, req, err);
+  }
+});
+
+/** Eligibility of an obligation for a reminder (without sending it). */
+router.get("/appels-de-fonds/:id/reminder-eligibility", requireAuth, async (req, res) => {
+  try {
+    ctx(req, FINANCE, "Réservé au syndic et au trésorier");
+    const { a } = await scopedObligation(req);
+    const blocker = await reminderBlocker(a.id);
+    res.json({ data: { eligible: !blocker, reason: blocker } });
   } catch (err) {
     sendFinanceError(res, req, err);
   }

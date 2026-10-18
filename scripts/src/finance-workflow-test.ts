@@ -140,6 +140,7 @@ async function purge() {
     for (const table of ["billing_invoices", "subscription_payments", "syndicate_subscriptions", "audit_logs", "alerts", "email_logs", "document_sequences"]) {
       await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE syndicate_id IN (${list})`);
     }
+    await tx.execute(sql`DELETE FROM appel_reminders WHERE appel_id IN (SELECT id FROM appels_de_fonds WHERE building_id = ${BLD})`);
     await tx.execute(sql`DELETE FROM appels_de_fonds WHERE building_id = ${BLD}`);
     await tx.delete(storageObjectsTable).where(eq(storageObjectsTable.syndicateId, SID));
     await tx.execute(sql`DELETE FROM organization_members WHERE organization_id = ${ORG}`);

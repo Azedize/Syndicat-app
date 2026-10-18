@@ -78,6 +78,13 @@
       "when": 1792334760212,
       "tag": "0010_allocation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792337196111,
+      "tag": "0011_funds_calls",
+      "breakpoints": true
     }
   ]
 }

@@ -33,6 +33,7 @@ import { assertUserCanAccessBuilding } from "../lib/scope.js";
 import { nextSequenceNumber } from "../lib/sequences.js";
 import { computeAllocation, loadSources } from "../lib/allocation.js";
 import { finalizeAllocation } from "../lib/allocation-store.js";
+import { localToday } from "../lib/charge-time.js";
 import { createAlert, notifyUser } from "../lib/notify.js";
 import {
   FinanceError,
@@ -2232,7 +2233,7 @@ router.put(
   async (req, res) => {
     try {
       const user = req.user!;
-      const today = new Date().toISOString().split("T")[0];
+      const today = localToday();
 
       const scopedBuildings = await db
         .select({ id: buildingsTable.id })

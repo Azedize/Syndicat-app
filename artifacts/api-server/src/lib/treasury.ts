@@ -12,6 +12,7 @@ import {
 } from "@workspace/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { nextSequenceNumber } from "./sequences.js";
+import { isPastDue } from "./charge-time.js";
 
 /**
  * Treasury service — the only code path that writes the journal
@@ -554,7 +555,8 @@ export async function reverseEntry(
 export function settlementStatus(amountCents: number, paidCents: number, dueDate: string | null): string {
   if (paidCents >= amountCents) return "paid";
   if (paidCents > 0) return "partially_paid";
-  if (dueDate && dueDate < today()) return "overdue";
+  // Overdue the day after the due date, in the condominium time zone.
+  if (isPastDue(dueDate)) return "overdue";
   return "pending";
 }
 

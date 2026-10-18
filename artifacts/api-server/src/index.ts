@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { validateAuthConfig } from "./middleware/auth.js";
 import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
-import { startEscalationScheduler } from "./lib/debt-escalation.js";
+import { startFundsCallsScheduler } from "./lib/funds-calls.js";
 import { startElectionReminderScheduler } from "./lib/election-reminders.js";
 import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
 import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
@@ -33,7 +33,10 @@ verifySmtpConnection().catch(() => {});
 startContractExpiryScheduler();
 
 // Daily scan of unpaid charges — creates escalation records and notifies
-startEscalationScheduler();
+// Overdue statuses and one-time overdue reminders. The former automatic debt
+// escalation (mise en demeure / legal action decided by elapsed months) no
+// longer runs on its own: those steps are decisions of the syndic.
+startFundsCallsScheduler();
 
 // Notifies voters who haven't voted yet as an election's voting window nears its close
 startElectionReminderScheduler();

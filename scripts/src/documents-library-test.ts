@@ -135,6 +135,7 @@ async function purge() {
     for (const t of ["conversations", "payslips", "documents", "tenants", "lot_ownerships", "syndicate_memberships", "audit_logs", "alerts", "syndicate_subscriptions", "document_sequences"]) {
       await tx.execute(sql`DELETE FROM ${sql.identifier(t)} WHERE syndicate_id = ${SID}`);
     }
+    await tx.execute(sql`DELETE FROM appel_reminders WHERE appel_id IN (SELECT id FROM appels_de_fonds WHERE building_id = ${BLD})`);
     await tx.execute(sql`DELETE FROM appels_de_fonds WHERE building_id = ${BLD}`);
     await tx.delete(storageObjectsTable).where(eq(storageObjectsTable.syndicateId, SID));
     await tx.execute(sql`DELETE FROM organization_members WHERE organization_id = ${ORG}`);

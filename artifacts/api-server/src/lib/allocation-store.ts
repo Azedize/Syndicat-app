@@ -11,12 +11,20 @@ import { nextSequenceNumber } from "./sequences.js";
 import { currentOwnersOf } from "./units.js";
 import { FinanceError, uniqueViolation, type Tx } from "./treasury.js";
 import { money, type Computation } from "./allocation.js";
+import { addDays, localToday } from "./charge-time.js";
 
 /**
- * Persists a validated calculation and issues its calls for funds through the
- * existing table (one call per lot, period and type; debtors = co-owners at
- * issue time). Everything is one transaction: if any call already exists for
- * a lot, or a source is already allocated, nothing is written.
+ * Persists a validated calculation (a funds call).
+ *
+ *   draft    the call and its lines are saved, NO obligation is created and
+ *            its sources stay free; it can be edited, deleted or published.
+ *   publish  the call is finalized and its obligations (appels_de_fonds, one
+ *            per lot: amount, issue date, due date, debtors at issue time)
+ *            are created in the same transaction. If any obligation already
+ *            exists for a lot (same period and type) or a source is already
+ *            allocated, nothing is written.
+ *
+ * `draftId` publishes (or rewrites) an existing draft instead of a new call.
  */
 export async function finalizeAllocation(
   tx: Tx,
@@ -30,34 +38,58 @@ export async function finalizeAllocation(
     idempotencyKey?: string | null;
     correctionOf?: string | null;
     correctionReason?: string | null;
+    issueDate?: string | null;
     dueDate?: string | null;
+    mode?: "publish" | "draft";
+    draftId?: string | null;
   },
 ) {
   const c = input.computation;
+  const mode = input.mode ?? "publish";
   if (!c.valid) throw new FinanceError(422, "ALLOCATION_INVALID", "Calcul invalide : corrigez les erreurs avant de confirmer");
-  const reference = await nextSequenceNumber(tx, input.syndicateId, "ALC", 6);
+  const issueDate = input.issueDate ?? localToday();
+  const dueDate = input.dueDate ?? addDays(issueDate, 30);
+  if (dueDate < issueDate) throw new FinanceError(400, "INVALID_DATES", "L'échéance précède la date d'émission");
+  const header = {
+    totalAmount: money(c.totals.allocated),
+    inputs: c.inputs as any,
+    inputsHash: c.inputsHash,
+    issueDate,
+    dueDate,
+    status: mode === "draft" ? "draft" : "finalized",
+    publishedAt: mode === "publish" ? new Date() : null,
+    publishedBy: mode === "publish" ? input.userId : null,
+  };
   let allocation: typeof allocationsTable.$inferSelect;
-  try {
-    [allocation] = await tx
-      .insert(allocationsTable)
-      .values({
-        syndicateId: input.syndicateId,
-        buildingId: input.buildingId,
-        reference,
-        period: input.period,
-        chargeType: input.chargeType,
-        totalAmount: money(c.totals.allocated),
-        inputs: c.inputs as any,
-        inputsHash: c.inputsHash,
-        idempotencyKey: input.idempotencyKey ?? null,
-        correctionOf: input.correctionOf ?? null,
-        correctionReason: input.correctionReason ?? null,
-        createdBy: input.userId,
-      })
-      .returning();
-  } catch (err) {
-    if (uniqueViolation(err)?.includes("idempotency")) throw new FinanceError(409, "IDEMPOTENCY_CONFLICT", "Confirmation déjà en cours");
-    throw err;
+  if (input.draftId) {
+    const [d] = await tx.select().from(allocationsTable).where(and(eq(allocationsTable.id, input.draftId), eq(allocationsTable.syndicateId, input.syndicateId))).for("update");
+    if (!d) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Appel de fonds introuvable");
+    if (d.status !== "draft") throw new FinanceError(409, "NOT_A_DRAFT", "Cet appel de fonds est déjà publié");
+    await tx.delete(allocationLinesTable).where(eq(allocationLinesTable.allocationId, d.id));
+    await tx.delete(allocationSourcesTable).where(eq(allocationSourcesTable.allocationId, d.id));
+    [allocation] = await tx.update(allocationsTable).set(header).where(eq(allocationsTable.id, d.id)).returning();
+  } else {
+    const reference = await nextSequenceNumber(tx, input.syndicateId, "ALC", 6);
+    try {
+      [allocation] = await tx
+        .insert(allocationsTable)
+        .values({
+          ...header,
+          syndicateId: input.syndicateId,
+          buildingId: input.buildingId,
+          reference,
+          period: input.period,
+          chargeType: input.chargeType,
+          idempotencyKey: input.idempotencyKey ?? null,
+          correctionOf: input.correctionOf ?? null,
+          correctionReason: input.correctionReason ?? null,
+          createdBy: input.userId,
+        })
+        .returning();
+    } catch (err) {
+      if (uniqueViolation(err)?.includes("idempotency")) throw new FinanceError(409, "IDEMPOTENCY_CONFLICT", "Confirmation déjà en cours");
+      throw err;
+    }
   }
   const lineRows: (typeof allocationLinesTable.$inferInsert)[] = [];
   for (const r of c.results) {
@@ -76,6 +108,8 @@ export async function finalizeAllocation(
           category: r.source.category,
           amount: money(r.source.amountCents),
           keyVersionId: r.source.key?.versionId ?? null,
+          // A draft does not reserve its sources.
+          active: mode === "publish",
         })
         .returning();
     } catch (err) {
@@ -96,11 +130,11 @@ export async function finalizeAllocation(
     }
   }
   if (lineRows.length) await tx.insert(allocationLinesTable).values(lineRows);
+  if (mode === "draft") return { allocation, appels: [] as (typeof appelsDeFondsTable.$inferSelect)[] };
 
   const budgetIds = [...new Set(c.results.map((r) => r.source.budgetId).filter(Boolean))];
   const lotsToCall = c.perLot.filter((l) => l.amountCents > 0n);
   const owners = await currentOwnersOf(lotsToCall.map((l) => l.lotId));
-  const due = input.dueDate ?? new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
   const lotRows = lotsToCall.length ? await tx.select({ id: lotsTable.id, ownerId: lotsTable.ownerId }).from(lotsTable).where(inArray(lotsTable.id, lotsToCall.map((l) => l.lotId))) : [];
   let appels: (typeof appelsDeFondsTable.$inferSelect)[] = [];
   if (lotsToCall.length) {
@@ -117,7 +151,9 @@ export async function finalizeAllocation(
             period: input.period,
             type: input.chargeType,
             amount: money(l.amountCents),
-            dueDate: due,
+            originalAmount: money(l.amountCents),
+            issueDate,
+            dueDate,
             status: "pending",
             allocationId: allocation.id,
           })),
@@ -146,6 +182,7 @@ export async function endAllocation(tx: Tx, input: { syndicateId: string; alloca
     .where(and(eq(allocationsTable.id, input.allocationId), eq(allocationsTable.syndicateId, input.syndicateId)))
     .for("update");
   if (!a) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Répartition introuvable");
+  if (a.status === "draft") throw new FinanceError(409, "ALLOCATION_IS_DRAFT", "Un brouillon se modifie ou se supprime ; il n'a rien à annuler");
   if (a.status !== "finalized") throw new FinanceError(409, "ALLOCATION_ENDED", `Cette répartition est déjà ${a.status === "corrected" ? "corrigée" : "annulée"}`);
   const appels = await tx.select().from(appelsDeFondsTable).where(eq(appelsDeFondsTable.allocationId, a.id)).for("update");
   const ids = appels.map((x) => x.id);

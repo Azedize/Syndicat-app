@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { sql, type SQL } from "drizzle-orm";
 import { fromCents, toCents, today } from "./treasury.js";
+import { localToday } from "./charge-time.js";
 
 /**
  * Financial metrics — one definition per figure, shared by every screen
@@ -99,7 +100,7 @@ export async function receivables(scope: Scope) {
   if (scope.buildingId) where.push(sql`a.building_id = ${scope.buildingId}`);
   const [row] = (await db.execute(sql`
     SELECT COALESCE(SUM(a.amount - a.amount_paid), 0) AS outstanding,
-           COALESCE(SUM(a.amount - a.amount_paid) FILTER (WHERE a.due_date IS NOT NULL AND a.due_date < ${today()}), 0) AS overdue,
+           COALESCE(SUM(a.amount - a.amount_paid) FILTER (WHERE a.due_date IS NOT NULL AND a.due_date < ${localToday()}), 0) AS overdue,
            COUNT(*)::int AS calls
     FROM appels_de_fonds a JOIN buildings b ON b.id = a.building_id
     WHERE ${sql.join(where, sql` AND `)}
