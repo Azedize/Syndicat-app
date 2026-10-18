@@ -566,9 +566,12 @@ rapport, validation, dépense).
   répondre, confirmer la résolution ou signaler que le problème persiste.
 - Équipe : tableau par colonnes avec compteurs, recherche, fiche complète
   (messages et notes internes, affectation, priorité, planification,
-  intervention réalisée). Sur téléphone, le déplacement d'une carte se fait
-  par « Déplacer vers… » (pas de glisser-déposer) ; la carte reste grisée
-  pendant l'enregistrement, et en cas d'échec reste en place avec le motif.
+  intervention réalisée). Glisser-déposer : appui long sur une carte, puis
+  glisser vers une colonne (colonnes autorisées en surbrillance, défilement
+  automatique au bord de l'écran) ; « Déplacer vers… » reste disponible. La
+  carte reste grisée pendant l'enregistrement ; en cas d'échec elle reste en
+  place avec le motif ; une colonne qui demande une question, une résolution
+  ou un motif ouvre la fiche avec l'état présélectionné.
 
 ### Tests (exécutés le 2026-10-18, API de test 5055)
 - Nouvelle suite `claims:test` : 65/65.
@@ -583,7 +586,8 @@ rapport, validation, dépense).
   à la planification).
 
 ### Non fait / limites
-- Pas de glisser-déposer tactile ; pas de test sur appareil.
+- Glisser-déposer vérifié par typecheck et export des bundles uniquement :
+  pas de test sur appareil.
 - Les prestataires n'ont pas de compte : l'équipe consigne leur intervention.
 - Pas de délai suspendu pendant l'attente d'information ; pas d'escalade
   automatique des retards (indicateur seulement).
