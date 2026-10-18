@@ -275,7 +275,15 @@ export default function ProfileScreen() {
               {QUICK_ACTIONS.map((a) => (
                 <TouchableOpacity
                   key={a.label}
-                  style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border, width: actionItemWidth }]}
+                  style={[
+                    styles.actionCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                      width: actionItemWidth,
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                    },
+                  ]}
                   onPress={a.onPress}
                   activeOpacity={0.75}
                 >
@@ -319,9 +327,10 @@ export default function ProfileScreen() {
                       <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
                       {editing && row.editable ? (
                         <TextInput
-                          style={[styles.rowInput, { borderColor: colors.border, color: colors.foreground }]}
+                          style={[styles.rowInput, { borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
                           value={row.key === "phone" ? phone : name}
                           onChangeText={row.key === "phone" ? setPhone : setName}
+                          textAlignVertical="center"
                         />
                       ) : (
                         <Text style={[styles.rowValue, { color: colors.foreground }]}>{row.value}</Text>
@@ -351,12 +360,12 @@ export default function ProfileScreen() {
                 ))}
               </View>
               <TouchableOpacity
-                style={[styles.cotHistoryBtn, { borderColor: colors.primary + "40", backgroundColor: colors.primary + "08" }]}
+                style={[styles.cotHistoryBtn, { borderColor: colors.primary + "40", backgroundColor: colors.primary + "08", flexDirection: isRTL ? "row-reverse" : "row" }]}
                 onPress={() => router.push("/paiements" as any)}
               >
                 <Feather name="clock" size={14} color={colors.primary} />
                 <Text style={[styles.cotHistoryBtnText, { color: colors.primary }]}>{t("profileHistory")}</Text>
-                <Feather name="chevron-right" size={14} color={colors.primary} />
+                <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={14} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -365,7 +374,7 @@ export default function ProfileScreen() {
           <View style={{ gap: 10 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("profileSecurity")}</Text>
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TouchableOpacity style={styles.secRow} onPress={() => { setShowPwd(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
+              <TouchableOpacity style={[styles.secRow, { flexDirection: isRTL ? "row-reverse" : "row" }]} onPress={() => { setShowPwd(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
                 <View style={[styles.rowIcon, { backgroundColor: "#f59e0b15" }]}>
                   <Feather name="lock" size={14} color="#f59e0b" />
                 </View>
@@ -373,10 +382,10 @@ export default function ProfileScreen() {
                   <Text style={[styles.rowValue, { color: colors.foreground }]}>{t("profilePasswordChange")}</Text>
                   <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{t("profilePasswordLastChanged")}</Text>
                 </View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
               <View style={[styles.sep, { backgroundColor: colors.border }]} />
-              <TouchableOpacity style={styles.secRow} onPress={() => router.push("/settings" as any)}>
+              <TouchableOpacity style={[styles.secRow, { flexDirection: isRTL ? "row-reverse" : "row" }]} onPress={() => router.push("/settings" as any)}>
                 <View style={[styles.rowIcon, { backgroundColor: colors.primary + "15" }]}>
                   <Feather name="settings" size={14} color={colors.primary} />
                 </View>
@@ -384,7 +393,7 @@ export default function ProfileScreen() {
                   <Text style={[styles.rowValue, { color: colors.foreground }]}>{t("profileSettings")}</Text>
                   <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{t("profileSettingsDescription")}</Text>
                 </View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
           </View>

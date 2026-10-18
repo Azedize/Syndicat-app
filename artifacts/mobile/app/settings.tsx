@@ -157,7 +157,13 @@ export default function SettingsScreen() {
       >
         {/* Profile card */}
         <TouchableOpacity
-          style={[styles.profileCard, { backgroundColor: colors.primary }]}
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: colors.primary,
+              flexDirection: isRTL ? "row-reverse" : "row",
+            },
+          ]}
           onPress={() => router.push("/profile" as any)}
           activeOpacity={0.85}
         >
@@ -189,7 +195,7 @@ export default function SettingsScreen() {
             ]}
           >
             {/* Dark mode toggle */}
-            <View style={styles.navRow}>
+            <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
               <View
                 style={[
                   styles.rowIcon,
@@ -236,7 +242,7 @@ export default function SettingsScreen() {
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             {/* System theme option */}
             <TouchableOpacity
-              style={styles.navRow}
+              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
               onPress={() => {
                 setMode("system");
                 Haptics.selectionAsync();
@@ -318,6 +324,7 @@ export default function SettingsScreen() {
                 notificationPreferencesLoading ||
                 notificationPreferences.length === 0
               }
+              isRTL={isRTL}
             />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <SettingRow
@@ -331,6 +338,7 @@ export default function SettingsScreen() {
                 notificationPreferencesLoading ||
                 notificationPreferences.length === 0
               }
+              isRTL={isRTL}
             />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <SettingRow
@@ -344,6 +352,7 @@ export default function SettingsScreen() {
                 notificationPreferencesLoading ||
                 notificationPreferences.length === 0
               }
+              isRTL={isRTL}
             />
           </View>
         </View>
@@ -367,7 +376,7 @@ export default function SettingsScreen() {
                   />
                 ) : null}
                 <TouchableOpacity
-                  style={styles.langRow}
+                  style={[styles.langRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
                   onPress={() => {
                     setLang(option.code);
                     Haptics.selectionAsync();
@@ -426,6 +435,7 @@ export default function SettingsScreen() {
               onToggle={showUnavailableSecurity}
               colors={colors}
               disabled
+              isRTL={isRTL}
             />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <SettingRow
@@ -436,6 +446,7 @@ export default function SettingsScreen() {
               onToggle={showUnavailableSecurity}
               colors={colors}
               disabled
+              isRTL={isRTL}
             />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <SettingRow
@@ -446,10 +457,11 @@ export default function SettingsScreen() {
               onToggle={showUnavailableSecurity}
               colors={colors}
               disabled
+              isRTL={isRTL}
             />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <TouchableOpacity
-              style={styles.navRow}
+              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
               onPress={() => router.push("/profile" as any)}
             >
               <View
@@ -471,14 +483,14 @@ export default function SettingsScreen() {
                 </Text>
               </View>
               <Feather
-                name="chevron-right"
+                name={isRTL ? "chevron-left" : "chevron-right"}
                 size={18}
                 color={colors.mutedForeground}
               />
             </TouchableOpacity>
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <TouchableOpacity
-              style={styles.navRow}
+              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
               onPress={exportMyData}
               accessibilityRole="button"
             >
@@ -501,7 +513,7 @@ export default function SettingsScreen() {
                 </Text>
               </View>
               <Feather
-                name="chevron-right"
+                name={isRTL ? "chevron-left" : "chevron-right"}
                 size={18}
                 color={colors.mutedForeground}
               />
@@ -538,7 +550,7 @@ export default function SettingsScreen() {
                     style={[styles.sep, { backgroundColor: colors.border }]}
                   />
                 ) : null}
-                <View style={styles.navRow}>
+                <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                   <View
                     style={[
                       styles.rowIcon,
@@ -594,6 +606,7 @@ function SettingRow({
   onToggle,
   colors,
   disabled = false,
+  isRTL,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
@@ -602,9 +615,10 @@ function SettingRow({
   onToggle: (value: boolean) => void;
   colors: any;
   disabled?: boolean;
+  isRTL?: boolean;
 }) {
   return (
-    <View style={styles.navRow}>
+    <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
       <View
         style={[styles.rowIcon, { backgroundColor: colors.primary + "18" }]}
       >
