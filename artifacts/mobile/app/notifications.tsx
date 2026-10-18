@@ -156,7 +156,7 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       <View
         style={[
           styles.header,
@@ -164,6 +164,7 @@ export default function NotificationsScreen() {
             paddingTop: topPad + 16,
             backgroundColor: colors.card,
             borderBottomColor: colors.border,
+            flexDirection: isRTL ? "row-reverse" : "row",
           },
         ]}
       >
@@ -300,7 +301,7 @@ export default function NotificationsScreen() {
                       style={[styles.sep, { backgroundColor: colors.border }]}
                     />
                   )}
-                  <View style={styles.switchRow}>
+                  <View style={[styles.switchRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                     <View
                       style={[
                         styles.rowIcon,
@@ -359,7 +360,7 @@ export default function NotificationsScreen() {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
-                <View style={styles.prefHeader}>
+                <View style={[styles.prefHeader, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                   {(() => {
                     const meta = categoryMeta(
                       pref.category ||
@@ -418,7 +419,7 @@ export default function NotificationsScreen() {
                   ]}
                 />
 
-                <View style={styles.prefChannels}>
+                <View style={[styles.prefChannels, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                   {[
                     {
                       key: "push" as const,
@@ -442,8 +443,10 @@ export default function NotificationsScreen() {
                         styles.channelCell,
                         i < arr.length - 1
                           ? {
-                              borderRightWidth: 1,
+                              borderRightWidth: isRTL ? 0 : 1,
+                              borderLeftWidth: isRTL ? 1 : 0,
                               borderRightColor: colors.border,
+                              borderLeftColor: colors.border,
                             }
                           : null,
                       ]}
@@ -530,8 +533,10 @@ export default function NotificationsScreen() {
                         styles.summaryCell,
                         i < arr.length - 1
                           ? {
-                              borderRightWidth: 1,
+                              borderRightWidth: isRTL ? 0 : 1,
+                              borderLeftWidth: isRTL ? 1 : 0,
                               borderRightColor: colors.border,
+                              borderLeftColor: colors.border,
                             }
                           : null,
                       ]}
@@ -607,7 +612,7 @@ export default function NotificationsScreen() {
                     <Feather name={ico} size={18} color={c} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
-                    <View style={styles.notifTitleRow}>
+                    <View style={[styles.notifTitleRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                       <Text
                         style={[
                           styles.notifTitle,
@@ -632,7 +637,7 @@ export default function NotificationsScreen() {
                     >
                       {alert.message}
                     </Text>
-                    <View style={styles.notifFooter}>
+                    <View style={[styles.notifFooter, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
                       <View
                         style={[styles.typeChip, { backgroundColor: c + "18" }]}
                       >
