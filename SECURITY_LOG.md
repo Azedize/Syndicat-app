@@ -41,3 +41,18 @@ sont dans `scripts/src/` (commandes dans `LOCAL_RUN_COMMANDS.md`).
   liés à l'utilisateur, pas au fichier.
 - Stockage en production (GCS) non configuré dans cet environnement : seul le
   stockage disque local a été testé.
+
+## 2026-10-18 — Réclamations et incidents
+
+| # | Constat | Gravité | Correction | Vérifié par |
+|---|---|---|---|---|
+| 1 | L'ancien module « réclamations » (gabarit RH : salaire, harcèlement…) n'était pas rattaché à une copropriété : un syndic listait et modifiait les réclamations **de tous les syndicats**. Référence tirée au hasard sur 3 chiffres (collisions). | Élevée | Routes retirées (410) ; nouveau module `claims` cloisonné par copropriété, référence séquentielle unique. Table conservée pour l'historique (export des données personnelles). | `claims` §H |
+| 2 | `POST /conversations/incident` : un syndic de n'importe quel syndicat pouvait ouvrir une conversation sur n'importe quelle réclamation. | Moyenne | Route retirée (410) ; le suivi se fait dans la réclamation. | `claims` §H |
+
+Contrôles du nouveau module : réclamation visible par son auteur et l'équipe
+uniquement (404 sinon) ; lot vérifié (propriétaire / locataire) ; pièces
+jointes = fichiers envoyés par la personne dans la copropriété, une seule
+réclamation par fichier ; notes, consignes, matériel et coûts internes jamais
+renvoyés aux résidents ; responsable = membre de l'équipe ou prestataire de la
+copropriété ; transitions contrôlées par rôle ; version attendue sur chaque
+écriture (carte périmée → 409 avec l'état enregistré) ; clés d'idempotence.

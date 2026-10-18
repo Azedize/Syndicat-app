@@ -116,7 +116,12 @@ pnpm --filter @workspace/scripts run units:test
 pnpm --filter @workspace/scripts run condominiums:test
 pnpm --filter @workspace/scripts run finance-workflow:test
 pnpm --filter @workspace/scripts run documents-library:test
+pnpm --filter @workspace/scripts run claims:test
 ```
+
+`claims:test` crée sa copropriété et passe tout le circuit des réclamations
+par l'API. Pour tester une panne de notification, il pose un trigger
+PostgreSQL temporaire sur `alerts` (retiré à la fin, même en cas d'échec).
 
 `documents-library:test` crée sa copropriété, teste téléversements, audiences,
 liens, versions, archivage et accès aux fichiers, puis supprime lignes et

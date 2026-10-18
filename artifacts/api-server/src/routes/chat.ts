@@ -1072,59 +1072,10 @@ router.post("/conversations/product", requireAuth, async (req, res) => {
 
 // ─── POST /conversations/incident — manual trigger (auto-created by reclamations too)
 
-router.post("/conversations/incident", requireAuth, async (req, res) => {
-  const schema = z.object({ incidentId: z.string() });
-  const result = schema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: "Données invalides" });
-    return;
-  }
-  try {
-    if (!hasChatSyndicateScope(req, res)) return;
-    const [incident] = await db
-      .select()
-      .from(reclamationsTable)
-      .where(eq(reclamationsTable.id, result.data.incidentId));
-    if (!incident) {
-      res.status(404).json({ error: "Incident introuvable" });
-      return;
-    }
-
-    const actor = req.user!;
-    const isOwner = incident.memberId === actor.userId;
-    const isAdmin =
-      actor.role === "super_admin" || actor.role === "syndicate_admin";
-    if (!isOwner && !isAdmin) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
-
-    const existing = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.incidentId, incident.id));
-    if (existing.length > 0) {
-      res.json({ data: existing[0], existing: true });
-      return;
-    }
-
-    await createIncidentConversation({
-      incidentId: incident.id,
-      syndicateId: actor.syndicateId ?? null,
-      memberId: incident.memberId,
-      memberName: incident.memberName ?? "Membre",
-      title: incident.titre,
-    });
-
-    const [created] = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.incidentId, incident.id));
-    res.status(201).json({ data: created });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
+router.post("/conversations/incident", requireAuth, (_req, res) => {
+  // The legacy grievances it was built for are retired (not scoped to a
+  // condominium); claims are followed up in their own thread (/claims/:id).
+  res.status(410).json({ error: "Le suivi d'une réclamation se fait dans la réclamation", code: "USE_CLAIMS" });
 });
 
 // ─── DELETE /conversations/:id ────────────────────────────────────────────────

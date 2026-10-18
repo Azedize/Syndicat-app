@@ -200,7 +200,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "supportPlateforme",    icon: "life-buoy",    route: "/platform-support", color: "#1F5EFF", roles: ["super_admin", ...ALL_TEAM] },
       // Réclamations = HR grievance module (salaire/discrimination/harcèlement).
       // Tenants are not employees and must not access it (use /support instead).
-      { labelKey: "reclamationsLabel",    icon: "inbox",        route: "/reclamations",     color: "#f97316", roles: ["syndicate_admin", "president", "member"] },
+      { labelKey: "reclamationsLabel",    icon: "inbox",        route: "/reclamations",     color: "#f97316", roles: RESIDENTS },
     ],
   },
 

@@ -510,3 +510,82 @@ audiences différentes. Résidents : documents publiés uniquement.
   rattachement à une fiche depuis les autres écrans (filtre disponible).
 - Les liens de téléchargement des documents générés passent aussi par le
   nouveau lien (plus d'URL GCS signée d'une heure).
+
+## 2026-10-18 — Réclamations et incidents (résidents + équipe)
+
+Il n'y a pas d'application web séparée dans le dépôt : l'espace syndic et
+l'espace résident sont la même application Expo (Android / iOS), sur la même
+API. L'ancien module « réclamations » (RH, non cloisonné) est remplacé
+(voir `SECURITY_LOG.md`).
+
+### Base (migration `0009_claims`)
+- `claims` : référence RCL-AAAA-NNNNNN par copropriété, catégorie, lieu,
+  parties communes ou lot, statut, priorité, échéance, auteur, responsable
+  (membre de l'équipe) et / ou prestataire, intervention planifiée, bon de
+  travaux lié, résolution (qui, quand, quoi), clôture, nombre de réouvertures,
+  version (concurrence), clé d'idempotence.
+- `claim_events` : historique en ajout seul (statuts, messages, notes
+  internes, affectations, questions / réponses, interventions, résolutions,
+  réouvertures) ; clé de requête unique par réclamation.
+- `claim_attachments` (public / interne) et `claim_notifications` (une ligne
+  par événement et destinataire, statut d'envoi).
+
+### Circuit (`lib/claims.ts`, `routes/claims.ts`)
+reçue → qualifiée → assignée → en cours ⇄ en attente d'information →
+résolue → clôturée ; non retenue (motif) depuis reçue / qualifiée.
+« Assignée » et « en cours » exigent un responsable ; « en attente » une
+question au résident (sa réponse ramène la réclamation à l'état précédent) ;
+« résolue » l'explication. Réouverture par l'auteur (résolue, ou clôturée
+depuis moins de 30 jours, 3 fois au plus) ou par un gestionnaire : retour en
+cours, rien n'est effacé, l'ancienne résolution reste dans l'historique.
+Gestionnaires : syndic, président, secrétaire ; responsable assigné : en
+cours / question / résolution ; trésorier et conseil : lecture et notes.
+Planification : date (visible du résident), consignes internes, création
+facultative du bon de travaux du prestataire (circuit travaux existant :
+rapport, validation, dépense).
+
+### Tableau, indicateurs, notifications
+- `GET /claims/board` : une colonne par état, total en base avec les mêmes
+  filtres, cartes (référence, titre, catégorie, lieu, priorité, date,
+  responsable, retard). Déplacer une carte = `POST /claims/:id/transition`
+  avec la version vue ; la carte n'est déplacée qu'après succès.
+- Retard : réclamation ouverte au-delà de l'échéance (urgente 24 h, haute
+  72 h, normale 7 j, basse 14 j depuis la création ; l'attente d'information
+  ne suspend pas le délai). Indicateurs : ouvertes, en retard, sans
+  responsable, résolution moyenne, charge par responsable (définitions
+  renvoyées par l'API).
+- Notifications : dépôt (gestionnaires), affectation (responsable, résident),
+  question, planification, résolution, refus (résident), réponse et
+  réouverture (responsable, gestionnaires). Une seule par événement et
+  destinataire ; un échec est enregistré, n'annule pas l'opération et se
+  relance (`POST /claims/notifications/retry`).
+
+### Mobile (`app/reclamations.tsx`)
+- Résident : signaler (catégorie, parties communes / lot, lieu, photos
+  appareil ou galerie), voir la réclamation enregistrée, suivre l'historique,
+  répondre, confirmer la résolution ou signaler que le problème persiste.
+- Équipe : tableau par colonnes avec compteurs, recherche, fiche complète
+  (messages et notes internes, affectation, priorité, planification,
+  intervention réalisée). Sur téléphone, le déplacement d'une carte se fait
+  par « Déplacer vers… » (pas de glisser-déposer) ; la carte reste grisée
+  pendant l'enregistrement, et en cas d'échec reste en place avec le motif.
+
+### Tests (exécutés le 2026-10-18, API de test 5055)
+- Nouvelle suite `claims:test` : 65/65.
+- auth 44/44, rbac 35/35, finance 35/35, documents 29/29, scénario 48/48,
+  lots 65/65, finance-workflow 89/89, bibliothèque 75/75, parcours 135/135,
+  copropriétés 62/62.
+- Migrations 0000→0009 sur base vierge (119 tables) ; `drizzle-kit check` OK ;
+  typecheck API et mobile ; bundles Android / iOS exportés.
+- Défauts trouvés par la suite et corrigés : requête de rôle ambiguë
+  (affectation impossible) ; bon de travaux impossible pour une réclamation
+  des parties communes (immeuble unique désormais retenu, immeuble précisable
+  à la planification).
+
+### Non fait / limites
+- Pas de glisser-déposer tactile ; pas de test sur appareil.
+- Les prestataires n'ont pas de compte : l'équipe consigne leur intervention.
+- Pas de délai suspendu pendant l'attente d'information ; pas d'escalade
+  automatique des retards (indicateur seulement).
+- Push : envoyé seulement aux comptes ayant un jeton Expo ; la notification
+  in-app est la référence.

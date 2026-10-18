@@ -7,7 +7,7 @@
  * anonymous by design and only participation receipts are linked to a voter.
  */
 import { Router } from "express";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   appelPaymentsTable,
@@ -115,6 +115,7 @@ router.get("/me/data-export", requireAuth, async (req, res) => {
       transactions,
       cotisations,
       reclamations,
+      claims,
       supportTickets,
       voteReceipts,
       messagesSent,
@@ -141,6 +142,15 @@ router.get("/me/data-export", requireAuth, async (req, res) => {
       db.select().from(transactionsTable).where(eq(transactionsTable.memberId, user.id)).orderBy(desc(transactionsTable.createdAt)),
       db.select().from(cotisationsTable).where(inArray(cotisationsTable.memberId, identityIds)),
       db.select().from(reclamationsTable).where(inArray(reclamationsTable.memberId, identityIds)),
+      // Claims reported by the person, with their public history (internal team notes excluded).
+      db.execute(sql`
+        SELECT c.reference, c.title, c.description, c.category, c.location, c.status, c.created_at, c.resolved_at, c.resolution,
+               COALESCE(json_agg(json_build_object('type', e.type, 'body', e.body, 'at', e.created_at) ORDER BY e.created_at)
+                        FILTER (WHERE e.id IS NOT NULL), '[]') AS history
+        FROM claims c LEFT JOIN claim_events e ON e.claim_id = c.id AND NOT e.internal
+        WHERE c.reporter_user_id = ${user.id}
+        GROUP BY c.id ORDER BY c.created_at DESC
+      `),
       db.select().from(supportTicketsTable).where(eq(supportTicketsTable.submittedById, user.id)),
       db
         .select({ electionId: voteReceiptsTable.electionId, votedAt: voteReceiptsTable.createdAt, castByProxyId: voteReceiptsTable.castByProxyId })
@@ -206,6 +216,7 @@ router.get("/me/data-export", requireAuth, async (req, res) => {
       transactions,
       cotisations,
       reclamations,
+      claims,
       supportTickets,
       // Participation receipts only — ballot content is anonymous by design.
       voteParticipation: voteReceipts,

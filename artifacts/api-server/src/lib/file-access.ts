@@ -15,7 +15,8 @@ import { memberIdsOf } from "./units.js";
  *   - payment proofs, invoices, journal attachments: finance team
  *   - payslip: syndic, treasurer, the employee
  *   - debt-recovery letter: team, and the debtor it is addressed to
- *   - any other operational record (claims, proxies, works, incidents,
+ *   - claim attachments: the team, and the reporter unless marked internal
+ *   - any other operational record (proxies, works, incidents,
  *     parking, contracts…): the condominium team
  * A file used by no record is readable by its uploader only.
  */
@@ -48,6 +49,8 @@ async function referencesOf(p: string): Promise<Ref[]> {
     UNION ALL SELECT 'team', NULL FROM election_proxies WHERE document_url = ${p}
     UNION ALL SELECT 'team', NULL FROM ag_proxies WHERE document_url = ${p}
     UNION ALL SELECT 'team', NULL FROM reclamations WHERE ${has("documents_joints")}
+    UNION ALL SELECT CASE WHEN a.internal THEN 'team' ELSE 'claim' END, c.reporter_user_id
+      FROM claim_attachments a JOIN claims c ON c.id = a.claim_id WHERE a.object_path = ${p}
     UNION ALL SELECT 'team', NULL FROM travaux WHERE report_url = ${p} OR invoice_url = ${p} OR ${has("photo_urls")}
     UNION ALL SELECT 'team', NULL FROM sinistres WHERE invoice_url = ${p} OR ${has("image_urls")}
     UNION ALL SELECT 'team', NULL FROM parking_violations WHERE photo_url = ${p}
@@ -82,6 +85,8 @@ export async function canReadSharedObject(user: JwtPayload, object: { objectPath
   for (const r of refs) {
     if (r.kind === "shared") return true;
     if (r.kind === "team" && TEAM.has(user.role)) return true;
+    // Claim photo / document shared with the resident: the team and the reporter.
+    if (r.kind === "claim" && (TEAM.has(user.role) || r.ref === user.userId)) return true;
     if (r.kind === "finance" && FINANCE.has(user.role)) return true;
     if (r.kind === "payslip" && (user.role === "syndicate_admin" || user.role === "treasurer" || r.ref === user.userId)) return true;
     if (r.kind === "debt_letter" && (TEAM.has(user.role) || (!!r.ref && (await memberIdsOf(user)).includes(r.ref)))) return true;

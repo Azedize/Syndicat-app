@@ -43,7 +43,7 @@ export const UPLOAD_CATEGORIES = [
  * Records whose attached documents are evidence (accounting, claims): such a
  * document can be archived or replaced (old version kept), never deleted.
  */
-export const EVIDENCE_ENTITY_TYPES: ReadonlySet<string> = new Set(["appel_de_fonds", "ledger_entry", "expense", "sinistre", "reclamation"]);
+export const EVIDENCE_ENTITY_TYPES: ReadonlySet<string> = new Set(["appel_de_fonds", "ledger_entry", "expense", "sinistre", "reclamation", "claim"]);
 
 /** Records a document can be attached to, and how each belongs to a syndicate. */
 const ENTITY_SQL = {
@@ -55,6 +55,7 @@ const ENTITY_SQL = {
   ledger_entry: (id: string, sid: string) => sql`SELECT id FROM ledger_entries WHERE id = ${id} AND syndicate_id = ${sid}`,
   expense: (id: string, sid: string) => sql`SELECT id FROM expenses WHERE id = ${id} AND syndicate_id = ${sid}`,
   sinistre: (id: string, sid: string) => sql`SELECT x.id FROM sinistres x JOIN buildings b ON b.id = x.building_id WHERE x.id = ${id} AND b.syndicate_id = ${sid}`,
+  claim: (id: string, sid: string) => sql`SELECT id FROM claims WHERE id = ${id} AND syndicate_id = ${sid}`,
   reclamation: (id: string, sid: string) => sql`SELECT r.id FROM reclamations r JOIN members m ON m.id = r.member_id WHERE r.id = ${id} AND m.syndicate_id = ${sid}`,
   travaux: (id: string, sid: string) => sql`SELECT w.id FROM travaux w JOIN buildings b ON b.id = w.building_id WHERE w.id = ${id} AND b.syndicate_id = ${sid}`,
   support_ticket: (id: string, sid: string) => sql`SELECT id FROM support_tickets WHERE id = ${id} AND syndicate_id = ${sid}`,

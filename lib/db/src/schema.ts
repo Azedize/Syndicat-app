@@ -3070,3 +3070,148 @@ export const syndicateMembershipsTable = pgTable(
     check("syndicate_memberships_status_chk", sql`${t.status} IN ('active', 'revoked')`),
   ],
 );
+
+// ─── Claims & incidents (réclamations de copropriété) ────────────────────────
+// A resident (or the team) reports a problem; the team qualifies, assigns,
+// follows up and resolves it. Every action is an immutable claim_events row:
+// reopening or reassigning never rewrites history. The legacy HR-style
+// "reclamations" table is kept read-only for its history.
+
+export const claimsTable = pgTable(
+  "claims",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    // RCL-2026-000001, sequential per condominium
+    reference: text("reference").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    // fuite_eau | ascenseur | eclairage | electricite | bruit | proprete |
+    // securite | parties_communes | stationnement | autre
+    category: text("category").notNull(),
+    // common = common areas · unit = a lot the reporter owns / rents
+    scope: text("scope").notNull().default("common"),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "set null" }),
+    location: text("location").notNull(),
+    // received | qualified | assigned | in_progress | awaiting_info | resolved | closed | rejected
+    status: text("status").notNull().default("received"),
+    // Status before "awaiting_info" (the claim returns there once answered)
+    statusBeforeInfo: text("status_before_info"),
+    // urgent | high | normal | low
+    priority: text("priority").notNull().default("normal"),
+    // Deadline from the priority (see lib/claims.ts); open past it = overdue
+    dueAt: timestamp("due_at").notNull(),
+    reporterUserId: text("reporter_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    reporterName: text("reporter_name").notNull(),
+    // Responsible party: a team member of the condominium and/or a provider
+    assigneeUserId: text("assignee_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    prestataireId: text("prestataire_id").references(() => prestatairesTable.id, { onDelete: "set null" }),
+    assignedAt: timestamp("assigned_at"),
+    assignedBy: text("assigned_by"),
+    // Intervention planned (date + instructions are internal; the date is shown)
+    scheduledFor: timestamp("scheduled_for"),
+    travauxId: text("travaux_id").references(() => travauxTable.id, { onDelete: "set null" }),
+    resolution: text("resolution"),
+    resolvedAt: timestamp("resolved_at"),
+    resolvedBy: text("resolved_by"),
+    closedAt: timestamp("closed_at"),
+    closedBy: text("closed_by"),
+    rejectionReason: text("rejection_reason"),
+    reopenCount: integer("reopen_count").notNull().default(0),
+    // Optimistic concurrency: every change increments it
+    version: integer("version").notNull().default(1),
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("claims_reference_uq").on(t.syndicateId, t.reference),
+    uniqueIndex("claims_idempotency_uq").on(t.syndicateId, t.reporterUserId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
+    index("claims_syndicate_status_idx").on(t.syndicateId, t.status),
+    index("claims_reporter_idx").on(t.reporterUserId),
+    index("claims_assignee_idx").on(t.assigneeUserId),
+    check("claims_status_chk", sql`${t.status} IN ('received', 'qualified', 'assigned', 'in_progress', 'awaiting_info', 'resolved', 'closed', 'rejected')`),
+    check("claims_priority_chk", sql`${t.priority} IN ('urgent', 'high', 'normal', 'low')`),
+    check("claims_scope_chk", sql`${t.scope} IN ('common', 'unit')`),
+    check("claims_unit_lot_chk", sql`${t.scope} = 'common' OR ${t.lotId} IS NOT NULL`),
+    check(
+      "claims_category_chk",
+      sql`${t.category} IN ('fuite_eau', 'ascenseur', 'eclairage', 'electricite', 'bruit', 'proprete', 'securite', 'parties_communes', 'stationnement', 'autre')`,
+    ),
+    check("claims_resolved_chk", sql`${t.status} NOT IN ('resolved', 'closed') OR (${t.resolution} IS NOT NULL AND ${t.resolvedAt} IS NOT NULL)`),
+  ],
+);
+
+/** Immutable history of a claim (status changes, comments, assignments…). */
+export const claimEventsTable = pgTable(
+  "claim_events",
+  {
+    id: id(),
+    claimId: text("claim_id").notNull().references(() => claimsTable.id, { onDelete: "restrict" }),
+    syndicateId: text("syndicate_id").notNull(),
+    // created | status | comment | assigned | priority | info_requested |
+    // info_provided | scheduled | work | attachment | resolved | closed |
+    // reopened | rejected | confirmed
+    type: text("type").notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status"),
+    body: text("body"),
+    // Internal = team only (never sent to the resident)
+    internal: boolean("internal").notNull().default(false),
+    data: jsonb("data"),
+    authorId: text("author_id"),
+    authorName: text("author_name"),
+    // Client request id (Idempotency-Key): a retried request adds nothing
+    requestKey: text("request_key"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("claim_events_claim_idx").on(t.claimId, t.createdAt),
+    uniqueIndex("claim_events_request_uq").on(t.claimId, t.requestKey).where(sql`${t.requestKey} IS NOT NULL`),
+  ],
+);
+
+export const claimAttachmentsTable = pgTable(
+  "claim_attachments",
+  {
+    id: id(),
+    claimId: text("claim_id").notNull().references(() => claimsTable.id, { onDelete: "restrict" }),
+    syndicateId: text("syndicate_id").notNull(),
+    objectPath: text("object_path").notNull(),
+    fileName: text("file_name"),
+    mimeType: text("mime_type"),
+    internal: boolean("internal").notNull().default(false),
+    uploadedBy: text("uploaded_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("claim_attachments_claim_idx").on(t.claimId),
+    uniqueIndex("claim_attachments_object_uq").on(t.objectPath),
+  ],
+);
+
+/** One delivery per (event, recipient): retries never notify twice. */
+export const claimNotificationsTable = pgTable(
+  "claim_notifications",
+  {
+    id: id(),
+    eventId: text("event_id").notNull().references(() => claimEventsTable.id, { onDelete: "restrict" }),
+    claimId: text("claim_id").notNull(),
+    syndicateId: text("syndicate_id").notNull(),
+    // No FK: a failed delivery to a removed account stays visible as failed.
+    userId: text("user_id").notNull(),
+    // pending | sent | failed
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    error: text("error"),
+    alertId: text("alert_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    sentAt: timestamp("sent_at"),
+  },
+  (t) => [
+    uniqueIndex("claim_notifications_event_user_uq").on(t.eventId, t.userId),
+    index("claim_notifications_status_idx").on(t.syndicateId, t.status),
+    check("claim_notifications_status_chk", sql`${t.status} IN ('pending', 'sent', 'failed')`),
+  ],
+);
