@@ -115,7 +115,14 @@ pnpm --filter @workspace/scripts run scenario-e2e:test
 pnpm --filter @workspace/scripts run units:test
 pnpm --filter @workspace/scripts run condominiums:test
 pnpm --filter @workspace/scripts run finance-workflow:test
+pnpm --filter @workspace/scripts run documents-library:test
 ```
+
+`documents-library:test` crée sa copropriété, teste téléversements, audiences,
+liens, versions, archivage et accès aux fichiers, puis supprime lignes et
+fichiers. Elle démarre elle-même une seconde API (port 5056) dont le dossier de
+stockage est inutilisable, pour tester une panne : le port 5056 doit être libre
+et `artifacts/api-server/dist` construit.
 
 `finance-workflow:test` crée sa propre copropriété (en base), puis passe tout
 le circuit financier par l'API : paiements déclarés / rejetés / validés /

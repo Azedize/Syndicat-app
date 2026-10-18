@@ -160,6 +160,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionLegal",
     items: [
+      { labelKey: "bibliothequeDocs",     icon: "book",      route: "/bibliotheque",         color: "#0f766e", roles: RESIDENTS },
       { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#1F5EFF", roles: ["syndicate_admin", "president", "secretary", "member", "tenant"] },
       { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin", "secretary"] },
       { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#2563EB", roles: ["syndicate_admin", "secretary", "president"] },

@@ -19,10 +19,8 @@ import { logger } from "../lib/logger.js";
 import { nextSequenceNumber } from "../lib/sequences.js";
 import { syndicateFlows } from "../lib/treasury.js";
 import {
-  canResidentSeeDocument,
   findForeignReference,
   resolveDocumentSubject,
-  residentDocumentSubjectWhere,
 } from "../lib/scope.js";
 import { db } from "@workspace/db";
 import {
@@ -75,6 +73,9 @@ import {
 } from "../lib/documentPdf.js";
 import { createAlert, notifyUser, sendEmail, sendEmailToMany } from "../lib/notify.js";
 import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
+
+import { canSeeDocument, documentView, documentVisibilityWhere } from "../lib/document-access.js";
+import { assertDeletable } from "./document-library.js";
 
 const router = Router();
 
@@ -1232,54 +1233,7 @@ async function generateSequentialDocumentNumber(
   return nextSequenceNumber(db, syndicateId || "global", prefix);
 }
 
-// ─── GET /documents ────────────────────────────────────────────────────────────
-
-router.get("/documents", requireAuth, async (req, res) => {
-  const { category, status } = req.query as Record<string, string>;
-  try {
-    const syndicateId = req.user!.syndicateId;
-    if (req.user!.role !== "super_admin" && !syndicateId) {
-      res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
-      return;
-    }
-    const conditions: ReturnType<typeof eq>[] = [];
-
-    // Never return soft-deleted documents to API consumers
-    conditions.push(eq(documentsTable.isDeleted, false));
-
-    if (req.user!.role !== "super_admin" || syndicateId) {
-      if (syndicateId)
-        conditions.push(eq(documentsTable.syndicateId, syndicateId));
-    }
-    if (category) conditions.push(eq(documentsTable.category, category as any));
-    if (status) conditions.push(eq(documentsTable.status, status));
-
-    // Members and tenants only see published documents, and among personal
-    // documents only those about themselves.
-    if (req.user!.role === "member" || req.user!.role === "tenant") {
-      conditions.push(eq(documentsTable.status, "published"));
-      conditions.push(residentDocumentSubjectWhere(req.user!) as any);
-    }
-
-    // Tenants are not co-owners — restrict to documents relevant to their lease only
-    if (req.user!.role === "tenant") {
-      conditions.push(
-        sql`${documentsTable.category} IN ('bail', 'reglement', 'reglement_interieur')`,
-      );
-    }
-
-    const rows = await db
-      .select()
-      .from(documentsTable)
-      .where(and(...conditions))
-      .orderBy(desc(documentsTable.createdAt));
-
-    res.json({ data: rows });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+// GET /documents (search, filters, pagination): see routes/document-library.ts
 
 // ─── GET /documents/deleted — RECYCLE BIN ─────────────────────────────────────
 // Lists soft-deleted documents (super_admin / syndicate_admin only), with
@@ -1352,10 +1306,7 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
     const conditions = [eq(documentsTable.isDeleted, false)];
     if (syndicateId)
       conditions.push(eq(documentsTable.syndicateId, syndicateId));
-    if (req.user!.role === "member" || req.user!.role === "tenant") {
-      conditions.push(eq(documentsTable.status, "published"));
-      conditions.push(residentDocumentSubjectWhere(req.user!) as any);
-    }
+    conditions.push((await documentVisibilityWhere(req.user!)) as any);
 
     const rows = await db
       .select({
@@ -4983,11 +4934,11 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    if (!canResidentSeeDocument(req.user!, doc)) {
+    if (!(await canSeeDocument(req.user!, doc))) {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    res.json({ data: doc });
+    res.json({ data: documentView(doc, req.user!) });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -5024,6 +4975,9 @@ router.get(
           category: documentsTable.category,
           isDeleted: documentsTable.isDeleted,
           subjectUserId: documentsTable.subjectUserId,
+          visibility: documentsTable.visibility,
+          lotId: documentsTable.lotId,
+          createdBy: documentsTable.createdBy,
         })
         .from(documentsTable)
         .where(eq(documentsTable.fileUrl, localPath))
@@ -5047,14 +5001,7 @@ router.get(
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
-      if (!canResidentSeeDocument(req.user!, doc)) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-      if (
-        req.user!.role === "tenant" &&
-        !["bail", "reglement", "reglement_interieur"].includes(doc.category)
-      ) {
+      if (!(await canSeeDocument(req.user!, doc))) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
@@ -5076,55 +5023,7 @@ router.get(
   },
 );
 
-// ─── GET /documents/:id/download-url ──────────────────────────────────────────
-
-router.get("/documents/:id/download-url", requireAuth, async (req, res) => {
-  const id = String(req.params.id);
-  try {
-    const [doc] = await db
-      .select()
-      .from(documentsTable)
-      .where(eq(documentsTable.id, id));
-    if (!doc || doc.isDeleted) {
-      res.status(404).json({ error: "Document introuvable" });
-      return;
-    }
-    if (
-      req.user!.role !== "super_admin" &&
-      doc.syndicateId !== req.user!.syndicateId
-    ) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
-    if (!canResidentSeeDocument(req.user!, doc)) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
-    if (!doc.fileUrl) {
-      res
-        .status(404)
-        .json({ error: "Aucun fichier PDF généré pour ce document" });
-      return;
-    }
-    const url = await signDocumentDownloadUrl(doc.fileUrl, 3600);
-    await serverAuditLog(req, {
-      action: "DOCUMENT_DOWNLOAD",
-      entity: "document",
-      entityId: id,
-      details: doc.title,
-    });
-    res.json({
-      url,
-      expiresIn: 3600,
-      filename: `${doc.documentNumber ?? doc.id}.pdf`,
-    });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({
-      error: "Erreur lors de la génération du lien de téléchargement",
-    });
-  }
-});
+// GET /documents/:id/download-url and /file: see routes/document-library.ts
 
 // ─── POST /documents ───────────────────────────────────────────────────────────
 
@@ -5741,54 +5640,7 @@ router.put(
   },
 );
 
-// ─── GET /documents/:id/versions — version history ────────────────────────────
-
-router.get("/documents/:id/versions", requireAuth, async (req, res) => {
-  const id = String(req.params.id);
-  try {
-    const [doc] = await db
-      .select({
-        syndicateId: documentsTable.syndicateId,
-        status: documentsTable.status,
-        category: documentsTable.category,
-        subjectUserId: documentsTable.subjectUserId,
-      })
-      .from(documentsTable)
-      .where(eq(documentsTable.id, id));
-    if (!doc) {
-      res.status(404).json({ error: "Document introuvable" });
-      return;
-    }
-    if (
-      (req.user!.role !== "super_admin" &&
-        doc.syndicateId !== req.user!.syndicateId) ||
-      !canResidentSeeDocument(req.user!, doc)
-    ) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
-    const versions = await db
-      .select({
-        id: documentVersionsTable.id,
-        versionNumber: documentVersionsTable.versionNumber,
-        title: documentVersionsTable.title,
-        status: documentVersionsTable.status,
-        language: documentVersionsTable.language,
-        modifiedBy: documentVersionsTable.modifiedBy,
-        modifiedByName: usersTable.name,
-        modifiedAt: documentVersionsTable.modifiedAt,
-        changeReason: documentVersionsTable.changeReason,
-      })
-      .from(documentVersionsTable)
-      .leftJoin(usersTable, eq(documentVersionsTable.modifiedBy, usersTable.id))
-      .where(eq(documentVersionsTable.documentId, id))
-      .orderBy(desc(documentVersionsTable.versionNumber));
-    res.json({ data: versions });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+// GET /documents/:id/versions: see routes/document-library.ts
 
 // ─── POST /documents/:id/versions/:versionId/restore ──────────────────────────
 // Restores a document's title/content/status/language from a past snapshot.
@@ -5897,6 +5749,12 @@ router.delete(
         existing.syndicateId !== req.user!.syndicateId
       ) {
         res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+      try {
+        assertDeletable(existing);
+      } catch (e: any) {
+        res.status(e.status).json({ error: e.message, code: e.code });
         return;
       }
 
@@ -6031,6 +5889,21 @@ router.post(
         res.status(409).json({
           error: "Effectuez d'abord une suppression logique avant de purger",
         });
+        return;
+      }
+      // Nothing is purged before its retention date, nor while it is the
+      // evidence of an accounting operation or a claim.
+      if (existing.retentionUntil && existing.retentionUntil > new Date()) {
+        res.status(409).json({
+          error: `Conservation obligatoire jusqu'au ${existing.retentionUntil.toISOString().slice(0, 10)}`,
+          code: "RETENTION_ACTIVE",
+        });
+        return;
+      }
+      try {
+        assertDeletable(existing);
+      } catch (e: any) {
+        res.status(e.status).json({ error: e.message, code: e.code });
         return;
       }
 
@@ -6462,6 +6335,10 @@ router.get("/documents/:id/signers", requireAuth, async (req, res) => {
         templateId: documentsTable.templateId,
         category: documentsTable.category,
         subjectUserId: documentsTable.subjectUserId,
+        visibility: documentsTable.visibility,
+        lotId: documentsTable.lotId,
+        createdBy: documentsTable.createdBy,
+        isDeleted: documentsTable.isDeleted,
       })
       .from(documentsTable)
       .where(eq(documentsTable.id, id));
@@ -6473,7 +6350,7 @@ router.get("/documents/:id/signers", requireAuth, async (req, res) => {
     if (
       (req.user!.role !== "super_admin" &&
         doc.syndicateId !== req.user!.syndicateId) ||
-      !canResidentSeeDocument(req.user!, doc)
+      !(await canSeeDocument(req.user!, doc as any))
     ) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6586,7 +6463,7 @@ router.get(
 
 // ─── Comments: GET /documents/:id/comments ───────────────────────────────────
 
-router.get("/:id/comments", requireAuth, async (req, res) => {
+router.get("/documents/:id/comments", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const [doc] = await db
@@ -6596,6 +6473,10 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
         status: documentsTable.status,
         category: documentsTable.category,
         subjectUserId: documentsTable.subjectUserId,
+        visibility: documentsTable.visibility,
+        lotId: documentsTable.lotId,
+        createdBy: documentsTable.createdBy,
+        isDeleted: documentsTable.isDeleted,
       })
       .from(documentsTable)
       .where(
@@ -6613,7 +6494,7 @@ router.get("/:id/comments", requireAuth, async (req, res) => {
     const isMemberOfSyndicate =
       user.role === "member" &&
       doc.syndicateId === user.syndicateId &&
-      canResidentSeeDocument(user, doc);
+      (await canSeeDocument(user, doc as any));
     if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6650,7 +6531,7 @@ const CommentCreateSchema = z.object({
   parentId: z.string().optional(),
 });
 
-router.post("/:id/comments", requireAuth, async (req, res) => {
+router.post("/documents/:id/comments", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const parsed = CommentCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -6666,6 +6547,10 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
         status: documentsTable.status,
         category: documentsTable.category,
         subjectUserId: documentsTable.subjectUserId,
+        visibility: documentsTable.visibility,
+        lotId: documentsTable.lotId,
+        createdBy: documentsTable.createdBy,
+        isDeleted: documentsTable.isDeleted,
       })
       .from(documentsTable)
       .where(
@@ -6683,7 +6568,7 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
     const isMemberOfSyndicate =
       user.role === "member" &&
       doc.syndicateId === user.syndicateId &&
-      canResidentSeeDocument(user, doc);
+      (await canSeeDocument(user, doc as any));
     if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -6714,7 +6599,7 @@ router.post("/:id/comments", requireAuth, async (req, res) => {
 
 // ─── Comments: DELETE /documents/:id/comments/:commentId ─────────────────────
 
-router.delete("/:id/comments/:commentId", requireAuth, async (req, res) => {
+router.delete("/documents/:id/comments/:commentId", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const commentId = String(req.params.commentId);
   try {

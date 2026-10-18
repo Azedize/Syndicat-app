@@ -260,7 +260,8 @@ async function main() {
     const direct = await api(khadija, `/documents/${personalDocId}`);
     step("neighbour cannot open it by ID", direct.status === 403, `status=${direct.status}`);
     const versions = await api(khadija, `/documents/${personalDocId}/versions`);
-    step("neighbour cannot read its version history", versions.status === 403, `status=${versions.status}`);
+    // 404: the library does not even confirm that the document exists.
+    step("neighbour cannot read its version history", [403, 404].includes(versions.status), `status=${versions.status}`);
     step("co-owner is notified that their document is available", !!(await waitForAlert(mohammed, "Votre document est disponible")));
     step("neighbour gets no notification about it", !(await alertsOf(khadija)).some((a) => String(a.message).includes("Mohammed Alaoui")));
   } finally {

@@ -1110,9 +1110,38 @@ export const documentsTable = pgTable(
     // Set to true when PDF embedding after signing fails (GCS unavailable, etc.)
     // so admins can identify documents whose PDF still shows "En attente de signature".
     regenerationFailed: boolean("regeneration_failed").default(false).notNull(),
+    // ── Document library (uploaded files) ───────────────────────────────────
+    // generated = PDF produced from a template · upload = file added by the team
+    source: text("source").notNull().default("generated"),
+    // Audience (see lib/document-access.ts): syndic | council | owners |
+    // residents | unit | personal. NULL on generated documents = derived from
+    // the category and subject (legacy rule), never wider than before.
+    visibility: text("visibility"),
+    description: text("description"),
+    // Record the document belongs to (meeting, lot, expense, claim…). The
+    // document keeps its own visibility: linking never widens access.
+    entityType: text("entity_type"),
+    entityId: text("entity_id"),
+    // Unit a "unit" document is visible to (its owners and tenants)
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "restrict" }),
+    // Verified file metadata (never the client's claims)
+    fileName: text("file_name"),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes"),
+    checksum: text("checksum"),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),
+    index("documents_entity_idx").on(t.entityType, t.entityId),
+    index("documents_lot_id_idx").on(t.lotId),
+    index("documents_syndicate_checksum_idx").on(t.syndicateId, t.checksum),
+    check("documents_source_chk", sql`${t.source} IN ('generated', 'upload')`),
+    check(
+      "documents_visibility_chk",
+      sql`${t.visibility} IS NULL OR ${t.visibility} IN ('syndic', 'council', 'owners', 'residents', 'unit', 'personal')`,
+    ),
+    check("documents_unit_lot_chk", sql`${t.visibility} IS DISTINCT FROM 'unit' OR ${t.lotId} IS NOT NULL`),
+    check("documents_personal_subject_chk", sql`${t.visibility} IS DISTINCT FROM 'personal' OR ${t.subjectUserId} IS NOT NULL`),
     index("documents_category_idx").on(t.category),
     index("documents_subject_user_id_idx").on(t.subjectUserId),
     index("documents_status_idx").on(t.status),
@@ -1141,6 +1170,11 @@ export const documentVersionsTable = pgTable(
     modifiedAt: timestamp("modified_at").defaultNow().notNull(),
     // Why this version was created (e.g. "Correction du montant", "Restauration v2")
     changeReason: text("change_reason"),
+    // File of that version (kept when the file is replaced)
+    fileName: text("file_name"),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes"),
+    checksum: text("checksum"),
     createdAt: createdAt(),
   },
   (t) => [

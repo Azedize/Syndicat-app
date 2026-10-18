@@ -11,6 +11,7 @@ import financeRouter from "./finance.js";
 import marketplaceRouter from "./marketplace.js";
 import chatRouter from "./chat.js";
 import documentsRouter from "./documents.js";
+import documentLibraryRouter from "./document-library.js";
 import publicationsRouter from "./publications.js";
 import contentRouter from "./content.js";
 import auditRouter from "./audit.js";
@@ -87,6 +88,9 @@ router.use(organizationsRouter);
 router.use(expensesRouter);
 router.use(marketplaceRouter);
 router.use(chatRouter);
+// Registered first: its /documents, /download-url and /versions replace the
+// former handlers of documents.ts.
+router.use(documentLibraryRouter);
 router.use(documentsRouter);
 router.use(publicationsRouter);
 router.use(contentRouter);

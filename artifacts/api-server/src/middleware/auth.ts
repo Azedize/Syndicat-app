@@ -96,7 +96,40 @@ function verifyRequestToken(req: Request, source: TokenSource): JwtPayload {
   } else if (isTicket) {
     throw new Error("Download tickets cannot be used as bearer tokens");
   }
+  if (payload.aud === DOCUMENT_LINK_AUDIENCE) {
+    throw new Error("Document links are not session tokens");
+  }
   return payload;
+}
+
+/** Audience of document download links (see signDocumentLink). */
+const DOCUMENT_LINK_AUDIENCE = "doc-link";
+export const DOCUMENT_LINK_TTL_SECONDS = 5 * 60;
+
+/**
+ * Download link for ONE document version and ONE person, valid a few
+ * minutes. It carries no role: the server re-checks the person's current
+ * access when the link is used, so revoking access also kills the link.
+ */
+export function signDocumentLink(input: { userId: string; documentId: string; version: number; versionId?: string }): string {
+  return jwt.sign(
+    { sub: input.userId, doc: input.documentId, v: input.version, ...(input.versionId ? { vid: input.versionId } : {}) },
+    getJwtSecret(),
+    { algorithm: JWT_ALGORITHM, audience: DOCUMENT_LINK_AUDIENCE, expiresIn: DOCUMENT_LINK_TTL_SECONDS },
+  );
+}
+
+export type DocumentLink = { userId: string; documentId: string; version: number; versionId?: string };
+
+/** Verifies a document link; the error says whether it expired. */
+export function verifyDocumentLink(raw: string): DocumentLink | "expired" | "invalid" {
+  try {
+    const p = jwt.verify(raw, getJwtSecret(), { algorithms: [JWT_ALGORITHM], audience: DOCUMENT_LINK_AUDIENCE }) as any;
+    if (typeof p.sub !== "string" || typeof p.doc !== "string" || typeof p.v !== "number") return "invalid";
+    return { userId: p.sub, documentId: p.doc, version: p.v, versionId: typeof p.vid === "string" ? p.vid : undefined };
+  } catch (err) {
+    return (err as Error)?.name === "TokenExpiredError" ? "expired" : "invalid";
+  }
 }
 
 /** Short-lived, read-only credential for URLs that cannot carry a header. */

@@ -150,3 +150,80 @@ export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback)
   const ct = ext === "png" ? "image/png" : "image/jpeg";
   return uploadUri(asset.uri, `camera-${Date.now()}.${ext}`, ct, onProgress);
 }
+
+
+// ─── Document library ─────────────────────────────────────────────────────────
+
+export interface PickedFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+  size: number | null;
+}
+
+/** Library limit (the server enforces it too, and checks the real content type). */
+export const MAX_LIBRARY_SIZE = 25 * 1024 * 1024;
+
+/** Lets the person choose a file, without sending it yet. */
+export async function pickLibraryFile(): Promise<PickedFile | undefined> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: [
+      "application/pdf",
+      "image/*",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain",
+      "text/csv",
+    ],
+    copyToCacheDirectory: true,
+  });
+  if (result.canceled || !result.assets?.[0]) return undefined;
+  const a = result.assets[0];
+  return { uri: a.uri, name: a.name ?? "document", mimeType: a.mimeType ?? "application/octet-stream", size: a.size ?? null };
+}
+
+/** Error from the server with its stable code (FILE_TOO_LARGE, DOCUMENT_DUPLICATE…). */
+export class LibraryUploadError extends Error {
+  constructor(message: string, public code?: string, public status?: number, public body?: any) {
+    super(message);
+  }
+}
+
+/**
+ * Sends the file and its metadata in one request: the document only exists
+ * (and is listed) once the server has stored the file AND saved the record.
+ * `path` is "/documents/upload" or "/documents/:id/file" (replacement).
+ */
+export async function sendLibraryFile(
+  path: string,
+  file: PickedFile,
+  fields: Record<string, string | undefined>,
+): Promise<any> {
+  if (file.size && file.size > MAX_LIBRARY_SIZE) {
+    throw new LibraryUploadError("Fichier trop volumineux (25 Mo maximum)", "FILE_TOO_LARGE", 413);
+  }
+  const token = await getToken();
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== "") form.append(k, v);
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(file.uri)).blob();
+    form.append("file", blob, file.name);
+  } else {
+    form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  } catch {
+    throw new LibraryUploadError("Connexion interrompue : le document n'a pas été enregistré. Réessayez.", "NETWORK");
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new LibraryUploadError((body as any).error ?? `Échec (${res.status})`, (body as any).code, res.status, body);
+  return body;
+}

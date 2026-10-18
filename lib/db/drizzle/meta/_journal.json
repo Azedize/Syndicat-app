@@ -57,6 +57,13 @@
       "when": 1792248526454,
       "tag": "0007_bank_statements",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792328600193,
+      "tag": "0008_document_library",
+      "breakpoints": true
     }
   ]
 }

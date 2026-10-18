@@ -15,6 +15,17 @@ export const CATEGORY_RETENTION_YEARS: Record<string, number> = {
   statuts: 10,         // bylaws / certificates — treated as long-lived legal docs
   reglements: 3,       // administrative / internal regulations — 3 years
   attestation: 3,      // attestations — 3 years
+  // Document library categories (uploaded files), aligned on the rules above.
+  // Internal policy values — not a legal review.
+  financier: 10,
+  contrat: 10,
+  assurance: 10,
+  technique: 10,
+  proces_verbal: 5,
+  administratif: 5,
+  maintenance: 5,
+  reglement: 3,
+  avis: 3,
 };
 
 /** Per-template overrides — takes priority over the category default when present. */

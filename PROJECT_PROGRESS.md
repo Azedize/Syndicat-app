@@ -450,3 +450,63 @@ période. Lignes de registre jamais comptabilisées (données héritées) marqu�
 - Les chiffres arrondis à l'unité du tableau de bord d'immeuble (héritage) sont
   conservés.
 - Pas de test sur appareil.
+
+## 2026-10-18 — Documents : bibliothèque, audiences, téléchargement sécurisé
+
+Constats et corrections de sécurité détaillés dans `SECURITY_LOG.md`.
+
+### Base (migration `0008_document_library`)
+- `documents` : `source` (generated / upload), `visibility`, `description`,
+  fiche liée (`entity_type`, `entity_id`), `lot_id`, métadonnées vérifiées du
+  fichier (`file_name`, `mime_type`, `size_bytes`, `checksum` SHA-256).
+- `document_versions` : métadonnées du fichier de chaque version.
+- Les documents générés existants gardent exactement leur audience (règle
+  dérivée : personnel s'ils concernent quelqu'un, résidents pour bail /
+  règlement, copropriétaires sinon).
+
+### Audiences (`lib/document-access.ts`)
+syndic · conseil · copropriétaires · résidents (avec locataires) · lot
+(propriétaires et locataires du lot) · personnel. Un document lié à une fiche
+garde sa propre audience : deux pièces d'une même fiche peuvent avoir des
+audiences différentes. Résidents : documents publiés uniquement.
+
+### API (`routes/document-library.ts`)
+- `POST /documents/upload` : titre, catégorie (administratif, procès-verbal,
+  financier, contrat, maintenance, règlement, avis, assurance, juridique,
+  technique, autre), description, audience, fiche liée, lot. Fichier stocké
+  puis fiche enregistrée en une transaction : le document n'apparaît qu'une
+  fois les deux réussis ; doublon (même contenu) signalé.
+- `GET /documents` : recherche, filtres (catégorie, statut, audience, source,
+  fiche liée, lot, dates), tris, pagination, compteurs par catégorie.
+- `GET /documents/:id/download-url` + `GET /documents/:id/file` : lien de
+  5 minutes par personne et par version, accès revérifié à l'usage.
+- `POST /documents/:id/file` : remplacement avec motif ; l'ancienne version
+  et son fichier sont conservés ; historique réservé à l'équipe.
+- Archivage / désarchivage ; suppression refusée pour une pièce justificative
+  (appel de fonds, écriture, dépense, sinistre, réclamation) ; purge refusée
+  avant la fin de conservation.
+- Accès aux autres fichiers selon la fiche qui les utilise
+  (`lib/file-access.ts`).
+
+### Mobile (Android / iOS)
+- Nouvel écran « Bibliothèque » (`app/bibliotheque.tsx`) : recherche,
+  catégories, tri, pagination, ouverture par lien personnel ; équipe : ajout,
+  remplacement, versions, archivage. Entrée dans le menu « Plus ».
+- L'écran Documents existant liste les documents générés.
+
+### Tests (exécutés le 2026-10-18, API de test 5055)
+- Nouvelle suite `documents-library:test` : 75/75 (dont panne de stockage
+  réelle sur une seconde instance).
+- auth 44/44, rbac 35/35, finance 35/35, documents 29/29 (règle « même
+  syndicat » remplacée : vérifie désormais le refus puis l'accès via avatar),
+  scénario 48/48 (historique de versions : 404 au lieu de 403 accepté),
+  lots 65/65, finance-workflow 89/89, parcours 135/135, copropriétés 62/62.
+- Migrations 0000→0008 sur base vierge (115 tables) ; `drizzle-kit check` OK ;
+  typecheck API et mobile ; bundles Android / iOS exportés.
+
+### Non fait / limites
+- Pas d'antivirus ; pas de stockage GCS testé ; pas de test sur appareil.
+- L'écran mobile ne propose pas l'audience « personnel » (API seulement) ni le
+  rattachement à une fiche depuis les autres écrans (filtre disponible).
+- Les liens de téléchargement des documents générés passent aussi par le
+  nouveau lien (plus d'URL GCS signée d'une heure).

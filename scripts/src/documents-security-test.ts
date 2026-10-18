@@ -125,7 +125,14 @@ async function main() {
     const file = `/storage${objectPath}`;
     const own = await get(file, tokenFor(owner));
     record("owner downloads own file with verified type", own.status === 200 && own.type.startsWith("image/png"), `status=${own.status} type=${own.type}`);
-    expectStatus("same-syndicate user may download", (await get(file, tokenFor(sameSyndicate))).status, 200);
+    // Same condominium is not an authorization: a file no record uses is the
+    // uploader's only; once used by a shared record (here the uploader's
+    // profile picture) the condominium can open it.
+    expectStatus("same-syndicate user cannot open a file no record uses", (await get(file, tokenFor(sameSyndicate))).status, 403);
+    const previousAvatar = owner.avatar;
+    await db.update(usersTable).set({ avatar: objectPath }).where(eq(usersTable.id, owner.id));
+    expectStatus("same-syndicate user opens it once it is a profile picture", (await get(file, tokenFor(sameSyndicate))).status, 200);
+    await db.update(usersTable).set({ avatar: previousAvatar }).where(eq(usersTable.id, owner.id));
     expectStatus("other syndicate denied", (await get(file, tokenFor(otherSyndicate))).status, 403);
     expectStatus("anonymous download denied", (await get(file)).status, 401);
     expectStatus("session token in URL denied", (await get(`${file}?token=${encodeURIComponent(tokenFor(owner))}`)).status, 401);

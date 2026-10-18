@@ -972,8 +972,9 @@ export const marketplace = {
 // ─── Documents ───────────────────────────────────────────────────────────────
 
 export const documents = {
+  // Generated documents (templates, signatures). Uploaded files: library.search.
   list: (params?: { category?: string; status?: string }) => {
-    const qs = new URLSearchParams();
+    const qs = new URLSearchParams({ source: "generated", limit: "200" });
     if (params?.category) qs.set("category", params.category);
     if (params?.status) qs.set("status", params.status);
     return request<{ data: unknown[] }>(`/documents?${qs}`);
@@ -2775,4 +2776,59 @@ export const organizations = {
     request<{ data: { id: string } }>(`/condominiums/${encodeURIComponent(syndicateId)}/memberships/${encodeURIComponent(membershipId)}`, {
       method: "DELETE",
     }),
+};
+
+
+// ─── Document library (uploaded files + generated documents) ─────────────────
+
+export type DocVisibility = "syndic" | "council" | "owners" | "residents" | "unit" | "personal";
+export interface LibraryDocument {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  status: string | null;
+  source: "generated" | "upload";
+  visibility: DocVisibility;
+  fileName: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  version: number | null;
+  documentNumber: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  lotId: string | null;
+  hasFile: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+export interface LibraryQuery {
+  q?: string;
+  category?: string;
+  sort?: "recent" | "oldest" | "title" | "-title" | "largest";
+  source?: "generated" | "upload";
+  entityType?: string;
+  entityId?: string;
+  includeArchived?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export const library = {
+  search: (q: LibraryQuery = {}) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== "" && v !== false) qs.set(k, String(v));
+    return request<{ data: LibraryDocument[]; total: number; page: number; pages: number; categories: { category: string; n: number }[] }>(`/documents?${qs}`);
+  },
+  link: (id: string, versionId?: string) =>
+    request<{ url: string; expiresIn: number; filename: string; mimeType?: string }>(
+      `/documents/${encodeURIComponent(id)}/download-url${versionId ? `?versionId=${encodeURIComponent(versionId)}` : ""}`,
+    ),
+  versions: (id: string) =>
+    request<{ data: { id: string; versionNumber: number; fileName: string | null; sizeBytes: number | null; changeReason: string | null; modifiedByName: string | null; modifiedAt: string; hasFile: boolean }[]; currentVersion: number }>(
+      `/documents/${encodeURIComponent(id)}/versions`,
+    ),
+  archive: (id: string, reason: string) =>
+    request<{ data: LibraryDocument }>(`/documents/${encodeURIComponent(id)}/archive`, { method: "POST", body: JSON.stringify({ reason }) }),
+  unarchive: (id: string) => request<{ data: LibraryDocument }>(`/documents/${encodeURIComponent(id)}/unarchive`, { method: "POST" }),
 };

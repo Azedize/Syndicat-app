@@ -18,37 +18,14 @@ import {
 } from "../lib/objectStorage.js";
 import { requireAuth, softAuth } from "../middleware/auth.js";
 import { verifyFileSignature } from "../lib/file-signature.js";
-import { canResidentSeeDocument } from "../lib/scope.js";
+import { canSeeDocument } from "../lib/document-access.js";
+import { canReadSharedObject } from "../lib/file-access.js";
 import { db } from "@workspace/db";
 import {
-  appelPaymentsTable,
-  appelsDeFondsTable,
   documentsTable,
-  expensesTable,
-  ledgerEntriesTable,
   storageObjectsTable,
-  transactionsTable,
 } from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
-
-/** Roles that review payment proofs and supplier invoices. */
-const FINANCE_PROOF_ROLES = ["syndicate_admin", "treasurer", "president", "committee_member"];
-
-/**
- * True when the object is a financial justification: a co-owner's payment
- * proof, a supplier invoice or a journal attachment. Those contain banking
- * and personal data, so they are not shared with the whole syndicate.
- */
-async function isFinancialProof(objectPath: string): Promise<boolean> {
-  const checks = await Promise.all([
-    db.select({ id: appelPaymentsTable.id }).from(appelPaymentsTable).where(eq(appelPaymentsTable.proofUrl, objectPath)).limit(1),
-    db.select({ id: appelsDeFondsTable.id }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.proofUrl, objectPath)).limit(1),
-    db.select({ id: expensesTable.id }).from(expensesTable).where(eq(expensesTable.proofUrl, objectPath)).limit(1),
-    db.select({ id: ledgerEntriesTable.id }).from(ledgerEntriesTable).where(eq(ledgerEntriesTable.proofUrl, objectPath)).limit(1),
-    db.select({ id: transactionsTable.id }).from(transactionsTable).where(eq(transactionsTable.proofUrl, objectPath)).limit(1),
-  ]);
-  return checks.some((rows) => rows.length > 0);
-}
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
 const LOCAL_UPLOADS_DIR = path.resolve(process.env.LOCAL_UPLOADS_DIR ?? "uploads");
@@ -324,8 +301,14 @@ router.post(
       return;
     }
     try {
-      const { name, size, contentType, documentCategory, documentTitle } =
-        parsed.data;
+      const { name, size, contentType, documentCategory } = parsed.data;
+      // Creating the document before its file exists listed documents with
+      // no file (and let any account create one): library files go through
+      // POST /documents/upload, which stores the file first.
+      if (documentCategory) {
+        res.status(410).json({ error: "Utilisez POST /documents/upload pour ajouter un document", code: "USE_DOCUMENT_UPLOAD" });
+        return;
+      }
       const uploadURL = await storage.getObjectEntityUploadURL();
       const objectPath = storage.normalizeObjectEntityPath(uploadURL);
 
@@ -338,26 +321,10 @@ router.post(
         size,
       });
 
-      let documentId: string | undefined;
-      if (documentCategory && req.user!.syndicateId) {
-        const [doc] = await db
-          .insert(documentsTable)
-          .values({
-            title: documentTitle ?? name,
-            category: documentCategory,
-            content: objectPath,
-            syndicateId: req.user!.syndicateId,
-            createdBy: req.user!.userId,
-          })
-          .returning();
-        documentId = doc.id;
-      }
-
       res.json({
         uploadURL,
         objectPath,
         metadata: { name, size, contentType },
-        documentId,
       });
     } catch (err) {
       req.log.error({ err }, "Error generating upload URL");
@@ -370,82 +337,11 @@ router.post(
 // After the client finishes uploading to GCS, call this to mark the document
 // as published and optionally update its title.
 
-router.patch(
-  "/storage/documents/:id/confirm",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    const id = String(req.params.id) as string;
-    const schema = z.object({
-      title: z.string().max(500).optional(),
-      status: z.enum(["published", "draft"]).optional(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const [doc] = await db
-        .select()
-        .from(documentsTable)
-        .where(eq(documentsTable.id, id));
-      if (!doc) {
-        res.status(404).json({ error: "Document introuvable" });
-        return;
-      }
-      if (
-        req.user!.role !== "super_admin" &&
-        (!req.user!.syndicateId || doc.syndicateId !== req.user!.syndicateId)
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-
-      const isSupervision =
-        req.user!.role === "super_admin" && req.query.supervision === "true";
-      if (req.user!.role === "super_admin" && !isSupervision) {
-        res.status(403).json({
-          error: "La supervision est requise pour confirmer un document.",
-          code: "SUPERVISION_REQUIRED",
-        });
-        return;
-      }
-
-      const isDocumentManager =
-        req.user!.role === "super_admin" ||
-        req.user!.role === "syndicate_admin" ||
-        req.user!.role === "secretary" ||
-        req.user!.role === "president";
-      const isOwner = doc.createdBy === req.user!.userId;
-      if (!isDocumentManager && !isOwner) {
-        res.status(403).json({
-          error:
-            "Seul le créateur ou un gestionnaire peut modifier ce document",
-        });
-        return;
-      }
-      if (parsed.data.status === "published" && !isDocumentManager) {
-        res.status(403).json({
-          error: "La publication est réservée aux gestionnaires de documents",
-        });
-        return;
-      }
-
-      const [updated] = await db
-        .update(documentsTable)
-        .set({
-          title: parsed.data.title ?? doc.title,
-          status: parsed.data.status ?? "published",
-        })
-        .where(eq(documentsTable.id, id))
-        .returning();
-      res.json({ data: updated });
-    } catch (err) {
-      req.log.error({ err }, "Error confirming upload");
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+router.patch("/storage/documents/:id/confirm", requireAuth, (_req: Request, res: Response) => {
+  // Retired: it published a document without checking that its file existed,
+  // and let a resident publish to the whole condominium.
+  res.status(410).json({ error: "Utilisez POST /documents/upload", code: "USE_DOCUMENT_UPLOAD" });
+});
 
 // ─── GET /storage/public-objects/* ───────────────────────────────────────────
 // Serve public assets (no auth required).
@@ -518,6 +414,8 @@ router.get(
           status: documentsTable.status,
           isDeleted: documentsTable.isDeleted,
           subjectUserId: documentsTable.subjectUserId,
+          visibility: documentsTable.visibility,
+          lotId: documentsTable.lotId,
         })
         .from(documentsTable)
         .where(
@@ -539,9 +437,6 @@ router.get(
         }
 
         const isOwner = ownedObject.ownerId === req.user.userId;
-        const isSameSyndicate =
-          !!ownedObject.syndicateId &&
-          ownedObject.syndicateId === req.user.syndicateId;
         const targetSyndicateId =
           typeof req.query.syndicateId === "string" &&
           req.query.syndicateId.trim()
@@ -555,20 +450,8 @@ router.get(
 
         if (
           !isOwner &&
-          !isSameSyndicate &&
-          !(req.user.role === "super_admin" && isSupervisedPlatformAccess)
-        ) {
-          res.status(403).json({ error: "Accès refusé" });
-          return;
-        }
-        // Same syndicate is not enough for a financial proof: only its
-        // uploader and the finance team may open it (a neighbour must never
-        // read a co-owner's bank transfer receipt).
-        if (
-          !isOwner &&
           !isSupervisedPlatformAccess &&
-          !FINANCE_PROOF_ROLES.includes(req.user.role) &&
-          (await isFinancialProof(objectPath))
+          !(await canReadSharedObject(req.user, ownedObject))
         ) {
           res.status(403).json({ error: "Accès refusé" });
           return;
@@ -591,19 +474,13 @@ router.get(
           req.user.role === "super_admin" &&
           req.query.supervision === "true" &&
           !!targetSyndicateId;
-        const canAccess = docs.some((doc) => {
-          if (doc.isDeleted) return false;
-          if (isSupervised && doc.syndicateId === targetSyndicateId) {
-            return true;
-          }
-          if (
-            !req.user!.syndicateId ||
-            doc.syndicateId !== req.user!.syndicateId
-          ) {
-            return false;
-          }
-          return canResidentSeeDocument(req.user!, doc);
-        });
+        let canAccess = false;
+        for (const doc of docs) {
+          if (doc.isDeleted) continue;
+          if (isSupervised && doc.syndicateId === targetSyndicateId) canAccess = true;
+          else if (req.user.role !== "super_admin" && (await canSeeDocument(req.user, doc))) canAccess = true;
+          if (canAccess) break;
+        }
         if (!canAccess) {
           res.status(403).json({ error: "Accès refusé" });
           return;
@@ -662,79 +539,13 @@ router.get(
   },
 );
 
-// ─── DELETE /storage/objects/:path ───────────────────────────────────────────
-// Delete a document + its GCS object. Admin or document owner only.
+// ─── DELETE /storage/documents/:id ───────────────────────────────────────────
+// Retired: it erased the document row and its file, bypassing legal retention
+// and the evidence of payments / claims. Documents are deleted logically with
+// DELETE /documents/:id (recycle bin, purge after retention only).
 
-router.delete(
-  "/storage/documents/:id",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    const id = String(req.params.id) as string;
-    try {
-      if (
-        req.user?.role === "super_admin" &&
-        req.query.supervision !== "true"
-      ) {
-        res.status(403).json({
-          error: "La supervision est requise pour supprimer un document.",
-          code: "SUPERVISION_REQUIRED",
-          hint: "Ajoutez ?supervision=true à la requête.",
-        });
-        return;
-      }
-      const [doc] = await db
-        .select()
-        .from(documentsTable)
-        .where(eq(documentsTable.id, id));
-      if (!doc) {
-        res.status(404).json({ error: "Document introuvable" });
-        return;
-      }
-      if (
-        req.user!.role !== "super_admin" &&
-        (!req.user!.syndicateId || doc.syndicateId !== req.user!.syndicateId)
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-      const isAdmin =
-        req.user!.role === "super_admin" ||
-        req.user!.role === "syndicate_admin";
-      const isOwner = doc.createdBy === req.user!.userId;
-      if (!isAdmin && !isOwner) {
-        res.status(403).json({ error: "Accès refusé" });
-        return;
-      }
-
-      // Delete the underlying file (GCS in prod, local filesystem in dev fallback)
-      // before removing the DB row, so we never leave an orphaned blob behind.
-      const objectPath = doc.content ?? "";
-      if (objectPath.startsWith("/objects/")) {
-        try {
-          await storage.deleteObjectEntity(objectPath);
-        } catch (err) {
-          req.log.warn(
-            { err, objectPath },
-            "GCS delete failed, trying local fallback",
-          );
-        }
-        const filename = path.basename(objectPath);
-        const localPath = path.join(LOCAL_UPLOADS_DIR, filename);
-        await fs.unlink(localPath).catch(() => {});
-      }
-
-      await db.delete(documentsTable).where(eq(documentsTable.id, id));
-      if (objectPath.startsWith("/objects/")) {
-        await db
-          .delete(storageObjectsTable)
-          .where(eq(storageObjectsTable.objectPath, objectPath));
-      }
-      res.json({ message: "Document supprimé" });
-    } catch (err) {
-      req.log.error({ err }, "Error deleting document");
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+router.delete("/storage/documents/:id", requireAuth, (_req: Request, res: Response) => {
+  res.status(410).json({ error: "Utilisez DELETE /documents/:id (suppression logique)", code: "USE_DOCUMENT_DELETE" });
+});
 
 export default router;
