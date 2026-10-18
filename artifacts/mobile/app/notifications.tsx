@@ -593,8 +593,10 @@ export default function NotificationsScreen() {
                     {
                       backgroundColor: colors.card,
                       borderColor: alert.read ? colors.border : c + "40",
-                      borderLeftWidth: alert.read ? 1 : 4,
-                      borderLeftColor: alert.read ? colors.border : c,
+                      borderLeftWidth: alert.read ? 1 : isRTL ? 0 : 4,
+                      borderRightWidth: alert.read ? 1 : isRTL ? 4 : 0,
+                      borderLeftColor: alert.read ? colors.border : isRTL ? colors.border : c,
+                      borderRightColor: alert.read ? colors.border : isRTL ? c : colors.border,
                     },
                   ]}
                   onPress={() => {
@@ -616,7 +618,10 @@ export default function NotificationsScreen() {
                       <Text
                         style={[
                           styles.notifTitle,
-                          { color: colors.foreground },
+                          {
+                            color: colors.foreground,
+                            textAlign: isRTL ? "right" : "left",
+                          },
                         ]}
                         numberOfLines={1}
                       >
@@ -631,7 +636,10 @@ export default function NotificationsScreen() {
                     <Text
                       style={[
                         styles.notifMsg,
-                        { color: colors.mutedForeground },
+                        {
+                          color: colors.mutedForeground,
+                          textAlign: isRTL ? "right" : "left",
+                        },
                       ]}
                       numberOfLines={2}
                     >

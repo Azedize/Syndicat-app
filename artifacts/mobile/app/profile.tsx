@@ -240,11 +240,11 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.heroName}>{user?.name}</Text>
           )}
-          <View style={styles.heroBadge}>
+          <View style={[styles.heroBadge, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <Feather name={roleIcon} size={11} color="rgba(255,255,255,0.9)" />
             <Text style={styles.heroBadgeText}>{roleLabel}</Text>
           </View>
-          <View style={styles.heroStatus}>
+          <View style={[styles.heroStatus, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <View style={styles.heroStatusDot} />
              <Text style={styles.heroStatusText}>{t("profileActiveAccount")}</Text>
           </View>
@@ -298,7 +298,7 @@ export default function ProfileScreen() {
 
           {/* Attestation CTA */}
           <TouchableOpacity
-            style={[styles.attestationBtn, { backgroundColor: colors.primary }]}
+            style={[styles.attestationBtn, { backgroundColor: colors.primary, flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={handleAttestation}
             activeOpacity={0.85}
           >
@@ -306,10 +306,10 @@ export default function ProfileScreen() {
               <Feather name="award" size={22} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.attestationTitle}>{t("profileDownloadCertificate")}</Text>
-              <Text style={styles.attestationSub}>{t("profileCertificateDescription")}</Text>
+              <Text style={[styles.attestationTitle, { textAlign: isRTL ? "right" : "left" }]}>{t("profileDownloadCertificate")}</Text>
+              <Text style={[styles.attestationSub, { textAlign: isRTL ? "right" : "left" }]}>{t("profileCertificateDescription")}</Text>
             </View>
-            <Feather name="download" size={18} color="rgba(255,255,255,0.8)" />
+            <Feather name={isRTL ? "download" : "download"} size={18} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
 
           {/* Info */}
@@ -319,12 +319,12 @@ export default function ProfileScreen() {
               {INFO_ROWS.map((row, i) => (
                 <View key={row.label}>
                   {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-                  <View style={styles.infoRow}>
+                  <View style={[styles.infoRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                     <View style={[styles.rowIcon, { backgroundColor: colors.primary + "15" }]}>
                       <Feather name={row.icon} size={14} color={colors.primary} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                      <Text style={[styles.rowLabel, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{row.label}</Text>
                       {editing && row.editable ? (
                         <TextInput
                           style={[styles.rowInput, { borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
@@ -333,7 +333,7 @@ export default function ProfileScreen() {
                           textAlignVertical="center"
                         />
                       ) : (
-                        <Text style={[styles.rowValue, { color: colors.foreground }]}>{row.value}</Text>
+                        <Text style={[styles.rowValue, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{row.value}</Text>
                       )}
                     </View>
                   </View>
