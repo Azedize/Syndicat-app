@@ -28,6 +28,7 @@ import { useToast } from "@/context/ToastContext";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
+import AllocationDetail from "@/components/AllocationDetail";
 import StatsStrip from "@/components/StatsStrip";
 import { ErrorState } from "@/components/DataState";
 import { ticketedUrl } from "@/services/api";
@@ -167,6 +168,7 @@ function ChargesScreenInner() {
   // never recomputed from the currently loaded page.
   const [stats, setStats] = useState({ total: 0, collected: 0, pending: 0, overdue: 0 });
   const [rejectModal, setRejectModal] = useState<Appel | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [uploadingProof, setUploadingProof] = useState(false);
 
@@ -797,6 +799,10 @@ function ChargesScreenInner() {
                   ) : null}
 
                   {/* Member actions */}
+                  <TouchableOpacity onPress={() => setDetailId(appel.id)} style={styles.receiptRow} accessibilityRole="button">
+                    <Feather name="info" size={13} color="#3b82f6" />
+                    <Text style={[styles.receiptText, { color: "#3b82f6" }]}>Détail du calcul</Text>
+                  </TouchableOpacity>
                   {(appel.status === "pending" ||
                     appel.status === "overdue" ||
                     appel.status === "rejected" ||
@@ -876,6 +882,8 @@ function ChargesScreenInner() {
           )}
         </ScrollView>
       )}
+
+      <AllocationDetail appelId={detailId} onClose={() => setDetailId(null)} />
 
       {/* Rejection reason modal (admin) */}
       <Modal

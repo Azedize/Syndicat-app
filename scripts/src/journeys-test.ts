@@ -20,6 +20,7 @@ import path from "node:path";
 import bcrypt from "bcryptjs";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { purgeAllocationsOfSyndicates } from "./test-cleanup.js";
 import {
   appelPaymentsTable,
   appelsDeFondsTable,
@@ -587,6 +588,7 @@ async function purgeSyndicates(ids: string[], emails: string[]) {
         .filter((v): v is string => !!v)
     : [];
   if (sids.length) {
+    await purgeAllocationsOfSyndicates(sids);
     await db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL mizan.ledger_maintenance = 'on'`);
       const list = sql.join(sids.map((s) => sql`${s}`), sql`, `);

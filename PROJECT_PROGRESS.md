@@ -593,3 +593,113 @@ rapport, validation, dépense).
   automatique des retards (indicateur seulement).
 - Push : envoyé seulement aux comptes ayant un jeton Expo ; la notification
   in-app est la référence.
+
+## 2026-10-18 — Répartition des charges (clés, calcul, corrections)
+
+### Audit de l'existant
+- Une seule règle : `POST /budgets/:id/generate-appels` répartissait le budget
+  de l'immeuble au prorata de `lots.tantiemes` (méthode du plus fort reste,
+  correcte), sans clé par catégorie ni enregistrement du calcul.
+- Les lots à 0 tantième étaient écartés sans être signalés.
+- Aucune répartition de dépense réelle vers les copropriétaires.
+
+### Base (migration `0010_allocation`)
+- `allocation_keys` + `allocation_key_versions` (méthode `shares` ou `equal`,
+  catégories couvertes, période d'effet, source de la règle, raison du
+  changement) + `allocation_key_shares` (un coefficient à 6 décimales, ou une
+  exclusion motivée, par lot de l'immeuble). Une version n'est jamais modifiée.
+- `allocations` (données complètes du calcul + empreinte, auteur, date,
+  statut finalisée / corrigée / annulée, lien vers la répartition corrigée),
+  `allocation_sources` (une source ne peut être répartie qu'une fois tant que
+  sa répartition est en vigueur), `allocation_lines` (coefficient, total des
+  coefficients, montant, ajustement d'arrondi, explication).
+- `appels_de_fonds.allocation_id` ; l'unicité (lot, période, type) ignore
+  désormais les appels annulés (une correction peut les remplacer).
+
+### Moteur (`lib/allocation.ts`, `lib/allocation-store.ts`)
+- Validation avant calcul :
+  - lot sans coefficient ni exclusion ;
+  - lot en double ;
+  - coefficient négatif ou mal formé ;
+  - lot d'un autre immeuble ou archivé ;
+  - exclusion sans motif ;
+  - parts égales avec un coefficient différent de 1 ;
+  - total des coefficients nul ;
+  - dates d'effet invalides ou hors période ;
+  - catégorie non couverte ;
+  - aucune clé ou plusieurs clés pour une catégorie ;
+  - dépense non approuvée ;
+  - ligne hors exercice ;
+  - source en double ou déjà répartie.
+
+  Les erreurs nomment le lot et la clé ; rien n'est omis ni remplacé par une
+  valeur par défaut.
+- Calcul exact (centimes et millionièmes en BigInt). Règle d'arrondi :
+  partie entière pour chaque lot, puis centimes restants aux plus grands
+  restes, à reste égal par numéro de lot. Chaque source se réconcilie au
+  centime ; la règle est enregistrée avec le calcul.
+- Prévisualisation → confirmation avec l'empreinte de la prévisualisation
+  (données changées entre-temps → 409 et nouveau calcul à revoir) et clé
+  d'idempotence. La confirmation enregistre tout et émet les appels par le
+  circuit existant (débiteurs figés, notifications) dans une seule
+  transaction : aucun appel en double sur une nouvelle tentative.
+- Nouvelle version d'une clé couvrant une période déjà finalisée : refusée
+  sans confirmation explicite ; rien n'est recalculé, les répartitions
+  concernées sont listées. Correction : l'originale reste (statut corrigée,
+  motif), ses appels non payés sont annulés, une nouvelle répartition avec
+  la version en vigueur les remplace. Annulation : appels annulés, rien n'est
+  supprimé. Les deux sont refusées dès qu'un paiement est déclaré ou validé.
+- `generate-appels` passe par le même moteur (clé implicite « tantièmes des
+  lots ») : calcul enregistré, lots à 0 tantième listés comme exclus.
+
+### API (`routes/allocation.ts`)
+`/allocation-keys` (liste, détail avec validation sur les lots actuels,
+création, nouvelle version, archivage — syndic), `/allocations/preview`,
+`/allocations` (confirmation — syndic et trésorier), `/allocations/:id`,
+`/allocations/:id/correct`, `/allocations/:id/reverse` (syndic),
+`/appels-de-fonds/:id/allocation` (détail du calcul pour les débiteurs de
+l'appel et l'équipe).
+
+### Mobile
+- « Répartition des charges » (`app/repartition.tsx`) : clés (un coefficient
+  ou une exclusion par lot, aucune valeur pré-remplie pour un nouveau lot),
+  nouvelle version, calcul (dépenses et lignes budgétaires), prévisualisation
+  ligne par ligne, confirmation, historique avec correction / annulation
+  (motif saisi).
+- Charges : « Détail du calcul » de chaque appel (`components/AllocationDetail.tsx`).
+
+### Tests (exécutés le 2026-10-18, API de test 5055)
+- Nouvelle suite `allocation:test` : 59/59.
+- auth 44/44, rbac 35/35, finance 35/35, documents 29/29, scénario 48/48,
+  lots 65/65, finance-workflow 89/89, bibliothèque 75/75, réclamations 65/65,
+  parcours 135/135, copropriétés 62/62.
+- Nettoyage des répartitions ajouté aux purges des suites (`test-cleanup.ts`).
+  Un premier passage de `units` avait laissé des lots et un compte de test
+  (purge interrompue par les nouvelles clés étrangères) : résidu supprimé,
+  base vérifiée.
+- Migrations 0000→0010 sur base vierge (125 tables) ; `drizzle-kit check` OK ;
+  typecheck API et mobile ; bundles Android / iOS exportés.
+
+### À faire valider contre le règlement de copropriété et la réglementation
+Aucune règle légale marocaine n'est codée ; ces choix techniques sont à
+confirmer par le syndic ou un juriste :
+1. Lots à 0 tantième : exclus des appels du budget global. La base ne
+   distingue pas « 0 voulu » de « non renseigné » (valeur par défaut 0).
+2. Montant d'une période : montant annuel ÷ 12 ou ÷ 4, arrondi au centime le
+   plus proche (montant du trimestre s'il est saisi). La somme des périodes
+   peut différer de l'annuel de quelques centimes.
+3. Règle d'arrondi (plus forts restes, départage par numéro de lot).
+4. Clé qui change en cours de période : la version en vigueur au premier jour
+   de la période s'applique à toute la période.
+5. Débiteurs : copropriétaires du lot le jour de l'émission.
+6. Après un paiement, aucune correction automatique : régularisation à
+   décider (non automatisée).
+7. Charges spéciales (ascenseur, chauffage…), lots concernés et
+   coefficients : à saisir d'après le règlement ; chaque clé en garde la
+   source (`sourceReference`).
+
+### Non fait / limites
+- Pas de régularisation automatique (appel complémentaire ou avoir) après un
+  paiement.
+- Pas d'import des tantièmes depuis un tableau ; saisie lot par lot.
+- Pas de test sur appareil.

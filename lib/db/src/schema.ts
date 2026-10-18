@@ -354,6 +354,8 @@ export const appelsDeFondsTable = pgTable(
     paymentMethod: text("payment_method"),
     proofUrl: text("proof_url"),
     notes: text("notes"),
+    // Allocation that computed this call (null for calls issued before it)
+    allocationId: text("allocation_id"),
     paidDate: text("paid_date"),
     receiptNumber: text("receipt_number"),
     rejectionReason: text("rejection_reason"),
@@ -369,8 +371,10 @@ export const appelsDeFondsTable = pgTable(
     index("appels_due_date_idx").on(t.dueDate),
     // Composite for financial report queries (building × period)
     index("appels_building_period_idx").on(t.buildingId, t.period),
-    // One call per lot, period and charge type — makes generation idempotent
-    uniqueIndex("appels_lot_period_type_uq").on(t.lotId, t.period, t.type),
+    // One live call per lot, period and charge type — makes generation
+    // idempotent; a cancelled call (correction) no longer blocks its successor.
+    uniqueIndex("appels_lot_period_type_uq").on(t.lotId, t.period, t.type).where(sql`${t.status} IS DISTINCT FROM 'cancelled'`),
+    index("appels_allocation_idx").on(t.allocationId),
     check(
       "appels_amount_paid_range",
       sql`${t.amountPaid} >= 0 AND ${t.amountPaid} <= ${t.amount}`,
@@ -3214,4 +3218,159 @@ export const claimNotificationsTable = pgTable(
     index("claim_notifications_status_idx").on(t.syndicateId, t.status),
     check("claim_notifications_status_chk", sql`${t.status} IN ('pending', 'sent', 'failed')`),
   ],
+);
+
+// ─── Charge allocation (clés de répartition) ─────────────────────────────────
+// A key says HOW an amount is shared between the lots of a building, for which
+// expense / budget categories, from which date. Its content lives in immutable
+// versions: a version used by a finalized allocation is never edited, a change
+// is a new version from a later date. An allocation is the persisted result
+// of one calculation (inputs, key versions, lines) and the calls for funds it
+// issued through the existing workflow (appels_de_fonds.allocation_id).
+
+export const allocationKeysTable = pgTable(
+  "allocation_keys",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "restrict" }),
+    // Short code, unique per building (e.g. GEN, ASC, ESC-B)
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    purpose: text("purpose"),
+    // active | archived
+    status: text("status").notNull().default("active"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("allocation_keys_code_uq").on(t.buildingId, sql`lower(${t.code})`),
+    check("allocation_keys_status_chk", sql`${t.status} IN ('active', 'archived')`),
+  ],
+);
+
+export const allocationKeyVersionsTable = pgTable(
+  "allocation_key_versions",
+  {
+    id: id(),
+    keyId: text("key_id").notNull().references(() => allocationKeysTable.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    // shares = each lot's explicit coefficient · equal = same share for each listed lot
+    method: text("method").notNull(),
+    // Budget-line / expense categories this key applies to
+    categories: text("categories").array().notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    // Set when a later version takes over (day before its start)
+    effectiveTo: date("effective_to"),
+    // Where the rule comes from (règlement de copropriété, décision d'AG…)
+    sourceReference: text("source_reference").notNull(),
+    changeReason: text("change_reason"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("allocation_key_versions_uq").on(t.keyId, t.version),
+    check("allocation_key_versions_method_chk", sql`${t.method} IN ('shares', 'equal')`),
+    check("allocation_key_versions_dates_chk", sql`${t.effectiveTo} IS NULL OR ${t.effectiveTo} >= ${t.effectiveFrom}`),
+  ],
+);
+
+/** One row per lot of the building: a coefficient, or an explicit exclusion with its reason. */
+export const allocationKeySharesTable = pgTable(
+  "allocation_key_shares",
+  {
+    id: id(),
+    versionId: text("version_id").notNull().references(() => allocationKeyVersionsTable.id, { onDelete: "restrict" }),
+    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "restrict" }),
+    // Up to 6 decimals; null when the lot is excluded
+    coefficient: numeric("coefficient", { precision: 18, scale: 6 }),
+    excluded: boolean("excluded").notNull().default(false),
+    exclusionReason: text("exclusion_reason"),
+  },
+  (t) => [
+    uniqueIndex("allocation_key_shares_uq").on(t.versionId, t.lotId),
+    check("allocation_key_shares_coef_chk", sql`${t.coefficient} IS NULL OR ${t.coefficient} >= 0`),
+    check(
+      "allocation_key_shares_excluded_chk",
+      sql`(${t.excluded} AND ${t.coefficient} IS NULL AND ${t.exclusionReason} IS NOT NULL) OR (NOT ${t.excluded} AND ${t.coefficient} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const allocationsTable = pgTable(
+  "allocations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "restrict" }),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "restrict" }),
+    // ALC-2026-000001
+    reference: text("reference").notNull(),
+    period: text("period").notNull(),
+    // Type of the calls for funds issued (charges_courantes, fonds_reserve, appel_special)
+    chargeType: text("charge_type").notNull(),
+    // finalized | corrected | reversed
+    status: text("status").notNull().default("finalized"),
+    totalAmount: money("total_amount").notNull(),
+    // Everything the calculation used (sources, key versions, coefficients,
+    // rounding rule): enough to reproduce it without reading live data.
+    inputs: jsonb("inputs").notNull(),
+    inputsHash: text("inputs_hash").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    // Correction: the allocation this one replaces
+    correctionOf: text("correction_of").references((): AnyPgColumn => allocationsTable.id, { onDelete: "restrict" }),
+    correctionReason: text("correction_reason"),
+    endedAt: timestamp("ended_at"),
+    endedBy: text("ended_by"),
+    endReason: text("end_reason"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("allocations_reference_uq").on(t.syndicateId, t.reference),
+    uniqueIndex("allocations_idempotency_uq").on(t.syndicateId, t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
+    index("allocations_building_period_idx").on(t.buildingId, t.period),
+    check("allocations_status_chk", sql`${t.status} IN ('finalized', 'corrected', 'reversed')`),
+  ],
+);
+
+/** A source (budget line for a period, or an expense) is allocated once while its allocation stands. */
+export const allocationSourcesTable = pgTable(
+  "allocation_sources",
+  {
+    id: id(),
+    allocationId: text("allocation_id").notNull().references(() => allocationsTable.id, { onDelete: "restrict" }),
+    // budget_line | budget_total | expense
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    // budget lines are allocated per period; expenses once ("-")
+    period: text("period").notNull(),
+    chargeType: text("charge_type").notNull(),
+    label: text("label").notNull(),
+    category: text("category"),
+    amount: money("amount").notNull(),
+    keyVersionId: text("key_version_id").references(() => allocationKeyVersionsTable.id, { onDelete: "restrict" }),
+    // false once the allocation is corrected / reversed (the source is free again)
+    active: boolean("active").notNull().default(true),
+  },
+  (t) => [
+    uniqueIndex("allocation_sources_active_uq").on(t.sourceType, t.sourceId, t.period, t.chargeType).where(sql`${t.active}`),
+    index("allocation_sources_allocation_idx").on(t.allocationId),
+  ],
+);
+
+export const allocationLinesTable = pgTable(
+  "allocation_lines",
+  {
+    id: id(),
+    allocationId: text("allocation_id").notNull().references(() => allocationsTable.id, { onDelete: "restrict" }),
+    sourceId: text("source_id").notNull().references(() => allocationSourcesTable.id, { onDelete: "restrict" }),
+    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "restrict" }),
+    coefficient: numeric("coefficient", { precision: 18, scale: 6 }).notNull(),
+    denominator: numeric("denominator", { precision: 24, scale: 6 }).notNull(),
+    amount: money("amount").notNull(),
+    // Cents added by the residual rule (0 or 0.01 per line)
+    roundingAdjustment: money("rounding_adjustment").notNull().default("0"),
+    explanation: text("explanation").notNull(),
+  },
+  (t) => [index("allocation_lines_allocation_lot_idx").on(t.allocationId, t.lotId)],
 );

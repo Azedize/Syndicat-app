@@ -11,6 +11,7 @@
 import jwt from "jsonwebtoken";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { purgeAllocationsOfPeriods } from "./test-cleanup.js";
 import {
   appelPaymentsTable,
   appelsDeFondsTable,
@@ -237,6 +238,7 @@ async function main() {
       ? await db.select({ id: appelPaymentsTable.id, entry: appelPaymentsTable.ledgerEntryId }).from(appelPaymentsTable).where(inArray(appelPaymentsTable.appelId, callIds))
       : [];
     const entryIds = payments.map((p) => p.entry).filter((v): v is string => !!v);
+    await purgeAllocationsOfPeriods(PERIODS);
     await db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL mizan.ledger_maintenance = 'on'`);
       if (entryIds.length) await tx.delete(transactionsTable).where(inArray(transactionsTable.ledgerEntryId, entryIds));

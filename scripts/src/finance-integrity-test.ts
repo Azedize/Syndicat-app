@@ -15,6 +15,7 @@
 import jwt from "jsonwebtoken";
 import { and, eq, gte, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { purgeAllocationsOfPeriods } from "./test-cleanup.js";
 import {
   appelPaymentsTable,
   appelsDeFondsTable,
@@ -384,6 +385,7 @@ async function main() {
         .set({ status: s.status, gracePeriodEnd: s.gracePeriodEnd, autoRenew: s.autoRenew })
         .where(eq(syndicateSubscriptionsTable.id, s.id));
     }
+    await purgeAllocationsOfPeriods([TEST_PERIOD, LIFECYCLE_PERIOD]);
     await db.delete(appelsDeFondsTable).where(inArray(appelsDeFondsTable.period, [TEST_PERIOD, LIFECYCLE_PERIOD]));
     await db.delete(storageObjectsTable).where(inArray(storageObjectsTable.objectPath, proofPaths));
     await db

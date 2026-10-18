@@ -22,6 +22,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { purgeAllocationsOfPeriods } from "./test-cleanup.js";
 import {
   alertsTable,
   appelPaymentsTable,
@@ -289,6 +290,7 @@ async function main() {
       if (runPayments.length) await tx.delete(appelPaymentsTable).where(inArray(appelPaymentsTable.id, runPayments.map((p) => p.id)));
       if (entryIds.length) await tx.delete(ledgerEntriesTable).where(inArray(ledgerEntriesTable.id, entryIds));
     });
+    await purgeAllocationsOfPeriods([PERIOD]);
     await db.delete(appelsDeFondsTable).where(eq(appelsDeFondsTable.period, PERIOD));
     if (ticketId) await db.delete(supportTicketsTable).where(eq(supportTicketsTable.id, ticketId));
     await db.delete(alertsTable).where(and(eq(alertsTable.syndicateId, "syn_residence_atlas"), gte(alertsTable.createdAt, startedAt)));

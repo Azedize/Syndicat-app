@@ -31,6 +31,8 @@ import {
 } from "../middleware/auth.js";
 import { assertUserCanAccessBuilding } from "../lib/scope.js";
 import { nextSequenceNumber } from "../lib/sequences.js";
+import { computeAllocation, loadSources } from "../lib/allocation.js";
+import { finalizeAllocation } from "../lib/allocation-store.js";
 import { createAlert, notifyUser } from "../lib/notify.js";
 import {
   FinanceError,
@@ -106,28 +108,6 @@ function periodsPerYear(period: string): number {
   return 1;
 }
 
-/**
- * Splits an amount in cents proportionally to tantièmes using the
- * largest-remainder method, so the sum of the shares always equals the total
- * exactly (no centime is created or lost by rounding).
- */
-export function splitByTantiemes(totalCents: number, tantiemes: number[]): number[] {
-  const weight = tantiemes.reduce((s, t) => s + t, 0);
-  if (weight <= 0) return tantiemes.map(() => 0);
-  const raw = tantiemes.map((t) => (totalCents * t) / weight);
-  const shares = raw.map(Math.floor);
-  let remainder = totalCents - shares.reduce((s, v) => s + v, 0);
-  const order = raw
-    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
-    .sort((a, b) => b.frac - a.frac);
-  for (const { i } of order) {
-    if (remainder <= 0) break;
-    shares[i] += 1;
-    remainder -= 1;
-  }
-  return shares;
-}
-
 /** Budget lifecycle: draft → submitted → approved (by AG) → closed. */
 const PRE_APPROVAL_BUDGET_STATUSES: string[] = ["draft", "submitted"];
 const APPROVED_BUDGET_STATUSES: string[] = ["approved", "closed"];
@@ -154,7 +134,7 @@ type OwnerLookupExecutor = Pick<typeof db, "select">;
  * no platform account — the transaction then stays unattributed rather than
  * violating the users foreign key.
  */
-async function resolveOwnerUserId(
+export async function resolveOwnerUserId(
   executor: OwnerLookupExecutor,
   ownerId: string | null,
   syndicateId: string,
@@ -778,83 +758,49 @@ router.post(
         });
       }
 
-      // Archived lots receive no new calls; a lot without tantièmes has no
-      // share of the charges (no 0 MAD call is issued to it).
-      const lots = await db
-        .select()
-        .from(lotsTable)
-        .where(
-          and(
-            eq(lotsTable.buildingId, budget.buildingId),
-            isNull(lotsTable.archivedAt),
-            sql`COALESCE(${lotsTable.tantiemes}, 0) > 0`,
-          ),
-        );
-
-      if (lots.length === 0)
-        return void res
-          .status(400)
-          .json({ error: "No lots found for this building" });
-
-      const totalTantiemes = lots.reduce((s, l) => s + (l.tantiemes ?? 0), 0);
-      if (totalTantiemes === 0)
-        return void res
-          .status(400)
-          .json({ error: "Lots have no tantiemes assigned" });
-
-      const annualAmount =
-        chargeType === "fonds_reserve"
-          ? (budget.fondsReserve ?? "0")
-          : (budget.chargesAmount ?? "0");
-      // The share of the annual budget depends on the period granularity:
-      // monthly (YYYY-MM) = 1/12, quarterly (YYYY-Qn) = 1/4, yearly = 1/1.
-      const periodCents = Math.round(
-        toCents(annualAmount) / periodsPerYear(period),
-      );
-      const shares = splitByTantiemes(
-        periodCents,
-        lots.map((lot) => lot.tantiemes ?? 0),
-      );
-
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
-
-      // Debtors of each call = the lot's co-owners right now (snapshot).
-      const owners = await currentOwnersOf(lots.map((l) => l.id));
-      const appels = lots.map((lot, i) => ({
-        buildingId: budget.buildingId,
-        budgetId: budget.id,
-        lotId: lot.id,
-        ownerId: lot.ownerId ?? null,
-        debtorMemberIds: (owners.get(lot.id) ?? []).map((o) => o.memberId),
+      // Same engine as the allocation module: the budget part is split by
+      // the lots' tantièmes (implicit key), the calculation is persisted
+      // (allocation + lines) and the calls are issued in one transaction.
+      // Lots at 0 tantième are listed as excluded, never silently dropped.
+      if (!building?.syndicateId) return void res.status(409).json({ error: "Immeuble sans syndicat" });
+      const { sources, errors: loadErrors } = await loadSources(
+        building.syndicateId,
+        budget.buildingId,
         period,
-        type: chargeType,
-        amount: (shares[i] / 100).toFixed(2),
-        dueDate: dueDate.toISOString().split("T")[0],
-        status: "pending" as const,
-      }));
-
-      // Idempotent: a lot receives at most one call per (period, type). The
-      // unique index appels_lot_period_type_uq makes concurrent requests safe.
-      const inserted = await db
-        .insert(appelsDeFondsTable)
-        .values(appels)
-        .onConflictDoNothing({
-          target: [
-            appelsDeFondsTable.lotId,
-            appelsDeFondsTable.period,
-            appelsDeFondsTable.type,
-          ],
-        })
-        .returning({ amount: appelsDeFondsTable.amount });
-
-      if (inserted.length === 0) {
-        return void res.status(409).json({
-          error: `Les appels de fonds ${chargeType} de la période ${period} existent déjà pour cet immeuble.`,
-          code: "APPELS_ALREADY_GENERATED",
+        [{ type: "budget_total", budgetId: budget.id, part: chargeType === "fonds_reserve" ? "fonds_reserve" : "charges" }],
+        { implicitTantiemes: true },
+      );
+      const computation = await computeAllocation(budget.buildingId, period, sources, loadErrors);
+      if (!computation.valid) {
+        return void res.status(400).json({
+          error: computation.errors[0]?.message ?? "Répartition impossible",
+          code: computation.errors[0]?.code ?? "ALLOCATION_INVALID",
+          errors: computation.errors,
         });
       }
-
+      let generated;
+      try {
+        generated = await db.transaction((tx) =>
+          finalizeAllocation(tx, {
+            syndicateId: building.syndicateId!,
+            buildingId: budget.buildingId,
+            period,
+            chargeType,
+            computation,
+            userId: user.userId,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof FinanceError && (err.code === "APPELS_ALREADY_GENERATED" || err.code === "SOURCE_ALREADY_ALLOCATED")) {
+          return void res.status(409).json({
+            error: `Les appels de fonds ${chargeType} de la période ${period} existent déjà pour cet immeuble.`,
+            code: "APPELS_ALREADY_GENERATED",
+          });
+        }
+        throw err;
+      }
+      const inserted = generated.appels;
+      const appels = inserted;
       const totalCents = inserted.reduce((s, a) => s + toCents(a.amount), 0);
 
       // Each owner is told about their own call (amount + due date).
@@ -895,6 +841,10 @@ router.post(
         total: totalCents / 100,
         count: inserted.length,
         skipped: appels.length - inserted.length,
+        allocationId: generated.allocation.id,
+        allocationReference: generated.allocation.reference,
+        // Lots without a share (0 tantième), shown instead of silently omitted
+        excludedLots: computation.excluded.map((e) => ({ lotId: e.lotId, lotNumber: e.lotNumber, reason: e.reason })),
       });
     } catch (e) {
       req.log.error(e);

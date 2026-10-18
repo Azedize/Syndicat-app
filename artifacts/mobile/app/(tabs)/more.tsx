@@ -107,6 +107,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       // Governance roles are also co-owners — they must see their personal cotisations and payment history.
       { labelKey: "paymentHistory",     icon: "dollar-sign", route: "/paiements",              color: "#10b981", roles: ["member", "syndicate_admin", "president", "treasurer", "committee_member"] },
       // FIX [M9]: president chairs AG where budget is voted — must have read-only access
+      { labelKey: "repartitionCharges", icon: "sliders",     route: "/repartition",            color: "#0f766e", roles: ["syndicate_admin", "treasurer", "president", "secretary", "committee_member"] },
       { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["syndicate_admin", "treasurer", "president"] },
       { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#1F5EFF", roles: ["syndicate_admin", "treasurer"] },
       { labelKey: "bonLivraison",       icon: "package",     route: "/bon-livraison",          color: "#f97316", roles: ["syndicate_admin", "treasurer"] },

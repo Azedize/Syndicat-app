@@ -8095,6 +8095,7 @@ export const TRANSLATIONS: Translations = {
   },
   offices: { fr: "Bureaux", en: "Offices", ar: "مكاتب", es: "Oficinas" },
   mixed: { fr: "Mixte", en: "Mixed", ar: "مختلط", es: "Mixto" },
+  repartitionCharges: { fr: "Répartition des charges", en: "Charge allocation", ar: "توزيع التكاليف", es: "Reparto de gastos" },
   bibliothequeDocs: { fr: "Bibliothèque de documents", en: "Document library", ar: "مكتبة الوثائق", es: "Biblioteca de documentos" },
   mesCoproprietes: { fr: "Mes copropriétés", en: "My condominiums", ar: "إقاماتي", es: "Mis comunidades" },
   portefeuilleSociete: { fr: "Portefeuille de la société", en: "Company portfolio", ar: "محفظة الشركة", es: "Cartera de la empresa" },

@@ -14,6 +14,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { purgeAllocationsOfSyndicates } from "./test-cleanup.js";
 import { otpTokensTable, syndicatesTable, usersTable } from "@workspace/db/schema";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
@@ -261,6 +262,7 @@ async function purge(ids: string[], orgs: string[], emails: string[], run: numbe
   const sids = ids.filter(Boolean);
   if (sids.length) {
     const list = sql.join(sids.map((s) => sql`${s}`), sql`, `);
+    await purgeAllocationsOfSyndicates(sids);
     await db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL mizan.ledger_maintenance = 'on'`);
       for (const q of [

@@ -117,7 +117,15 @@ pnpm --filter @workspace/scripts run condominiums:test
 pnpm --filter @workspace/scripts run finance-workflow:test
 pnpm --filter @workspace/scripts run documents-library:test
 pnpm --filter @workspace/scripts run claims:test
+pnpm --filter @workspace/scripts run allocation:test
 ```
+
+`allocation:test` crée sa copropriété (lots, budget approuvé, dépenses) et
+teste clés, prévisualisation, confirmation, corrections et annulations.
+
+L'API limite chaque adresse à 500 requêtes par minute : enchaînées sans pause,
+les dernières suites reçoivent des 429. Laisser une minute entre les suites
+lourdes (`documents-library`, `claims`, `allocation`) ou les lancer séparément.
 
 `claims:test` crée sa copropriété et passe tout le circuit des réclamations
 par l'API. Pour tester une panne de notification, il pose un trigger
