@@ -1,90 +1,101 @@
 /**
- * MIZAN Design System — Color Palette
+ * MIZAN Design System — Premium mobile color palette
  *
- * Primary brand colors align with the MIZAN logo:
- *   Deep navy (#0B1F3A) + Signal blue (#1F5EFF) + Teal (#20B8A6)
- *
- * All screens reference `useColors()` which selects the correct
- * light or dark palette based on the system/user theme preference.
+ * This palette keeps the existing brand direction while establishing a clearer
+ * semantic layer for surfaces, text hierarchy, and status tokens. The goal is
+ * to avoid arbitrary inline colors across screens while preserving the current
+ * dark/light architecture.
  */
 
 const colors = {
   light: {
-    text: "#0B1F3A",
+    text: "#0F172A",
     tint: "#1F5EFF",
 
-    /** Main page background — barely-there cool-blue tint on white */
-    background: "#F5F8FC",
-    foreground: "#0B1F3A",
+    /** Main background surfaces */
+    background: "#F4F7FB",
+    foreground: "#0F172A",
 
+    /** Primary surfaces */
     card: "#FFFFFF",
-    cardForeground: "#0B1F3A",
+    cardForeground: "#0F172A",
+    surface: "#FFFFFF",
+    surfaceElevated: "#F8FAFC",
+    surfaceMuted: "#EEF4FF",
 
-    /** Brand action blue — buttons, active nav, primary accents */
+    /** Semantic text hierarchy */
+    textSecondary: "#475569",
+    textMuted: "#64748B",
+
+    /** Brand colors */
     primary: "#1F5EFF",
     primaryForeground: "#FFFFFF",
+    secondary: "#EAF1FF",
+    secondaryForeground: "#183BBA",
 
-    /** Pale blue — chip backgrounds, secondary buttons */
-    secondary: "#EDF3FF",
-    secondaryForeground: "#1748C4",
-
-    muted: "#F1F5F9",
+    /** Utility surfaces */
+    muted: "#EEF2F7",
     mutedForeground: "#64748B",
+    accent: "#DCE9FF",
+    accentForeground: "#183BBA",
 
-    accent: "#DCE8FF",
-    accentForeground: "#1748C4",
-
+    /** States */
+    success: "#10B981",
+    successForeground: "#FFFFFF",
+    warning: "#E9A93A",
+    warningForeground: "#FFFFFF",
+    danger: "#EF4444",
     destructive: "#EF4444",
     destructiveForeground: "#FFFFFF",
-
-    border: "#E2E8F0",
-    input: "#E2E8F0",
-
-    success: "#20B8A6",
-    successForeground: "#FFFFFF",
-    warning: "#D9A441",
-    warningForeground: "#FFFFFF",
     info: "#3B82F6",
     infoForeground: "#FFFFFF",
+    disabled: "#CBD5E1",
+    focus: "#1F5EFF",
+
+    /** Borders and inputs */
+    border: "#DDE6F2",
+    input: "#E7EDF7",
   },
   dark: {
     text: "#EAF1FB",
     tint: "#8DB2FF",
 
-    /** Deep navy — mirrors the logo's dark background panel */
     background: "#081A31",
     foreground: "#EAF1FB",
 
-    /** Dark navy card surfaces */
     card: "#102B4D",
     cardForeground: "#EAF1FB",
+    surface: "#0F2340",
+    surfaceElevated: "#132C4F",
+    surfaceMuted: "#14305A",
 
-    /** Bright blue for visibility on dark — primary CTA on navy */
+    textSecondary: "#C8D7F0",
+    textMuted: "#9EB6D8",
+
     primary: "#4C7DFF",
     primaryForeground: "#FFFFFF",
-
-    /** Dark blue-navy — secondary surfaces */
     secondary: "#15375E",
     secondaryForeground: "#B9CCFF",
 
     muted: "#102642",
     mutedForeground: "#8EA5C4",
-
     accent: "#15375E",
     accentForeground: "#B9CCFF",
-
-    destructive: "#F87171",
-    destructiveForeground: "#FFFFFF",
-
-    border: "#27486D",
-    input: "#27486D",
 
     success: "#42D1BF",
     successForeground: "#FFFFFF",
     warning: "#E6BC61",
     warningForeground: "#FFFFFF",
+    danger: "#F87171",
+    destructive: "#F87171",
+    destructiveForeground: "#FFFFFF",
     info: "#60A5FA",
     infoForeground: "#FFFFFF",
+    disabled: "#475569",
+    focus: "#8DB2FF",
+
+    border: "#27486D",
+    input: "#1A3357",
   },
   radius: 12,
 };

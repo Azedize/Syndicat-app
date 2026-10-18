@@ -38,7 +38,7 @@ const ALERT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 export default function NotificationsScreen() {
   const colors = useColors();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const {
     notificationPreferences,
@@ -168,7 +168,11 @@ export default function NotificationsScreen() {
         ]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather
+            name={isRTL ? "arrow-right" : "arrow-left"}
+            size={22}
+            color={colors.foreground}
+          />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>
           {t("notificationsTitle")}
@@ -510,7 +514,10 @@ export default function NotificationsScreen() {
             <View
               style={[
                 styles.summaryRow,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                {
+                  backgroundColor: colors.surfaceElevated,
+                  borderColor: colors.border,
+                },
               ]}
             >
               {(["info", "warning", "success", "error"] as const).map(

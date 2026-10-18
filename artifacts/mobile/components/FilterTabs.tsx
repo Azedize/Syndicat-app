@@ -146,7 +146,7 @@ export default function FilterTabs({
       style={[
         styles.container,
         {
-          backgroundColor: colors.card,
+          backgroundColor: colors.surfaceElevated,
           borderBottomColor: colors.border,
           direction: isRTL ? "rtl" : "ltr",
         },

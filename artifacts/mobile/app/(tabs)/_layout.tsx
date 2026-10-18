@@ -91,7 +91,7 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
   const pb = Math.max(insets?.bottom ?? 0, 10);
 
   return (
-    <View style={[ts.bar, { borderTopColor: colors.border }]}>
+    <View style={[ts.bar, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
       {isIOS ? (
         <BlurView
           intensity={90}
@@ -100,7 +100,7 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
         />
       ) : (
         <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]}
         />
       )}
 
@@ -135,7 +135,9 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
               <View
                 style={[
                   ts.pill,
-                  focused && { backgroundColor: primary + "1e" },
+                  {
+                    backgroundColor: focused ? primary + "18" : colors.surfaceMuted,
+                  },
                 ]}
               >
                 <View style={{ position: "relative" }}>
@@ -151,7 +153,7 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
                 style={[
                   ts.label,
                   {
-                    color: focused ? primary : colors.mutedForeground,
+                    color: focused ? colors.foreground : colors.mutedForeground,
                     fontFamily: focused
                       ? "Inter_600SemiBold"
                       : "Inter_400Regular",

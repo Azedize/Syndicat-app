@@ -31,7 +31,10 @@ export default function StatCard({
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        {
+          backgroundColor: colors.surfaceElevated,
+          borderColor: colors.border,
+        },
       ]}
     >
       <View style={[styles.iconWrap, { backgroundColor: ic + "18" }]}>

@@ -68,9 +68,9 @@ export default function MizanFormField({
         style={[
           styles.inputRow,
           {
-            backgroundColor: colors.input + "22",
+            backgroundColor: disabled ? colors.surfaceMuted : colors.surfaceElevated,
             borderColor: stateColor,
-            opacity: disabled ? 0.55 : 1,
+            opacity: disabled ? 0.7 : 1,
           },
         ]}
       >

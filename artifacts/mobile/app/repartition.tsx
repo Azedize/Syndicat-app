@@ -201,7 +201,7 @@ function Inner() {
     try {
       const [k, l, a, e, b] = await Promise.all([
         apiRequest<{ data: any[] }>(`/allocation-keys?buildingId=${buildingId}`),
-        apiRequest<{ data: any[] }>(`/lots?buildingId=${buildingId}&limit=200&archived=include`)),
+        apiRequest<{ data: any[] }>(`/lots?buildingId=${buildingId}&limit=200&archived=include`),
         apiRequest<{ data: any[] }>(`/allocations?buildingId=${buildingId}`),
         canCompute ? apiRequest<{ data: any[] }>(`/expenses?limit=200`) : Promise.resolve({ data: [] }),
         canCompute ? apiRequest<{ data: any[] }>(`/budgets?buildingId=${buildingId}`) : Promise.resolve({ data: [] }),

@@ -63,7 +63,7 @@ export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { conversations, refreshConversations, deleteConversation, markConversationRead } = useData();
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
@@ -254,11 +254,11 @@ export default function ChatScreen() {
   ];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>{t("chatTitle")}</Text>
@@ -355,6 +355,7 @@ export default function ChatScreen() {
               style={[
                 styles.convRow,
                 {
+                  flexDirection: isRTL ? "row-reverse" : "row",
                   borderBottomColor: colors.border,
                   backgroundColor: c.unread > 0 ? colors.primary + "05" : "transparent",
                 },
