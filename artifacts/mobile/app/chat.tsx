@@ -425,7 +425,7 @@ export default function ChatScreen() {
           <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.card, margin: 16 }]}>
             <Feather name="search" size={16} color={colors.mutedForeground} />
             <TextInput
-              style={[styles.searchInput, { color: colors.foreground }]}
+              style={[styles.searchInput, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
               placeholder={t("searchConversations")}
               placeholderTextColor={colors.mutedForeground}
               value={contactSearch}
@@ -452,7 +452,13 @@ export default function ChatScreen() {
               {filteredContacts.map((contact) => (
                 <TouchableOpacity
                   key={contact.id}
-                  style={[styles.contactRow, { borderBottomColor: colors.border }]}
+                  style={[
+                    styles.contactRow,
+                    {
+                      borderBottomColor: colors.border,
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                    },
+                  ]}
                   onPress={() => handleStartConversation(contact)}
                   disabled={!!creatingConv}
                 >
@@ -466,8 +472,8 @@ export default function ChatScreen() {
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.contactName, { color: colors.foreground }]}>{contact.name}</Text>
-                    <Text style={[styles.contactRole, { color: colors.mutedForeground }]}>
+                    <Text style={[styles.contactName, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{contact.name}</Text>
+                    <Text style={[styles.contactRole, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
                       {contact.role === "syndicate_admin"
                         ? t("roleSyndicAdmin")
                         : contact.role === "super_admin"
@@ -518,11 +524,11 @@ export default function ChatScreen() {
                 <Text style={[styles.formLabel, { color: colors.foreground }]}>
                   {t("members")} ({selectedContacts.length})
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
                   {selectedContacts.map((c) => (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.selectedChip, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40" }]}
+                      style={[styles.selectedChip, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40", flexDirection: isRTL ? "row-reverse" : "row" }]}
                       onPress={() => toggleContact(c)}
                     >
                       <Text style={[styles.selectedChipText, { color: colors.primary }]}>{c.name.split(" ")[0]}</Text>
