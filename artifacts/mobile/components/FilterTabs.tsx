@@ -1,10 +1,10 @@
 /**
- * FilterTabs — full-width segmented tab bar with a fixed height (44 px).
+ * FilterTabs — full-width segmented control (44 px track).
  *
  * Unlike FilterChips (scrollable, pill-shaped), FilterTabs:
  *   - fills the entire container width using flex: 1 per tab
  *   - never changes width when labels or counts change
- *   - shows an animated bottom-border active indicator
+ *   - shows the active tab as a raised segment on a muted track
  *
  * Usage:
  *   const TABS = [
@@ -26,6 +26,7 @@ import {
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
+import { FONT } from "@/constants/typography";
 
 export interface TabOption {
   key: string;
@@ -53,30 +54,47 @@ function Tab({
   onPress: () => void;
 }) {
   const colors = useColors();
-  const underlineAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(underlineAnim, {
+    Animated.timing(anim, {
       toValue: active ? 1 : 0,
       duration: 180,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [active]);
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
       style={styles.tab}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
+      accessibilityLabel={opt.count ? `${opt.label} (${opt.count})` : opt.label}
     >
+      {/* Active segment: a raised surface that fades in under the label */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.segment,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            opacity: anim,
+            transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }],
+          },
+        ]}
+      />
       {/* Label row — fixed single line, never wraps */}
       <View style={styles.labelRow}>
         <Text
           style={[
             styles.label,
-            { color: active ? accentColor : colors.mutedForeground },
+            {
+              color: active ? colors.foreground : colors.textMuted,
+              fontFamily: active ? FONT.semibold : FONT.medium,
+            },
           ]}
           numberOfLines={1}
         >
@@ -86,47 +104,21 @@ function Tab({
           <View
             style={[
               styles.badge,
-              {
-                backgroundColor: active
-                  ? accentColor
-                  : colors.mutedForeground + "33",
-              },
+              { backgroundColor: active ? accentColor : colors.border },
             ]}
           >
             <Text
               style={[
                 styles.badgeText,
-                {
-                  color: active
-                    ? colors.primaryForeground
-                    : colors.mutedForeground,
-                },
+                { color: active ? colors.primaryForeground : colors.textSecondary },
               ]}
+              allowFontScaling={false}
             >
               {opt.count > 99 ? "99+" : opt.count}
             </Text>
           </View>
         ) : null}
       </View>
-
-      {/* Animated bottom indicator */}
-      <Animated.View
-        style={[
-          styles.indicator,
-          {
-            backgroundColor: accentColor,
-            opacity: underlineAnim,
-            transform: [
-              {
-                scaleX: underlineAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
     </TouchableOpacity>
   );
 }
@@ -146,40 +138,51 @@ export default function FilterTabs({
       style={[
         styles.container,
         {
-          backgroundColor: colors.surfaceElevated,
-          borderBottomColor: colors.border,
+          backgroundColor: colors.background,
           direction: isRTL ? "rtl" : "ltr",
         },
       ]}
+      accessibilityRole="tablist"
     >
-      {options.map((opt) => (
-        <Tab
-          key={opt.key}
-          opt={opt}
-          active={value === opt.key}
-          accentColor={resolvedAccentColor}
-          onPress={() => {
-            Haptics.selectionAsync();
-            onChange(opt.key);
-          }}
-        />
-      ))}
+      <View style={[styles.track, { backgroundColor: colors.surfaceMuted }]}>
+        {options.map((opt) => (
+          <Tab
+            key={opt.key}
+            opt={opt}
+            active={value === opt.key}
+            accentColor={resolvedAccentColor}
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {});
+              onChange(opt.key);
+            }}
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: SPACING.LG,
+    paddingVertical: SPACING.SM,
+  },
+  track: {
     flexDirection: "row",
     height: 44,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.MD,
+    padding: 3,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
-    position: "relative",
+  },
+  segment: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: RADIUS.SM + 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   labelRow: {
     flexDirection: "row",
@@ -188,8 +191,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: TYPOGRAPHY.MD,
-    fontFamily: "Inter_600SemiBold",
     textAlign: "center",
+    flexShrink: 1,
   },
   badge: {
     minWidth: 18,
@@ -201,15 +204,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FONT.bold,
     textAlign: "center",
-  },
-  indicator: {
-    position: "absolute",
-    bottom: 0,
-    left: 8,
-    right: 8,
-    height: 2,
-    borderRadius: RADIUS.SM,
   },
 });
