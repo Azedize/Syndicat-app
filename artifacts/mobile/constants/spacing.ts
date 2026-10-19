@@ -54,4 +54,25 @@ export const TYPOGRAPHY = {
   XL: 20,
   /** 24 px — hero numbers */
   XXL: 24,
+  /** 32 px — display figures (one per screen at most) */
+  DISPLAY: 32,
+} as const;
+
+/** Heights of interactive controls (touch targets ≥ 44 px). */
+export const CONTROL = {
+  /** Compact button / chip */
+  SM: 36,
+  /** Default button, segmented control */
+  MD: 48,
+  /** Text input, primary call to action */
+  LG: 54,
+  /** Minimum touch target (Apple HIG 44 pt, Material 48 dp) */
+  HIT: 44,
+} as const;
+
+/** Icon sizes. */
+export const ICON = {
+  SM: 16,
+  MD: 20,
+  LG: 24,
 } as const;
