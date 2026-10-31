@@ -23,10 +23,10 @@ import {
   alertsTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, or, sql } from "drizzle-orm";
-import { createAlert, sendEmail, sendPushToUsers } from "./notify.js";
-import { logger } from "./logger.js";
-import { scheduleJob } from "./scheduler.js";
-import { localToday } from "./charge-time.js";
+import { createAlert, sendEmail, sendPushToUsers } from "../lib/notify.js";
+import { logger } from "../lib/logger.js";
+import { scheduleJob } from "../lib/scheduler.js";
+import { localToday } from "../lib/charge-time.js";
 
 const REMINDER_THRESHOLDS_DAYS = [7, 3, 1] as const;
 

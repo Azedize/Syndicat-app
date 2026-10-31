@@ -18,12 +18,12 @@
 import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db/schema";
 import { and, eq, lt, isNotNull } from "drizzle-orm";
-import { logger } from "./logger.js";
-import { systemAuditLog } from "./audit.js";
-import { deleteDocumentFromGcs } from "./documentPdf.js";
-import { createAlert } from "./notify.js";
-import { expiryBucket } from "./retention.js";
-import { scheduleJob } from "./scheduler.js";
+import { logger } from "../lib/logger.js";
+import { systemAuditLog } from "../lib/audit.js";
+import { deleteDocumentFromGcs } from "../lib/documentPdf.js";
+import { createAlert } from "../lib/notify.js";
+import { expiryBucket } from "../lib/retention.js";
+import { scheduleJob } from "../lib/scheduler.js";
 
 const PURGE_GRACE_DAYS = Number(process.env.DOCUMENT_PURGE_GRACE_DAYS ?? 30);
 const DRY_RUN = process.env.DOCUMENT_PURGE_DRY_RUN !== "false"; // default: dry-run (safe)

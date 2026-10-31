@@ -18,10 +18,10 @@
 import { db } from "@workspace/db";
 import { documentsTable, usersTable } from "@workspace/db/schema";
 import { and, eq, isNotNull, lt, lte } from "drizzle-orm";
-import { logger } from "./logger.js";
-import { systemAuditLog } from "./audit.js";
-import { createAlert, sendEmailToMany } from "./notify.js";
-import { scheduleJob } from "./scheduler.js";
+import { logger } from "../lib/logger.js";
+import { systemAuditLog } from "../lib/audit.js";
+import { createAlert, sendEmailToMany } from "../lib/notify.js";
+import { scheduleJob } from "../lib/scheduler.js";
 
 const THRESHOLDS = [30, 15, 7, 1] as const;
 

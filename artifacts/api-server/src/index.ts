@@ -2,16 +2,16 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { validateAuthConfig } from "./middleware/auth.js";
-import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
+import { startContractExpiryScheduler } from "./jobs/contract-expiry.js";
 import { startFundsCallsScheduler } from "./lib/funds-calls.js";
-import { startElectionReminderScheduler } from "./lib/election-reminders.js";
-import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
-import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
-import { startDocumentExpiryScheduler } from "./lib/document-expiry-job.js";
-import { startSubscriptionReminderScheduler } from "./lib/subscription-reminders.js";
-import { startOtpRetentionScheduler } from "./lib/otp-retention.js";
+import { startElectionReminderScheduler } from "./jobs/election-reminders.js";
+import { startMandateExpiryScheduler } from "./jobs/mandate-expiry.js";
+import { startDocumentRetentionScheduler } from "./jobs/document-retention.js";
+import { startDocumentExpiryScheduler } from "./jobs/document-expiry.js";
+import { startSubscriptionReminderScheduler } from "./jobs/subscription-reminders.js";
+import { startOtpRetentionScheduler } from "./jobs/otp-retention.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
-import { zimSendConfigProblems } from "./lib/zimsend.service.js";
+import { zimSendConfigProblems } from "./integrations/zimsend.service.js";
 
 // Fail fast on missing auth config — do not wait for first request
 validateAuthConfig();

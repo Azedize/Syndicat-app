@@ -1,9 +1,9 @@
 import { db } from "@workspace/db";
 import { electionsTable, voteReceiptsTable, usersTable, membersTable, lotsTable, tenantsTable } from "@workspace/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { createAlert, sendPushToUsers } from "./notify.js";
-import { logger } from "./logger.js";
-import { scheduleJob } from "./scheduler.js";
+import { createAlert, sendPushToUsers } from "../lib/notify.js";
+import { logger } from "../lib/logger.js";
+import { scheduleJob } from "../lib/scheduler.js";
 
 /** Reminder thresholds, in whole days remaining before an election's voting closes. */
 const THRESHOLDS = [3, 1];

@@ -307,7 +307,10 @@ async function main() {
   // so we check indirectly: transitions that are documented to call createAlert() succeeded
   // without throwing (500), which is the same code path that inserts alert rows + fires push/email.
   record("S9.transitions_no_error", "All notification-triggering transitions (announce/approve/open/close/publish) completed without server error across scenarios 1,4,5,6", true, "verified via absence of 500s in S1/S4/S5/S6 transition calls above");
-  record("S9.closing_soon_reminder_code", "Closing-soon reminder scheduler exists (3/1 day thresholds, dedup via remindersSent)", true, "static: artifacts/api-server/src/lib/election-reminders.ts — not exercised live (requires real-time date proximity + scheduler tick)");
+  // Static check of the scheduler source (not exercised live: it needs a real-time date proximity and a scheduler tick).
+  const reminderSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../../artifacts/api-server/src/jobs/election-reminders.ts", import.meta.url), "utf8")).catch(() => "");
+  const reminderOk = /const THRESHOLDS = \[3, 1\]/.test(reminderSrc) && /remindersSent/.test(reminderSrc) && /export function startElectionReminderScheduler/.test(reminderSrc);
+  record("S9.closing_soon_reminder_code", "Closing-soon reminder scheduler exists (3/1 day thresholds, dedup via remindersSent)", reminderOk, reminderSrc ? "static: artifacts/api-server/src/jobs/election-reminders.ts — not exercised live" : "jobs/election-reminders.ts not found");
 
   // ═══════════════════════════════════════════════════════════════════════
   // Summary

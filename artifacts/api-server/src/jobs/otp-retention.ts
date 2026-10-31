@@ -1,8 +1,8 @@
 import { db } from "@workspace/db";
 import { otpTokensTable } from "@workspace/db/schema";
 import { lt } from "drizzle-orm";
-import { logger } from "./logger.js";
-import { scheduleJob } from "./scheduler.js";
+import { logger } from "../lib/logger.js";
+import { scheduleJob } from "../lib/scheduler.js";
 
 const OTP_RETENTION_MS = 2 * 60 * 60 * 1_000;
 const OTP_CLEANUP_INTERVAL_MS = 60 * 60 * 1_000;

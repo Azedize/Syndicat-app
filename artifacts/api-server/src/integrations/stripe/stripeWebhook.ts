@@ -6,8 +6,8 @@ import {
 } from "@workspace/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getStripeClient, getStripeWebhookSecret } from "./stripeClient.js";
-import { finalizeSuccessfulPayment } from "../modules/subscriptions/subscriptions.service.js";
-import { logger } from "./logger.js";
+import { finalizeSuccessfulPayment } from "../../modules/subscriptions/subscriptions.service.js";
+import { logger } from "../../lib/logger.js";
 
 function asUnixDate(value: number | null | undefined): Date | undefined {
   return typeof value === "number" && Number.isFinite(value)

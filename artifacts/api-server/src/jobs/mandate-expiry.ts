@@ -1,10 +1,10 @@
 import { db } from "@workspace/db";
 import { conseilSyndicalTable } from "@workspace/db/schema";
 import { eq, and, lte } from "drizzle-orm";
-import { createAlert, sendPushToUsers } from "./notify.js";
-import { logger } from "./logger.js";
-import { scheduleJob } from "./scheduler.js";
-import { localToday } from "./charge-time.js";
+import { createAlert, sendPushToUsers } from "../lib/notify.js";
+import { logger } from "../lib/logger.js";
+import { scheduleJob } from "../lib/scheduler.js";
+import { localToday } from "../lib/charge-time.js";
 
 function todayStr(): string {
   return localToday();

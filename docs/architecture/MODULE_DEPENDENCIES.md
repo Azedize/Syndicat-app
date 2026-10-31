@@ -32,21 +32,30 @@ Mesures faites le 31/10/2026 avec un analyseur d'imports (imports statiques, `re
 
 À surveiller : `components → services` (7) et `app → services` (54) mélangent l'interface et les appels API. La migration par fonctionnalité les déplace vers `features/<f>/api.ts`.
 
-## API (105 fichiers)
+## API (109 fichiers)
 - **Cycles d'import : 0.**
-- **Avant le pilote :**
+- **Avant la restructuration :**
   - `lib → routes` : 1 (`stripeWebhook` → `routes/subscriptions`) ;
   - `routes → routes` hors index : 4.
-- **Après le pilote :**
+- **Maintenant :**
   - `lib → routes` : 0 ;
-  - `routes → routes` hors index : 2 (`allocation → budget`, `documents → document-library`), prévus aux étapes 1 et 2.
+  - `routes → routes` hors index : 0. Les 49 imports « routes → routes » sont les enregistrements de `routes/index.ts`.
 
 | Depuis → vers | Imports |
 |---|---|
-| routes → lib | 192 |
-| lib → lib | 77 |
-| routes → middleware | 52 |
-| index.ts → lib | 11 |
+| routes → lib | 169 |
+| routes → middleware | 49 |
+| lib → lib | 47 |
+| jobs → lib | 26 |
+| modules → lib | 23 |
+| index.ts → jobs | 7 |
+| routes → modules | 7 (services partagés : abonnement, budget, bibliothèque) |
+| routes → integrations | 3 |
+| integrations → modules | 1 (webhook Stripe → service d'abonnement) |
+
+## Mobile, après la migration du Marché et des Notifications (223 fichiers)
+- 0 cycle ; 0 import d'une fonctionnalité vers une autre (les 7 imports `features → features` sont internes).
+- `app → services` : 54 → 49 ; `components → services` : 7 → 6. Les écrans du marché importent `features/marketplace/api`.
 
 ## Graphe simplifié
 ```text

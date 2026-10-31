@@ -1,9 +1,9 @@
 import { db } from "@workspace/db";
 import { buildingsTable, contratsPrestatairesTable, prestatairesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { createAlert } from "./notify.js";
-import { logger } from "./logger.js";
-import { scheduleJob } from "./scheduler.js";
+import { createAlert } from "../lib/notify.js";
+import { logger } from "../lib/logger.js";
+import { scheduleJob } from "../lib/scheduler.js";
 
 const THRESHOLDS = [60, 30, 7];
 

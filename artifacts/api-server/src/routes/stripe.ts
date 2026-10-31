@@ -9,7 +9,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { getStripeClient } from "../lib/stripeClient.js";
+import { getStripeClient } from "../integrations/stripe/stripeClient.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();

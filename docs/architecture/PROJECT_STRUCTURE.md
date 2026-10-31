@@ -1,6 +1,8 @@
 # Structure du projet
 
-État au 31/10/2026, après le pilote de restructuration (Marché côté mobile, Abonnements côté API).
+État au 31/10/2026, après la deuxième étape de restructuration :
+- mobile : Marché, Notifications ;
+- API : Abonnements, Budget, Bibliothèque de documents, jobs, intégrations.
 Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
 
 ```text
@@ -12,10 +14,15 @@ zip-repl/
 │   │   │   ├── admin/             Écrans super admin
 │   │   │   └── *.tsx              Autres écrans (≈110)
 │   │   ├── features/              Fonctionnalités autonomes (cible de la migration)
-│   │   │   └── marketplace/
-│   │   │       ├── api.ts         Endpoints du marché
-│   │   │       ├── catalog.ts     Catégories, états, libellés
-│   │   │       └── components/    ProductCard, ResidenceMarket, DiscoverDeck
+│   │   │   ├── marketplace/
+│   │   │   │   ├── api.ts         Endpoints du marché
+│   │   │   │   ├── catalog.ts     Catégories, états, libellés
+│   │   │   │   └── components/    ProductCard, ResidenceMarket, DiscoverDeck
+│   │   │   └── notifications/
+│   │   │       ├── api.ts         Alertes, lecture, préférences, jeton push
+│   │   │       ├── components/    NotificationManager (pont bus → toasts)
+│   │   │       ├── hooks/         usePushNotifications (inscription, ouverture d'une notification)
+│   │   │       └── tasks/         Tâche de fond (notification reçue app fermée)
 │   │   ├── components/            Composants partagés
 │   │   │   ├── ui/                Design system (Button, Card, Skeleton, TextField…)
 │   │   │   ├── theme/             ThemeSwitcher, ThemeSwitchingArea
@@ -26,10 +33,9 @@ zip-repl/
 │   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
 │   │   │   └── index.ts           Endpoints des domaines pas encore migrés
 │   │   ├── context/               Providers : Auth, Data, Theme, Language, Toast…
-│   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions…)
+│   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions, bus de notifications…)
 │   │   ├── constants/             Jetons de design (couleurs, espacements, typo, motion), menu
 │   │   ├── lib/                   Utilitaires sans UI (dates, médias, upload, transport de connexion)
-│   │   ├── tasks/                 Tâche de fond (notifications)
 │   │   ├── assets/                Ressources statiques : brand/, images/, intro/
 │   │   ├── server/                Serveur statique du build web
 │   │   ├── scripts/build.js       Build web
@@ -40,13 +46,22 @@ zip-repl/
 │       │   ├── index.ts           Démarrage : port, jobs planifiés
 │       │   ├── app.ts             Express : CORS, sécurité, limites, routes
 │       │   ├── modules/           Modules métier (cible de la migration)
-│       │   │   └── subscriptions/
-│       │   │       ├── subscriptions.routes.ts    Endpoints HTTP
-│       │   │       ├── subscriptions.service.ts   Statut, moyens de paiement, finalisation, essai
-│       │   │       └── subscriptions.access.ts    Périmètre (syndicat, supervision)
-│       │   ├── routes/            Endpoints des domaines pas encore migrés (52) + index.ts
+│       │   │   ├── subscriptions/
+│       │   │   │   ├── subscriptions.routes.ts    Endpoints HTTP
+│       │   │   │   ├── subscriptions.service.ts   Statut, moyens de paiement, finalisation, essai
+│       │   │   │   └── subscriptions.access.ts    Périmètre (syndicat, supervision)
+│       │   │   ├── budget/
+│       │   │   │   ├── budget.routes.ts           Budgets, appels de fonds, paiements, reçus
+│       │   │   │   └── budget.service.ts          reconcileBudgetAmounts, resolveOwnerUserId
+│       │   │   └── document-library/
+│       │   │       ├── document-library.routes.ts Dépôt, liste, téléchargement, versions, archivage
+│       │   │       └── document-library.service.ts assertDeletable (pièce justificative)
+│       │   ├── routes/            Endpoints des domaines pas encore migrés (49) + index.ts
+│       │   ├── jobs/              Tâches planifiées : échéances (contrats, mandats, documents),
+│       │   │                      rappels (élections, abonnements), rétention (documents, OTP)
+│       │   ├── integrations/      Fournisseurs externes : stripe/ (client, webhook), zimsend (SMS)
 │       │   ├── middleware/        auth.ts (rôles), subscription.ts (écriture)
-│       │   ├── lib/               Infrastructure et règles partagées (≈45 fichiers)
+│       │   ├── lib/               Infrastructure et règles partagées (≈35 fichiers)
 │       │   ├── scripts/           seed-plans.ts
 │       │   └── types/             Déclarations de types externes
 │       ├── fonts/                 Polices des PDF
@@ -86,5 +101,7 @@ zip-repl/
 | Une règle métier serveur | `modules/<domaine>/<domaine>.service.ts` |
 | Un contrôle d'accès propre à un domaine | `modules/<domaine>/<domaine>.access.ts` |
 | Une brique d'infrastructure (e-mail, stockage, logs) | `api-server/src/lib/` |
+| Une tâche planifiée | `api-server/src/jobs/` + son démarrage dans `src/index.ts` |
+| Un fournisseur externe (paiement, SMS) | `api-server/src/integrations/` |
 | Une table ou une colonne | `lib/db/src/schema.ts` + une migration SQL numérotée dans `lib/db/drizzle/` |
 | Un test d'intégration | `scripts/src/<sujet>-test.ts` + une entrée `*:test` dans `scripts/package.json` |

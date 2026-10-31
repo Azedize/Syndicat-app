@@ -11,7 +11,7 @@ import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { syndicateCreatedTemplate } from "../lib/email/templates.js";
 import { bustLogoCache } from "../lib/documentPdf.js";
 import { assignTrial } from "../modules/subscriptions/subscriptions.service.js";
-import { hasRecentlyVerifiedPhone } from "../lib/zimsend.service.js";
+import { hasRecentlyVerifiedPhone } from "../integrations/zimsend.service.js";
 
 const router = Router();
 

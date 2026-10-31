@@ -5,12 +5,12 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import pinoHttp from "pino-http";
 import compression from "compression";
-import router from "./routes";
+import router from "./routes/index";
 import { logger } from "./lib/logger";
 import { softAuth } from "./middleware/auth.js";
 import { enforceSessionContext } from "./lib/access.js";
 import Redis from "ioredis";
-import { processStripeWebhook } from "./lib/stripeWebhook.js";
+import { processStripeWebhook } from "./integrations/stripe/stripeWebhook.js";
 import { rateLimitProfile } from "./lib/rate-limit-profile.js";
 
 const app: Express = express();

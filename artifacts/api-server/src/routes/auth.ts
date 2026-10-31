@@ -607,7 +607,7 @@ router.put("/profile", requireAuth, async (req, res) => {
     const raw = (changes.phone as string).trim();
     if (!raw) changes.phone = null;
     else {
-      const { normalizePhone } = await import("../lib/zimsend.service.js");
+      const { normalizePhone } = await import("../integrations/zimsend.service.js");
       try {
         changes.phone = normalizePhone(raw);
       } catch {
@@ -937,7 +937,7 @@ router.post("/auth/sms/send", async (req, res) => {
     return;
   }
   try {
-    const { sendOtp } = await import("../lib/zimsend.service.js");
+    const { sendOtp } = await import("../integrations/zimsend.service.js");
     const result = await sendOtp(phone.trim());
     if (!result.ok) {
       const status =
@@ -972,7 +972,7 @@ router.post("/auth/sms/verify", async (req, res) => {
     return;
   }
   try {
-    const { verifyOtp } = await import("../lib/zimsend.service.js");
+    const { verifyOtp } = await import("../integrations/zimsend.service.js");
     const result = await verifyOtp(phone.trim(), code.trim());
     if (!result.ok) {
       const status =
@@ -1012,7 +1012,7 @@ router.post("/auth/verify-phone", async (req, res) => {
     return;
   }
   try {
-    const { verifyOtp } = await import("../lib/zimsend.service.js");
+    const { verifyOtp } = await import("../integrations/zimsend.service.js");
     const result = await verifyOtp(phone.trim(), code.trim());
     if (!result.ok) {
       const status = result.errorCode === "MAX_ATTEMPTS" ? 429 : 400;
@@ -1037,7 +1037,7 @@ router.post("/auth/verify-phone", async (req, res) => {
 // ─── GET /auth/sms/status ─────────────────────────────────────────────────────
 // Health-check for ZimSend config.
 router.get("/auth/sms/status", async (_req, res) => {
-  const { zimSendConfigured } = await import("../lib/zimsend.service.js");
+  const { zimSendConfigured } = await import("../integrations/zimsend.service.js");
   res.json({ provider: "ZimSend", configured: zimSendConfigured() });
 });
 

@@ -19,12 +19,16 @@ app/ (routes)  ──▶  features/<f>/components, hooks  ──▶  features/<f
 | Fonctionnalité | Statut | Contenu |
 |---|---|---|
 | Marché (`features/marketplace`) | **Migré** | `api.ts`, `catalog.ts`, `components/ProductCard`, `ResidenceMarket`, `DiscoverDeck` |
+| Notifications (`features/notifications`) | **Migré** | `api.ts` (alertes, lecture, préférences, jeton push), `components/NotificationManager`, `hooks/usePushNotifications`, `tasks/backgroundNotifications` |
 | Toutes les autres | À migrer | endpoints dans `services/api/index.ts`, composants dans `components/` |
+
+`hooks/useNotificationBus.ts` reste partagé : les contextes Toast et Data l'utilisent aussi.
+
+Tests qui parcourent le code mobile : `i18n-test`, `routes-resolve-test` et `contacts-config-test` incluent `features/` (et `services/`, `lib/` selon le test).
 
 ### Cartographie proposée pour la suite (par ordre de risque croissant)
 | Fonctionnalité cible | Écrans (`app/`) | Composants et endpoints à déplacer |
 |---|---|---|
-| `notifications` | notifications, alerts | NotificationManager, `content.alerts*`, `usePushNotifications`, `useNotificationBus`, `tasks/` |
 | `settings` | settings, profile, change-password, email-change | LanguageSwitcher, `auth.updateProfile`… |
 | `documents` | documents, bibliotheque, document-viewer, pdf-viewer, documents-dashboard, documents-recycle-bin | DocumentRow, DocumentWizard, DocumentBundleModal, MemberDocumentRequest, TemplateRequestModal, `documents`, `library`, `templateRequests` |
 | `finances` | charges, paiements, tresorerie, budget-previsionnel, releves, repartition, tableau-bord-financier, finances-residence, cotisations, invoices, portefeuille | AllocationDetail, ExpenseDetailSheet, ObligationAccount, BalanceLine/Meter (restent dans `ui`), `finance`, `reserveFund`, `debtEscalations` |
@@ -35,7 +39,11 @@ app/ (routes)  ──▶  features/<f>/components, hooks  ──▶  features/<f
 ## Points connus à traiter
 - **`context/LanguageContext.tsx` (25 874 lignes)** : toutes les traductions sont dans le provider. Cible : `i18n/translations/<domaine>.ts` + un provider court. À faire en une étape dédiée (outil `addkeys` à adapter).
 - **`context/DataContext.tsx` (2 043 lignes)** : charge au démarrage des données de plusieurs domaines (marché, finances, chat). Cible : React Query par fonctionnalité.
-- **Deux clients HTTP** : `services/api/client.ts` (`request`) et `lib/api.ts` (`apiRequest`, utilisé par 66 fichiers) dupliquent l'envoi du jeton et le renouvellement. Cible : `apiRequest` délègue à `request`.
+- **Deux clients HTTP** : `services/api/client.ts` (`request`) et `lib/api.ts` (`apiRequest`, utilisé par 66 fichiers) dupliquent l'envoi du jeton et le renouvellement. Ils ne sont pas fusionnés, car leurs erreurs n'ont pas la même forme :
+  - `apiRequest` donne la priorité au champ `error` et expose `httpStatus`, `detail`, `action`, `phone` ;
+  - `request` donne la priorité au champ `message` et expose `status`, `body`.
+
+  Une fusion changerait des messages et des tests de statut dans 66 fichiers. Elle doit être faite écran par écran.
 - **Écrans volumineux** : documents (4 330 lignes), elections (3 114), tableau-national (2 722), syndicate-setup (2 146), assemblee-generale (2 072).
 - **296 variables ou imports jamais lus** (`tsc --noUnusedLocals`), surtout des `import React` devenus inutiles.
 

@@ -22,8 +22,8 @@ import { createHash, randomInt } from "node:crypto";
 import { db } from "@workspace/db";
 import { otpTokensTable } from "@workspace/db/schema";
 import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
-import { logger } from "./logger.js";
-import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "./outbound.js";
+import { logger } from "../lib/logger.js";
+import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "../lib/outbound.js";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
