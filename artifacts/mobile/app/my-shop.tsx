@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as CoverImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ZelligePattern } from "@/components/ui";
-import { categoryIcon } from "@/components/marketplace/catalog";
+import { categoryIcon } from "@/features/marketplace/catalog";
 import { FONT } from "@/constants/typography";
 import { useFileTicket } from "@/hooks/useFileTicket";
 import { listingImages, resolveMediaUrl } from "@/lib/media";
@@ -33,7 +33,7 @@ import { LangCode, useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
-import { marketplace } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 import { getApiBaseUrl } from "@/services/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 

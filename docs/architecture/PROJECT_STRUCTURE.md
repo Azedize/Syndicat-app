@@ -1,0 +1,90 @@
+# Structure du projet
+
+État au 31/10/2026, après le pilote de restructuration (Marché côté mobile, Abonnements côté API).
+Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
+
+```text
+zip-repl/
+├── artifacts/                     Applications déployables (nom historique, voir ADR-001)
+│   ├── mobile/                    Application Expo
+│   │   ├── app/                   Routes Expo Router (un fichier = un écran)
+│   │   │   ├── (tabs)/            Onglets : accueil, finances, marché, membres, menu
+│   │   │   ├── admin/             Écrans super admin
+│   │   │   └── *.tsx              Autres écrans (≈110)
+│   │   ├── features/              Fonctionnalités autonomes (cible de la migration)
+│   │   │   └── marketplace/
+│   │   │       ├── api.ts         Endpoints du marché
+│   │   │       ├── catalog.ts     Catégories, états, libellés
+│   │   │       └── components/    ProductCard, ResidenceMarket, DiscoverDeck
+│   │   ├── components/            Composants partagés
+│   │   │   ├── ui/                Design system (Button, Card, Skeleton, TextField…)
+│   │   │   ├── theme/             ThemeSwitcher, ThemeSwitchingArea
+│   │   │   ├── brand/             Logo, marque, en-tête d'authentification
+│   │   │   ├── signature/         Illustration de résidence
+│   │   │   └── *.tsx              Composants encore à ranger (documents, finances…)
+│   │   ├── services/api/          Client HTTP
+│   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
+│   │   │   └── index.ts           Endpoints des domaines pas encore migrés
+│   │   ├── context/               Providers : Auth, Data, Theme, Language, Toast…
+│   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions…)
+│   │   ├── constants/             Jetons de design (couleurs, espacements, typo, motion), menu
+│   │   ├── lib/                   Utilitaires sans UI (dates, médias, upload, transport de connexion)
+│   │   ├── tasks/                 Tâche de fond (notifications)
+│   │   ├── assets/                Ressources statiques : brand/, images/, intro/
+│   │   ├── server/                Serveur statique du build web
+│   │   ├── scripts/build.js       Build web
+│   │   └── app.json, eas.json, metro.config.js, babel.config.js, tsconfig.json
+│   │
+│   └── api-server/                API Express
+│       ├── src/
+│       │   ├── index.ts           Démarrage : port, jobs planifiés
+│       │   ├── app.ts             Express : CORS, sécurité, limites, routes
+│       │   ├── modules/           Modules métier (cible de la migration)
+│       │   │   └── subscriptions/
+│       │   │       ├── subscriptions.routes.ts    Endpoints HTTP
+│       │   │       ├── subscriptions.service.ts   Statut, moyens de paiement, finalisation, essai
+│       │   │       └── subscriptions.access.ts    Périmètre (syndicat, supervision)
+│       │   ├── routes/            Endpoints des domaines pas encore migrés (52) + index.ts
+│       │   ├── middleware/        auth.ts (rôles), subscription.ts (écriture)
+│       │   ├── lib/               Infrastructure et règles partagées (≈45 fichiers)
+│       │   ├── scripts/           seed-plans.ts
+│       │   └── types/             Déclarations de types externes
+│       ├── fonts/                 Polices des PDF
+│       ├── uploads/, uploads-test/  Fichiers des utilisateurs (jamais déplacés)
+│       └── build.mjs              Build esbuild → dist/
+│
+├── lib/
+│   ├── db/                        Schéma Drizzle (src/schema.ts) et migrations (drizzle/)
+│   ├── api-zod/                   Schémas Zod partagés
+│   └── shell-quote/               Dépendance locale (override)
+│
+├── scripts/                       Tests d'intégration et E2E, seed, outils base de test
+│   ├── src/*-test.ts              40 suites (lancées par run-all-tests-testdb.sh)
+│   ├── src/seedgen/               Générateur de données de test
+│   ├── run-all-tests-testdb.sh    Toutes les suites sur la base isolée syndycat_test
+│   ├── restart-test-apis.ps1      API de test 5055 / 5056
+│   └── dev-phone.ps1              API + tunnels Cloudflare + Expo pour un téléphone
+│
+├── docs/                          Documentation d'architecture et de développement
+│   ├── architecture/
+│   └── development/
+│
+├── *.md (racine)                  Journaux et guides existants (PROJECT_PROGRESS, SECURITY_LOG…)
+├── .env, .env.example             Configuration (secrets : .env seulement, jamais commité)
+├── pnpm-workspace.yaml            Paquets : artifacts/*, lib/*, scripts
+├── tsconfig.base.json, tsconfig.json
+└── package.json                   Scripts racine : build, typecheck, db:*
+```
+
+## Où mettre un nouveau fichier
+| Je crée… | Je le mets dans… |
+|---|---|
+| Un écran | `artifacts/mobile/app/` (route) ; sa logique et ses composants dans `features/<fonctionnalité>/` |
+| Un composant réutilisé par plusieurs fonctionnalités | `components/ui/` (générique) ou `components/<thème>/` |
+| Un appel API d'une fonctionnalité | `features/<fonctionnalité>/api.ts` |
+| Un endpoint | `api-server/src/modules/<domaine>/<domaine>.routes.ts` |
+| Une règle métier serveur | `modules/<domaine>/<domaine>.service.ts` |
+| Un contrôle d'accès propre à un domaine | `modules/<domaine>/<domaine>.access.ts` |
+| Une brique d'infrastructure (e-mail, stockage, logs) | `api-server/src/lib/` |
+| Une table ou une colonne | `lib/db/src/schema.ts` + une migration SQL numérotée dans `lib/db/drizzle/` |
+| Un test d'intégration | `scripts/src/<sujet>-test.ts` + une entrée `*:test` dans `scripts/package.json` |

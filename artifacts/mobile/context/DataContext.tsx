@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
+import { marketplace as marketplaceApi } from "@/features/marketplace/api";
+import { notifications as notificationsApi } from "@/features/notifications/api";
 import { notificationBus } from "@/hooks/useNotificationBus";
 import { useAuth } from "./AuthContext";
 import { useLanguage } from "./LanguageContext";
@@ -664,17 +666,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           onlyFor(FINANCE_STAFF, () => api.finance.caisse()),
           onlyFor(FINANCE_STAFF, () => api.finance.invoices()),
           onlyFor(FINANCE_STAFF, () => api.finance.bons()),
-          api.marketplace.products(),
-          api.marketplace.orders(),
-          api.marketplace.reviews(),
+          marketplaceApi.products(),
+          marketplaceApi.orders(),
+          marketplaceApi.reviews(),
           api.chat.conversations(),
           api.syndicates.list(),
           api.content.legalAlerts(),
           api.content.supportTickets(),
           api.content.cotisations(),
-          api.content.alerts(langRef.current),
+          notificationsApi.alerts(langRef.current),
           api.publications.list(),
-          api.content.notificationPrefs(),
+          notificationsApi.notificationPrefs(),
           // GET /subscriptions is super-admin only: other roles got a 403 on every launch.
           user?.role === "super_admin" ? api.content.subscriptions() : Promise.resolve({ data: [] as unknown[] }),
           api.content.subscriptionPlans(),
@@ -1302,7 +1304,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setNotificationPreferencesLoading(true);
     setNotificationPreferencesLoadError(false);
     try {
-      const response = await api.content.notificationPrefs();
+      const response = await notificationsApi.notificationPrefs();
       setNotificationPreferences(
         ((response as { data: unknown[] }).data ??
           []) as NotificationPreference[],
@@ -1328,7 +1330,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       p.map((n) => (n.id === id ? { ...n, [channel]: newValue } : n)),
     );
     try {
-      await api.content.toggleNotificationPref(id, channel, newValue);
+      await notificationsApi.toggleNotificationPref(id, channel, newValue);
       return true;
     } catch {
       setNotificationPreferences(previous);
@@ -1342,7 +1344,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   ): Promise<boolean> => {
     const previous = notificationPreferences;
     const pending = notificationPreferences.map((preference) =>
-      api.content.toggleNotificationPref(preference.id, channel, value),
+      notificationsApi.toggleNotificationPref(preference.id, channel, value),
     );
     setNotificationPreferences((items) =>
       items.map((item) => ({ ...item, [channel]: value })),
@@ -1436,12 +1438,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const markAllAlertsRead = () => {
     setAlerts((p) => p.map((a) => ({ ...a, read: true })));
-    api.content.markAllAlertsRead().catch(() => {});
+    notificationsApi.markAllAlertsRead().catch(() => {});
   };
 
   const refreshAlerts = async () => {
     try {
-      const res = (await api.content.alerts(langRef.current)) as any;
+      const res = (await notificationsApi.alerts(langRef.current)) as any;
       const rows = (res.data ?? []) as Record<string, unknown>[];
       setAlerts(
         rows.map((row) => ({
@@ -1522,7 +1524,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addProduct = (p: Product) => {
     setProducts((prev) => [p, ...prev]);
-    return api.marketplace.addProduct(p).then(
+    return marketplaceApi.addProduct(p).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1532,7 +1534,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const updateProduct = (p: Product) => {
     setProducts((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)));
-    return api.marketplace.updateProduct(p.id, p).then(
+    return marketplaceApi.updateProduct(p.id, p).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1588,7 +1590,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((pr) => pr.id !== id));
-    return api.marketplace.deleteProduct(id).then(
+    return marketplaceApi.deleteProduct(id).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1600,7 +1602,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setProducts((p) =>
       p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)),
     );
-    return api.marketplace.updateProduct(id, { status: "approved" }).then(
+    return marketplaceApi.updateProduct(id, { status: "approved" }).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1676,7 +1678,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const markAlertRead = (id: string) => {
     setAlerts((p) => p.map((a) => (a.id === id ? { ...a, read: true } : a)));
-    api.content.markAlertRead(id).catch(() => {});
+    notificationsApi.markAlertRead(id).catch(() => {});
   };
   const refreshConversations = async () => {
     try {
@@ -1842,7 +1844,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addReview = (r: Review) => {
     setReviews((p) => [r, ...p]);
-    return api.marketplace.addReview(r).then(
+    return marketplaceApi.addReview(r).then(
       () => true,
       (e) => {
         onWriteFailed(e);

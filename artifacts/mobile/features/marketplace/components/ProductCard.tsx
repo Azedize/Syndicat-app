@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import React from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { RADIUS } from "@/constants/spacing";
@@ -11,7 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { useFormat } from "@/hooks/useFormat";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { listingImages, resolveMediaUrl } from "@/lib/media";
-import { categoryIcon, categoryLabelKey, conditionLabelKey } from "./catalog";
+import { categoryIcon, categoryLabelKey, conditionLabelKey } from "../catalog";
 
 export type MarketProduct = {
   id: string;

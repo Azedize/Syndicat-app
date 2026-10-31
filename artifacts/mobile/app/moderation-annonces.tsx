@@ -10,7 +10,7 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import { Card, Chip, SheetHeader } from "@/components/ui";
 import { Feather } from "@/components/ui/Feather";
-import { categoryLabelKey } from "@/components/marketplace/catalog";
+import { categoryLabelKey } from "@/features/marketplace/catalog";
 import { RADIUS, SPACING } from "@/constants/spacing";
 import { TYPE } from "@/constants/typography";
 import { useLanguage } from "@/context/LanguageContext";

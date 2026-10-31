@@ -23,7 +23,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
-import { marketplace } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 
 type ApiReview = {
   id: string;

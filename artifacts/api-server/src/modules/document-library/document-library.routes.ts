@@ -3,18 +3,40 @@ import multer from "multer";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { documentsTable, documentVersionsTable, lotsTable, storageObjectsTable, usersTable } from "@workspace/db/schema";
-import { and, asc, count, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
-import { requireAuth, signDocumentLink, verifyDocumentLink, DOCUMENT_LINK_TTL_SECONDS, type JwtPayload } from "../middleware/auth.js";
-import { verifyFileSignature } from "../lib/file-signature.js";
-import { serverAuditLog } from "../lib/audit.js";
-import { getPagination, buildPagedResponse } from "../lib/paginate.js";
-import { computeRetentionUntil } from "../lib/retention.js";
-import { FinanceError, sendFinanceError } from "../lib/treasury.js";
+import {
+  documentsTable,
+  documentVersionsTable,
+  lotsTable,
+  storageObjectsTable,
+  usersTable,
+} from "@workspace/db/schema";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import {
+  requireAuth,
+  signDocumentLink,
+  verifyDocumentLink,
+  DOCUMENT_LINK_TTL_SECONDS,
+  type JwtPayload,
+} from "../../middleware/auth.js";
+import { verifyFileSignature } from "../../lib/file-signature.js";
+import { serverAuditLog } from "../../lib/audit.js";
+import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
+import { computeRetentionUntil } from "../../lib/retention.js";
+import { FinanceError, sendFinanceError } from "../../lib/treasury.js";
 import {
   DOCUMENT_MANAGERS,
   ENTITY_TYPES,
-  EVIDENCE_ENTITY_TYPES,
   UPLOAD_CATEGORIES,
   VISIBILITIES,
   canSeeDocument,
@@ -24,8 +46,14 @@ import {
   effectiveVisibilitySql,
   entityBelongsTo,
   type EntityType,
-} from "../lib/document-access.js";
-import { StorageUnavailableError, discardStoredFile, sendStoredObject, sha256, storeVerifiedFile } from "../lib/file-store.js";
+} from "../../lib/document-access.js";
+import {
+  StorageUnavailableError,
+  discardStoredFile,
+  sendStoredObject,
+  sha256,
+  storeVerifiedFile,
+} from "../../lib/file-store.js";
 
 /**
  * Document library: files the team adds to the condominium (minutes,
@@ -584,12 +612,5 @@ router.post("/documents/:id/unarchive", requireAuth, async (req, res) => {
     sendFinanceError(res, req, err);
   }
 });
-
-/** Deletion guard shared with the soft-delete / purge routes. */
-export function assertDeletable(doc: { entityType: string | null; title: string }) {
-  if (doc.entityType && EVIDENCE_ENTITY_TYPES.has(doc.entityType)) {
-    throw new FinanceError(409, "DOCUMENT_IS_EVIDENCE", "Ce document justifie une opération financière ou une réclamation : il peut être archivé ou remplacé, pas supprimé.");
-  }
-}
 
 export default router;

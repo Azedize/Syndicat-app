@@ -1682,3 +1682,47 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 ### Non fait / à décider
 - Gestes et splash non testés sur appareil réel. Sur le web, le glisser à la souris ne déclenche pas le geste ; le glisser tactile fonctionne.
 - TypeScript est passé en 6.0 en dehors de cette session ; `ignoreDeprecations: "6.0"` a été ajouté dans `tsconfig.json` pour `baseUrl`.
+
+## 2026-10-31 — Restructuration : audit, architecture cible, pilotes
+
+### Audit (mesuré)
+- **Mobile, 220 fichiers :**
+  - 0 cycle d'import ; 0 fichier orphelin hors routes et configurations ;
+  - fichiers les plus gros : `LanguageContext.tsx` (25 874 lignes, traductions incluses), `app/documents.tsx` (4 330), `services/api.ts` (2 928), `DataContext.tsx` (2 043) ;
+  - deux clients HTTP : `services/api` et `lib/api.ts` ;
+  - 296 variables ou imports jamais lus.
+- **API, 105 fichiers :**
+  - 0 cycle ; 50 fichiers de routes sur 53 accèdent directement à la base ;
+  - un import `lib → routes` (`stripeWebhook`) et 4 imports `routes → routes` ;
+  - 147 variables ou imports jamais lus.
+- **Règles d'abonnement divergentes** entre l'affichage (`computeSubscriptionStatus`) et le blocage d'écriture (`isWritableSubscription`) : signalé, non modifié (décision métier).
+
+### Pilotes migrés
+- **Mobile :**
+  - `services/api.ts` découpé en `services/api/client.ts` (transport, jetons, `request`) et `services/api/index.ts` (endpoints). L'import `@/services/api` est inchangé ;
+  - nouvelle fonctionnalité `features/marketplace/` : `api.ts`, `catalog.ts`, `components/` (ProductCard, ResidenceMarket, DiscoverDeck) ;
+  - 10 importeurs mis à jour, dont `DataContext`.
+- **API :**
+  - `routes/subscriptions.ts` remplacé par `modules/subscriptions/` : `subscriptions.routes.ts`, `subscriptions.service.ts` et `subscriptions.access.ts` ;
+  - code déplacé sans modification ; `stripeWebhook`, `organizations` et `syndicates` importent le service.
+- Dossiers vides retirés : `api-server/src/middlewares`, `api-server/scripts`.
+- Copies des fichiers d'origine : dossier temporaire de la session (`restructure-backup`) ; Git garde aussi l'état précédent.
+
+### Documentation
+- `docs/architecture/` : SYSTEM_OVERVIEW, PROJECT_STRUCTURE, FRONTEND_ARCHITECTURE, BACKEND_ARCHITECTURE, MODULE_DEPENDENCIES, ARCHITECTURE_DECISIONS.
+- `docs/development/` : CODING_STANDARDS.
+
+### Vérifications
+- `tsc` : mobile 0 erreur, API 0 erreur. `node --test lib/login-transport.test.mjs` : 7/7. Export Android et iOS : OK. Build API : OK.
+- Régression API sur `syndycat_test` : 39/40, identique à avant (`election-audit` 29/30).
+- Navigateur, 0 erreur de page et 0 réponse 5xx :
+  - Marché : 9 écrans ;
+  - Découvrir : enregistrer, annuler, passer, glisser ;
+  - abonnement : 3 écrans pour le syndic.
+
+### À décider (voir ARCHITECTURE_DECISIONS.md)
+- Renommer `artifacts/` en `apps/` (86 références).
+- Sortir les traductions de `LanguageContext`.
+- Déplacer les documents de la racine vers `docs/`.
+- Supprimer `architecture_app.txt` (1,5 million de lignes).
+- Aligner les deux règles de statut d'abonnement.

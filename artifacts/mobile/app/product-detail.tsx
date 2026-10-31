@@ -21,7 +21,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
-import { marketplace, chat } from "@/services/api";
+import { chat } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { Image } from "expo-image";
@@ -30,7 +31,7 @@ import { Button, IconButton } from "@/components/ui";
 import { FONT } from "@/constants/typography";
 import { useFileTicket } from "@/hooks/useFileTicket";
 import { listingImages, resolveMediaUrl } from "@/lib/media";
-import { categoryIcon, categoryLabelKey, conditionLabelKey } from "@/components/marketplace/catalog";
+import { categoryIcon, categoryLabelKey, conditionLabelKey } from "@/features/marketplace/catalog";
 import { useWindowDimensions } from "react-native";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

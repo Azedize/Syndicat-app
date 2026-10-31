@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import ResidenceMarket from "@/components/marketplace/ResidenceMarket";
+import ResidenceMarket from "@/features/marketplace/components/ResidenceMarket";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -25,7 +25,7 @@ import { useToast } from "@/context/ToastContext";
 import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
 import { ErrorState } from "@/components/DataState";
-import { marketplace } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 import { crossPlatformShadow } from "@/lib/shadow";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

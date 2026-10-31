@@ -21,7 +21,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import ScreenHeader from "@/components/ScreenHeader";
 import { useLanguage } from "@/context/LanguageContext";
-import { marketplace } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 
 type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 type Tab = "purchases" | "sales";

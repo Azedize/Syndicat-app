@@ -16,7 +16,7 @@ import { Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import { notificationBus } from "./useNotificationBus";
+import { notificationBus } from "@/hooks/useNotificationBus";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 
@@ -145,7 +145,7 @@ export function usePushNotifications() {
     (async () => {
       try {
         const Notifications = await import("expo-notifications");
-        const { registerBackgroundNotificationTask } = await import("@/tasks/backgroundNotifications");
+        const { registerBackgroundNotificationTask } = await import("../tasks/backgroundNotifications");
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
             shouldShowAlert: true,

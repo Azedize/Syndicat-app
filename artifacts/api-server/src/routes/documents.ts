@@ -76,7 +76,7 @@ import { createAlert, notifyUser, sendEmail, sendEmailToMany } from "../lib/noti
 import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
 
 import { canSeeDocument, documentView, documentVisibilityWhere } from "../lib/document-access.js";
-import { assertDeletable } from "./document-library.js";
+import { assertDeletable } from "../modules/document-library/document-library.service.js";
 import { localToday } from "../lib/charge-time.js";
 
 const router = Router();

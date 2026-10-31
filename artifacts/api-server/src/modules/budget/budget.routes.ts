@@ -1,4 +1,4 @@
-import { sendRouteError } from "../lib/route-error.js";
+import { sendRouteError } from "../../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -9,11 +9,9 @@ import {
   lotsTable,
   buildingsTable,
   membersTable,
-  transactionsTable,
   debtEscalationsTable,
   syndicatesTable,
   alertsTable,
-  caisseEntriesTable,
   usersTable,
   prestatairesTable,
   meetingsTable,
@@ -21,28 +19,42 @@ import {
   appelPaymentsTable,
   expensesTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, sum, or, inArray, isNull } from "drizzle-orm";
-import { chargesOfPersonSql, currentOwnersOf, isDebtorOfCharge, memberIdsOf } from "../lib/units.js";
 import {
-  requireAuth,
-  requireAdmin,
-  requireOperationalAccess,
-  requireFinanceAccess,
-  isSyndicateTeamRole,
-} from "../middleware/auth.js";
-import { assertUserCanAccessBuilding } from "../lib/scope.js";
-import { nextSequenceNumber } from "../lib/sequences.js";
-import { computeAllocation, loadSources } from "../lib/allocation.js";
-import { finalizeAllocation } from "../lib/allocation-store.js";
-import { localToday } from "../lib/charge-time.js";
-import { createAlert, notifyUser } from "../lib/notify.js";
-import { FinanceError, amountSchema, fromCents, lockAccount, postEntry, recordOperation, sendFinanceError, settlementStatus, toCents, today, uniqueViolation, moneyDiff } from "../lib/treasury.js";
+  eq,
+  and,
+  desc,
+  sql,
+  inArray,
+} from "drizzle-orm";
+import { chargesOfPersonSql, isDebtorOfCharge, memberIdsOf } from "../../lib/units.js";
+import { requireAuth, requireFinanceAccess, isSyndicateTeamRole } from "../../middleware/auth.js";
+import { assertUserCanAccessBuilding } from "../../lib/scope.js";
+import { nextSequenceNumber } from "../../lib/sequences.js";
+import { computeAllocation, loadSources } from "../../lib/allocation.js";
+import { finalizeAllocation } from "../../lib/allocation-store.js";
+import { localToday } from "../../lib/charge-time.js";
+import { createAlert, notifyUser } from "../../lib/notify.js";
+import {
+  FinanceError,
+  amountSchema,
+  fromCents,
+  lockAccount,
+  postEntry,
+  recordOperation,
+  sendFinanceError,
+  settlementStatus,
+  toCents,
+  today,
+  uniqueViolation,
+  moneyDiff,
+} from "../../lib/treasury.js";
 
 /** True when the user is syndicate-scoped (not super_admin). Used for row-level scoping in finance queries. */
 function isSyndicateScoped(role: string): boolean {
   return isSyndicateTeamRole(role as any);
 }
-import { serverAuditLog } from "../lib/audit.js";
+import { serverAuditLog } from "../../lib/audit.js";
+import { reconcileBudgetAmounts, resolveOwnerUserId } from "./budget.service.js";
 
 const router = Router();
 
@@ -137,68 +149,6 @@ const createBudgetSchema = z.object({
   notes: z.string().max(5000).nullable().optional(),
   lines: z.array(budgetLineSchema).max(200).optional(),
 });
-
-/**
- * Budget amounts, in cents. The convention used by the execution report, the
- * calls for funds and the charge allocation: the budget lines detail the
- * current charges, and the reserve fund is apart from them —
- *   lines = charges, total = charges + reserve.
- * A missing amount is derived; amounts given that contradict each other are
- * refused rather than stored.
- */
-export function reconcileBudgetAmounts(input: {
-  totalAmount?: string;
-  chargesAmount?: string;
-  fondsReserve?: string;
-  linesTotal?: string;
-}): { ok: true; totalAmount: string; chargesAmount: string; fondsReserve: string } | { ok: false; error: string } {
-  const lines = input.linesTotal !== undefined ? toCents(input.linesTotal) : undefined;
-  const charges = input.chargesAmount !== undefined ? toCents(input.chargesAmount) : lines ?? 0;
-  if (lines !== undefined && lines !== charges) {
-    return { ok: false, error: `Les lignes du budget (${fromCents(lines)} MAD) doivent totaliser le montant des charges (${fromCents(charges)} MAD). Le fonds de réserve ne figure pas parmi les lignes.` };
-  }
-  const reserve = input.fondsReserve !== undefined ? toCents(input.fondsReserve) : 0;
-  const total = input.totalAmount !== undefined ? toCents(input.totalAmount) : charges + reserve;
-  if (total !== charges + reserve) {
-    return { ok: false, error: `Le total du budget (${fromCents(total)} MAD) doit être égal aux charges (${fromCents(charges)} MAD) plus le fonds de réserve (${fromCents(reserve)} MAD).` };
-  }
-  return { ok: true, totalAmount: fromCents(total), chargesAmount: fromCents(charges), fondsReserve: fromCents(reserve) };
-}
-
-type OwnerLookupExecutor = Pick<typeof db, "select">;
-
-/**
- * Maps an appel owner (members.id, or a users.id for legacy rows) to the
- * owner's user account in the same syndicate. Returns null when the owner has
- * no platform account — the transaction then stays unattributed rather than
- * violating the users foreign key.
- */
-export async function resolveOwnerUserId(
-  executor: OwnerLookupExecutor,
-  ownerId: string | null,
-  syndicateId: string,
-): Promise<string | null> {
-  if (!ownerId) return null;
-  const [direct] = await executor
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(and(eq(usersTable.id, ownerId), eq(usersTable.syndicateId, syndicateId)))
-    .limit(1);
-  if (direct) return direct.id;
-  const [viaMember] = await executor
-    .select({ id: usersTable.id })
-    .from(membersTable)
-    .innerJoin(usersTable, eq(usersTable.email, membersTable.email))
-    .where(
-      and(
-        eq(membersTable.id, ownerId),
-        eq(membersTable.syndicateId, syndicateId),
-        eq(usersTable.syndicateId, syndicateId),
-      ),
-    )
-    .limit(1);
-  return viaMember?.id ?? null;
-}
 
 const CHARGE_READ_ROLES = [
   "super_admin",

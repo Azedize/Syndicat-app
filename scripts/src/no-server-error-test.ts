@@ -11,13 +11,16 @@ import { pool } from "@workspace/db";
 import { TEST_EMAIL_LIKE } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
-const ROUTES_DIR = path.resolve("../artifacts/api-server/src/routes");
+// Every file of the API source: routes live in routes/ and in modules/<domain>/.
+const API_SRC = path.resolve("../artifacts/api-server/src");
+// Coverage floor: fewer GET routes found means a scan or a move went wrong.
+const MIN_ROUTES = 128;
 const SKIP = new Set(["/health", "/auth/me/export", "/storage/public-objects", "/stripe/config"]);
 
 function getRoutes(): string[] {
   const out = new Set<string>();
-  for (const f of readdirSync(ROUTES_DIR).filter((f) => f.endsWith(".ts"))) {
-    const src = readFileSync(path.join(ROUTES_DIR, f), "utf8");
+  for (const f of readdirSync(API_SRC, { recursive: true }).map(String).filter((f) => f.endsWith(".ts"))) {
+    const src = readFileSync(path.join(API_SRC, f), "utf8");
     for (const m of src.matchAll(/router\.get\(\s*"([^"]+)"/g)) {
       const p = m[1];
       if (!p.includes(":") && !p.includes("*") && !SKIP.has(p)) out.add(p);
@@ -53,6 +56,7 @@ async function main() {
 
   const routes = getRoutes();
   const failures: string[] = [];
+  if (routes.length < MIN_ROUTES) failures.push(`only ${routes.length} GET routes found in the API source (expected at least ${MIN_ROUTES})`);
   let calls = 0;
   for (const [role, token, qs] of tokens) {
     for (const r of routes) {

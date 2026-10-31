@@ -34,6 +34,10 @@ const files = [
   ...walk(path.join(ROOT, "artifacts/mobile/components")),
   ...walk(path.join(ROOT, "artifacts/mobile/constants")),
   ...walk(path.join(ROOT, "artifacts/mobile/context")),
+  ...walk(path.join(ROOT, "artifacts/mobile/features")),
+  ...walk(path.join(ROOT, "artifacts/mobile/services")),
+  ...walk(path.join(ROOT, "artifacts/mobile/hooks")),
+  ...walk(path.join(ROOT, "artifacts/mobile/lib")),
   ...walk(path.join(ROOT, "artifacts/api-server/src")),
 ];
 const INVENTED = /[a-z0-9._-]+@mizan\.(ma|app|com)\b|MIZAN Community OS/i;

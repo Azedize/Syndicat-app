@@ -19,7 +19,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
-import { NotificationManager } from "@/components/NotificationManager";
+import { NotificationManager } from "@/features/notifications/components/NotificationManager";
 import { SidebarNav } from "@/components/SidebarNav";
 import SubscriptionBanner from "@/components/SubscriptionBanner";
 import { ToastContainer } from "@/components/ToastContainer";
@@ -34,7 +34,7 @@ import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePushNotifications } from "@/features/notifications/hooks/usePushNotifications";
 
 // The web preview must render immediately. On native, keep the splash screen
 // until the Inter family is ready to avoid a flash of unstyled content.

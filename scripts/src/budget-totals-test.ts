@@ -23,7 +23,7 @@ const created: string[] = [];
 
 async function main() {
   // 1. The rule itself
-  const mod = await import(pathToFileURL(path.resolve("../artifacts/api-server/src/routes/budget.ts")).href).catch(() => null);
+  const mod = await import(pathToFileURL(path.resolve("../artifacts/api-server/src/modules/budget/budget.service.ts")).href).catch((e) => { console.log("import error:", String(e).slice(0, 200)); return null; });
   if (mod?.reconcileBudgetAmounts) {
     const r = mod.reconcileBudgetAmounts;
     const a = r({ chargesAmount: "1000.10", fondsReserve: "100.20" });
@@ -34,7 +34,8 @@ async function main() {
     check("total ≠ charges + reserve refused", !r({ totalAmount: "1.00", chargesAmount: "2.00" }).ok);
     check("0.1 + 0.2 does not drift", r({ chargesAmount: "0.10", fondsReserve: "0.20", totalAmount: "0.30" }).ok);
   } else {
-    console.log("SKIP rule unit checks (API source not importable from here)");
+    // A rule that cannot be loaded is a failure, not a skip.
+    check("budget rule module importable (modules/budget/budget.service.ts)", false);
   }
 
   // 2. Through the API, as the syndic of a generated residence

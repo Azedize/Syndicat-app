@@ -14,7 +14,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { FinanceError, sendFinanceError, toCents, uniqueViolation } from "../lib/treasury.js";
 import { orgRoleOf, portfolioSyndicateIds, resolveContextRole, TEAM_ROLES, type OrgRole } from "../lib/access.js";
-import { assignTrial } from "./subscriptions.js";
+import { assignTrial } from "../modules/subscriptions/subscriptions.service.js";
 
 /**
  * Syndic companies, their condominiums and who may act in each.

@@ -13,7 +13,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const APP = path.resolve(process.cwd(), "../artifacts/mobile/app");
-const SRC = [APP, path.resolve(process.cwd(), "../artifacts/mobile/components"), path.resolve(process.cwd(), "../artifacts/mobile/hooks"), path.resolve(process.cwd(), "../artifacts/mobile/lib"), path.resolve(process.cwd(), "../artifacts/mobile/context"), path.resolve(process.cwd(), "../artifacts/mobile/constants")];
+const SRC = [APP, path.resolve(process.cwd(), "../artifacts/mobile/components"), path.resolve(process.cwd(), "../artifacts/mobile/hooks"), path.resolve(process.cwd(), "../artifacts/mobile/lib"), path.resolve(process.cwd(), "../artifacts/mobile/context"), path.resolve(process.cwd(), "../artifacts/mobile/constants"), path.resolve(process.cwd(), "../artifacts/mobile/features"), path.resolve(process.cwd(), "../artifacts/mobile/services")];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {

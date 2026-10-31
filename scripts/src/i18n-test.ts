@@ -94,7 +94,7 @@ function main() {
   check("no translation uses a placeholder the source does not fill", badPh.length === 0, badPh.slice(0, 8).join(", ") || "none");
 
   // Keys used in the code with t("…") must exist.
-  const files = walk(path.join(MOBILE, "app")).concat(walk(path.join(MOBILE, "components")), walk(path.join(MOBILE, "hooks")), walk(path.join(MOBILE, "context")));
+  const files = walk(path.join(MOBILE, "app")).concat(walk(path.join(MOBILE, "components")), walk(path.join(MOBILE, "hooks")), walk(path.join(MOBILE, "context")), walk(path.join(MOBILE, "features")), walk(path.join(MOBILE, "lib")));
   const unknown = new Set<string>();
   let used = 0;
   for (const f of files) {

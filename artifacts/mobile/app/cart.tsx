@@ -19,7 +19,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import ScreenHeader from "@/components/ScreenHeader";
 import { useToast } from "@/context/ToastContext";
-import { marketplace } from "@/services/api";
+import { marketplace } from "@/features/marketplace/api";
 
 type CartItem = {
   id: string;

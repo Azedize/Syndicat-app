@@ -38,7 +38,7 @@ import {
   appelRemindersTable,
   treasuryAccountsTable,
 } from "@workspace/db/schema";
-import { resolveOwnerUserId } from "./budget.js";
+import { resolveOwnerUserId } from "../modules/budget/budget.service.js";
 
 /**
  * Charge allocation: keys (syndic), preview and confirmation (finance team),
