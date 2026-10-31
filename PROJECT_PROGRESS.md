@@ -1645,3 +1645,40 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Réservation entre résidences : autorisée comme dans sa propre résidence (remise en main propre). À confirmer.
 - Chat direct entre résidences : non ouvert ; les questions passent par l'annonce.
 - Tests sur appareil réel, dont les notifications push.
+
+## 2026-10-31 — Modernisation premium (splash, thème, listes, squelettes, Découvrir)
+
+### Splash et thème
+- `ThemeContext` expose `ready` : le mode enregistré (clair, sombre ou système) est relu avant l'affichage.
+- `SplashGate` (`app/_layout.tsx`) masque le splash quand le thème est prêt et la session vérifiée, avec un plafond de 4 s si le stockage ne répond pas. La barre d'état suit le thème.
+- Nouveau `ThemeSwitcher` (Clair / Sombre / Système, indicateur animé, mouvement réduit respecté) dans Paramètres.
+- Nouveau `ThemeToggleButton` (soleil / lune ; appui long = Système) dans le Menu, la connexion et l'accueil.
+- Nouveau `ThemeSwitchingArea` : transition de couleur du fond au changement de thème.
+- Jetons `skeleton` / `skeletonHighlight` ajoutés à `constants/colors.ts`.
+
+### Listes et squelettes
+- `Skeleton` réécrit : bande de reflet (Reanimated), sens RTL, arrêt si mouvement réduit.
+- Nouveaux composants : `SkeletonCard`, `SkeletonList`, `SkeletonProfile` et `SkeletonProductGrid`.
+- Marché : `ScrollView` + `map` remplacés par une `FlatList` virtualisée (colonnes, page suivante près de la fin, tirer pour rafraîchir), avec une grille squelette au premier chargement.
+- Notifications : squelette au premier chargement au lieu d'un faux « aucune notification ».
+
+### Marché : mode « Découvrir »
+- Bascule Grille / Découvrir.
+- Une annonce à la fois : glisser ou boutons (Passer, Annuler, Enregistrer, Détails).
+- **Enregistrer** ajoute aux favoris existants (`POST /products/:id/favorite`) et ne retire jamais un favori déjà présent.
+- **Passer** ne fait rien côté serveur.
+- **Annuler** retire le favori qui vient d'être ajouté.
+- Le côté « enregistrer » suit le sens de lecture (RTL).
+- Aucune modification d'API.
+
+### Vérifications
+- Mobile : `tsc` 0 erreur ; `node --test lib/login-transport.test.mjs` 7/7 ; export Android/iOS OK ; `npx expo install --check` à jour.
+- Navigateur (Expo web, API de test) :
+  - Découvrir, en FR clair et en AR sombre : enregistrer, annuler, passer et glisser donnent les bons compteurs et les bons appels API, sans erreur de page ;
+  - thème : Paramètres et Menu, valeur persistée après rechargement.
+- Aucune dépendance ajoutée.
+- Régression API sur `syndycat_test` : 39/40 suites vertes ; `election-audit` 29/30 (règle métier non décidée, inchangé).
+
+### Non fait / à décider
+- Gestes et splash non testés sur appareil réel. Sur le web, le glisser à la souris ne déclenche pas le geste ; le glisser tactile fonctionne.
+- TypeScript est passé en 6.0 en dehors de cette session ; `ignoreDeprecations: "6.0"` a été ajouté dans `tsconfig.json` pour `baseUrl`.

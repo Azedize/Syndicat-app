@@ -26,6 +26,7 @@ import { useColors } from "@/hooks/useColors";
 
 import { MENU_SECTIONS_DEF, type AllRoles } from "@/constants/menu";
 import { ThemeToggleButton } from "@/components/theme/ThemeSwitcher";
+import ThemeSwitchingArea from "@/components/theme/ThemeSwitchingArea";
 
 export default function MoreScreen() {
   const colors = useColors();
@@ -135,7 +136,7 @@ export default function MoreScreen() {
             ];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ThemeSwitchingArea style={styles.root}>
       <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background }]}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={[TYPE.title, { color: colors.foreground }]} accessibilityRole="header">
@@ -271,7 +272,7 @@ export default function MoreScreen() {
           </>
         ) : null}
       </ScrollView>
-    </View>
+    </ThemeSwitchingArea>
   );
 }
 

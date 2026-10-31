@@ -35,6 +35,9 @@ const colors = {
     surface: "#FFFFFF",
     surfaceElevated: "#FFFFFF",
     surfaceMuted: "#F0ECE4",
+    // Loading placeholders (shimmer): base and the light sweeping over it.
+    skeleton: "#ECE6DB",
+    skeletonHighlight: "#F8F4EC",
 
     /** Text hierarchy */
     textSecondary: "#4D4964",
@@ -101,6 +104,8 @@ const colors = {
     surface: "#17142B",
     surfaceElevated: "#1F1B3D",
     surfaceMuted: "#1C1934",
+    skeleton: "#221E3D",
+    skeletonHighlight: "#2E2952",
 
     textSecondary: "#C8C3DC",
     textMuted: "#A6A1BE",

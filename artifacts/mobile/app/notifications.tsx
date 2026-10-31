@@ -21,7 +21,7 @@ import { ErrorState } from "@/components/DataState";
 import EmptyState from "@/components/EmptyState";
 import FilterTabs from "@/components/FilterTabs";
 import ScreenHeader from "@/components/ScreenHeader";
-import { Button, Card, ListItem, type StatusTone } from "@/components/ui";
+import { Button, Card, ListItem, SkeletonList, type StatusTone } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 
 type TabType = "preferences" | "historique";
@@ -53,6 +53,7 @@ export default function NotificationsScreen() {
     toggleNotificationChannel,
     alerts,
     markAlertRead,
+    dataLoading,
   } = useData();
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
@@ -451,7 +452,10 @@ export default function NotificationsScreen() {
 
         {tab === "historique" && (
           <>
-            {alerts.length === 0 ? (
+            {alerts.length === 0 && dataLoading ? (
+              // First load: placeholders, not a false « aucune notification ».
+              <SkeletonList count={5} />
+            ) : alerts.length === 0 ? (
               <EmptyState icon="bell-off" title={t("notificationNoneTitle")} />
             ) : (
               <>

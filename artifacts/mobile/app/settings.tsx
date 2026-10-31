@@ -31,6 +31,7 @@ import { useFileTicket } from "@/hooks/useFileTicket";
 import { useToast } from "@/context/ToastContext";
 import { ticketedUrl } from "@/services/api";
 import ThemeSwitcher from "@/components/theme/ThemeSwitcher";
+import ThemeSwitchingArea from "@/components/theme/ThemeSwitchingArea";
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -136,7 +137,7 @@ export default function SettingsScreen() {
   });
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+    <ThemeSwitchingArea style={[styles.root, { direction: isRTL ? "rtl" : "ltr" }]}>
       <ScreenHeader title={t("settingsTitle")} />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 22, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
@@ -216,7 +217,7 @@ export default function SettingsScreen() {
                 key={option.code}
                 leading={
                   <View style={[styles.flag, { backgroundColor: colors.surfaceMuted }]}>
-                    <Text style={{ fontSize: 18 }}>{option.flag}</Text>
+                    <Text style={{ fontSize: 18, color: colors.foreground }}>{option.flag}</Text>
                   </View>
                 }
                 title={option.nativeLabel}
@@ -280,7 +281,7 @@ export default function SettingsScreen() {
 
         <Button label={t("logout")} icon="log-out" variant="secondary" fullWidth onPress={handleLogout} style={{ borderColor: colors.danger + "55" }} />
       </ScrollView>
-    </View>
+    </ThemeSwitchingArea>
   );
 }
 

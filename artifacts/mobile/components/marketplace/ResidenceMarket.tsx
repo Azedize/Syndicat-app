@@ -3,13 +3,13 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/DataState";
-import { Card, IconButton, ZelligePattern } from "@/components/ui";
+import { Card, IconButton, SkeletonProductGrid, ZelligePattern } from "@/components/ui";
 import { MIZAN } from "@/constants/brand";
 import { DURATION, STAGGER, STAGGER_MAX } from "@/constants/motion";
 import { RADIUS, SPACING } from "@/constants/spacing";
@@ -22,6 +22,7 @@ import { useFileTicket } from "@/hooks/useFileTicket";
 import { apiRequest } from "@/lib/api";
 import { marketplace } from "@/services/api";
 import { CATEGORIES } from "./catalog";
+import DiscoverDeck from "./DiscoverDeck";
 import ProductCard, { type MarketProduct } from "./ProductCard";
 
 type Provider = {
@@ -38,6 +39,7 @@ type Provider = {
 };
 
 const PAGE_SIZE = 24;
+const GridGap = () => <View style={{ height: SPACING.MD }} />;
 const SORTS = [
   { key: "recent", labelKey: "mkSortRecent", icon: "clock" },
   { key: "price_asc", labelKey: "mkSortPriceAsc", icon: "trending-up" },
@@ -83,6 +85,35 @@ export default function ResidenceMarket() {
   const [zone, setZone] = useState<string | null>(null);
   // Sort, price and availability live behind one « Filtres » button.
   const [showFilters, setShowFilters] = useState(false);
+  // Grid, or one listing at a time (« Découvrir »).
+  const [view, setView] = useState<"grid" | "discover">("grid");
+  // Saved listings, so a swipe never removes one that is already saved.
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const savedQuery = useQuery({
+    queryKey: ["market-saved-ids"],
+    enabled: view === "discover",
+    queryFn: async () => ((await marketplace.myFavorites({ limit: "50" })).data as MarketProduct[]).map((p) => p.id),
+  });
+  useEffect(() => {
+    if (savedQuery.data) setSavedIds(new Set(savedQuery.data));
+  }, [savedQuery.data]);
+  const setFavorite = useCallback(async (id: string, want: boolean) => {
+    try {
+      const res = await marketplace.toggleFavorite(id);
+      let on = !!res?.isFavorited;
+      // The endpoint toggles: if the server state was not the expected one, toggle back.
+      if (on !== want) on = !!(await marketplace.toggleFavorite(id))?.isFavorited;
+      setSavedIds((prev) => {
+        const n = new Set(prev);
+        if (on) n.add(id); else n.delete(id);
+        return n;
+      });
+      return on === want;
+    } catch {
+      Alert.alert(t("error"), t("mkDiscoverSaveError"));
+      return false;
+    }
+  }, [t]);
 
   const [sort, setSort] = useState<"recent" | "price_asc" | "price_desc">("recent");
   const [price, setPrice] = useState<string | null>(null);
@@ -167,25 +198,10 @@ export default function ResidenceMarket() {
     router.push({ pathname: "/product-detail", params: { id } } as any);
   };
 
-  return (
-    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={200}
-        onScroll={(e) => {
-          const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
-          if (space === "neighbours" && contentOffset.y + layoutMeasurement.height >= contentSize.height - 700) loadMore();
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={products.isRefetching && !products.isFetchingNextPage}
-            onRefresh={() => { products.refetch(); featured.refetch(); if (space === "providers") providers.refetch(); }}
-            tintColor={colors.tint}
-          />
-        }
-      >
+  // Everything above the listings; the listings themselves are FlatList items
+  // (only what is on screen is rendered, pages load near the end).
+  const listHeader = (
+    <>
         {/* ── Dusk hero: where we are, what is on offer, search ── */}
         <LinearGradient colors={[colors.navy, "#2B2475"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: topPad + 14 }]}>
           <ZelligePattern opacity={0.035} />
@@ -417,12 +433,34 @@ export default function ResidenceMarket() {
                           ? zone ? t("mkListingsIn").replace("{city}", zone) : t("mkAllResidences")
                           : t("mkLatest")}
                   </Text>
-                  {!products.isLoading ? (
-                    <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("mkCount").replace("{n}", String(total))}</Text>
-                  ) : null}
+                  <View style={styles.headRight}>
+                    {!products.isLoading ? (
+                      <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("mkCount").replace("{n}", String(total))}</Text>
+                    ) : null}
+                    {!saved ? (
+                      <View style={[styles.viewToggle, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="radiogroup">
+                        {(["grid", "discover"] as const).map((v) => {
+                          const on = view === v;
+                          return (
+                            <Pressable
+                              key={v}
+                              testID={`market-view-${v}`}
+                              onPress={() => setView(v)}
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected: on, checked: on }}
+                              accessibilityLabel={v === "grid" ? t("mkViewGrid") : t("mkViewDiscover")}
+                              style={[styles.viewBtn, on && { backgroundColor: colors.primary }]}
+                            >
+                              <Feather name={v === "grid" ? "grid" : "layers"} size={15} color={on ? "#FFFFFF" : colors.textMuted} />
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
                 {products.isLoading ? (
-                  <ActivityIndicator color={colors.tint} style={{ marginTop: 24 }} />
+                  <SkeletonProductGrid count={cols * 2} cardWidth={cardW} gap={gap} />
                 ) : products.isError && !products.data ? (
                   <ErrorState title={t("uiLoadErrorTitle")} description={t("uiLoadErrorHint")} retryLabel={t("retry")} onRetry={() => products.refetch()} />
                 ) : list.length === 0 ? (
@@ -431,32 +469,19 @@ export default function ResidenceMarket() {
                     <Text style={[TYPE.bodyStrong, { color: colors.foreground, textAlign: "center" }]}>{saved ? t("mkSavedEmpty") : search || category ? t("mkEmptyFiltered") : t("mkEmpty")}</Text>
                     <Text style={[TYPE.secondary, { color: colors.textMuted, textAlign: "center" }]}>{saved ? t("mkSavedEmptyHint") : t("mkEmptyHint")}</Text>
                   </Card>
+                ) : view === "discover" && !saved ? (
+                  <DiscoverDeck
+                    products={list}
+                    ticket={ticket}
+                    savedIds={savedIds}
+                    onSave={(id) => setFavorite(id, true)}
+                    onUnsave={(id) => setFavorite(id, false)}
+                    onOpen={openProduct}
+                    onNeedMore={loadMore}
+                    hasMore={!!products.hasNextPage}
+                  />
                 ) : (
-                  <>
-                    <View style={[styles.grid, { gap }]}>
-                      {list.map((p, i) => (
-                        <Animated.View key={p.id} entering={FadeInDown.duration(DURATION.base).delay(Math.min(i % PAGE_SIZE, STAGGER_MAX) * STAGGER)} style={{ width: cardW }}>
-                          <ProductCard product={p} ticket={ticket} onPress={() => openProduct(p.id)} />
-                        </Animated.View>
-                      ))}
-                    </View>
-                    <View style={styles.footer}>
-                      {products.isFetchingNextPage ? (
-                        <ActivityIndicator color={colors.tint} />
-                      ) : products.isFetchNextPageError ? (
-                        <Pressable onPress={() => products.fetchNextPage()} accessibilityRole="button" style={[styles.moreBtn, { borderColor: colors.danger }]}>
-                          <Feather name="refresh-cw" size={14} color={colors.danger} />
-                          <Text style={[styles.moreText, { color: colors.danger }]}>{t("mkLoadMoreFailed")}</Text>
-                        </Pressable>
-                      ) : products.hasNextPage ? (
-                        <Pressable onPress={loadMore} accessibilityRole="button" style={[styles.moreBtn, { borderColor: colors.border }]} testID="market-load-more">
-                          <Text style={[styles.moreText, { color: colors.tint }]}>{t("mkLoadMore")}</Text>
-                        </Pressable>
-                      ) : (
-                        <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("mkAllShown").replace("{n}", String(list.length))}</Text>
-                      )}
-                    </View>
-                  </>
+                  null
                 )}
               </View>
             </>
@@ -521,7 +546,67 @@ export default function ResidenceMarket() {
             </View>
           )}
         </View>
-      </ScrollView>
+    </>
+  );
+  const showGrid = space === "neighbours" && !products.isLoading && !(products.isError && !products.data) && (view === "grid" || saved);
+  const gridFooter =
+    showGrid && list.length > 0 ? (
+      <View style={[styles.footer, { paddingHorizontal: pagePad }]}>
+        {products.isFetchingNextPage ? (
+          <ActivityIndicator color={colors.tint} />
+        ) : products.isFetchNextPageError ? (
+          <Pressable onPress={() => products.fetchNextPage()} accessibilityRole="button" style={[styles.moreBtn, { borderColor: colors.danger }]}>
+            <Feather name="refresh-cw" size={14} color={colors.danger} />
+            <Text style={[styles.moreText, { color: colors.danger }]}>{t("mkLoadMoreFailed")}</Text>
+          </Pressable>
+        ) : products.hasNextPage ? (
+          <Pressable onPress={loadMore} accessibilityRole="button" style={[styles.moreBtn, { borderColor: colors.border }]} testID="market-load-more">
+            <Text style={[styles.moreText, { color: colors.tint }]}>{t("mkLoadMore")}</Text>
+          </Pressable>
+        ) : (
+          <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("mkAllShown").replace("{n}", String(list.length))}</Text>
+        )}
+      </View>
+    ) : null;
+  const renderProduct = useCallback(
+    ({ item, index }: { item: MarketProduct; index: number }) => (
+      <Animated.View entering={FadeInDown.duration(DURATION.base).delay(Math.min(index % PAGE_SIZE, STAGGER_MAX) * STAGGER)} style={{ width: cardW }}>
+        <ProductCard product={item} ticket={ticket} onPress={() => openProduct(item.id)} />
+      </Animated.View>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cardW, ticket],
+  );
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+      <FlatList
+        key={`market-${cols}`}
+        data={showGrid ? list : []}
+        keyExtractor={(p) => p.id}
+        renderItem={renderProduct}
+        numColumns={cols}
+        columnWrapperStyle={cols > 1 ? { gap, paddingHorizontal: pagePad } : undefined}
+        ItemSeparatorComponent={GridGap}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={gridFooter ?? undefined}
+        onEndReached={() => { if (space === "neighbours") loadMore(); }}
+        onEndReachedThreshold={0.6}
+        initialNumToRender={cols * 4}
+        maxToRenderPerBatch={cols * 4}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === "android"}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={products.isRefetching && !products.isFetchingNextPage}
+            onRefresh={() => { products.refetch(); featured.refetch(); if (space === "providers") providers.refetch(); }}
+            tintColor={colors.tint}
+          />
+        }
+      />
 
       {space === "neighbours" ? (
         <Pressable
@@ -571,6 +656,9 @@ const styles = StyleSheet.create({
   chip: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 40, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
   chipText: { fontFamily: FONT.semibold, fontSize: 13 },
   section: { gap: SPACING.MD },
+  headRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  viewToggle: { flexDirection: "row", borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, padding: 2 },
+  viewBtn: { width: 34, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   sectionHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
   sectionTitle: { fontFamily: "Fraunces_600SemiBold", fontSize: 21, lineHeight: 28 },
   grid: { flexDirection: "row", flexWrap: "wrap" },

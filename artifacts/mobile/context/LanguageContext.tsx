@@ -25683,6 +25683,78 @@ export const TRANSLATIONS: Translations = {
     ar: "مسح",
     es: "Borrar",
   },
+  mkViewGrid: {
+    fr: "Affichage en grille",
+    en: "Grid view",
+    ar: "عرض شبكي",
+    es: "Vista de cuadrícula",
+  },
+  mkViewDiscover: {
+    fr: "Découvrir une à une",
+    en: "Discover one by one",
+    ar: "اكتشاف واحدًا تلو الآخر",
+    es: "Descubrir uno a uno",
+  },
+  mkDiscoverSave: {
+    fr: "Enregistrer",
+    en: "Save",
+    ar: "حفظ",
+    es: "Guardar",
+  },
+  mkDiscoverPass: {
+    fr: "Passer",
+    en: "Skip",
+    ar: "تخطي",
+    es: "Pasar",
+  },
+  mkDiscoverUndo: {
+    fr: "Revenir",
+    en: "Undo",
+    ar: "تراجع",
+    es: "Deshacer",
+  },
+  mkDiscoverDetails: {
+    fr: "Voir l'annonce",
+    en: "View listing",
+    ar: "عرض الإعلان",
+    es: "Ver el anuncio",
+  },
+  mkDiscoverOpenHint: {
+    fr: "Ouvre l'annonce complète",
+    en: "Opens the full listing",
+    ar: "يفتح الإعلان كاملًا",
+    es: "Abre el anuncio completo",
+  },
+  mkDiscoverCount: {
+    fr: "{n} sur {total}",
+    en: "{n} of {total}",
+    ar: "{n} من {total}",
+    es: "{n} de {total}",
+  },
+  mkDiscoverDone: {
+    fr: "Vous avez tout parcouru",
+    en: "You have seen everything",
+    ar: "لقد تصفحت كل شيء",
+    es: "Lo ha visto todo",
+  },
+  mkDiscoverDoneHint: {
+    fr: "Retrouvez vos annonces enregistrées avec le cœur, ou changez de filtres.",
+    en: "Find your saved listings with the heart, or change the filters.",
+    ar: "تجد إعلاناتك المحفوظة عبر رمز القلب، أو غيّر عوامل التصفية.",
+    es: "Encuentre sus anuncios guardados con el corazón o cambie los filtros.",
+  },
+  mkDiscoverRestart: {
+    fr: "Recommencer",
+    en: "Start again",
+    ar: "البدء من جديد",
+    es: "Empezar de nuevo",
+  },
+  mkDiscoverSaveError: {
+    fr: "L'annonce n'a pas pu être enregistrée. Réessayez.",
+    en: "The listing could not be saved. Try again.",
+    ar: "تعذّر حفظ الإعلان. أعد المحاولة.",
+    es: "No se pudo guardar el anuncio. Inténtelo de nuevo.",
+  },
 };
 
 interface LanguageContextValue {

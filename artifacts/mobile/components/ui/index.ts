@@ -11,7 +11,7 @@ export { default as Card } from "./Card";
 export { default as IconButton } from "./IconButton";
 export { default as ListItem } from "./ListItem";
 export { default as SectionHeader } from "./SectionHeader";
-export { default as Skeleton } from "./Skeleton";
+export { default as Skeleton, SkeletonCard, SkeletonList, SkeletonProductGrid, SkeletonProfile } from "./Skeleton";
 export { default as StatusBadge } from "./StatusBadge";
 export { default as ZelligePattern } from "./ZelligePattern";
 export { toneColors, TONE_ICON, type StatusTone } from "./tone";
