@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Linking, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -11,7 +11,13 @@ import { apiRequest } from "@/lib/api";
 import { LibraryUploadError, pickLibraryFile, sendLibraryFile, type PickedFile } from "@/lib/upload";
 import { library, type DocVisibility, type LibraryDocument } from "@/services/api";
 import ScreenHeader from "@/components/ScreenHeader";
-import { ErrorState } from "@/components/DataState";
+import DocumentRow from "@/components/DocumentRow";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
+import { Chip, SearchField, SectionHeader, Skeleton, StatusBadge, toneColors } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
+import { toDocumentError, type DocumentFileErrorCode } from "@/lib/documentFiles";
+import { categoryLabel, categoryStyle, formatLabel, isRecentlyPublished } from "@/lib/documentMeta";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
 /**
@@ -84,20 +90,6 @@ const MANAGERS = ["syndicate_admin", "president", "secretary"];
 
 const humanSize = (n: number | null) => (!n ? "" : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} Ko` : `${(n / 1024 / 1024).toFixed(1)} Mo`);
 
-/** Opens a document through a fresh personal link (PDF in-app, other files in the system viewer). */
-async function openDocument(doc: { id: string; title: string }, tr: T, versionId?: string) {
-  try {
-    const link = await library.link(doc.id, versionId);
-    if (!link.mimeType || link.mimeType === "application/pdf") {
-      router.push({ pathname: "/pdf-viewer", params: { url: link.url, title: doc.title, docId: doc.id } });
-    } else {
-      await Linking.openURL(link.url);
-    }
-  } catch (e: any) {
-    Alert.alert(tr("error"), e?.code === "NO_FILE" ? tr("noFile") : e?.message ?? tr("error"));
-  }
-}
-
 function UploadSheet({ visible, onClose, onDone, tr, lang, isTreasurer }: { visible: boolean; onClose: () => void; onDone: () => void; tr: T; lang: Lang; isTreasurer: boolean }) {
   const colors = useColors();
   const [file, setFile] = useState<PickedFile | null>(null);
@@ -159,7 +151,7 @@ function UploadSheet({ visible, onClose, onDone, tr, lang, isTreasurer }: { visi
   return (
     <FormSheet visible={visible} title={tr("add")} onClose={onClose} closeLabel={tr("close")}>
       <TouchableOpacity onPress={choose} style={[styles.pick, { borderColor: colors.border, backgroundColor: colors.card }]} accessibilityRole="button">
-        <Feather name={file ? "check-circle" : "paperclip"} size={16} color={file ? "#10b981" : colors.primary} />
+        <Feather name={file ? "check-circle" : "paperclip"} size={16} color={file ? colors.success : colors.primary} />
         <Text style={{ color: colors.foreground, flex: 1 }} numberOfLines={1}>{file ? `${file.name} ${humanSize(file.size)}` : tr("pick")}</Text>
       </TouchableOpacity>
       <FieldLabel label={tr("docTitle")} />
@@ -180,7 +172,7 @@ function UploadSheet({ visible, onClose, onDone, tr, lang, isTreasurer }: { visi
           <ChoiceChips value={f.lotId} onChange={(v) => setF((p) => ({ ...p, lotId: v }))} options={lots.map((l) => ({ key: l.id, label: l.number }))} />
         </>
       )}
-      {err ? <Text style={{ color: "#ef4444" }}>{err}</Text> : null}
+      {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
       <ActionButton label={busy ? tr("sending") : tr("save")} icon="upload" busy={busy} onPress={() => submit(false)} />
     </FormSheet>
   );
@@ -219,7 +211,7 @@ function DocumentSheet({ doc, onClose, onChanged, tr, lang, role }: { doc: Libra
         {doc.version && doc.version > 1 ? ` · v${doc.version}` : ""}
       </Text>
       {doc.description ? <Text style={{ color: colors.foreground }}>{doc.description}</Text> : null}
-      <ActionButton label={tr("open")} icon="eye" onPress={() => openDocument(doc, tr)} disabled={!doc.hasFile} />
+      <ActionButton label={tr("open")} icon="eye" onPress={() => { onClose(); openDocument(doc); }} disabled={!doc.hasFile} />
       {isManager && doc.source === "upload" && doc.status !== "archived" && (
         <>
           <FieldLabel label={tr("reason")} />
@@ -234,10 +226,10 @@ function DocumentSheet({ doc, onClose, onChanged, tr, lang, role }: { doc: Libra
               if (picked) act(() => sendLibraryFile(`/documents/${doc.id}/file`, picked, { changeReason: reason.trim() }));
             }}
           />
-          <ActionButton label={tr("archive")} icon="archive" color="#64748b" busy={busy} disabled={reason.trim().length < 3} onPress={() => act(() => library.archive(doc.id, reason.trim()))} />
+          <ActionButton label={tr("archive")} icon="archive" color="#6A6680" busy={busy} disabled={reason.trim().length < 3} onPress={() => act(() => library.archive(doc.id, reason.trim()))} />
         </>
       )}
-      {isManager && doc.status === "archived" && <ActionButton label={tr("unarchive")} icon="rotate-ccw" color="#64748b" busy={busy} onPress={() => act(() => library.unarchive(doc.id))} />}
+      {isManager && doc.status === "archived" && <ActionButton label={tr("unarchive")} icon="rotate-ccw" color="#6A6680" busy={busy} onPress={() => act(() => library.unarchive(doc.id))} />}
       {isTeam && (
         <>
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("versions")}</Text>
@@ -247,7 +239,7 @@ function DocumentSheet({ doc, onClose, onChanged, tr, lang, role }: { doc: Libra
             <>
               <Text style={[styles.meta, { color: colors.foreground }]}>v{doc.version ?? 1} ({tr("current")})</Text>
               {versions.map((v) => (
-                <TouchableOpacity key={v.id} disabled={!v.hasFile} onPress={() => openDocument(doc, tr, v.id)} style={styles.row} accessibilityRole="button">
+                <TouchableOpacity key={v.id} disabled={!v.hasFile} onPress={() => openVersion(doc, tr, v.id)} style={styles.row} accessibilityRole="button">
                   <Feather name="clock" size={13} color={colors.mutedForeground} />
                   <Text style={[styles.meta, { color: v.hasFile ? colors.primary : colors.mutedForeground, flex: 1 }]}>
                     v{v.versionNumber} · {String(v.modifiedAt).slice(0, 10)} · {v.modifiedByName ?? ""} {v.changeReason ? `— ${v.changeReason}` : ""}
@@ -262,25 +254,49 @@ function DocumentSheet({ doc, onClose, onChanged, tr, lang, role }: { doc: Libra
   );
 }
 
+/** Opens a document in the in-app reader (access re-checked by the server). */
+function openDocument(doc: { id: string }) {
+  router.push({ pathname: "/document-viewer", params: { id: doc.id } } as any);
+}
+
+/** Team only: an older version, through its own personal link. */
+async function openVersion(doc: { id: string; title: string }, tr: T, versionId: string) {
+  try {
+    const link = await library.link(doc.id, versionId);
+    if (!link.mimeType || link.mimeType === "application/pdf") {
+      router.push({ pathname: "/pdf-viewer", params: { url: link.url, title: doc.title, docId: doc.id } });
+    } else {
+      await Linking.openURL(link.url);
+    }
+  } catch (e: any) {
+    Alert.alert(tr("error"), e?.code === "NO_FILE" ? tr("noFile") : e?.message ?? tr("error"));
+  }
+}
+
+const PAGE_SIZE = 30;
+
 export default function BibliothequeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const L = (["fr", "en", "ar", "es"].includes(lang) ? lang : "fr") as Lang;
   const tr: T = useCallback((k) => S[k][L] ?? S[k].fr, [L]);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const role = user?.role ?? "member";
+  const isTeam = TEAM.includes(role);
   const params = useLocalSearchParams<{ entityType?: string; entityId?: string }>();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
-  const [sort, setSort] = useState<"recent" | "title" | "largest">("recent");
+  const [sort, setSort] = useState<"recent" | "title">("recent");
   const [archived, setArchived] = useState(false);
   const [rows, setRows] = useState<LibraryDocument[]>([]);
+  const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<{ category: string; n: number }[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<DocumentFileErrorCode | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<LibraryDocument | null>(null);
@@ -289,7 +305,7 @@ export default function BibliothequeScreen() {
   const load = useCallback(
     async (nextPage = 1) => {
       const id = ++reqId.current;
-      setError(false);
+      if (nextPage === 1) setError(null);
       try {
         const res = await library.search({
           q: q.trim() || undefined,
@@ -299,82 +315,157 @@ export default function BibliothequeScreen() {
           entityType: params.entityType,
           entityId: params.entityId,
           page: nextPage,
-          limit: 30,
+          limit: PAGE_SIZE,
         });
         if (id !== reqId.current) return; // a newer search answered first
-        setRows((prev) => (nextPage === 1 ? res.data : [...prev, ...res.data]));
+        setRows((prev) => (nextPage === 1 ? res.data : [...prev, ...res.data.filter((d) => !prev.some((p) => p.id === d.id))]));
         setCategories(res.categories ?? []);
+        setTotal(res.total);
         setPage(res.page);
         setPages(res.pages);
-      } catch {
-        if (id === reqId.current) setError(true);
+      } catch (e) {
+        if (id === reqId.current && nextPage === 1) {
+          setError(toDocumentError(e).code);
+          setRows([]);
+        }
       } finally {
         if (id === reqId.current) {
           setLoading(false);
           setRefreshing(false);
+          setLoadingMore(false);
         }
       }
     },
     [q, category, sort, archived, params.entityType, params.entityId],
   );
   useEffect(() => {
-    const t = setTimeout(() => load(1), q ? 300 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => load(1), q ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [load, q]);
 
+  const filtering = !!q.trim() || !!category;
+  // Featured: documents really published in the last 14 days (first page, no filter).
+  const recent = !filtering && sort === "recent" ? rows.filter((d) => d.status === "published" && isRecentlyPublished(d.publishedAt ?? null)).slice(0, 4) : [];
+  const allCount = categories.reduce((s, c) => s + c.n, 0);
   const canAdd = ["syndicate_admin", "president", "secretary", "treasurer"].includes(role);
+
+  const header = (
+    <View style={styles.headerBlock}>
+      <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{t("dlSubtitle")}</Text>
+      <SearchField value={q} onChangeText={setQ} placeholder={t("dlSearch")} />
+      {recent.length > 0 ? (
+        <View style={{ gap: 10 }}>
+          <SectionHeader title={t("dlRecent")} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingEnd: 4 }}>
+            {recent.map((d) => {
+              const st = categoryStyle(d.category);
+              const tc = toneColors(colors, st.tone);
+              return (
+                <Pressable
+                  key={d.id}
+                  onPress={() => openDocument(d)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${d.title}, ${categoryLabel(d.category, t)}`}
+                  style={({ pressed }) => [styles.featured, { backgroundColor: pressed ? colors.surfaceMuted : colors.card, borderColor: colors.border }]}
+                >
+                  <View style={styles.featuredTop}>
+                    <View style={[styles.featuredIcon, { backgroundColor: tc.bg }]}>
+                      <Feather name={st.icon} size={16} color={tc.fg} />
+                    </View>
+                    <StatusBadge label={t("dlNew")} tone="primary" icon={null} />
+                  </View>
+                  <Text style={[TYPE.bodyStrong, { color: colors.foreground }]} numberOfLines={2}>
+                    {d.title}
+                  </Text>
+                  <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+                    {[categoryLabel(d.category, t), formatLabel(d.mimeType, d.fileName)].filter(Boolean).join(" · ")}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+      <View style={styles.listHead}>
+        <Text style={[TYPE.subtitle, { color: colors.foreground, flex: 1 }]} accessibilityRole="header">
+          {category ? categoryLabel(category, t) : t("dlAllDocuments")}
+        </Text>
+        <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("dlCount").replace("{n}", String(total))}</Text>
+      </View>
+      <View style={styles.sortRow}>
+        <Chip label={tr("sort_recent")} selected={sort === "recent"} onPress={() => setSort("recent")} />
+        <Chip label={tr("sort_title")} selected={sort === "title"} onPress={() => setSort("title")} />
+        {isTeam ? <Chip label={tr("showArchived")} selected={archived} icon="archive" onPress={() => setArchived((a) => !a)} /> : null}
+      </View>
+    </View>
+  );
+
+  const empty = (() => {
+    if (error) {
+      const map: Record<string, { icon: any; title: string; action: string; run: () => void }> = {
+        OFFLINE: { icon: "wifi-off", title: t("dlErrOffline"), action: t("dlRetry"), run: () => { setLoading(true); load(1); } },
+        AUTH_EXPIRED: { icon: "lock", title: t("dlErrAuth"), action: t("dlSignIn"), run: () => void logout().then(() => router.replace("/login")) },
+        ACCESS_REVOKED: { icon: "slash", title: t("dlErrDenied"), action: t("dlRetry"), run: () => { setLoading(true); load(1); } },
+      };
+      const m = map[error] ?? { icon: "alert-circle", title: tr("loadError"), action: t("dlRetry"), run: () => { setLoading(true); load(1); } };
+      return <EmptyState icon={m.icon} title={m.title} actionLabel={m.action} onAction={m.run} />;
+    }
+    if (q.trim()) return <EmptyState icon="search" title={t("dlNoResultTitle")} description={t("dlNoResultDesc")} actionLabel={t("dlClearFilters")} onAction={() => { setQ(""); setCategory(""); }} />;
+    if (category) return <EmptyState icon="folder" title={t("dlEmptyCategory")} actionLabel={t("dlClearFilters")} onAction={() => setCategory("")} />;
+    return <EmptyState icon="folder" title={t("dlEmptyTitle")} description={t("dlEmptyDesc")} actionLabel={canAdd ? tr("add") : undefined} onAction={canAdd ? () => setAdding(true) : undefined} />;
+  })();
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScreenHeader title={tr("title")} action={canAdd ? { icon: "plus", onPress: () => setAdding(true), label: tr("add") } : undefined} />
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 8 }}>
-        <View style={[styles.searchBox, { borderColor: colors.border, backgroundColor: colors.card }]}>
-          <Feather name="search" size={16} color={colors.mutedForeground} />
-          <TextInput value={q} onChangeText={setQ} placeholder={tr("search")} placeholderTextColor={colors.mutedForeground} style={{ flex: 1, color: colors.foreground }} returnKeyType="search" />
-        </View>
-        <ChoiceChips
+      <ScreenHeader title={t("dlTitle")} subtitle={user?.syndicate ?? undefined} action={canAdd ? { icon: "plus", onPress: () => setAdding(true), label: tr("add") } : undefined} />
+      {categories.length > 0 || category ? (
+        <FilterChips
+          options={[
+            { key: "", label: t("dlAll"), count: allCount },
+            ...categories
+              .slice()
+              .sort((a, b) => b.n - a.n)
+              .map((c) => ({ key: c.category, label: categoryLabel(c.category, t), count: c.n, icon: categoryStyle(c.category).icon })),
+          ]}
           value={category}
           onChange={setCategory}
-          options={[{ key: "", label: tr("all") }, ...categories.map((c) => ({ key: c.category, label: `${CATEGORIES[c.category]?.[L] ?? c.category} (${c.n})` }))]}
         />
-        <View style={styles.row}>
-          <ChoiceChips value={sort} onChange={(v) => setSort(v as typeof sort)} options={[{ key: "recent", label: tr("sort_recent") }, { key: "title", label: tr("sort_title") }, { key: "largest", label: tr("sort_largest") }]} />
-          {TEAM.includes(role) && (
-            <TouchableOpacity onPress={() => setArchived((a) => !a)} style={styles.row} accessibilityRole="checkbox" accessibilityState={{ checked: archived }}>
-              <Feather name={archived ? "check-square" : "square"} size={15} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("showArchived")}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      ) : null}
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
-      ) : error ? (
-        <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setLoading(true); load(1); }} accentColor={colors.primary} />
+        <View style={{ padding: 16, gap: 14 }} accessibilityLabel={t("dlLoadMore")}>
+          <Skeleton height={48} radius={12} />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={46} height={54} radius={12} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Skeleton width="75%" height={13} />
+                <Skeleton width="45%" height={10} />
+                <Skeleton width="30%" height={10} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : (
         <FlatList
-          data={rows}
+          data={error ? [] : rows}
           keyExtractor={(d) => d.id}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(1); }} />}
-          ListEmptyComponent={<Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 20 }}>{tr("empty")}</Text>}
-          ListFooterComponent={page < pages ? <ActionButton label={tr("more")} icon="chevron-down" color="#64748b" onPress={() => load(page + 1)} /> : null}
-          renderItem={({ item: d }) => (
-            <TouchableOpacity onPress={() => setSelected(d)} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} accessibilityRole="button">
-              <View style={styles.row}>
-                <Feather name={d.mimeType?.startsWith("image/") ? "image" : "file-text"} size={18} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={2}>{d.title}</Text>
-                  <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                    {CATEGORIES[d.category]?.[L] ?? d.category} · {String(d.createdAt).slice(0, 10)} {humanSize(d.sizeBytes)}
-                    {TEAM.includes(role) ? ` · ${tr(`v_${d.visibility}` as keyof typeof S)}` : ""}
-                  </Text>
-                </View>
-                {d.status === "archived" ? <Text style={[styles.badge, { color: "#64748b" }]}>{tr("archived")}</Text> : d.status === "draft" ? <Text style={[styles.badge, { color: "#f59e0b" }]}>{tr("draft")}</Text> : null}
-                <TouchableOpacity onPress={() => openDocument(d, tr)} disabled={!d.hasFile} accessibilityLabel={tr("open")} hitSlop={10}>
-                  <Feather name="download" size={18} color={d.hasFile ? colors.primary : colors.border} />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+          ListHeaderComponent={header}
+          contentContainerStyle={[{ paddingBottom: insets.bottom + 40 }, rows.length === 0 && { flexGrow: 1 }]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(1); }} tintColor={colors.primary} colors={[colors.primary]} />}
+          ListEmptyComponent={empty}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (!loadingMore && page < pages) {
+              setLoadingMore(true);
+              load(page + 1);
+            }
+          }}
+          ListFooterComponent={loadingMore ? <Text style={[TYPE.caption, { color: colors.textMuted, textAlign: "center", padding: 16 }]}>{t("dlLoadMore")}</Text> : undefined}
+          renderItem={({ item: d, index }) => (
+            <View style={[styles.rowWrap, { backgroundColor: colors.card, borderColor: colors.border }, index === 0 && styles.first, index === rows.length - 1 && styles.last]}>
+              <DocumentRow doc={d} onOpen={openDocument} onManage={isTeam ? setSelected : undefined} divider={index < rows.length - 1} showLifecycle={isTeam} />
+            </View>
           )}
         />
       )}
@@ -386,11 +477,17 @@ export default function BibliothequeScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  card: { borderWidth: 1, borderRadius: 14, padding: 14 },
-  name: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   meta: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  badge: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   section: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", marginTop: 8 },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   pick: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
+  headerBlock: { padding: 16, gap: 14 },
+  listHead: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 4 },
+  sortRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  featured: { width: 200, borderWidth: 1, borderRadius: 16, padding: 14, gap: 8 },
+  featuredTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  featuredIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  rowWrap: { marginHorizontal: 16, borderLeftWidth: 1, borderRightWidth: 1, overflow: "hidden" },
+  first: { borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  last: { borderBottomWidth: 1, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
+  skeletonRow: { flexDirection: "row", alignItems: "center", gap: 12 },
 });

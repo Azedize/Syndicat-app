@@ -4,7 +4,7 @@
  * Resident view  : submit a request, track its approval status with a step trail.
  * Admin view     : review all pending requests, perform syndic/committee/vote/decision steps.
  */
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -29,8 +29,9 @@ import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { localDate } from "@/lib/localDate";
 
-const ACCENT = "#f97316";
+const ACCENT = "#C8642A";
 
 // ─── Config maps ─────────────────────────────────────────────────────────────
 
@@ -46,13 +47,13 @@ const WORK_TYPES: Record<string, { key: string; icon: keyof typeof Feather.glyph
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; step: number }> = {
-  submitted:       { label: "privateWorksSubmitted", color: "#6b7280", bg: "#6b728015", step: 0 },
-  under_review:    { label: "privateWorksUnderReview", color: "#3b82f6", bg: "#3b82f615", step: 1 },
-  committee_review:{ label: "privateWorksCommittee", color: "#8b5cf6", bg: "#8b5cf615", step: 2 },
-  vote_required:   { label: "privateWorksVoteRequired", color: "#f59e0b", bg: "#f59e0b15", step: 3 },
-  approved:        { label: "privateWorksApproved", color: "#10b981", bg: "#10b98115", step: 4 },
-  rejected:        { label: "privateWorksRejected", color: "#ef4444", bg: "#ef444415", step: 4 },
-  withdrawn:       { label: "privateWorksWithdrawn", color: "#9ca3af", bg: "#9ca3af15", step: -1 },
+  submitted:       { label: "privateWorksSubmitted", color: "#6A6680", bg: "#6A668015", step: 0 },
+  under_review:    { label: "privateWorksUnderReview", color: "#5A4AD6", bg: "#5A4AD615", step: 1 },
+  committee_review:{ label: "privateWorksCommittee", color: "#1F8A9A", bg: "#1F8A9A15", step: 2 },
+  vote_required:   { label: "privateWorksVoteRequired", color: "#C98511", bg: "#C9851115", step: 3 },
+  approved:        { label: "privateWorksApproved", color: "#13976C", bg: "#13976C15", step: 4 },
+  rejected:        { label: "privateWorksRejected", color: "#C8323C", bg: "#C8323C15", step: 4 },
+  withdrawn:       { label: "privateWorksWithdrawn", color: "#A6A1BE", bg: "#A6A1BE15", step: -1 },
 };
 
 const STEPS = [
@@ -146,8 +147,8 @@ function StepTrail({ row, colors, t }: { row: TravauxPrivatif; colors: any; t: (
   if (row.status === "withdrawn") {
     return (
       <View style={[trail.box, { backgroundColor: colors.secondary }]}>
-        <Feather name="x-circle" size={14} color="#9ca3af" />
-        <Text style={[trail.txt, { color: "#9ca3af" }]}>{t("privateWorksWithdrawnByResident")}</Text>
+        <Feather name="x-circle" size={14} color="#A6A1BE" />
+        <Text style={[trail.txt, { color: "#A6A1BE" }]}>{t("privateWorksWithdrawnByResident")}</Text>
       </View>
     );
   }
@@ -198,7 +199,7 @@ function DecisionTrail({ row, colors, t, lang }: { row: TravauxPrivatif; colors:
       note: row.syndicReviewNote,
       by: row.syndicReviewedByName,
       date: row.syndicReviewedAt,
-      color: "#3b82f6",
+      color: "#5A4AD6",
     },
     row.committeeNote && {
       icon: "users" as const,
@@ -206,14 +207,14 @@ function DecisionTrail({ row, colors, t, lang }: { row: TravauxPrivatif; colors:
       note: row.committeeNote,
       by: row.committeeReviewedByName,
       date: row.committeeReviewedAt,
-      color: "#8b5cf6",
+      color: "#1F8A9A",
     },
     row.voteSummary && {
       icon: "check-square" as const,
       title: `${t("privateWorksVoteResult")} — ${row.voteOutcome === "approved" ? t("privateWorksApproved") : row.voteOutcome === "rejected" ? t("privateWorksRejected") : t("privateWorksInconclusive")}`,
       note: row.voteSummary,
       date: row.voteDate,
-      color: "#f59e0b",
+      color: colors.warning,
     },
     row.finalDecisionNote && {
       icon: (row.finalDecision === "approved" ? "check-circle" : "x-circle") as "check-circle" | "x-circle",
@@ -221,7 +222,7 @@ function DecisionTrail({ row, colors, t, lang }: { row: TravauxPrivatif; colors:
       note: row.finalDecisionNote,
       by: row.finalDecisionByName,
       date: row.finalDecisionAt,
-      color: row.finalDecision === "approved" ? "#10b981" : "#ef4444",
+      color: row.finalDecision === "approved" ? colors.success : colors.danger,
     },
   ].filter(Boolean) as NonNullable<{ icon: any; title: string; note: string; by?: string | null; date?: string | null; color: string }>[];
 
@@ -298,7 +299,7 @@ export default function TravauxPrivatifsScreen() {
   // Vote form
   const [voteForm, setVoteForm] = useState({
     voteOutcome: "approved" as "approved" | "rejected" | "inconclusive",
-    voteDate: new Date().toISOString().split("T")[0],
+    voteDate: localDate(),
     voteSummary: "",
   });
 
@@ -395,7 +396,7 @@ export default function TravauxPrivatifsScreen() {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showVote.id}/vote`, "POST", voteForm, token);
       setShowVote(null);
-      setVoteForm({ voteOutcome: "approved", voteDate: new Date().toISOString().split("T")[0], voteSummary: "" });
+      setVoteForm({ voteOutcome: "approved", voteDate: localDate(), voteSummary: "" });
       showToast({ type: "success", title: t("privateWorksVoteResult"), message: t("privateWorksVoteSavedToast") });
       load(true);
     } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
@@ -488,9 +489,9 @@ export default function TravauxPrivatifsScreen() {
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
           { label: t("privateWorksTotal"), value: rows.length, color: ACCENT },
-          { label: t("privateWorksInProgress"), value: pending, color: "#3b82f6" },
-          { label: t("privateWorksApprovedCount"), value: approved, color: "#10b981" },
-          { label: t("privateWorksRejectedCount"), value: rows.filter((r) => r.status === "rejected").length, color: "#ef4444" },
+          { label: t("privateWorksInProgress"), value: pending, color: "#5A4AD6" },
+          { label: t("privateWorksApprovedCount"), value: approved, color: colors.success },
+          { label: t("privateWorksRejectedCount"), value: rows.filter((r) => r.status === "rejected").length, color: colors.danger },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -581,43 +582,43 @@ export default function TravauxPrivatifsScreen() {
                         {/* Requester: withdraw */}
                         {isMyRequest && !["approved", "rejected", "withdrawn"].includes(row.status) && (
                           <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}
+                            style={[styles.actionBtn, { backgroundColor: colors.danger + "15", borderColor: colors.danger }]}
                             onPress={() => handleWithdraw(row)}
                           >
-                            <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{t("privateWorksWithdraw")}</Text>
+                            <Text style={[styles.actionBtnText, { color: colors.danger }]}>{t("privateWorksWithdraw")}</Text>
                           </TouchableOpacity>
                         )}
 
                         {/* Admin: syndic review */}
                         {isAdmin && row.status === "submitted" && (
                           <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: "#3b82f615", borderColor: "#3b82f6" }]}
+                            style={[styles.actionBtn, { backgroundColor: "#5A4AD615", borderColor: "#5A4AD6" }]}
                             onPress={() => { setSyndicForm({ reviewNote: "", bylawReference: "", requiresCommitteeReview: false, requiresGAVote: false }); setShowSyndicReview(row); }}
                           >
-                            <Feather name="eye" size={13} color="#3b82f6" />
-                            <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>{t("privateWorksInitialReviewTitle")}</Text>
+                            <Feather name="eye" size={13} color="#5A4AD6" />
+                            <Text style={[styles.actionBtnText, { color: "#5A4AD6" }]}>{t("privateWorksInitialReviewTitle")}</Text>
                           </TouchableOpacity>
                         )}
 
                         {/* Admin: committee review */}
                         {isAdmin && row.status === "committee_review" && (
                           <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: "#8b5cf615", borderColor: "#8b5cf6" }]}
+                            style={[styles.actionBtn, { backgroundColor: "#1F8A9A15", borderColor: "#1F8A9A" }]}
                             onPress={() => { setCommitteeForm({ committeeNote: "", recommendation: "approve" }); setShowCommitteeReview(row); }}
                           >
-                            <Feather name="users" size={13} color="#8b5cf6" />
-                            <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>{t("privateWorksCommitteeTitle")}</Text>
+                            <Feather name="users" size={13} color="#1F8A9A" />
+                            <Text style={[styles.actionBtnText, { color: "#1F8A9A" }]}>{t("privateWorksCommitteeTitle")}</Text>
                           </TouchableOpacity>
                         )}
 
                         {/* Admin: record vote */}
                         {isAdmin && row.status === "vote_required" && (
                           <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b" }]}
-                            onPress={() => { setVoteForm({ voteOutcome: "approved", voteDate: new Date().toISOString().split("T")[0], voteSummary: "" }); setShowVote(row); }}
+                            style={[styles.actionBtn, { backgroundColor: colors.warning + "15", borderColor: colors.warning }]}
+                            onPress={() => { setVoteForm({ voteOutcome: "approved", voteDate: localDate(), voteSummary: "" }); setShowVote(row); }}
                           >
-                            <Feather name="check-square" size={13} color="#f59e0b" />
-                            <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("privateWorksVoteResult")}</Text>
+                            <Feather name="check-square" size={13} color={colors.warning} />
+                            <Text style={[styles.actionBtnText, { color: colors.warning }]}>{t("privateWorksVoteResult")}</Text>
                           </TouchableOpacity>
                         )}
 
@@ -662,9 +663,9 @@ export default function TravauxPrivatifsScreen() {
             {buildingsLoading ? (
               <ActivityIndicator color={ACCENT} size="small" style={{ marginVertical: 8 }} />
             ) : buildings.length === 0 ? (
-              <View style={[styles.infoBox, { backgroundColor: "#ef444412" }]}>
-                <Feather name="alert-circle" size={14} color="#ef4444" />
-                <Text style={[styles.infoText, { color: "#ef4444" }]}>
+              <View style={[styles.infoBox, { backgroundColor: colors.danger + "12" }]}>
+                <Feather name="alert-circle" size={14} color={colors.danger} />
+                <Text style={[styles.infoText, { color: colors.danger }]}>
                   {t("privateWorksAccessibleBuildingRequired")}
                 </Text>
               </View>
@@ -784,7 +785,7 @@ export default function TravauxPrivatifsScreen() {
             ))}
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#3b82f6", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#5A4AD6", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleSyndicReview} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveReview")}</Text>}
@@ -808,9 +809,9 @@ export default function TravauxPrivatifsScreen() {
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("privateWorksCommitteeRecommendation")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approve",       labelKey: "privateWorksFavorable", color: "#10b981" },
-                { k: "reject",        labelKey: "privateWorksUnfavorable", color: "#ef4444" },
-                { k: "escalate_vote", labelKey: "privateWorksSubmitToVote", color: "#f59e0b" },
+                { k: "approve",       labelKey: "privateWorksFavorable", color: colors.success },
+                { k: "reject",        labelKey: "privateWorksUnfavorable", color: colors.danger },
+                { k: "escalate_vote", labelKey: "privateWorksSubmitToVote", color: colors.warning },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -835,7 +836,7 @@ export default function TravauxPrivatifsScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#8b5cf6", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#1F8A9A", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleCommitteeReview} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveOpinion")}</Text>}
@@ -857,9 +858,9 @@ export default function TravauxPrivatifsScreen() {
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksVoteOutcome")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approved",     labelKey: "privateWorksApproved", color: "#10b981" },
-                { k: "rejected",     labelKey: "privateWorksRejected", color: "#ef4444" },
-                { k: "inconclusive", labelKey: "privateWorksInconclusive", color: "#6b7280" },
+                { k: "approved",     labelKey: "privateWorksApproved", color: colors.success },
+                { k: "rejected",     labelKey: "privateWorksRejected", color: colors.danger },
+                { k: "inconclusive", labelKey: "privateWorksInconclusive", color: "#6A6680" },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -893,7 +894,7 @@ export default function TravauxPrivatifsScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#f59e0b", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: colors.warning, opacity: submitting ? 0.7 : 1 }]}
               onPress={handleVote} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveVote")}</Text>}
@@ -912,9 +913,9 @@ export default function TravauxPrivatifsScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <View style={[styles.infoBox, { backgroundColor: "#ef444412" }]}>
-              <Feather name="alert-circle" size={14} color="#ef4444" />
-              <Text style={[styles.infoText, { color: "#ef4444" }]}>
+            <View style={[styles.infoBox, { backgroundColor: colors.danger + "12" }]}>
+              <Feather name="alert-circle" size={14} color={colors.danger} />
+              <Text style={[styles.infoText, { color: colors.danger }]}>
                 {t("privateWorksFinalDecisionNotice")}
               </Text>
             </View>
@@ -924,8 +925,8 @@ export default function TravauxPrivatifsScreen() {
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("privateWorksDecisionLabel")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approved", labelKey: "privateWorksApproveRequest", color: "#10b981" },
-                { k: "rejected", labelKey: "privateWorksRejectRequest", color: "#ef4444" },
+                { k: "approved", labelKey: "privateWorksApproveRequest", color: colors.success },
+                { k: "rejected", labelKey: "privateWorksRejectRequest", color: colors.danger },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -951,7 +952,7 @@ export default function TravauxPrivatifsScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: decisionForm.decision === "approved" ? "#10b981" : "#ef4444", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: decisionForm.decision === "approved" ? colors.success : colors.danger, opacity: submitting ? 0.7 : 1 }]}
               onPress={handleDecision} disabled={submitting}
             >
               {submitting
@@ -981,7 +982,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 20, flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: ACCENT },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
   addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },

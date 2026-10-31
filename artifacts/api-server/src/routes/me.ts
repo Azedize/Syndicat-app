@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 /**
  * Data-subject rights (Loi 09-08 / CNDP): the right of access.
  *
@@ -7,10 +8,15 @@
  * anonymous by design and only participation receipts are linked to a voter.
  */
 import { Router } from "express";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { randomInt } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   appelPaymentsTable,
+  conseilSyndicalTable,
+  otpTokensTable,
+  syndicateMembershipsTable,
   appelsDeFondsTable,
   auditLogsTable,
   cotisationsTable,
@@ -23,6 +29,7 @@ import {
   supportTicketsTable,
   syndicatesTable,
   tenantsTable,
+  termsAcceptancesTable,
   transactionsTable,
   usersTable,
   voteReceiptsTable,
@@ -30,6 +37,9 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getUserLotIds } from "../lib/scope.js";
+import { z } from "zod";
+import { isReservedEmail, RESERVED_EMAIL_ERROR } from "../lib/email/deliverability.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
 
 const router = Router();
 
@@ -80,8 +90,7 @@ router.get("/me/payments", requireAuth, async (req, res) => {
       .limit(500);
     res.json({ data: rows });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -226,7 +235,191 @@ router.get("/me/data-export", requireAuth, async (req, res) => {
       ownActions,
     });
   } catch (err) {
-    req.log.error(err);
+    sendRouteError(req, res, err);
+  }
+});
+
+// ─── Acceptance of legal texts (CGU, privacy policy) ───────────────────────────
+// Proof of consent: which version of which text the user accepted, when and
+// from where. Re-accepting the same version is a no-op (unique index).
+const LEGAL_DOCUMENTS = ["cgu", "privacy"] as const;
+
+router.get("/me/terms-acceptances", requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select({ document: termsAcceptancesTable.document, version: termsAcceptancesTable.version, acceptedAt: termsAcceptancesTable.acceptedAt })
+      .from(termsAcceptancesTable)
+      .where(eq(termsAcceptancesTable.userId, req.user!.userId))
+      .orderBy(desc(termsAcceptancesTable.acceptedAt));
+    res.json({ data: rows });
+  } catch (err) {
+    req.log.error({ err }, "terms acceptances read failed");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/me/terms-acceptances", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({ document: z.enum(LEGAL_DOCUMENTS), version: z.string().trim().min(1).max(40) })
+    .safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: "Document ou version invalide" });
+  try {
+    const { document, version } = parsed.data;
+    const [created] = await db
+      .insert(termsAcceptancesTable)
+      .values({
+        userId: req.user!.userId,
+        document,
+        version,
+        ip: req.ip ?? null,
+        userAgent: String(req.headers["user-agent"] ?? "").slice(0, 300) || null,
+      })
+      .onConflictDoNothing()
+      .returning({ acceptedAt: termsAcceptancesTable.acceptedAt });
+    const [row] = created
+      ? [created]
+      : await db
+          .select({ acceptedAt: termsAcceptancesTable.acceptedAt })
+          .from(termsAcceptancesTable)
+          .where(and(eq(termsAcceptancesTable.userId, req.user!.userId), eq(termsAcceptancesTable.document, document), eq(termsAcceptancesTable.version, version)));
+    res.status(created ? 201 : 200).json({ data: { document, version, acceptedAt: row?.acceptedAt ?? null, duplicate: !created } });
+  } catch (err) {
+    req.log.error({ err }, "terms acceptance write failed");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── Change / confirm my e-mail address ─────────────────────────────────────
+// For accounts whose address cannot receive mail (generated, mistyped, reserved
+// domain) and anyone who wants to change it. Nothing is deleted and the account
+// is never blocked: the new address is adopted only once a code sent to it is
+// typed back. Member and tenant records are linked to the account by e-mail, so
+// they move with it in the same transaction.
+const EMAIL_CHANGE_PER_HOUR = 3;
+const emailChangePurpose = (userId: string) => `email_change:${userId}`;
+
+router.post("/me/email-change/request", requireAuth, async (req, res) => {
+  const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: "Adresse e-mail invalide", code: "EMAIL_INVALID" });
+  const email = parsed.data.email;
+  const user = req.user!;
+  try {
+    if (isReservedEmail(email)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
+    const [current] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, user.userId));
+    if (current && current.email.toLowerCase() === email) {
+      return void res.status(400).json({ error: "C'est déjà votre adresse actuelle.", code: "EMAIL_UNCHANGED" });
+    }
+    const [taken] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.email}) = ${email}`).limit(1);
+    if (taken) return void res.status(409).json({ error: "Cette adresse est déjà utilisée par un autre compte.", code: "EMAIL_TAKEN" });
+
+    const since = new Date(Date.now() - 3600_000);
+    const [{ value: recent }] = await db
+      .select({ value: count() })
+      .from(otpTokensTable)
+      .where(and(eq(otpTokensTable.purpose, emailChangePurpose(user.userId)), gt(otpTokensTable.createdAt, since)));
+    if (Number(recent) >= EMAIL_CHANGE_PER_HOUR) {
+      return void res.status(429).json({ error: "Trop de demandes. Réessayez dans une heure.", code: "EMAIL_CHANGE_RATE" });
+    }
+
+    const code = String(randomInt(100000, 1000000));
+    await db.insert(otpTokensTable).values({
+      email,
+      codeHash: await bcrypt.hash(code, 8),
+      purpose: emailChangePurpose(user.userId),
+      expiresAt: new Date(Date.now() + 10 * 60_000),
+    } as any);
+    const sent = await sendTransactionalEmail({
+      to: email,
+      subject: "Confirmez votre adresse e-mail MIZAN",
+      template: "email_change",
+      req,
+      html: `<p>Voici votre code de confirmation :</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Il expire dans 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>`,
+    });
+    if (!sent.ok) {
+      return void res.status(502).json({ error: "Le code n'a pas pu être envoyé. Réessayez plus tard.", code: "EMAIL_SEND_FAILED" });
+    }
+    res.json({ data: { email, expiresIn: 600 } });
+  } catch (err) {
+    req.log.error({ err }, "email change request failed");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/me/email-change/confirm", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({ email: z.string().trim().toLowerCase().email().max(254), code: z.string().trim().regex(/^\d{6}$/) })
+    .safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: "Adresse ou code invalide", code: "EMAIL_CODE_INVALID" });
+  const { email, code } = parsed.data;
+  const user = req.user!;
+  try {
+    const [token] = await db
+      .select()
+      .from(otpTokensTable)
+      .where(
+        and(
+          eq(otpTokensTable.email, email),
+          eq(otpTokensTable.purpose, emailChangePurpose(user.userId)),
+          isNull(otpTokensTable.usedAt),
+          gt(otpTokensTable.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(desc(otpTokensTable.createdAt))
+      .limit(1);
+    if (!token) return void res.status(400).json({ error: "Code expiré ou introuvable. Demandez un nouveau code.", code: "EMAIL_CODE_EXPIRED" });
+    const attempts = (token.attempts ?? 0) + 1;
+    await db.update(otpTokensTable).set({ attempts } as any).where(eq(otpTokensTable.id, token.id));
+    if (attempts > 5) return void res.status(429).json({ error: "Trop de tentatives. Demandez un nouveau code.", code: "EMAIL_CODE_LOCKED" });
+    if (!(await bcrypt.compare(code, token.codeHash))) {
+      return void res.status(400).json({ error: `Code incorrect (${5 - attempts} tentative(s) restante(s)).`, code: "EMAIL_CODE_WRONG" });
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [me] = await tx.select({ email: usersTable.email, syndicateId: usersTable.syndicateId }).from(usersTable).where(eq(usersTable.id, user.userId));
+      if (!me) throw Object.assign(new Error("Compte introuvable"), { status: 404 });
+      const [taken] = await tx.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.email}) = ${email}`).limit(1);
+      if (taken) throw Object.assign(new Error("Cette adresse est déjà utilisée par un autre compte."), { status: 409, code: "EMAIL_TAKEN" });
+      const old = me.email.toLowerCase();
+
+      // Condominiums the account belongs to: its home one and its memberships.
+      const memberships = await tx
+        .select({ syndicateId: syndicateMembershipsTable.syndicateId })
+        .from(syndicateMembershipsTable)
+        .where(and(eq(syndicateMembershipsTable.userId, user.userId), eq(syndicateMembershipsTable.status, "active")));
+      const syndicateIds = [...new Set([me.syndicateId, ...memberships.map((m) => m.syndicateId)].filter((x): x is string => !!x))];
+
+      if (syndicateIds.length) {
+        const [clash] = await tx
+          .select({ id: membersTable.id })
+          .from(membersTable)
+          .where(and(inArray(membersTable.syndicateId, syndicateIds), sql`lower(${membersTable.email}) = ${email}`))
+          .limit(1);
+        if (clash) throw Object.assign(new Error("Cette adresse est déjà celle d'un autre copropriétaire de votre copropriété."), { status: 409, code: "EMAIL_TAKEN_MEMBER" });
+      }
+
+      await tx.update(usersTable).set({ email, emailStatus: "verified", updatedAt: new Date() }).where(eq(usersTable.id, user.userId));
+      let members = 0, tenants = 0, council = 0;
+      if (syndicateIds.length) {
+        members = (await tx.update(membersTable).set({ email }).where(and(inArray(membersTable.syndicateId, syndicateIds), sql`lower(${membersTable.email}) = ${old}`)).returning({ id: membersTable.id })).length;
+        tenants = (await tx.update(tenantsTable).set({ email }).where(and(inArray(tenantsTable.syndicateId, syndicateIds), sql`lower(${tenantsTable.email}) = ${old}`)).returning({ id: tenantsTable.id })).length;
+        council = (await tx.update(conseilSyndicalTable).set({ email }).where(and(inArray(conseilSyndicalTable.syndicateId, syndicateIds), sql`lower(${conseilSyndicalTable.email}) = ${old}`)).returning({ id: conseilSyndicalTable.id })).length;
+      }
+      await tx.update(otpTokensTable).set({ usedAt: new Date() } as any).where(eq(otpTokensTable.id, token.id));
+      return { old, members, tenants, council };
+    });
+
+    await serverAuditLog(req, {
+      action: "EMAIL_CHANGED",
+      entity: "user",
+      entityId: user.userId,
+      details: `Adresse confirmée par code ; fiches mises à jour : ${result.members} copropriétaire(s), ${result.tenants} locataire(s), ${result.council} conseil.`,
+    });
+    // The access token still carries the old address: the client renews its
+    // session (refresh re-reads the account) before going on.
+    res.json({ data: { email, emailStatus: "verified", linked: { members: result.members, tenants: result.tenants, council: result.council } }, refreshRequired: true });
+  } catch (err: any) {
+    if (err?.status) return void res.status(err.status).json({ error: err.message, code: err.code });
+    req.log.error({ err }, "email change confirm failed");
     res.status(500).json({ error: "Erreur serveur" });
   }
 });

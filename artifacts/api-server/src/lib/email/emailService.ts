@@ -8,11 +8,16 @@
  * retried with backoff on transient failure, and recorded to the audit log.
  */
 import { db } from "@workspace/db";
-import { emailLogsTable, auditLogsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { emailLogsTable, auditLogsTable, usersTable } from "@workspace/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { isReservedEmail } from "./deliverability.js";
 import type { Request } from "express";
 import { logger } from "../logger.js";
+import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "../outbound.js";
 import { wrapEmail } from "./templates.js";
+
+/** Templates whose body holds a secret: never stored, never re-sent from the log. */
+export const SECRET_TEMPLATES = new Set(["password_reset", "otp", "email_change", "welcome", "team_invitation"]);
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = [500, 1500]; // delay before attempt 2 and attempt 3
@@ -48,6 +53,10 @@ async function getTransporter() {
  * prevent the API from starting.
  */
 export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
+  if (outboundDeliveryDisabled()) {
+    logger.warn("Outbound delivery disabled (OUTBOUND_DELIVERY=off): no e-mail leaves this server.");
+    return { ok: false, error: "delivery disabled" };
+  }
   if (!smtpConfigured()) {
     logger.warn("SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASS missing) — emails will be logged only, not delivered.");
     return { ok: false, error: "SMTP not configured" };
@@ -78,6 +87,24 @@ export interface SendEmailResult {
   ok: boolean;
   error?: string;
   logId?: string;
+  /** Not attempted: the address cannot receive mail (reserved domain or marked undeliverable). */
+  skipped?: boolean;
+}
+
+/** Why mail must not be sent to this address, or null when it may be. */
+async function undeliverableReason(to: string): Promise<string | null> {
+  if (isReservedEmail(to)) return "reserved domain";
+  try {
+    const [row] = await db
+      .select({ status: usersTable.emailStatus })
+      .from(usersTable)
+      .where(sql`lower(${usersTable.email}) = lower(${to})`)
+      .limit(1);
+    if (row?.status === "undeliverable") return "address marked undeliverable";
+  } catch (err) {
+    logger.warn({ err }, "email deliverability lookup failed");
+  }
+  return null;
 }
 
 /**
@@ -96,9 +123,26 @@ export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<Se
       template: opts.template,
       status: "pending",
       syndicateId: opts.syndicateId ?? null,
-      bodyHtml: html,
+      // A message carrying a secret (reset link, one-time code, temporary
+      // password, invitation) is not kept: whoever reads the logs could use it.
+      bodyHtml: SECRET_TEMPLATES.has(opts.template) ? null : html,
     })
     .returning();
+
+  // Never write to an address that cannot receive mail: it bounces, hurts the
+  // sender's reputation and, for look-alike test domains, may reach a third party.
+  const skipReason = await undeliverableReason(opts.to);
+  if (skipReason) {
+    logger.info({ to: opts.to, subject: opts.subject, reason: skipReason }, "Email skipped — undeliverable address");
+    await finalizeLog(log.id, "skipped", skipReason, 0);
+    return { ok: false, skipped: true, error: "undeliverable", logId: log.id };
+  }
+
+  if (outboundDeliveryDisabled()) {
+    logger.info({ to: opts.to, subject: opts.subject }, "Email skipped — outbound delivery disabled");
+    await finalizeLog(log.id, "skipped", OUTBOUND_DISABLED_REASON, 0);
+    return { ok: false, skipped: true, error: "delivery_disabled", logId: log.id };
+  }
 
   if (!smtpConfigured()) {
     // Dev / not-yet-configured fallback — never silently pretend success.
@@ -113,13 +157,13 @@ export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<Se
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const transporter = await getTransporter();
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
         to: opts.to,
         subject: opts.subject,
         html,
       });
-      await finalizeLog(log.id, "sent", null, attempt - 1);
+      await finalizeLog(log.id, "sent", null, attempt - 1, providerReceipt(info));
       await auditEmail(opts, "sent");
       return { ok: true, logId: log.id };
     } catch (err: any) {
@@ -136,7 +180,27 @@ export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<Se
   return { ok: false, error: lastError, logId: log.id };
 }
 
-async function finalizeLog(id: string, status: "sent" | "failed", errorMessage: string | null, retryCount: number) {
+/**
+ * Meaning of email_logs.status (what was observed, nothing more):
+ *   pending  — logged, the attempt has not finished (queued / in progress);
+ *   sent     — the SMTP provider accepted the message; providerMessageId is
+ *              its reply with its queue id (proof of acceptance — not of delivery to
+ *              the mailbox, which the provider may still bounce later);
+ *   failed   — every attempt was refused or errored (errorMessage says why);
+ *   skipped  — not attempted on purpose: reserved / undeliverable address, or
+ *              OUTBOUND_DELIVERY=off (test environment, a local simulation).
+ */
+/**
+ * The provider's acceptance: its reply to the message (« 250 2.0.0 OK … » with
+ * its queue id). sendMail only resolves after that reply; nodemailer's own
+ * messageId is generated locally and proves nothing, so it is not used.
+ */
+function providerReceipt(info: { response?: string } | undefined): string | null {
+  const r = info?.response?.trim();
+  return r ? r.slice(0, 300) : null;
+}
+
+async function finalizeLog(id: string, status: "sent" | "failed" | "skipped", errorMessage: string | null, retryCount: number, providerMessageId: string | null = null) {
   try {
     await db
       .update(emailLogsTable)
@@ -145,6 +209,7 @@ async function finalizeLog(id: string, status: "sent" | "failed", errorMessage: 
         errorMessage,
         retryCount,
         sentAt: status === "sent" ? new Date() : null,
+        providerMessageId: status === "sent" ? providerMessageId : null,
       })
       .where(eq(emailLogsTable.id, id));
   } catch (err) {
@@ -187,7 +252,13 @@ async function auditEmail(opts: SendEmailOptions, status: "sent" | "failed", err
 export async function retryEmailLog(logId: string): Promise<SendEmailResult> {
   const [log] = await db.select().from(emailLogsTable).where(eq(emailLogsTable.id, logId));
   if (!log) return { ok: false, error: "Email log introuvable" };
+  if (log.template && SECRET_TEMPLATES.has(log.template)) {
+    return { ok: false, error: "Ce message contenait un code, un lien ou un mot de passe à usage unique : il n'est pas conservé. Demandez-en un nouveau." };
+  }
   if (!log.bodyHtml) return { ok: false, error: "Corps de l'email introuvable — impossible de renvoyer" };
+  if (outboundDeliveryDisabled()) return { ok: false, skipped: true, error: "delivery_disabled", logId: log.id };
+  const skipReason = await undeliverableReason(log.recipient);
+  if (skipReason) return { ok: false, skipped: true, error: "undeliverable", logId: log.id };
 
   if (!smtpConfigured()) {
     return { ok: false, error: "SMTP not configured" };
@@ -197,13 +268,13 @@ export async function retryEmailLog(logId: string): Promise<SendEmailResult> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const transporter = await getTransporter();
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
         to: log.recipient,
         subject: log.subject,
         html: log.bodyHtml,
       });
-      await finalizeLog(log.id, "sent", null, (log.retryCount ?? 0) + attempt);
+      await finalizeLog(log.id, "sent", null, (log.retryCount ?? 0) + attempt, providerReceipt(info));
       return { ok: true, logId: log.id };
     } catch (err: any) {
       lastError = err?.message ?? String(err);

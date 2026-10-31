@@ -72,8 +72,8 @@ async function notifyExpiringDocuments(result: RetentionScanResult): Promise<voi
   for (const [syndicateId, buckets] of bySyndicateBucket) {
     if (buckets.in30 === 0) continue;
     await createAlert({
-      title: "Documents approchant la fin de conservation légale",
-      message: `${buckets.in30} document(s) atteindront leur date limite de conservation dans les 30 prochains jours.`,
+      key: "document.retention",
+      params: { count: buckets.in30 },
       type: "warning",
       syndicateId,
       target: "admin",

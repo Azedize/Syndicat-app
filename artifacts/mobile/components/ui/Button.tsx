@@ -55,7 +55,7 @@ export default function Button({
   const palette = {
     primary: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary, pressed: colors.primaryStrong },
     secondary: { bg: colors.surface, fg: colors.foreground, border: colors.borderStrong, pressed: colors.surfaceMuted },
-    ghost: { bg: "transparent", fg: colors.primary, border: "transparent", pressed: colors.primarySoft },
+    ghost: { bg: "transparent", fg: colors.tint, border: "transparent", pressed: colors.primarySoft },
     destructive: { bg: colors.danger, fg: colors.destructiveForeground, border: colors.danger, pressed: colors.dangerText },
   }[variant];
 

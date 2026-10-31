@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -239,8 +240,7 @@ router.get("/parking/spots/my", requireAuth, async (req, res) => {
 
     res.json({ data: spot ?? null });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -407,8 +407,7 @@ router.get("/parking/vehicles", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -543,8 +542,7 @@ router.delete("/parking/vehicles/:id", requireAuth, async (req, res) => {
       .where(eq(vehiclesTable.id, String(req.params.id)));
     res.json({ message: "Véhicule supprimé" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -702,8 +700,8 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
 
     if (building?.syndicateId) {
       await createAlert({
-        title: alertTitle,
-        message: `Signalé par ${user.name}${notes ? ` — ${notes}` : ""}`,
+        key: "parking.report",
+        params: { plate: plateNumber, author: user.name, notes: notes ? ` — ${notes}` : "" },
         type: "warning",
         syndicateId: building.syndicateId,
         target: "admin",

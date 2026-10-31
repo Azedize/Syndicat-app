@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import AuthHero, { AUTH_HERO_OVERLAP } from "@/components/brand/AuthHero";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -72,44 +73,11 @@ export default function ForgotPasswordScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.container,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 },
+          { paddingTop: 0, paddingBottom: insets.bottom + 40 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity
-          style={[
-            styles.backBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t("back")}
-        >
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={20}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.iconWrap,
-              { backgroundColor: colors.primary + "18" },
-            ]}
-          >
-            <Feather name="lock" size={32} color={colors.primary} />
-          </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("forgotPasswordTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {t("forgotPasswordSubtitle")}
-          </Text>
-        </View>
+        <AuthHero icon="lock" title={t("forgotPasswordTitle")} subtitle={t("forgotPasswordSubtitle")} bleed={24} />
 
         {!sent ? (
           <View
@@ -190,7 +158,7 @@ export default function ForgotPasswordScreen() {
                 ]}
               >
                 {t("haveCode")}
-                <Text style={{ color: colors.primary }}>
+                <Text style={{ color: colors.tint }}>
                   {t("resetWithCode")}
                 </Text>
               </Text>
@@ -284,14 +252,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center" },
+  title: { fontSize: 24, fontFamily: "Fraunces_600SemiBold", textAlign: "center" },
   subtitle: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 20,
   },
-  card: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
+  // The first card overlaps the dusk band (container gap: 24).
+  card: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16, marginTop: -AUTH_HERO_OVERLAP - 24 },
   inputGroup: { gap: 6 },
   label: { fontSize: 13, fontFamily: "Inter_500Medium" },
   inputWrap: {
@@ -337,7 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
-  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  successTitle: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   successText: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",

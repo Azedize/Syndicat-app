@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
 import { notificationBus } from "@/hooks/useNotificationBus";
 import { useAuth } from "./AuthContext";
+import { useLanguage } from "./LanguageContext";
 
 export interface Member {
   id: string;
@@ -337,6 +338,8 @@ export interface Alert {
   date: string;
   read: boolean;
   target: "all" | "admin" | "member";
+  /** Screen the notification is about, when this user may open it. */
+  link?: string | null;
 }
 
 export interface SubscriptionPlan {
@@ -460,7 +463,7 @@ interface DataContextType {
   refreshNotificationPreferences: () => Promise<boolean>;
   partners: Partner[];
   payslips: PayslipRecord[];
-  updateSubscription: (id: string, planId: string) => void;
+  updateSubscription: (id: string, planId: string) => Promise<boolean>;
   toggleNotificationPref: (
     id: string,
     channel: "push" | "email" | "inApp",
@@ -475,27 +478,27 @@ interface DataContextType {
     id: string,
     status: Partner["status"],
   ) => Promise<boolean>;
-  generatePayslip: (employeeId: string, month: string) => void;
-  likePublication: (id: string) => void;
-  addPublication: (p: Publication) => void;
+  generatePayslip: (employeeId: string, month: string) => Promise<boolean>;
+  likePublication: (id: string) => Promise<boolean>;
+  addPublication: (p: Publication) => Promise<boolean>;
   addMember: (m: Member) => void;
-  updateMemberStatus: (id: string, status: Member["status"]) => void;
-  addProduct: (p: Product) => void;
-  updateProduct: (p: Product) => void;
-  deleteProduct: (id: string) => void;
-  validateProduct: (id: string) => void;
-  addSyndicate: (s: Syndicate) => void;
-  updateSyndicateStatus: (id: string, status: Syndicate["status"]) => void;
+  updateMemberStatus: (id: string, status: Member["status"]) => Promise<boolean>;
+  addProduct: (p: Product) => Promise<boolean>;
+  updateProduct: (p: Product) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
+  validateProduct: (id: string) => Promise<boolean>;
+  addSyndicate: (s: Syndicate) => Promise<boolean>;
+  updateSyndicateStatus: (id: string, status: Syndicate["status"]) => Promise<boolean>;
   resolveLegalAlert: (id: string) => Promise<boolean>;
-  addSupportTicket: (t: SupportTicket) => void;
-  resolveTicket: (id: string) => void;
+  addSupportTicket: (t: SupportTicket) => Promise<boolean>;
+  resolveTicket: (id: string) => Promise<boolean>;
   markAlertRead: (id: string) => void;
   refreshAlerts: () => Promise<void>;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string) => Promise<boolean>;
   markConversationRead: (conversationId: string) => void;
-  deleteConversation: (conversationId: string) => void;
+  deleteConversation: (conversationId: string) => Promise<boolean>;
   refreshConversations: () => Promise<void>;
-  addTransaction: (t: Transaction) => void;
+  addTransaction: (t: Transaction) => Promise<boolean>;
   updateTransactionStatus: (
     id: string,
     status: Transaction["status"],
@@ -505,15 +508,15 @@ interface DataContextType {
   removeFromCart: (id: string) => void;
   updateCartQty: (id: string, qty: number) => void;
   clearCart: () => void;
-  addReview: (r: Review) => void;
+  addReview: (r: Review) => Promise<boolean>;
   addInvoice: (input: InvoiceCreateInput) => Promise<boolean>;
   refreshInvoices: () => Promise<boolean>;
-  addBonLivraison: (bl: BonLivraison) => void;
+  addBonLivraison: (bl: BonLivraison) => Promise<BonLivraison | null>;
   updateBonLivraisonStatus: (
     id: string,
     status: BonLivraison["status"],
-  ) => void;
-  confirmMeetingAttendance: (id: string) => void;
+  ) => Promise<boolean>;
+  confirmMeetingAttendance: (id: string) => Promise<boolean>;
   addMeeting: (m: Meeting) => void;
   updateMeeting: (m: Meeting) => void;
   updateDocument: (
@@ -568,6 +571,10 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  // Notifications are rendered by the server in the current language.
+  const { lang } = useLanguage();
+  const langRef = React.useRef(lang);
+  langRef.current = lang;
   const [dataLoading, setDataLoading] = useState(false);
   const [dataLoadError, setDataLoadError] = useState(false);
   const [meetingsLoadError, setMeetingsLoadError] = useState(false);
@@ -636,17 +643,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setNotificationPreferencesLoadError(false);
     async function loadFromApi() {
       try {
+        // Ask only for what the server lets this role read (same lists as the
+        // API guards); the others got a 403 on every launch. The server keeps
+        // its own checks: this only avoids pointless refused requests.
+        const role = user?.role ?? "";
+        const onlyFor = <T,>(roles: string[], call: () => Promise<T>) =>
+          roles.includes(role) ? call() : Promise.resolve({ data: [] as unknown[] } as unknown as T);
+        const MEMBER_DIRECTORY = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"];
+        const LEDGER_READERS = ["syndicate_admin", "treasurer", "president", "committee_member"];
+        const FINANCE_STAFF = ["syndicate_admin", "treasurer"];
         const results = await Promise.allSettled([
-          api.members.list(),
+          onlyFor(MEMBER_DIRECTORY, () => api.members.list()),
           api.elections.list(),
-          api.meetings.list(
-            user?.role === "super_admin" ? { supervision: true } : undefined,
-          ),
-          api.finance.transactions(),
-          api.finance.salaries(),
-          api.finance.caisse(),
-          api.finance.invoices(),
-          api.finance.bons(),
+          // Tenants are not co-owners: the API refuses them the assemblies.
+          role === "tenant"
+            ? Promise.resolve({ data: [] as unknown[] } as unknown as Awaited<ReturnType<typeof api.meetings.list>>)
+            : api.meetings.list(role === "super_admin" ? { supervision: true } : undefined),
+          onlyFor(LEDGER_READERS, () => api.finance.transactions()),
+          onlyFor(FINANCE_STAFF, () => api.finance.salaries()),
+          onlyFor(FINANCE_STAFF, () => api.finance.caisse()),
+          onlyFor(FINANCE_STAFF, () => api.finance.invoices()),
+          onlyFor(FINANCE_STAFF, () => api.finance.bons()),
           api.marketplace.products(),
           api.marketplace.orders(),
           api.marketplace.reviews(),
@@ -655,13 +672,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           api.content.legalAlerts(),
           api.content.supportTickets(),
           api.content.cotisations(),
-          api.content.alerts(),
+          api.content.alerts(langRef.current),
           api.publications.list(),
           api.content.notificationPrefs(),
-          api.content.subscriptions(),
+          // GET /subscriptions is super-admin only: other roles got a 403 on every launch.
+          user?.role === "super_admin" ? api.content.subscriptions() : Promise.resolve({ data: [] as unknown[] }),
           api.content.subscriptionPlans(),
           api.content.partners(),
-          api.content.payslips(),
+          // Own payslips (member) or the syndicate's (admin, treasurer); the
+          // platform reads them per condominium, in supervision only.
+          onlyFor(["member", "syndicate_admin", "treasurer"], () => api.content.payslips()),
           api.documents.list(),
         ]);
 
@@ -978,6 +998,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                   date: String(row.date ?? row.createdAt ?? ""),
                   read: Boolean((row as any).readByUser ?? row.read),
                   target: (row.target as Alert["target"]) ?? "all",
+                  link: typeof row.link === "string" ? row.link : null,
                 };
               }),
             );
@@ -1254,7 +1275,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateSubscription = (id: string, planId: string) => {
     const plan = subscriptionPlans.find((p) => p.id === planId);
-    if (!plan) return;
+    if (!plan) return Promise.resolve(false);
     setSyndicateSubscriptions((p) =>
       p.map((s) =>
         s.id === id
@@ -1268,7 +1289,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : s,
       ),
     );
-    api.content.updateSubscription(id, planId).catch(onWriteFailed);
+    return api.content.updateSubscription(id, planId).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
 
   const refreshNotificationPreferences = async (): Promise<boolean> => {
@@ -1358,7 +1385,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const generatePayslip = (employeeId: string, month: string) => {
     const existing = payslips.find((ps) => ps.employeeId === employeeId);
-    if (!existing) return;
+    if (!existing) return Promise.resolve(false);
     const newPs: PayslipRecord = {
       ...existing,
       id: `ps${Date.now()}`,
@@ -1367,7 +1394,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       payDate: undefined,
     };
     setPayslips((p) => [newPs, ...p]);
-    api.content.generatePayslip(employeeId, month).catch(onWriteFailed);
+    return api.content.generatePayslip(employeeId, month).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
 
   const confirmMeetingAttendance = (id: string) => {
@@ -1379,12 +1412,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ),
     );
     const meeting = meetings.find((item) => item.id === id);
-    api.meetings
+    return api.meetings
       .confirmAttendance(
         id,
         user?.role === "super_admin" ? meeting?.syndicateId : undefined,
       )
-      .catch(onWriteFailed);
+      .then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
 
   const addMeeting = (m: Meeting) => {
@@ -1402,7 +1441,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAlerts = async () => {
     try {
-      const res = (await api.content.alerts()) as any;
+      const res = (await api.content.alerts(langRef.current)) as any;
       const rows = (res.data ?? []) as Record<string, unknown>[];
       setAlerts(
         rows.map((row) => ({
@@ -1413,12 +1452,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           date: String(row.date ?? row.createdAt ?? ""),
           read: Boolean((row as any).readByUser ?? row.read),
           target: (row.target as Alert["target"]) ?? "all",
+          link: typeof row.link === "string" ? row.link : null,
         })),
       );
     } catch {
       // keep showing stale data
     }
   };
+
+  // A new language: notifications are read again, in that language.
+  const firstLang = React.useRef(true);
+  useEffect(() => {
+    if (firstLang.current) { firstLang.current = false; return; }
+    if (user) void refreshAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   useEffect(() => {
     if (!user) return;
@@ -1444,7 +1492,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const updateMemberStatus = (id: string, status: Member["status"]) => {
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, status } : m)));
-    api.members.updateStatus(id, status).catch(onWriteFailed);
+    return api.members.updateStatus(id, status).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
     const action = status === "active" ? "approve_member" : "reject_member";
     api.content
       .auditLog({
@@ -1468,11 +1522,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addProduct = (p: Product) => {
     setProducts((prev) => [p, ...prev]);
-    api.marketplace.addProduct(p).catch(onWriteFailed);
+    return api.marketplace.addProduct(p).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const updateProduct = (p: Product) => {
     setProducts((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)));
-    api.marketplace.updateProduct(p.id, p).catch(onWriteFailed);
+    return api.marketplace.updateProduct(p.id, p).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const updateDocument = (
     id: string,
@@ -1522,29 +1588,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((pr) => pr.id !== id));
-    api.marketplace.deleteProduct(id).catch(onWriteFailed);
+    return api.marketplace.deleteProduct(id).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const validateProduct = (id: string) => {
     setProducts((p) =>
       p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)),
     );
-    api.marketplace.updateProduct(id, { status: "approved" }).catch(onWriteFailed);
+    return api.marketplace.updateProduct(id, { status: "approved" }).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
     notificationBus.emit({
       type: "success",
       message: "Produit validé et publié sur le marketplace",
     });
   };
+  // Callers create the condominium through the API first (POST /syndicates):
+  // this only adds the saved record to the local list. Posting it again here
+  // created a second condominium.
   const addSyndicate = (s: Syndicate) => {
-    setSyndicates((p) => [s, ...p]);
-    api.syndicates.create(s).catch(onWriteFailed);
+    setSyndicates((p) => (p.some((x) => x.id === s.id) ? p : [s, ...p]));
+    return Promise.resolve(true);
   };
   const updateSyndicateStatus = (id: string, status: Syndicate["status"]) => {
     setSyndicates((p) => p.map((s) => (s.id === id ? { ...s, status } : s)));
-    api.syndicates.update(id, { status }).catch(onWriteFailed);
+    return api.syndicates.update(id, { status }).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const addSupportTicket = (t: SupportTicket) => {
     setSupportTickets((p) => [t, ...p]);
-    api.content.createTicket(t).catch(onWriteFailed);
+    return api.content.createTicket(t).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
     notificationBus.emit({
       type: "info",
       message: `Ticket support soumis : "${t.title}"`,
@@ -1569,7 +1662,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSupportTickets((p) =>
       p.map((t) => (t.id === id ? { ...t, status: "resolved" } : t)),
     );
-    api.content.resolveTicket(id).catch(onWriteFailed);
+    return api.content.resolveTicket(id).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
     notificationBus.emit({
       type: "success",
       message: "Ticket support marqué comme résolu",
@@ -1597,7 +1696,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteConversation = (conversationId: string) => {
     setConversations((p) => p.filter((c) => c.id !== conversationId));
-    api.chat.delete(conversationId).catch(onWriteFailed);
+    return api.chat.delete(conversationId).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
 
   const sendMessage = (conversationId: string, text: string) => {
@@ -1623,11 +1728,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : c,
       ),
     );
-    api.chat.sendMessage(conversationId, text).catch(onWriteFailed);
+    return api.chat.sendMessage(conversationId, text).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const addTransaction = (t: Transaction) => {
     setTransactions((p) => [t, ...p]);
-    api.finance.addTransaction(t).catch(onWriteFailed);
+    return api.finance.addTransaction(t).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const updateTransactionStatus = async (
     id: string,
@@ -1661,11 +1778,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setPublications((p) =>
       p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)),
     );
-    api.publications.like(id).catch(onWriteFailed);
+    return api.publications.like(id).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const addPublication = (pub: Publication) => {
     setPublications((p) => [pub, ...p]);
-    api.publications.create(pub).catch(onWriteFailed);
+    return api.publications.create(pub).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   const createElection = (e: Election) => {
     setElections((p) => [e, ...p]);
@@ -1713,7 +1842,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addReview = (r: Review) => {
     setReviews((p) => [r, ...p]);
-    api.marketplace.addReview(r).catch(onWriteFailed);
+    return api.marketplace.addReview(r).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
   // ─── Invoice helpers ──────────────────────────────────────────────────────
   function mapDbInvoice(r: unknown): Invoice {
@@ -1773,10 +1908,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   };
-  const addBonLivraison = (bl: BonLivraison) => {
-    setBonsLivraison((p) => [bl, ...p]);
-    api.finance.addBon(bl).catch(onWriteFailed);
-  };
+  // Saved first, then listed with the server's id and number (BL-<year>-<n>):
+  // a temporary id would make the next status change fail.
+  const addBonLivraison = (bl: BonLivraison) =>
+    api.finance.addBon(bl).then(
+      (res) => {
+        const saved = (res as { data?: Partial<BonLivraison> & { id?: string } })?.data;
+        const row = { ...bl, ...(saved ?? {}), items: bl.items, total: Number(saved?.total ?? bl.total) } as BonLivraison;
+        setBonsLivraison((p) => [row, ...p]);
+        return row;
+      },
+      (e) => {
+        onWriteFailed(e);
+        return null;
+      },
+    );
   const updateBonLivraisonStatus = (
     id: string,
     status: BonLivraison["status"],
@@ -1784,7 +1930,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setBonsLivraison((p) =>
       p.map((bl) => (bl.id === id ? { ...bl, status } : bl)),
     );
-    api.finance.updateBon(id, { status }).catch(onWriteFailed);
+    return api.finance.updateBon(id, { status }).then(
+      () => true,
+      (e) => {
+        onWriteFailed(e);
+        return false;
+      },
+    );
   };
 
   return (

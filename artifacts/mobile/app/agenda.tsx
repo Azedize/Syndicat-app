@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -24,9 +26,9 @@ import { useLanguage } from "@/context/LanguageContext";
 type EventType = "meeting" | "election" | "echeance";
 
 const TYPE_CONFIG: Record<EventType, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  meeting: { labelKey: "agendaTypeReunion", color: "#3b82f6", icon: "users" },
-  election: { labelKey: "agendaTypeElection", color: "#f59e0b", icon: "check-square" },
-  echeance: { labelKey: "agendaTypeEcheance", color: "#10b981", icon: "credit-card" },
+  meeting: { labelKey: "agendaTypeReunion", color: "#5A4AD6", icon: "users" },
+  election: { labelKey: "agendaTypeElection", color: "#C98511", icon: "check-square" },
+  echeance: { labelKey: "agendaTypeEcheance", color: "#13976C", icon: "credit-card" },
 };
 
 interface AgendaEvent {
@@ -50,7 +52,17 @@ type ViewMode = "list" | "timeline";
 export default function AgendaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { meetings, elections, cotisations } = useData();
+  const { meetings, elections } = useData();
+  const { user } = useAuth();
+  // The co-owner's own calls for funds still to settle: their real due dates.
+  // (Replaces the « cotisations » of the former trade-union module.)
+  const charges = useQuery({
+    queryKey: ["agenda-charges", user?.id],
+    enabled: user?.role === "member",
+    queryFn: async () =>
+      ((await apiRequest<{ data: { id: string; period: string; type: string; dueDate: string | null; amount: string; amountPaid: string | null; status: string }[] }>("/appels-de-fonds")).data ?? [])
+        .filter((c) => ["pending", "overdue", "partially_paid", "pending_validation"].includes(c.status) && !!c.dueDate),
+  });
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const { t, lang } = useLanguage();
@@ -90,17 +102,19 @@ export default function AgendaScreen() {
       status: new Date(e.startDate) >= today ? "upcoming" as const : "completed" as const,
        organizer: t("agendaOrganizerElectionCommission"),
     })),
-    ...cotisations
-      .filter((c) => c.status !== "paid")
-      .map((c) => ({
+    ...(charges.data ?? []).map((c) => {
+      // Remaining amount, to the cent.
+      const remaining = (Math.round(Number(c.amount) * 100) - Math.round(Number(c.amountPaid ?? 0) * 100)) / 100;
+      return {
         id: c.id,
-        title: c.label,
+        title: t("agendaChargeTitle").replace("{period}", c.period),
         type: "echeance" as EventType,
-        date: c.dueDate,
-       description: `${t("agendaPaymentDeadline")} — ${formatCurrency(c.amount)}`,
-        status: new Date(c.dueDate) >= today ? "upcoming" as const : "completed" as const,
-       organizer: t("agendaOrganizerSyndic"),
-      })),
+        date: c.dueDate!,
+        description: `${t("agendaPaymentDeadline")} — ${formatCurrency(remaining)}`,
+        status: new Date(c.dueDate!) >= today ? "upcoming" as const : "completed" as const,
+        organizer: t("agendaOrganizerSyndic"),
+      };
+    }),
   ];
 
   const allEvents = [...dataEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -154,7 +168,7 @@ export default function AgendaScreen() {
     for (const ev of events) {
       lines.push(
         "BEGIN:VEVENT",
-        `UID:mizan-${ev.id}@mizan.app`,
+        `UID:mizan-${ev.id}@mizan.invalid`, // reserved domain: an identifier, not an address
         `DTSTART;VALUE=DATE:${formatDt(ev.date)}`,
         `DTEND;VALUE=DATE:${formatDt(ev.date)}`,
         `SUMMARY:${esc(ev.title)}`,
@@ -176,11 +190,7 @@ export default function AgendaScreen() {
   };
 
   const confirmAttendance = async (event: AgendaEvent) => {
-    if (event.type !== "meeting") {
-      showToast({ type: "success", title: t("agendaParticipationConfirmed"), message: t("agendaParticipationMsg") });
-      setSelected(null);
-      return;
-    }
+    if (event.type !== "meeting") return; // nothing to record for other events
     try {
       await apiRequest(`/meetings/${event.id}/attend`, "POST");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -194,7 +204,7 @@ export default function AgendaScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#fff" />
@@ -232,8 +242,8 @@ export default function AgendaScreen() {
         <View style={styles.statsStrip}>
           {[
             { icon: "calendar" as const, val: allEvents.length, label: t("agendaStatEvents"), color: "#fff" },
-            { icon: "clock" as const, val: upcomingCount, label: t("agendaStatUpcoming"), color: "#fde68a" },
-            { icon: "zap" as const, val: thisWeekCount, label: t("agendaStatThisWeek"), color: "#6ee7b7" },
+            { icon: "clock" as const, val: upcomingCount, label: t("agendaStatUpcoming"), color: "#F8D08A" },
+            { icon: "zap" as const, val: thisWeekCount, label: t("agendaStatThisWeek"), color: "#7FE3B8" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={13} color={s.color} />
@@ -299,7 +309,7 @@ export default function AgendaScreen() {
           <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
             <View style={[styles.sectionHeaderInner, { backgroundColor: colors.primary + "15" }]}>
               <Feather name="calendar" size={13} color={colors.primary} />
-              <Text style={[styles.sectionHeaderText, { color: colors.primary }]}>{section.title}</Text>
+              <Text style={[styles.sectionHeaderText, { color: colors.tint }]}>{section.title}</Text>
               <View style={[styles.sectionCount, { backgroundColor: colors.primary }]}>
                 <Text style={styles.sectionCountText}>{section.data.length}</Text>
               </View>
@@ -338,14 +348,14 @@ export default function AgendaScreen() {
                         <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{t(typeCfg.labelKey)}</Text>
                       </View>
                       {ev.mandatory && (
-                        <View style={[styles.mandatoryBadge, { backgroundColor: "#ef444415" }]}>
-                          <Feather name="alert-circle" size={10} color="#ef4444" />
+                        <View style={[styles.mandatoryBadge, { backgroundColor: colors.danger + "15" }]}>
+                          <Feather name="alert-circle" size={10} color={colors.danger} />
                           <Text style={styles.mandatoryText}>{t("agendaMandatory")}</Text>
                         </View>
                       )}
                       {isCompleted && (
-                        <View style={[styles.typeBadge, { backgroundColor: "#10b98115" }]}>
-                          <Text style={[styles.typeBadgeText, { color: "#10b981" }]}>{t("agendaCompleted")}</Text>
+                        <View style={[styles.typeBadge, { backgroundColor: colors.success + "15" }]}>
+                          <Text style={[styles.typeBadgeText, { color: colors.success }]}>{t("agendaCompleted")}</Text>
                         </View>
                       )}
                     </View>
@@ -353,7 +363,7 @@ export default function AgendaScreen() {
                   </View>
 
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
-                    <Text style={[styles.daysUntil, { color: isUrgent ? "#ef4444" : isCompleted ? "#10b981" : colors.primary }]}>
+                    <Text style={[styles.daysUntil, { color: isUrgent ? colors.danger : isCompleted ? colors.success : colors.primary }]}>
                       {daysUntil}
                     </Text>
                     <View style={[styles.dateBubble, { backgroundColor: typeCfg.color + "10" }]}>
@@ -471,7 +481,8 @@ export default function AgendaScreen() {
                 </View>
 
                 <View style={styles.modalActions}>
-                  {!isPast && (
+                  {/* Attendance is recorded for meetings only (POST /meetings/:id/attend). */}
+                  {!isPast && ev.type === "meeting" && (
                     <TouchableOpacity
                       style={[styles.modalActionBtn, { backgroundColor: typeCfg.color }]}
                       onPress={() => confirmAttendance(ev)}
@@ -480,10 +491,21 @@ export default function AgendaScreen() {
                       <Text style={styles.modalActionBtnText}>{t("agendaConfirmParticipation")}</Text>
                     </TouchableOpacity>
                   )}
+                  {ev.type === "echeance" && (
+                    <TouchableOpacity
+                      style={[styles.modalActionBtn, { backgroundColor: typeCfg.color }]}
+                      onPress={() => { setSelected(null); router.push("/charges" as any); }}
+                      accessibilityRole="button"
+                    >
+                      <Feather name="credit-card" size={18} color="#fff" />
+                      <Text style={styles.modalActionBtnText}>{t("agendaOpenCharges")}</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
                     onPress={() => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      // Opening the share sheet is not a success yet.
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const ics = buildICS([ev]);
                       Share.share({ message: ics, title: ev.title }).catch(() =>
                         showToast({ type: "error", message: t("agendaEventExportError") })
@@ -534,7 +556,7 @@ const styles = StyleSheet.create({
   typeBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
   typeBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   mandatoryBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
-  mandatoryText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
+  mandatoryText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#C8323C" },
   eventTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18 },
   daysUntil: { fontSize: 11, fontFamily: "Inter_700Bold" },
   dateBubble: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
@@ -552,7 +574,7 @@ const styles = StyleSheet.create({
   modalTypeBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
   dateHighlight: { flexDirection: "row", padding: 20, borderRadius: 16, borderWidth: 1, alignItems: "center" },
   dateHighlightLeft: { flex: 1 },
-  dateHighlightDay: { fontSize: 48, fontFamily: "Inter_700Bold", lineHeight: 54 },
+  dateHighlightDay: { fontSize: 48, fontFamily: "Fraunces_600SemiBold", lineHeight: 54 },
   dateHighlightMonth: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   dateHighlightDow: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   dateHighlightRight: { alignItems: "flex-end", gap: 8 },

@@ -264,8 +264,8 @@ router.post("/sinistres", requireAuth, async (req, res) => {
 
     // Find syndicate for scoped alert
     createAlert({
-      title: `🚨 Sinistre déclaré: ${type}`,
-      message: description,
+      key: "claim.declared",
+      params: { type, description },
       type: "error",
       syndicateId: building?.syndicateId ?? null,
       target: "admin",

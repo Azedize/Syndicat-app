@@ -1,3 +1,4 @@
+import { platformContact } from "../lib/contact.js";
 /**
  * template-studio.ts — Template Management Studio API
  *
@@ -1009,6 +1010,9 @@ router.get("/verify/:token", async (req, res) => {
       legal: "Juridique",
     };
 
+    const support = platformContact().supportEmail;
+    const supportLine = support ? `<br>
+      Pour toute question : <a href="mailto:${escapeHtml(support)}">${escapeHtml(support)}</a>` : "";
     const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -1104,8 +1108,7 @@ router.get("/verify/:token", async (req, res) => {
     `
     }
     <div class="footer">
-      Ce service de vérification est fourni par la plateforme MIZAN.<br>
-      Pour toute question : <a href="mailto:support@mizan.ma">support@mizan.ma</a>
+      Ce service de vérification est fourni par la plateforme MIZAN.${supportLine}
     </div>
   </div>
 </body>

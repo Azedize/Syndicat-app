@@ -96,7 +96,7 @@ export default function ChangePasswordScreen() {
       </Text>
       <View style={[styles.notice, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
         <Feather name="shield" size={16} color={colors.primary} />
-        <Text style={[styles.noticeText, { color: colors.primary }]}>
+        <Text style={[styles.noticeText, { color: colors.tint }]}>
           {t("passwordChangeRequiredNotice")}
         </Text>
       </View>
@@ -129,7 +129,7 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 24, gap: 16, maxWidth: 480, width: "100%", alignSelf: "center" },
-  title: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   notice: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 12, borderWidth: 1 },
   noticeText: { flex: 1, fontSize: 13, lineHeight: 19 },
   label: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

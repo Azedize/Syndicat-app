@@ -1,116 +1,43 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useFormat } from "@/hooks/useFormat";
 import { announcements, type ApiAnnouncement } from "@/services/api";
 import { useToast } from "@/context/ToastContext";
 import EmptyState from "@/components/EmptyState";
-import FilterChips from "@/components/FilterChips";
+import ScreenHeader from "@/components/ScreenHeader";
+import { ErrorState } from "@/components/DataState";
+import { Button, Card, Chip, ListItem, SheetHeader, Skeleton, StatusBadge, TextField, toneColors, type StatusTone } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
+import { RADIUS } from "@/constants/spacing";
 
 type Priority = ApiAnnouncement["priority"];
+type FeatherName = keyof typeof Feather.glyphMap;
 
-type PriorityConfig = {
-  color: string;
-  label: string;
-  icon: keyof typeof Feather.glyphMap;
-  bg: string;
+const PRIORITY_META: Record<string, { tone: StatusTone; icon: FeatherName; key: string }> = {
+  urgent: { tone: "danger", icon: "alert-circle", key: "priorityUrgent" },
+  important: { tone: "warning", icon: "alert-triangle", key: "priorityImportant" },
+  info: { tone: "info", icon: "info", key: "priorityInfo" },
+  normal: { tone: "info", icon: "info", key: "priorityInfo" },
 };
-
-const FALLBACK_PRIORITY: PriorityConfig = {
-  color: "#3b82f6",
-  label: "Info",
-  icon: "info",
-  bg: "#3b82f615",
-};
-
-function getPriorityConfig(
-  t: (key: string) => string,
-): Record<string, PriorityConfig> {
-  return {
-    urgent: {
-      color: "#ef4444",
-      label: t("priorityUrgent"),
-      icon: "alert-circle",
-      bg: "#ef444415",
-    },
-    important: {
-      color: "#f59e0b",
-      label: t("priorityImportant"),
-      icon: "alert-triangle",
-      bg: "#f59e0b15",
-    },
-    info: {
-      color: "#3b82f6",
-      label: t("priorityInfo"),
-      icon: "info",
-      bg: "#3b82f615",
-    },
-    normal: {
-      color: "#3b82f6",
-      label: t("priorityInfo"),
-      icon: "info",
-      bg: "#3b82f615",
-    },
-  };
-}
-
-function getPc(
-  config: Record<string, PriorityConfig>,
-  priority: string,
-): PriorityConfig {
-  return config[priority] ?? FALLBACK_PRIORITY;
-}
-
-function timeAgo(dateStr: string, t: (key: string) => string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60)
-    return `${t("annTimeAgoPrefix")} ${mins}${t("annMinutesShort")}`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${t("annTimeAgoPrefix")} ${hrs}${t("annHoursShort")}`;
-  const days = Math.floor(hrs / 24);
-  return `${t("annTimeAgoPrefix")} ${days}${t("annDaysShort")}`;
-}
+const priorityMeta = (p: string) => PRIORITY_META[p] ?? PRIORITY_META.info;
 
 export default function AnnoncesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, lang, isRTL } = useLanguage();
-  const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
+  const { t, isRTL } = useLanguage();
+  const { date } = useFormat();
   const queryClient = useQueryClient();
-  // Only management roles can create/delete announcements.
-  // Members and tenants are read-only viewers.
-  const isAdmin = [
-    "super_admin",
-    "syndicate_admin",
-    "president",
-    "secretary",
-  ].includes(user?.role ?? "");
   const { showToast } = useToast();
-
-  const PRIORITY_CONFIG = getPriorityConfig(t);
+  // Same roles as the API (POST/DELETE /announcements): other roles read only.
+  const canManage = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   const [selected, setSelected] = useState<ApiAnnouncement | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -119,39 +46,33 @@ export default function AnnoncesScreen() {
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("info");
-  const [newAudience, setNewAudience] = useState("Tous les membres");
+  const [newAudience, setNewAudience] = useState("");
   const [newPinned, setNewPinned] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["announcements"],
     queryFn: () => announcements.list(),
     staleTime: 30_000,
   });
 
+  const resetForm = () => {
+    setNewTitle("");
+    setNewBody("");
+    setNewPriority("info");
+    setNewAudience("");
+    setNewPinned(false);
+  };
+
   const createMutation = useMutation({
-    mutationFn: (d: Parameters<typeof announcements.create>[0]) =>
-      announcements.create(d),
+    mutationFn: (d: Parameters<typeof announcements.create>[0]) => announcements.create(d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
       setShowCreate(false);
-      setNewTitle("");
-      setNewBody("");
-      setNewPriority("info");
-      setNewAudience("Tous les membres");
-      setNewPinned(false);
+      resetForm();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({
-        type: "success",
-        title: t("publishAnnouncement"),
-        message: t("annPublishedMessage"),
-      });
+      showToast({ type: "success", title: t("publishAnnouncement"), message: t("annPublishedMessage") });
     },
-    onError: () =>
-      showToast({
-        type: "error",
-        title: t("annActionErrorTitle"),
-        message: t("annPublishError"),
-      }),
+    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annPublishError") }),
   });
 
   const deleteMutation = useMutation({
@@ -161,78 +82,67 @@ export default function AnnoncesScreen() {
       setSelected(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () =>
-      showToast({
-        type: "error",
-        title: t("annActionErrorTitle"),
-        message: t("annDeleteError"),
-      }),
+    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annDeleteError") }),
   });
 
-  const allAnnonces = data?.data ?? [];
-  const filtered =
-    filterPriority === "all"
-      ? allAnnonces
-      : allAnnonces.filter((a) => a.priority === filterPriority);
-  const pinned = filtered.filter((a) => a.pinned);
-  const regular = filtered.filter((a) => !a.pinned);
-  const sortedList = [...pinned, ...regular];
+  const all = data?.data ?? [];
+  const filtered = filterPriority === "all" ? all : all.filter((a) => a.priority === filterPriority || (filterPriority === "info" && a.priority === ("normal" as Priority)));
+  const sortedList = [...filtered.filter((a) => a.pinned), ...filtered.filter((a) => !a.pinned)];
+  const countOf = (p: string) => all.filter((a) => a.priority === p || (p === "info" && a.priority === ("normal" as Priority))).length;
+  const isExpired = (a: ApiAnnouncement) => !!a.expiresAt && new Date(a.expiresAt).getTime() < Date.now();
+
+  const ago = (iso: string) => {
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+    if (mins < 60) return `${t("annTimeAgoPrefix")} ${mins}${t("annMinutesShort")}`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${t("annTimeAgoPrefix")} ${hrs}${t("annHoursShort")}`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${t("annTimeAgoPrefix")} ${days}${t("annDaysShort")}`;
+    return date(iso);
+  };
 
   const handleCreate = () => {
     if (!newTitle.trim() || !newBody.trim()) {
-      showToast({
-        type: "warning",
-        title: t("requiredFields"),
-        message: t("annRequiredMessage"),
-      });
+      showToast({ type: "warning", title: t("requiredFields"), message: t("annRequiredMessage") });
       return;
     }
     createMutation.mutate({
       title: newTitle.trim(),
       body: newBody.trim(),
       priority: newPriority,
-      audience: newAudience,
+      audience: newAudience.trim() || t("uiAnnAudienceAll"),
       pinned: newPinned,
     });
   };
 
   const handleDelete = (a: ApiAnnouncement) => {
-    Alert.alert(
-      t("confirmDeleteTitle"),
-      `${t("deleteAnnouncement")} "${a.title}"?`,
-      [
-        { text: t("annCancel"), style: "cancel" },
-        {
-          text: t("deleteAnnouncement"),
-          style: "destructive",
-          onPress: () => deleteMutation.mutate(a.id),
-        },
-      ],
-    );
+    Alert.alert(t("confirmDeleteTitle"), `${t("deleteAnnouncement")} « ${a.title} » ?`, [
+      { text: t("annCancel"), style: "cancel" },
+      { text: t("deleteAnnouncement"), style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
+    ]);
   };
+
+  const openCreate = () => {
+    setShowCreate(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const header = (
+    <ScreenHeader
+      title={t("announcesTitle")}
+      subtitle={!isLoading && !isError ? `${data?.total ?? all.length} ${t("annCount")}` : undefined}
+      action={canManage ? { icon: "plus", label: t("createAnnouncement"), onPress: openCreate } : undefined}
+    />
+  );
 
   if (isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View
-          style={[
-            styles.header,
-            { paddingTop: topPad + 16, backgroundColor: colors.primary },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-          >
-            <Feather name="arrow-left" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
-        </View>
-        <View style={styles.centerState}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            {t("annLoading")}
-          </Text>
+        {header}
+        <View style={{ padding: 16, gap: 12 }} accessibilityLabel={t("annLoading")}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={112} radius={RADIUS.LG} />
+          ))}
         </View>
       </View>
     );
@@ -241,601 +151,188 @@ export default function AnnoncesScreen() {
   if (isError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View
-          style={[
-            styles.header,
-            { paddingTop: topPad + 16, backgroundColor: colors.primary },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-          >
-            <Feather name="arrow-left" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
-        </View>
-        <View style={styles.centerState}>
-          <Feather name="wifi-off" size={40} color={colors.destructive} />
-          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
-            {t("annLoadError")}
-          </Text>
-          <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => refetch()}
-          >
-            <Text style={styles.retryBtnText}>{t("annRetry")}</Text>
-          </TouchableOpacity>
-        </View>
+        {header}
+        <ErrorState title={t("annLoadError")} description={t("uiLoadErrorHint")} retryLabel={t("annRetry")} onRetry={() => refetch()} accentColor={colors.primary} />
       </View>
     );
   }
 
-  return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          { paddingTop: topPad + 16, backgroundColor: colors.primary },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
-          <Text style={styles.headerSub}>
-            {allAnnonces.length} {t("annCount")}
-          </Text>
-        </View>
-        {isAdmin ? (
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              setShowCreate(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Feather name="plus" size={20} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+  const FILTERS: { key: Priority | "all"; label: string; icon?: FeatherName }[] = [
+    { key: "all", label: `${t("filterToutes")} · ${all.length}` },
+    { key: "urgent", label: `${t("priorityUrgent")} · ${countOf("urgent")}`, icon: "alert-circle" },
+    { key: "important", label: `${t("priorityImportant")} · ${countOf("important")}`, icon: "alert-triangle" },
+    { key: "info", label: `${t("priorityInfo")} · ${countOf("info")}`, icon: "info" },
+  ];
 
-      <FilterChips
-        options={[
-          { key: "all", label: t("filterToutes"), color: colors.primary },
-          {
-            key: "urgent",
-            label: t("priorityUrgent"),
-            color: "#ef4444",
-            icon: "alert-circle",
-          },
-          {
-            key: "important",
-            label: t("priorityImportant"),
-            color: "#f59e0b",
-            icon: "alert-triangle",
-          },
-          {
-            key: "info",
-            label: t("priorityInfo"),
-            color: "#3b82f6",
-            icon: "info",
-          },
-        ]}
-        value={filterPriority}
-        onChange={(k) => setFilterPriority(k as Priority | "all")}
-        accentColor={colors.primary}
-        mode="equal"
-      />
+  const sel = selected ? priorityMeta(selected.priority) : null;
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+      {header}
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} style={{ flexGrow: 0 }}>
+        {FILTERS.map((f) => (
+          <Chip key={f.key} label={f.label} icon={f.icon} selected={filterPriority === f.key} onPress={() => setFilterPriority(f.key)} />
+        ))}
+      </ScrollView>
 
       <FlatList
         data={sortedList}
         keyExtractor={(a) => a.id}
-        contentContainerStyle={{
-          padding: 16,
-          gap: 12,
-          paddingBottom: insets.bottom + 40,
-        }}
+        contentContainerStyle={{ padding: 16, paddingTop: 4, gap: 12, paddingBottom: insets.bottom + 40, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={false}
-            onRefresh={refetch}
-            tintColor={colors.primary}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { void refetch(); }} tintColor={colors.primary} />}
         ListEmptyComponent={
           <EmptyState
             icon="bell-off"
             title={t("noAnnouncementsYet")}
             description={t("annEmptyDescription")}
-            actionLabel={isAdmin ? t("createAnnouncement") : undefined}
-            onAction={
-              isAdmin
-                ? () => {
-                    setShowCreate(true);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                : undefined
-            }
+            actionLabel={canManage ? t("createAnnouncement") : undefined}
+            onAction={canManage ? openCreate : undefined}
           />
         }
         renderItem={({ item: a }) => {
-          const pc = getPc(PRIORITY_CONFIG, a.priority);
+          const pm = priorityMeta(a.priority);
+          const tc = toneColors(colors, pm.tone);
+          const expired = isExpired(a);
           return (
-            <TouchableOpacity
-              style={[
-                styles.card,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderLeftColor: pc.color,
-                },
-              ]}
+            <Card
               onPress={() => {
                 setSelected(a);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
-              activeOpacity={0.8}
+              accessibilityLabel={`${t(pm.key)} — ${a.title}`}
+              padding="none"
+              style={expired ? { opacity: 0.7 } : undefined}
             >
-              <View style={styles.cardTop}>
-                <View style={[styles.iconBox, { backgroundColor: pc.bg }]}>
-                  <Feather name={pc.icon} size={18} color={pc.color} />
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <View style={styles.titleRow}>
-                    {a.pinned ? (
-                      <Feather
-                        name="bookmark"
-                        size={13}
-                        color={colors.primary}
-                      />
-                    ) : null}
-                    <Text
-                      style={[styles.cardTitle, { color: colors.foreground }]}
-                      numberOfLines={2}
-                    >
+              <View style={[styles.accent, { backgroundColor: tc.fg }]} />
+              <View style={styles.cardBody}>
+                <View style={styles.cardTop}>
+                  <View style={[styles.iconBox, { backgroundColor: tc.bg }]}>
+                    <Feather name={pm.icon} size={18} color={tc.fg} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <Text style={[TYPE.bodyStrong, { color: colors.foreground, textAlign: "auto" }]} numberOfLines={2}>
                       {a.title}
                     </Text>
+                    <Text style={[TYPE.secondary, { color: colors.textSecondary, textAlign: "auto" }]} numberOfLines={2}>
+                      {a.body}
+                    </Text>
                   </View>
-                  <Text
-                    style={[styles.cardBody, { color: colors.mutedForeground }]}
-                    numberOfLines={2}
-                  >
-                    {a.body}
+                </View>
+                <View style={styles.cardFooter}>
+                  <View style={styles.badges}>
+                    {a.pinned ? <StatusBadge label={t("announcePinned")} tone="primary" icon="bookmark" /> : null}
+                    <StatusBadge label={t(pm.key)} tone={pm.tone} icon={null} />
+                    {expired ? <StatusBadge label={t("uiExpired")} tone="neutral" icon="clock" /> : null}
+                  </View>
+                  <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+                    {a.author} · {ago(a.createdAt)}
                   </Text>
                 </View>
               </View>
-
-              <View
-                style={[styles.cardFooter, { borderTopColor: colors.border }]}
-              >
-                <View
-                  style={[styles.priorityBadge, { backgroundColor: pc.bg }]}
-                >
-                  <Text style={[styles.priorityText, { color: pc.color }]}>
-                    {pc.label}
-                  </Text>
-                </View>
-                <View style={styles.footerMeta}>
-                  <Feather
-                    name="user"
-                    size={11}
-                    color={colors.mutedForeground}
-                  />
-                  <Text
-                    style={[styles.metaText, { color: colors.mutedForeground }]}
-                  >
-                    {a.author}
-                  </Text>
-                  <Text
-                    style={[styles.metaText, { color: colors.mutedForeground }]}
-                  >
-                    ·
-                  </Text>
-                  <Text
-                    style={[styles.metaText, { color: colors.mutedForeground }]}
-                  >
-                    {timeAgo(a.createdAt, t)}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            </Card>
           );
         }}
       />
 
-      {/* Detail modal */}
-      <Modal
-        visible={!!selected}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        {selected ? (
-          <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View
-              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-            >
-              <TouchableOpacity onPress={() => setSelected(null)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-              <View style={{ flex: 1, marginStart: 12 }}>
-                <Text
-                  style={[styles.modalTitle, { color: colors.foreground }]}
-                  numberOfLines={2}
-                >
-                  {selected.title}
-                </Text>
-                <Text
-                  style={[styles.modalSub, { color: colors.mutedForeground }]}
-                >
-                  {selected.audience}
-                </Text>
+      {/* Detail */}
+      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
+        {selected && sel ? (
+          <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+            <SheetHeader title={selected.title} subtitle={selected.audience} onClose={() => setSelected(null)} />
+            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
+              <View style={styles.badges}>
+                <StatusBadge label={t(sel.key)} tone={sel.tone} icon={sel.icon} size="md" />
+                {selected.pinned ? <StatusBadge label={t("announcePinned")} tone="primary" icon="bookmark" size="md" /> : null}
+                {isExpired(selected) ? <StatusBadge label={t("uiExpired")} tone="neutral" icon="clock" size="md" /> : null}
               </View>
-              {isAdmin ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelected(null);
-                    handleDelete(selected);
-                  }}
-                  style={[
-                    styles.deleteBtn,
-                    { backgroundColor: colors.destructive + "15" },
-                  ]}
-                >
-                  <Feather
-                    name="trash-2"
-                    size={16}
-                    color={colors.destructive}
-                  />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <ScrollView
-              contentContainerStyle={{
-                padding: 20,
-                gap: 16,
-                paddingBottom: 40,
-              }}
-            >
-              <View
-                style={[
-                  styles.priorityBanner,
-                  {
-                    backgroundColor: getPc(PRIORITY_CONFIG, selected.priority)
-                      .bg,
-                    borderColor:
-                      getPc(PRIORITY_CONFIG, selected.priority).color + "40",
-                  },
-                ]}
-              >
-                <Feather
-                  name={getPc(PRIORITY_CONFIG, selected.priority).icon}
-                  size={16}
-                  color={getPc(PRIORITY_CONFIG, selected.priority).color}
-                />
-                <Text
-                  style={[
-                    styles.priorityBannerText,
-                    { color: getPc(PRIORITY_CONFIG, selected.priority).color },
-                  ]}
-                >
-                  {getPc(PRIORITY_CONFIG, selected.priority).label}
-                  {selected.pinned ? ` · ${t("announcePinned")}` : ""}
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.bodyCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                <Text style={[styles.bodyText, { color: colors.foreground }]}>
+              <Card padding="lg">
+                <Text style={[TYPE.body, { color: colors.foreground, lineHeight: 23, textAlign: "auto" }]} selectable>
                   {selected.body}
                 </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.metaCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                {[
-                  {
-                    icon: "user" as const,
-                    label: t("authorLabel"),
-                    value: selected.author,
-                  },
-                  {
-                    icon: "users" as const,
-                    label: t("audienceLabel"),
-                    value: selected.audience,
-                  },
-                  {
-                    icon: "clock" as const,
-                    label: t("publishedOn"),
-                    value: new Date(selected.createdAt).toLocaleDateString(
-                      lang === "ar"
-                        ? "ar-MA"
-                        : lang === "en"
-                          ? "en-US"
-                          : lang === "es"
-                            ? "es-ES"
-                            : "fr-FR",
-                      { day: "numeric", month: "long", year: "numeric" },
-                    ),
-                  },
-                  ...(selected.expiresAt
-                    ? [
-                        {
-                          icon: "calendar" as const,
-                          label: t("expiresOn"),
-                          value: new Date(
-                            selected.expiresAt,
-                          ).toLocaleDateString(
-                            lang === "ar"
-                              ? "ar-MA"
-                              : lang === "en"
-                                ? "en-US"
-                                : lang === "es"
-                                  ? "es-ES"
-                                  : "fr-FR",
-                          ),
-                        },
-                      ]
-                    : []),
-                ].map((row) => (
-                  <View
-                    key={row.label}
-                    style={[
-                      styles.metaRow,
-                      { borderBottomColor: colors.border },
-                    ]}
-                  >
-                    <Feather name={row.icon} size={14} color={colors.primary} />
-                    <Text
-                      style={[
-                        styles.metaLabel,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      {row.label}
-                    </Text>
-                    <Text
-                      style={[styles.metaValue, { color: colors.foreground }]}
-                    >
-                      {row.value}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              </Card>
+              <Card padding="none">
+                <ListItem icon="user" title={selected.author} subtitle={t("authorLabel")} divider />
+                <ListItem icon="users" title={selected.audience} subtitle={t("audienceLabel")} divider />
+                <ListItem icon="clock" title={date(selected.createdAt, { day: "numeric", month: "long", year: "numeric" })} subtitle={t("publishedOn")} divider={!!selected.expiresAt} />
+                {selected.expiresAt ? <ListItem icon="calendar" title={date(selected.expiresAt)} subtitle={t("expiresOn")} /> : null}
+              </Card>
+              {canManage ? (
+                <Button
+                  label={t("deleteAnnouncement")}
+                  icon="trash-2"
+                  variant="destructive"
+                  fullWidth
+                  loading={deleteMutation.isPending}
+                  onPress={() => handleDelete(selected)}
+                />
+              ) : null}
             </ScrollView>
           </View>
         ) : null}
       </Modal>
 
-      {/* Create modal */}
-      <Modal
-        visible={showCreate}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View
-            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-          >
-            <TouchableOpacity onPress={() => setShowCreate(false)}>
-              <Feather name="x" size={22} color={colors.mutedForeground} />
-            </TouchableOpacity>
-            <View style={{ flex: 1, marginStart: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                {t("createAnnouncement")}
-              </Text>
-              <Text
-                style={[styles.modalSub, { color: colors.mutedForeground }]}
-              >
-                {t("annCreateSubtitle")}
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }}
-          >
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                {t("annPriorityLabel")}
-              </Text>
-              <View style={styles.priorityRow}>
+      {/* Create */}
+      <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
+        <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+          <SheetHeader title={t("createAnnouncement")} subtitle={t("annCreateSubtitle")} onClose={() => setShowCreate(false)} />
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} keyboardShouldPersistTaps="handled">
+            <View style={{ gap: 8 }}>
+              <Text style={[TYPE.label, { color: colors.foreground }]}>{t("annPriorityLabel")}</Text>
+              <View style={styles.badges} accessibilityRole="radiogroup">
                 {(["info", "important", "urgent"] as Priority[]).map((p) => (
-                  <TouchableOpacity
+                  <Chip
                     key={p}
-                    style={[
-                      styles.priorityChip,
-                      {
-                        borderColor:
-                          newPriority === p
-                            ? PRIORITY_CONFIG[p].color
-                            : colors.border,
-                      },
-                      newPriority === p
-                        ? { backgroundColor: PRIORITY_CONFIG[p].color }
-                        : { backgroundColor: colors.background },
-                    ]}
+                    label={t(priorityMeta(p).key)}
+                    icon={priorityMeta(p).icon}
+                    selected={newPriority === p}
                     onPress={() => {
                       setNewPriority(p);
                       Haptics.selectionAsync();
                     }}
-                  >
-                    <Feather
-                      name={PRIORITY_CONFIG[p].icon}
-                      size={13}
-                      color={
-                        newPriority === p ? "#fff" : colors.mutedForeground
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.priorityChipText,
-                        {
-                          color:
-                            newPriority === p ? "#fff" : colors.mutedForeground,
-                        },
-                      ]}
-                    >
-                      {PRIORITY_CONFIG[p].label}
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 ))}
               </View>
             </View>
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                {t("annFormTitle")} *
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                  },
-                ]}
-                placeholder={t("annTitlePlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                value={newTitle}
-                onChangeText={setNewTitle}
-              />
-            </View>
+            <TextField label={t("annFormTitle")} required placeholder={t("annTitlePlaceholder")} value={newTitle} onChangeText={setNewTitle} maxLength={200} />
+            <TextField label={t("annFormContent")} required placeholder={t("annContentPlaceholder")} value={newBody} onChangeText={setNewBody} multiline />
+            <TextField
+              label={t("audienceLabel")}
+              placeholder={t("uiAnnAudienceAll")}
+              helper={t("uiAnnAudienceHelper")}
+              value={newAudience}
+              onChangeText={setNewAudience}
+            />
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                {t("annFormContent")} *
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                    height: 120,
-                    textAlignVertical: "top",
-                  },
-                ]}
-                placeholder={t("annContentPlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                value={newBody}
-                onChangeText={setNewBody}
-                multiline
+            <Card padding="none">
+              <ListItem
+                icon="bookmark"
+                iconTone="primary"
+                title={t("announcePinned")}
+                subtitle={t("uiAnnPinHelper")}
+                trailing={
+                  <Switch
+                    value={newPinned}
+                    onValueChange={setNewPinned}
+                    accessibilityLabel={t("announcePinned")}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={Platform.OS === "android" ? (newPinned ? colors.primaryForeground : colors.surface) : undefined}
+                  />
+                }
               />
-            </View>
+            </Card>
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
-                {t("audienceLabel")}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                  },
-                ]}
-                placeholder={t("annAudiencePlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                value={newAudience}
-                onChangeText={setNewAudience}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.pinnedToggle,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: newPinned
-                    ? colors.primary + "10"
-                    : colors.card,
-                },
-              ]}
-              onPress={() => {
-                setNewPinned(!newPinned);
-                Haptics.selectionAsync();
-              }}
-            >
-              <Feather
-                name={newPinned ? "bookmark" : "bookmark"}
-                size={16}
-                color={newPinned ? colors.primary : colors.mutedForeground}
-              />
-              <Text
-                style={[
-                  styles.pinnedText,
-                  { color: newPinned ? colors.primary : colors.foreground },
-                ]}
-              >
-                {newPinned ? t("announcePinned") : t("announcePinned")}
-              </Text>
-              <Feather
-                name={newPinned ? "toggle-right" : "toggle-left"}
-                size={20}
-                color={newPinned ? colors.primary : colors.mutedForeground}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.publishBtn,
-                {
-                  backgroundColor:
-                    newTitle.trim() && newBody.trim()
-                      ? colors.primary
-                      : colors.muted,
-                },
-              ]}
+            <Button
+              label={createMutation.isPending ? t("annPublishing") : t("publishAnnouncement")}
+              icon="send"
+              size="lg"
+              fullWidth
+              loading={createMutation.isPending}
+              disabled={!newTitle.trim() || !newBody.trim()}
               onPress={handleCreate}
-              disabled={
-                !newTitle.trim() || !newBody.trim() || createMutation.isPending
-              }
-            >
-              {createMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Feather
-                  name="send"
-                  size={16}
-                  color={
-                    newTitle.trim() && newBody.trim()
-                      ? "#fff"
-                      : colors.mutedForeground
-                  }
-                />
-              )}
-              <Text
-                style={[
-                  styles.publishBtnText,
-                  {
-                    color:
-                      newTitle.trim() && newBody.trim()
-                        ? "#fff"
-                        : colors.mutedForeground,
-                  },
-                ]}
-              >
-                {createMutation.isPending
-                  ? t("annPublishing")
-                  : t("publishAnnouncement")}
-              </Text>
-            </TouchableOpacity>
+            />
           </ScrollView>
         </View>
       </Modal>
@@ -845,179 +342,11 @@ export default function AnnoncesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 2,
-  },
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    overflow: "hidden",
-    gap: 0,
-  },
-  cardTop: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-    paddingBottom: 10,
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    flexWrap: "wrap",
-  },
-  cardTitle: { fontSize: 13, fontFamily: "Inter_700Bold", flex: 1 },
-  cardBody: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-  },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  priorityText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  footerMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
-  metaText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  centerState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-    padding: 40,
-    paddingTop: 80,
-  },
-  stateText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
-  retryBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  retryBtnText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: "#fff",
-  },
-  modal: { flex: 1 },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    gap: 4,
-  },
-  modalTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  modalSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  deleteBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  priorityBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  priorityBannerText: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  bodyCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
-  },
-  bodyText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
-  metaCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 13,
-    borderBottomWidth: 1,
-  },
-  metaLabel: { fontSize: 12, fontFamily: "Inter_400Regular", width: 90 },
-  metaValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  input: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  priorityRow: { flexDirection: "row", gap: 8 },
-  priorityChip: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  priorityChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  pinnedToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  pinnedText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
-  publishBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 15,
-    borderRadius: 14,
-    marginTop: 4,
-  },
-  publishBtnText: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  filters: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  accent: { position: "absolute", top: 0, bottom: 0, start: 0, width: 4 },
+  cardBody: { padding: 14, paddingStart: 18, gap: 12 },
+  cardTop: { flexDirection: "row", gap: 12 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
 });

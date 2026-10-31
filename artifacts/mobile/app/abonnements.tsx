@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import RoleGuard from "@/components/RoleGuard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,20 +82,20 @@ type TabType = "plans" | "syndicats" | "facturation";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { color: string; bg: string }> = {
-  trial:     { color: "#3b82f6", bg: "#3b82f618" },
-  active:    { color: "#10b981", bg: "#10b98118" },
-  grace:     { color: "#f59e0b", bg: "#f59e0b18" },
-  expired:   { color: "#ef4444", bg: "#ef444418" },
-  suspended: { color: "#ef4444", bg: "#ef444418" },
-  cancelled: { color: "#6b7280", bg: "#6b728018" },
-  no_subscription: { color: "#6b7280", bg: "#6b728018" },
+  trial:     { color: "#5A4AD6", bg: "#5A4AD618" },
+  active:    { color: "#13976C", bg: "#13976C18" },
+  grace:     { color: "#C98511", bg: "#C9851118" },
+  expired:   { color: "#C8323C", bg: "#C8323C18" },
+  suspended: { color: "#C8323C", bg: "#C8323C18" },
+  cancelled: { color: "#6A6680", bg: "#6A668018" },
+  no_subscription: { color: "#6A6680", bg: "#6A668018" },
 };
 
 const INVOICE_STATUS_CFG: Record<string, { color: string }> = {
-  open:          { color: "#f59e0b" },
-  paid:          { color: "#10b981" },
-  void:          { color: "#6b7280" },
-  uncollectible: { color: "#ef4444" },
+  open:          { color: "#C98511" },
+  paid:          { color: "#13976C" },
+  void:          { color: "#6A6680" },
+  uncollectible: { color: "#C8323C" },
 };
 
 const PLAN_ICONS: { [key: string]: keyof typeof Feather.glyphMap } = {
@@ -149,7 +151,16 @@ function invoiceStatusLabel(status: string, t: (key: string) => string): string 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+// The subscription is managed by the syndic (the server refuses anyone else).
 export default function AbonnementsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <AbonnementsInner />
+    </RoleGuard>
+  );
+}
+
+function AbonnementsInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
@@ -245,13 +256,7 @@ export default function AbonnementsScreen() {
   if (loading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
-          <View style={{ width: 38 }} />
-        </View>
+        <ScreenHeader title={t("abonnements")} />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <LoadingState
             title={t("subscriptionLoadingTitle")}
@@ -266,13 +271,7 @@ export default function AbonnementsScreen() {
   if (error) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
-          <View style={{ width: 38 }} />
-        </View>
+        <ScreenHeader title={t("abonnements")} />
         <ErrorState
           title={t("subscriptionLoadErrorTitle")}
           description={error}
@@ -305,25 +304,10 @@ export default function AbonnementsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
-          {isSuper && (
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {allSubs.length} {t("subscriptionSyndicates")} · {activeCount} {t("subscriptionActiveCount")}
-            </Text>
-          )}
-        </View>
-        <View style={[styles.platformBadge, { backgroundColor: colors.primary + "15" }]}>
-          <Feather name="shield" size={11} color={colors.primary} />
-          <Text style={[styles.platformBadgeText, { color: colors.primary }]}>
-            {isSuper ? "Super Admin" : "Admin"}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={t("abonnements")}
+        subtitle={isSuper ? `${allSubs.length} ${t("subscriptionSyndicates")} · ${activeCount} ${t("subscriptionActiveCount")}` : undefined}
+      />
 
       {/* Tabs */}
       <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -354,11 +338,11 @@ export default function AbonnementsScreen() {
             {/* KPI strip */}
             <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
              {[
-                 { label: t("subscriptionTotal"), value: allSubs.length.toString(), icon: "layers" as const, color: colors.primary },
-                 { label: t("subscriptionActiveCount"), value: activeCount.toString(), icon: "check-circle" as const, color: "#10b981" },
-                 { label: t("subscriptionTrialCount"), value: trialCount.toString(), icon: "gift" as const, color: "#3b82f6" },
-                 { label: t("subscriptionExpiredCount"), value: expiredCount.toString(), icon: "alert-circle" as const, color: "#ef4444" },
-                { label: "MRR", value: `${(mrr / 1000).toFixed(0)}k`, icon: "dollar-sign" as const, color: "#f59e0b" },
+                 { label: t("subscriptionTotal"), value: allSubs.length.toString(), icon: "layers" as const, color: colors.tint },
+                 { label: t("subscriptionActiveCount"), value: activeCount.toString(), icon: "check-circle" as const, color: colors.success },
+                 { label: t("subscriptionTrialCount"), value: trialCount.toString(), icon: "gift" as const, color: "#5A4AD6" },
+                 { label: t("subscriptionExpiredCount"), value: expiredCount.toString(), icon: "alert-circle" as const, color: colors.danger },
+                { label: "MRR", value: `${(mrr / 1000).toFixed(0)}k`, icon: "dollar-sign" as const, color: colors.warning },
               ].map((k, i, arr) => (
                 <View key={k.label} style={[styles.kpiCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
                   <View style={[styles.kpiIcon, { backgroundColor: k.color + "18" }]}>
@@ -381,7 +365,7 @@ export default function AbonnementsScreen() {
               const st = STATUS_CFG[sub.effectiveStatus] ?? STATUS_CFG.active;
               const planColor = sub.planColor ?? colors.primary;
               return (
-                <View key={sub.id} style={[styles.subCard, { backgroundColor: colors.card, borderColor: sub.isExpired ? "#ef444430" : colors.border }]}>
+                <View key={sub.id} style={[styles.subCard, { backgroundColor: colors.card, borderColor: sub.isExpired ? colors.danger + "30" : colors.border }]}>
                   <View style={styles.subCardHeader}>
                     <View style={{ flex: 1, gap: 4 }}>
                       <Text style={[styles.subName, { color: colors.foreground }]} numberOfLines={1}>
@@ -397,9 +381,9 @@ export default function AbonnementsScreen() {
                           <Text style={[styles.chipText, { color: st.color }]}>{subscriptionStatusLabel(sub.effectiveStatus, t)}</Text>
                         </View>
                         {sub.daysRemaining !== null && sub.daysRemaining <= 7 && !sub.isExpired && (
-                          <View style={[styles.chip, { backgroundColor: "#f59e0b18" }]}>
-                            <Feather name="clock" size={10} color="#f59e0b" />
-                            <Text style={[styles.chipText, { color: "#f59e0b" }]}>{sub.daysRemaining}{t("subscriptionDaysShort")}</Text>
+                          <View style={[styles.chip, { backgroundColor: colors.warning + "18" }]}>
+                            <Feather name="clock" size={10} color={colors.warning} />
+                            <Text style={[styles.chipText, { color: colors.warning }]}>{sub.daysRemaining}{t("subscriptionDaysShort")}</Text>
                           </View>
                         )}
                       </View>
@@ -425,8 +409,8 @@ export default function AbonnementsScreen() {
                   )}
                   <View style={[styles.subFooter, { borderTopColor: colors.border }]}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Feather name="refresh-cw" size={11} color={sub.autoRenew ? "#10b981" : colors.mutedForeground} />
-                      <Text style={[styles.subInfoText, { color: sub.autoRenew ? "#10b981" : colors.mutedForeground }]}>
+                      <Feather name="refresh-cw" size={11} color={sub.autoRenew ? colors.success : colors.mutedForeground} />
+                      <Text style={[styles.subInfoText, { color: sub.autoRenew ? colors.success : colors.mutedForeground }]}>
                          {sub.autoRenew ? t("subscriptionAutoRenew") : t("subscriptionManualRenew")}
                       </Text>
                     </View>
@@ -435,7 +419,7 @@ export default function AbonnementsScreen() {
                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setManageModal(sub); setSelectedPlanId(sub.planId ?? ""); }}
                     >
                       <Feather name="edit-2" size={12} color={colors.primary} />
-                      <Text style={[styles.manageBtnText, { color: colors.primary }]}>{t("subscriptionManage")}</Text>
+                      <Text style={[styles.manageBtnText, { color: colors.tint }]}>{t("subscriptionManage")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -478,7 +462,7 @@ export default function AbonnementsScreen() {
             ) : plans.map((plan, idx) => {
               const features = parseFeaturesArr(plan.features);
               const isCurrent = mySub?.planId === plan.id;
-              const pc = plan.color ?? ["#2563EB","#3b82f6","#10b981","#f59e0b","#ec4899"][idx % 5];
+              const pc = plan.color ?? ["#5A4AD6","#5A4AD6",colors.success,colors.warning,"#C2456E"][idx % 5];
               const price = billingInterval === "yearly" ? plan.yearlyPrice : plan.price;
               const priceLabel = billingInterval === "yearly" ? "MAD/an" : "MAD/mois";
               const iconName = PLAN_ICONS[plan.name] ?? "star";
@@ -490,7 +474,7 @@ export default function AbonnementsScreen() {
                   style={[styles.planCard, { backgroundColor: colors.card, borderColor: isCurrent ? pc : colors.border, borderWidth: isCurrent ? 2 : 1 }]}
                 >
                   {isCurrent && (
-                    <View style={[styles.currentBadge, { backgroundColor: "#10b981" }]}>
+                    <View style={[styles.currentBadge, { backgroundColor: colors.success }]}>
                       <Feather name="check" size={10} color="#fff" />
                        <Text style={styles.currentBadgeText}>{t("subscriptionCurrentPlan")}</Text>
                     </View>
@@ -593,7 +577,7 @@ export default function AbonnementsScreen() {
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("subscriptionNoInvoicesDescription")}</Text>
               </View>
             ) : invoices.map((inv) => {
-              const stCfg = INVOICE_STATUS_CFG[inv.status] ?? { color: "#6b7280" };
+              const stCfg = INVOICE_STATUS_CFG[inv.status] ?? { color: "#6A6680" };
               return (
                 <View key={inv.id} style={[styles.invoiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.invoiceRow}>
@@ -614,12 +598,12 @@ export default function AbonnementsScreen() {
                   </View>
                   {isSuper && inv.status === "open" && (
                     <TouchableOpacity
-                      style={[styles.payBtn, { borderColor: "#10b98140", backgroundColor: "#10b98110" }]}
+                      style={[styles.payBtn, { borderColor: colors.success + "40", backgroundColor: colors.success + "10" }]}
                       onPress={() => handlePayInvoice(inv.id)}
                       disabled={saving}
                     >
-                      <Feather name="check-circle" size={13} color="#10b981" />
-                      <Text style={[styles.payBtnText, { color: "#10b981" }]}>{t("subscriptionMarkPaid")}</Text>
+                      <Feather name="check-circle" size={13} color={colors.success} />
+                      <Text style={[styles.payBtnText, { color: colors.success }]}>{t("subscriptionMarkPaid")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -701,9 +685,9 @@ export default function AbonnementsScreen() {
              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("subscriptionActions")}</Text>
             <View style={{ gap: 8 }}>
               {[
-                 { label: t("subscriptionSuspend"), status: "suspended", color: "#ef4444", icon: "pause-circle" as const },
-                 { label: t("subscriptionReactivate"), status: "active", color: "#10b981", icon: "play-circle" as const },
-                 { label: t("subscriptionCancelledAction"), status: "cancelled", color: "#6b7280", icon: "x-circle" as const },
+                 { label: t("subscriptionSuspend"), status: "suspended", color: colors.danger, icon: "pause-circle" as const },
+                 { label: t("subscriptionReactivate"), status: "active", color: colors.success, icon: "play-circle" as const },
+                 { label: t("subscriptionCancelledAction"), status: "cancelled", color: "#6A6680", icon: "x-circle" as const },
               ].map((a) => (
                 <TouchableOpacity
                   key={a.status}
@@ -749,7 +733,7 @@ function CurrentPlanCard({ sub, colors, t }: { sub: MySub; colors: any; t: (key:
     <View style={[styles.currentPlanCard, { backgroundColor: pc + "12", borderColor: pc + "40" }]}>
       <View style={styles.currentPlanHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.currentPlanLabel, { color: pc }]}>Plan actuel</Text>
+          <Text style={[styles.currentPlanLabel, { color: pc }]}>{t("abCurrentPlan")}</Text>
           <Text style={[styles.currentPlanName, { color: colors.foreground }]}>
             {sub.planName ?? sub.plan?.name ?? "—"}
           </Text>
@@ -764,23 +748,23 @@ function CurrentPlanCard({ sub, colors, t }: { sub: MySub; colors: any; t: (key:
           <View style={styles.metaRow}>
             <Feather name="calendar" size={12} color={colors.mutedForeground} />
             <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-              {isExpired ? "Expiré le" : "Expire le"}: {fmtDate(sub.expiryDate)}
+              {(isExpired ? t("abExpiredOn") : t("abExpiresOn")).replace("{d}", fmtDate(sub.expiryDate))}
             </Text>
           </View>
         )}
         {daysLeft !== null && !isExpired && (
           <View style={styles.metaRow}>
-            <Feather name="clock" size={12} color={daysLeft <= 3 ? "#ef4444" : daysLeft <= 7 ? "#f59e0b" : colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: daysLeft <= 3 ? "#ef4444" : daysLeft <= 7 ? "#f59e0b" : colors.mutedForeground }]}>
-              {daysLeft === 0 ? "Expire aujourd'hui" : `${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}`}
+            <Feather name="clock" size={12} color={daysLeft <= 3 ? colors.danger : daysLeft <= 7 ? colors.warning : colors.mutedForeground} />
+            <Text style={[styles.metaText, { color: daysLeft <= 3 ? colors.danger : daysLeft <= 7 ? colors.warning : colors.mutedForeground }]}>
+              {daysLeft === 0 ? t("abExpiresToday") : t(daysLeft > 1 ? "abDaysLeftMany" : "abDaysLeftOne").replace("{n}", String(daysLeft))}
             </Text>
           </View>
         )}
         {isExpired && (
-          <View style={[styles.expiredBanner, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-            <Feather name="alert-circle" size={13} color="#ef4444" />
-            <Text style={[styles.expiredText, { color: "#ef4444" }]}>
-              Mode lecture seule activé. Renouvelez pour accéder à toutes les fonctionnalités.
+          <View style={[styles.expiredBanner, { backgroundColor: colors.danger + "15", borderColor: colors.danger + "30" }]}>
+            <Feather name="alert-circle" size={13} color={colors.danger} />
+            <Text style={[styles.expiredText, { color: colors.danger }]}>
+              {t("abReadOnly")}
             </Text>
           </View>
         )}
@@ -811,7 +795,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 14, gap: 12, borderBottomWidth: 1 },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   platformBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   platformBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
@@ -862,7 +846,7 @@ const styles = StyleSheet.create({
   planIconCircle: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   planName: { fontSize: 17, fontFamily: "Inter_700Bold" },
   planDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  planPrice: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  planPrice: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   planPriceUnit: { fontSize: 11, fontFamily: "Inter_400Regular" },
   limitsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   limitChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
@@ -891,7 +875,7 @@ const styles = StyleSheet.create({
   // Modal sheet
   overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 4 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "#6b7280", alignSelf: "center", marginBottom: 12 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "#6A6680", alignSelf: "center", marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
   sheetSub: { fontSize: 13, fontFamily: "Inter_400Regular" },
   sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },

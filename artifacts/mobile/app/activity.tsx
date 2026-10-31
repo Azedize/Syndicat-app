@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -25,15 +25,15 @@ import { audit as auditApi } from "@/services/api";
 type ActivityCategory = "all" | "auth" | "finance" | "governance" | "documents" | "elections" | "marketplace" | "members" | "chat" | "system";
 
 const CAT_CONFIG: Record<Exclude<ActivityCategory, "all">, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  auth: { labelKey: "activityCategoryAuth", color: "#2563EB", icon: "lock" },
-  finance: { labelKey: "activityCategoryFinance", color: "#10b981", icon: "dollar-sign" },
-  governance: { labelKey: "activityCategoryGovernance", color: "#3b82f6", icon: "git-merge" },
-  documents: { labelKey: "activityCategoryDocuments", color: "#1F5EFF", icon: "file-text" },
-  elections: { labelKey: "activityCategoryElections", color: "#f59e0b", icon: "check-square" },
-  marketplace: { labelKey: "activityCategoryMarketplace", color: "#f97316", icon: "shopping-bag" },
-  members: { labelKey: "activityCategoryMembers", color: "#ec4899", icon: "users" },
-  chat: { labelKey: "activityCategoryChat", color: "#06b6d4", icon: "message-circle" },
-  system: { labelKey: "activityCategorySystem", color: "#6b7280", icon: "settings" },
+  auth: { labelKey: "activityCategoryAuth", color: "#5A4AD6", icon: "lock" },
+  finance: { labelKey: "activityCategoryFinance", color: "#13976C", icon: "dollar-sign" },
+  governance: { labelKey: "activityCategoryGovernance", color: "#5A4AD6", icon: "git-merge" },
+  documents: { labelKey: "activityCategoryDocuments", color: "#5A4AD6", icon: "file-text" },
+  elections: { labelKey: "activityCategoryElections", color: "#C98511", icon: "check-square" },
+  marketplace: { labelKey: "activityCategoryMarketplace", color: "#C8642A", icon: "shopping-bag" },
+  members: { labelKey: "activityCategoryMembers", color: "#C2456E", icon: "users" },
+  chat: { labelKey: "activityCategoryChat", color: "#1F8A9A", icon: "message-circle" },
+  system: { labelKey: "activityCategorySystem", color: "#6A6680", icon: "settings" },
 };
 
 type Severity = "info" | "warning" | "success" | "error";
@@ -54,10 +54,10 @@ interface ActivityLog {
 }
 
 const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string }> = {
-  info: { color: "#3b82f6", bg: "#3b82f615" },
-  warning: { color: "#f59e0b", bg: "#f59e0b15" },
-  success: { color: "#10b981", bg: "#10b98115" },
-  error: { color: "#ef4444", bg: "#ef444415" },
+  info: { color: "#5A4AD6", bg: "#5A4AD615" },
+  warning: { color: "#C98511", bg: "#C9851115" },
+  success: { color: "#13976C", bg: "#13976C15" },
+  error: { color: "#C8323C", bg: "#C8323C15" },
 };
 
 // ─── Entity → Category mapping ────────────────────────────────────────────────
@@ -209,7 +209,7 @@ export default function ActivityScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#fff" />
@@ -232,9 +232,9 @@ export default function ActivityScreen() {
         <View style={styles.statsRow}>
           {[
             { icon: "activity" as const, val: activities.length, label: t("activityEvents"), color: "#fff" },
-            { icon: "check-circle" as const, val: activities.filter((a) => a.severity === "success").length, label: t("activitySuccesses"), color: "#6ee7b7" },
-            { icon: "alert-triangle" as const, val: errorCount, label: t("activityAlerts"), color: errorCount > 0 ? "#fcd34d" : "#6ee7b7" },
-            { icon: "users" as const, val: new Set(activities.map((a) => a.user)).size, label: t("activityUsers"), color: "#c4b5fd" },
+            { icon: "check-circle" as const, val: activities.filter((a) => a.severity === "success").length, label: t("activitySuccesses"), color: "#7FE3B8" },
+            { icon: "alert-triangle" as const, val: errorCount, label: t("activityAlerts"), color: errorCount > 0 ? "#F2B84B" : "#7FE3B8" },
+            { icon: "users" as const, val: new Set(activities.map((a) => a.user)).size, label: t("activityUsers"), color: "#9BDDE6" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={12} color={s.color} />
@@ -247,7 +247,7 @@ export default function ActivityScreen() {
         {/* Security alert if needed */}
         {suspiciousCount > 0 && (
           <View style={styles.securityAlert}>
-            <Feather name="shield" size={14} color="#fbbf24" />
+            <Feather name="shield" size={14} color="#F2B84B" />
             <Text style={styles.securityAlertText}>{suspiciousCount} {t("suspiciousLogin")}</Text>
             <TouchableOpacity onPress={() => { setCategory("auth"); Haptics.selectionAsync(); }}>
               <Text style={styles.securityAlertLink}>{t("see")}</Text>
@@ -413,7 +413,7 @@ export default function ActivityScreen() {
                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `${t("activityLog")} ${log.id}`, message: `${t("activityId")}: ${log.id}\n${t("activityActor")}: ${log.user}\n${t("activityAction")}: ${log.action}\n${t("activityTarget")}: ${log.target}\n${t("activityDate")}: ${log.timestamp}${log.detail ? `\n${log.detail}` : ""}` }); }}
                     >
                       <Feather name="download" size={15} color={colors.primary} />
-                      <Text style={[styles.detailBtnText, { color: colors.primary }]}>{t("export")}</Text>
+                      <Text style={[styles.detailBtnText, { color: colors.tint }]}>{t("export")}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -444,8 +444,8 @@ const styles = StyleSheet.create({
   statVal: { fontSize: 16, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 9, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", textAlign: "center" },
   securityAlert: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(251,191,36,0.15)", padding: 10, borderRadius: 12 },
-  securityAlertText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", color: "#fbbf24" },
-  securityAlertLink: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fbbf24", textDecorationLine: "underline" },
+  securityAlertText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", color: "#F2B84B" },
+  securityAlertLink: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#F2B84B", textDecorationLine: "underline" },
   chipBar: { flexShrink: 0, borderBottomWidth: 1 },
   chipContent: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center" },
   chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, flexShrink: 0 },

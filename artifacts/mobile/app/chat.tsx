@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -51,9 +52,9 @@ function convIcon(c: ChatConversation): keyof typeof Feather.glyphMap {
 }
 
 function convAccent(c: ChatConversation, primary: string) {
-  if (c.convType === "announcement") return "#f59e0b";
-  if (c.convType === "support") return "#ef4444";
-  if (c.convType === "building") return "#10b981";
+  if (c.convType === "announcement") return "#C98511";
+  if (c.convType === "support") return "#C8323C";
+  if (c.convType === "building") return "#13976C";
   return primary;
 }
 
@@ -256,23 +257,13 @@ export default function ChatScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("chatTitle")}</Text>
-          {totalUnread > 0 ? (
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {totalUnread} {t(totalUnread > 1 ? "chatUnreadMessages" : "chatUnreadMessage")}
-            </Text>
-          ) : (
-            <Text style={[styles.subtitle, { color: colors.success }]}>✓</Text>
-          )}
-        </View>
-        <TouchableOpacity
-          style={[styles.iconBtn, { backgroundColor: colors.secondary }]}
-          onPress={() => {
+      <ScreenHeader
+        title={t("chatTitle")}
+        subtitle={totalUnread > 0 ? `${totalUnread} ${t(totalUnread > 1 ? "chatUnreadMessages" : "chatUnreadMessage")}` : undefined}
+        action={{
+          icon: "edit",
+          label: t("newConversation"),
+          onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert(t("newConversation"), undefined, [
               { text: t("cancel"), style: "cancel" },
@@ -287,11 +278,9 @@ export default function ChatScreen() {
                 },
               },
             ]);
-          }}
-        >
-          <Feather name="edit" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+          },
+        }}
+      />
 
       {/* Search */}
       <View style={[styles.searchWrap, { margin: 12, marginBottom: 0, backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -355,7 +344,7 @@ export default function ChatScreen() {
               style={[
                 styles.convRow,
                 {
-                  flexDirection: isRTL ? "row-reverse" : "row",
+                  flexDirection: "row",
                   borderBottomColor: colors.border,
                   backgroundColor: c.unread > 0 ? colors.primary + "05" : "transparent",
                 },
@@ -425,7 +414,7 @@ export default function ChatScreen() {
           <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.card, margin: 16 }]}>
             <Feather name="search" size={16} color={colors.mutedForeground} />
             <TextInput
-              style={[styles.searchInput, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+              style={[styles.searchInput, { color: colors.foreground, textAlign: "auto" }]}
               placeholder={t("searchConversations")}
               placeholderTextColor={colors.mutedForeground}
               value={contactSearch}
@@ -456,7 +445,7 @@ export default function ChatScreen() {
                     styles.contactRow,
                     {
                       borderBottomColor: colors.border,
-                      flexDirection: isRTL ? "row-reverse" : "row",
+                      flexDirection: "row",
                     },
                   ]}
                   onPress={() => handleStartConversation(contact)}
@@ -466,14 +455,14 @@ export default function ChatScreen() {
                     {creatingConv === contact.id ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <Text style={[styles.contactInitials, { color: colors.primary }]}>
+                      <Text style={[styles.contactInitials, { color: colors.tint }]}>
                         {contact.name.split(" ")[0].slice(0, 2).toUpperCase()}
                       </Text>
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.contactName, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{contact.name}</Text>
-                    <Text style={[styles.contactRole, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
+                    <Text style={[styles.contactName, { color: colors.foreground, textAlign: "auto" }]}>{contact.name}</Text>
+                    <Text style={[styles.contactRole, { color: colors.mutedForeground, textAlign: "auto" }]}>
                       {contact.role === "syndicate_admin"
                         ? t("roleSyndicAdmin")
                         : contact.role === "super_admin"
@@ -524,14 +513,14 @@ export default function ChatScreen() {
                 <Text style={[styles.formLabel, { color: colors.foreground }]}>
                   {t("members")} ({selectedContacts.length})
                 </Text>
-                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
                   {selectedContacts.map((c) => (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.selectedChip, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40", flexDirection: isRTL ? "row-reverse" : "row" }]}
+                      style={[styles.selectedChip, { backgroundColor: colors.primary + "20", borderColor: colors.primary + "40", flexDirection: "row" }]}
                       onPress={() => toggleContact(c)}
                     >
-                      <Text style={[styles.selectedChipText, { color: colors.primary }]}>{c.name.split(" ")[0]}</Text>
+                      <Text style={[styles.selectedChipText, { color: colors.tint }]}>{c.name.split(" ")[0]}</Text>
                       <Feather name="x" size={12} color={colors.primary} />
                     </TouchableOpacity>
                   ))}
@@ -569,7 +558,7 @@ export default function ChatScreen() {
                       {isSelected ? (
                         <Feather name="check" size={16} color="#fff" />
                       ) : (
-                        <Text style={[styles.contactInitials, { color: colors.primary }]}>
+                        <Text style={[styles.contactInitials, { color: colors.tint }]}>
                           {contact.name.split(" ")[0].slice(0, 2).toUpperCase()}
                         </Text>
                       )}
@@ -630,7 +619,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   iconBtn: {
     width: 38,

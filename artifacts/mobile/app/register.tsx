@@ -7,6 +7,7 @@
  * Receives optional planId / planName / planColor query params from the Plans screen.
  */
 
+import AuthHero, { AUTH_HERO_OVERLAP } from "@/components/brand/AuthHero";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -22,6 +23,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MizanFormField from "@/components/MizanFormField";
@@ -63,7 +65,7 @@ export default function RegisterScreen() {
   }>();
 
   const hasPlan = !!(params.planId && params.planName);
-  const planColor = params.planColor ?? "#2563EB";
+  const planColor = params.planColor ?? "#5A4AD6";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -82,16 +84,16 @@ export default function RegisterScreen() {
   >("idle");
   const [sendError, setSendError] = useState<string | null>(null);
 
-  const emailRef = useRef<TextInput>(null);
-  const phoneRef = useRef<TextInput>(null);
-  const pwRef = useRef<TextInput>(null);
-  const cpwRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInputInstance>(null);
+  const phoneRef = useRef<TextInputInstance>(null);
+  const pwRef = useRef<TextInputInstance>(null);
+  const cpwRef = useRef<TextInputInstance>(null);
 
   const color = planColor;
   const planLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
   const gradColors: [string, string] = isDark
-    ? ["#070D1A", "#0D1929"]
-    : ["#EFF6FF", "#F8FAFF"];
+    ? ["#0E0C1C", "#17142B"]
+    : ["#EEEBFC", "#F7F4EE"];
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -163,8 +165,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
-      <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
+    <View style={[s.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
 
       <KeyboardAwareScrollViewCompat
         style={{ flex: 1 }}
@@ -172,7 +173,7 @@ export default function RegisterScreen() {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
+            paddingTop: 0,
             paddingBottom: insets.bottom + 40,
             paddingHorizontal: 24,
             gap: 24,
@@ -180,28 +181,7 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Back button */}
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel={t("back")}>
-            <Feather
-              name={isRTL ? "arrow-right" : "arrow-left"}
-              size={20}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-
-          {/* Header */}
-          <View style={{ gap: 8 }}>
-            <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-              {t("authCreateAccount")}
-            </Text>
-            <Text
-              style={[
-                s.subtitle,
-                { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" },
-              ]}
-            >
-              {t("authStepPersonalInfo")}
-            </Text>
-          </View>
+          <AuthHero icon="user-plus" title={t("authCreateAccount")} subtitle={t("authStepPersonalInfo")} bleed={24} style={{ paddingBottom: 28 }} />
 
           {/* Selected plan badge */}
           {hasPlan && (
@@ -241,7 +221,7 @@ export default function RegisterScreen() {
                           ? color
                           : isDark
                             ? "rgba(255,255,255,0.1)"
-                            : "rgba(37,99,235,0.12)",
+                            : "rgba(90,74,214,0.12)",
                       borderColor: i === 0 ? color : "transparent",
                     },
                   ]}
@@ -258,7 +238,7 @@ export default function RegisterScreen() {
                               ? "#fff"
                               : isDark
                                 ? "rgba(255,255,255,0.3)"
-                                : "#94A3B8",
+                                : "#A6A1BE",
                         },
                       ]}
                     >
@@ -275,7 +255,7 @@ export default function RegisterScreen() {
                           ? color
                           : isDark
                             ? "rgba(232,240,254,0.35)"
-                            : "#94A3B8",
+                            : "#A6A1BE",
                     },
                   ]}
                 >
@@ -443,7 +423,7 @@ export default function RegisterScreen() {
                     Math.floor(password.length / 3) +
                       (password.length >= 8 ? 1 : 0),
                   );
-                  const colors = ["#EF4444", "#F59E0B", "#3B82F6", "#10B981"];
+                  const colors = ["#C8323C", "#C98511", "#5A4AD6", "#13976C"];
                   return (
                     <View
                       key={level}
@@ -452,10 +432,10 @@ export default function RegisterScreen() {
                         {
                           backgroundColor:
                             level <= strength
-                              ? (colors[strength - 1] ?? "#10B981")
+                              ? (colors[strength - 1] ?? "#13976C")
                               : isDark
                                 ? "rgba(255,255,255,0.1)"
-                                : "#E2E8F0",
+                                : "#E7E1D6",
                         },
                       ]}
                     />
@@ -465,7 +445,7 @@ export default function RegisterScreen() {
               <Text
                 style={[
                   s.strengthLabel,
-                  { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" },
+                  { color: isDark ? "rgba(232,240,254,0.4)" : "#A6A1BE" },
                 ]}
               >
                 {password.length < 6
@@ -480,7 +460,7 @@ export default function RegisterScreen() {
           )}
 
           {/* Terms checkbox */}
-          <View style={[s.termsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+          <View style={[s.termsRow, { flexDirection: "row" }]}>
             <TouchableOpacity
               onPress={() => {
                 setAgreed(!agreed);
@@ -492,12 +472,12 @@ export default function RegisterScreen() {
                 {
                   backgroundColor: agreed ? color : "transparent",
                   borderColor: errors.agreed
-                    ? "#EF4444"
+                    ? colors.danger
                     : agreed
                       ? color
                       : isDark
                         ? "rgba(255,255,255,0.2)"
-                        : "rgba(37,99,235,0.3)",
+                        : "rgba(90,74,214,0.3)",
                 },
               ]}
               accessibilityRole="checkbox"
@@ -509,19 +489,19 @@ export default function RegisterScreen() {
             <Text
               style={[
                 s.termsText,
-                { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" },
+                { color: isDark ? "rgba(232,240,254,0.6)" : "#4D4964" },
               ]}
             >
               {t("authAcceptPrefix")}{" "}
               <Text
-                style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
-                onPress={() => router.push("/terms" as any)}
+                style={{ color: isDark ? "#B39CFF" : "#5A4AD6" }}
+                onPress={() => router.push("/cgu" as any)}
               >
                 {t("termsOfUse")}
               </Text>{" "}
               {t("authAcceptJoin")}{" "}
               <Text
-                style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
+                style={{ color: isDark ? "#B39CFF" : "#5A4AD6" }}
                 onPress={() => router.push("/privacy" as any)}
               >
                 {t("privacyPolicy")}
@@ -542,20 +522,20 @@ export default function RegisterScreen() {
                 {
                   backgroundColor:
                     sendStatus === "success"
-                      ? "#10B98115"
+                      ? colors.success + "15"
                       : sendStatus === "error"
-                        ? "#EF444415"
+                        ? colors.danger + "15"
                         : isDark
                           ? "rgba(255,255,255,0.06)"
-                          : "rgba(37,99,235,0.06)",
+                          : "rgba(90,74,214,0.06)",
                   borderColor:
                     sendStatus === "success"
-                      ? "#10B981"
+                      ? colors.success
                       : sendStatus === "error"
-                        ? "#EF4444"
+                        ? colors.danger
                         : isDark
                           ? "rgba(255,255,255,0.15)"
-                          : "rgba(37,99,235,0.25)",
+                          : "rgba(90,74,214,0.25)",
                 },
               ]}
             >
@@ -563,10 +543,10 @@ export default function RegisterScreen() {
                 <ActivityIndicator size="small" color={color} />
               )}
               {sendStatus === "success" && (
-                <Feather name="check-circle" size={20} color="#10B981" />
+                <Feather name="check-circle" size={20} color={colors.success} />
               )}
               {sendStatus === "error" && (
-                <Feather name="x-circle" size={20} color="#EF4444" />
+                <Feather name="x-circle" size={20} color={colors.danger} />
               )}
 
               <View style={{ flex: 1, gap: 3 }}>
@@ -576,12 +556,12 @@ export default function RegisterScreen() {
                     {
                       color:
                         sendStatus === "success"
-                          ? "#10B981"
+                          ? colors.success
                           : sendStatus === "error"
-                            ? "#EF4444"
+                            ? colors.danger
                             : isDark
-                              ? "#E8F0FE"
-                              : "#0A1628",
+                              ? "#EEEBFC"
+                              : "#120F2C",
                     },
                   ]}
                 >
@@ -594,19 +574,19 @@ export default function RegisterScreen() {
                   <Text
                     style={[
                       s.statusSub,
-                      { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" },
+                      { color: isDark ? "rgba(232,240,254,0.45)" : "#6A6680" },
                     ]}
                   >
                     {t("authCodeSentTo")} {email.trim()}…
                   </Text>
                 )}
                 {sendStatus === "success" && (
-                  <Text style={[s.statusSub, { color: "#059669" }]}>
+                  <Text style={[s.statusSub, { color: colors.success }]}>
                     {t("authCheckInbox")}
                   </Text>
                 )}
                 {sendStatus === "error" && sendError && (
-                  <Text style={[s.statusSub, { color: "#EF4444" }]}>
+                  <Text style={[s.statusSub, { color: colors.danger }]}>
                     {sendError}
                   </Text>
                 )}
@@ -652,14 +632,14 @@ export default function RegisterScreen() {
             <Text
               style={[
                 s.loginText,
-                { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.45)" : "#6A6680" },
               ]}
             >
               {t("authAlreadyHaveAccount")}
             </Text>
             <TouchableOpacity onPress={() => router.replace("/login")}>
               <Text
-                style={[s.loginLink, { color: isDark ? "#60A5FA" : "#2563EB" }]}
+                style={[s.loginLink, { color: isDark ? "#B39CFF" : "#5A4AD6" }]}
               >
                 {t("authSignIn")}
               </Text>
@@ -684,7 +664,7 @@ const s = StyleSheet.create({
     alignSelf: "flex-start",
   },
 
-  title: { fontFamily: "Inter_700Bold", fontSize: 28, letterSpacing: -0.3 },
+  title: { fontFamily: "Fraunces_600SemiBold", fontSize: 28 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
 
   planBadge: {
@@ -726,7 +706,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
   },
   errorRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  errorText: { fontFamily: "Inter_400Regular", fontSize: 12, color: "#EF4444" },
+  errorText: { fontFamily: "Inter_400Regular", fontSize: 12, color: "#C8323C" },
 
   strengthBar: { flexDirection: "row", gap: 4 },
   strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
@@ -760,7 +740,7 @@ const s = StyleSheet.create({
   apiErrorText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "#EF4444",
+    color: "#C8323C",
     flex: 1,
   },
 
@@ -771,7 +751,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
+    ...crossPlatformShadow({ color: "#5A4AD6", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
   },
   submitBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 

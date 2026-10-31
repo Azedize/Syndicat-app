@@ -8,6 +8,7 @@ import {
 } from "@workspace/db/schema";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import type { JwtPayload } from "../middleware/auth.js";
+import { localToday } from "./charge-time.js";
 
 /**
  * Ownership & occupancy rules of a lot (unit).
@@ -27,7 +28,7 @@ import type { JwtPayload } from "../middleware/auth.js";
 type Executor = Pick<typeof db, "select" | "update">;
 
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localToday();
 }
 
 /** Condition "this ownership row is current today". */

@@ -14,6 +14,7 @@
 import { existsSync } from "fs";
 import fs from "fs/promises";
 import path from "path";
+import { fileURLToPath } from "url";
 import os from "os";
 import { randomUUID } from "crypto";
 import QRCode from "qrcode";
@@ -80,6 +81,10 @@ async function saveToLocalDisk(buffer: Buffer, filename: string): Promise<string
 }
 
 /** Read a file that was saved by saveToLocalDisk. */
+
+/** A Moroccan account number is a 24-digit RIB; anything else entered is an IBAN. */
+const bankIdLabel = (v: string) => (/^\d{24}$/.test(v.replace(/\s/g, "")) ? "RIB" : "IBAN");
+
 export async function readLocalDocFile(uuid: string, filename: string): Promise<Buffer> {
   const filepath = path.join(LOCAL_DOCS_TMP, uuid, filename);
   return fs.readFile(filepath);
@@ -91,7 +96,24 @@ const SIDECAR = "http://127.0.0.1:1106";
 // Node.js pdfmake accepts raw filesystem paths for custom TTF fonts.
 
 const DEJAVU_DIR = "/usr/share/fonts/truetype/dejavu";
-const FONTS_DIR = new URL("../../fonts", import.meta.url).pathname;
+// Bundled fonts (Amiri). Resolved from the source file (src/lib → ../../fonts),
+// the bundle (dist → ../fonts) or the working directory; `fileURLToPath` keeps
+// the path valid on Windows and with spaces / non-ASCII characters.
+const FONTS_DIR =
+  [
+    () => fileURLToPath(new URL("../../fonts", import.meta.url)),
+    () => fileURLToPath(new URL("../fonts", import.meta.url)),
+    () => path.resolve(process.cwd(), "fonts"),
+    () => path.resolve(process.cwd(), "artifacts/api-server/fonts"),
+  ]
+    .map((f) => {
+      try {
+        return f();
+      } catch {
+        return "";
+      }
+    })
+    .find((dir) => dir && existsSync(path.join(dir, "Amiri-Regular.ttf"))) ?? "";
 
 const FONTS: Record<string, unknown> = {
   // Built-in Type 1 fallback (always available)
@@ -860,6 +882,115 @@ function reconstructionPlaceholder(
   ];
 }
 
+
+// ── Official document body (shared layout) ────────────────────────────────────
+// Used by the templates whose dedicated design is not built yet. Everything
+// shown comes from the input/database: empty or "—" values are omitted, no
+// signature, stamp, approval or legal statement is added. Tables repeat their
+// header on each page and never split a row; a heading stays with its block.
+type OfficialBlock =
+  | { kind: "facts"; title?: string; rows: Array<[string, string | number | null | undefined]> }
+  | { kind: "text"; title?: string; text: string | null | undefined }
+  | { kind: "table"; title?: string; columns: Array<{ label: string; width: string | number; align?: "left" | "right" | "center" }>; rows: string[][]; totalRow?: string[] };
+
+/** Arabic labels of the shared layout (French is the source). */
+const OFFICIAL_AR: Record<string, string> = {
+  "Destinataire": "المرسل إليه", "Copropriété": "الملكية المشتركة", "Date d'émission": "تاريخ الإصدار", "Date": "التاريخ",
+  "Date de prise d'effet": "تاريخ السريان", "Résultat du vote": "نتيجة التصويت", "Pour": "مع", "Contre": "ضد", "Abstention": "امتناع",
+  "Décision": "القرار", "Exercice": "السنة المالية", "Résidence": "الإقامة", "Établi par": "من إعداد", "Chiffres de l'exercice": "أرقام السنة المالية",
+  "Budget prévu": "الميزانية المتوقعة", "Réalisé": "المنجز", "Encaissements": "المداخيل", "Dépenses": "المصاريف", "Solde net": "الرصيد الصافي",
+  "Trésorerie": "الخزينة", "Reste à recouvrer": "الباقي للتحصيل", "Taux de recouvrement": "نسبة التحصيل", "Commentaires": "ملاحظات",
+  "Résident": "الساكن", "Lot": "الوحدة", "Étage": "الطابق", "Adresse": "العنوان", "Propriétaire": "المالك", "Nom": "الاسم", "CIN": "ب.ت.و",
+  "Téléphone": "الهاتف", "Bien": "العقار", "Type": "النوع", "Surface": "المساحة", "Tantièmes": "الأنصبة", "Titre foncier": "الرسم العقاري",
+  "Date d'acquisition": "تاريخ الاقتناء", "Copropriétaire": "المالك المشترك", "Période": "الفترة", "Montant dû": "المبلغ المستحق",
+  "Échéance": "تاريخ الاستحقاق", "Référence": "المرجع", "Règlement": "الأداء", "Banque": "البنك", "IBAN / RIB": "رقم الحساب", "BIC": "BIC",
+  "Statut": "الحالة", "Détail": "التفاصيل", "Désignation": "البيان", "Qté": "الكمية", "Prix unitaire": "ثمن الوحدة", "Montant": "المبلغ", "Total": "المجموع",
+  "Urgence": "الاستعجال", "Déclaré par": "صرّح به", "Montant estimé": "المبلغ التقديري", "Montant indemnisé": "مبلغ التعويض", "Description": "الوصف",
+  "Suite donnée": "الإجراء المتخذ", "Priorité": "الأولوية", "Prestataire": "مقدم الخدمة", "Téléphone prestataire": "هاتف مقدم الخدمة",
+  "Signalé par": "أبلغ عنه", "Validé par": "صادق عليه", "Début": "البداية", "Fin": "النهاية", "Montant réel": "المبلغ الفعلي", "Montant facturé": "المبلغ المفوتر",
+};
+const officialLabel = (label: string, rtl: boolean) => (rtl ? OFFICIAL_AR[label] ?? label : label);
+
+const isBlank = (v: unknown) => v === null || v === undefined || String(v).trim() === "" || String(v).trim() === "—";
+
+function officialHeading(title: string, accent: string): unknown {
+  return {
+    stack: [
+      { text: title.toUpperCase(), fontSize: 8.5, bold: true, color: accent, characterSpacing: 0.6, margin: [0, 14, 0, 4], alignment: "auto" },
+      { canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+    ],
+  };
+}
+
+function officialHeadingAligned(title: string, accent: string, rtl: boolean): unknown {
+  return {
+    stack: [
+      { text: rtl ? title : title.toUpperCase(), fontSize: rtl ? 10 : 8.5, bold: true, color: accent, characterSpacing: rtl ? 0 : 0.6, margin: [0, 14, 0, 4], alignment: rtl ? "right" : "left" },
+      { canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+    ],
+  };
+}
+
+function officialBody(header: unknown, title: string, accent: string, blocks: OfficialBlock[], rtl = false): unknown[] {
+  const out: unknown[] = [header, { text: title, fontSize: 15, bold: true, color: BRAND.ink, margin: [0, 16, 0, 2], alignment: rtl ? "right" : "left" }];
+  for (const b of blocks) {
+    if (b.kind === "facts") {
+      const rows = b.rows.filter(([, v]) => !isBlank(v));
+      if (!rows.length) continue;
+      out.push({
+        unbreakable: rows.length <= 12,
+        stack: [
+          ...(b.title ? [officialHeadingAligned(officialLabel(b.title, rtl), accent, rtl)] : []),
+          {
+            table: {
+              // RTL: the label column sits on the right.
+              widths: rtl ? ["*", 150] : [150, "*"],
+              body: rows.map(([label, value]) => {
+                const l = { text: officialLabel(label, rtl), fontSize: 8.5, color: BRAND.muted, alignment: rtl ? "right" : "left" };
+                const v = { text: String(value), fontSize: 9.5, color: BRAND.ink, bold: true, alignment: rtl ? "right" : "left" };
+                return rtl ? [v, l] : [l, v];
+              }),
+            },
+            layout: {
+              hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 0 : 0.4),
+              vLineWidth: () => 0,
+              hLineColor: () => BRAND.border,
+              paddingTop: () => 5,
+              paddingBottom: () => 5,
+              paddingLeft: () => 0,
+              paddingRight: () => 6,
+            },
+            margin: [0, 4, 0, 0],
+          },
+        ],
+      });
+    } else if (b.kind === "text") {
+      if (isBlank(b.text)) continue;
+      const paragraphs = String(b.text).split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+      out.push({ stack: [...(b.title ? [officialHeadingAligned(officialLabel(b.title, rtl), accent, rtl)] : []), { text: paragraphs[0] ?? "", fontSize: 10, lineHeight: 1.45, color: BRAND.inkMid, margin: [0, 6, 0, 0], alignment: rtl ? "right" : "justify" }], unbreakable: false });
+      for (const para of paragraphs.slice(1)) out.push({ text: para, fontSize: 10, lineHeight: 1.45, color: BRAND.inkMid, margin: [0, 6, 0, 0], alignment: rtl ? "right" : "justify" });
+    } else if (b.kind === "table") {
+      if (!b.rows.length) continue;
+      const head = b.columns.map((c) => ({ text: officialLabel(c.label, rtl), fontSize: 8, bold: true, color: "#ffffff", fillColor: accent, alignment: c.align ?? "left" }));
+      const body = b.rows.map((r, i) => r.map((cell, j) => ({ text: cell, fontSize: 9, color: BRAND.ink, alignment: b.columns[j]?.align ?? "left", fillColor: i % 2 ? BRAND.surfaceAlt : null })));
+      const total = b.totalRow ? [b.totalRow.map((cell, j) => ({ text: cell, fontSize: 9.5, bold: true, color: BRAND.ink, alignment: b.columns[j]?.align ?? "left" }))] : [];
+      if (b.title) out.push({ ...(officialHeadingAligned(officialLabel(b.title, rtl), accent, rtl) as object), unbreakable: true });
+      out.push({
+        table: { headerRows: 1, dontBreakRows: true, keepWithHeaderRows: 1, widths: b.columns.map((c) => c.width), body: [head, ...body, ...total] },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (b.totalRow && i === node.table.body.length - 1 ? 1 : 0),
+          vLineWidth: () => 0,
+          hLineColor: () => BRAND.ink,
+          paddingTop: () => 5,
+          paddingBottom: () => 5,
+        },
+        margin: [0, 6, 0, 0],
+      });
+    }
+  }
+  return out;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ENGINE REGISTRY V2 (Phase 2 Scaffolding)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1356,7 +1487,7 @@ export async function appendSignaturesToPdf(
     // ── Footer bar
     page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: FOOTER_H, color: rgb(0.970, 0.980, 0.992) });
     page.drawLine({ start: { x: 0, y: FOOTER_H }, end: { x: PAGE_W, y: FOOTER_H }, thickness: 0.5, color: rgb(0.878, 0.902, 0.925) });
-    const footerLeft = lang === "ar" ? "موثّق بواسطة MIZAN.ma" : "Document certifié — MIZAN.ma";
+    const footerLeft = lang === "ar" ? "وثيقة أُنشئت بواسطة MIZAN" : "Document généré par MIZAN";
     page.drawText(footerLeft, { x: ML, y: 8, size: 7.5, font, color: rgb(0.576, 0.620, 0.659) });
     if (docRef) {
       const refLabel = `Réf : ${docRef}`;
@@ -1668,7 +1799,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   // ── Enterprise footer ────────────────────────────────────────────────────────
   // Layout: 3-column strip below a hairline rule.
   //   LEFT  — syndicate name (bold) + Réf. + date + verify URL
-  //   CENTER — status chip (semantic color) + "Document certifié MIZAN.ma"
+  //   CENTER — status chip (semantic color) + "Document généré par MIZAN"
   //   RIGHT  — page N / M (prominent) + MIZAN brand mark
   // No duplicate QR — QR code lives in the header only.
   const docStatus = input.docStatus as string | null ?? null;
@@ -1718,7 +1849,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 margin: [0, 0, 0, 2],
               }] : []),
               {
-                text: "Document certifié — MIZAN.ma",
+                // Factual: no certification mechanism stands behind this footer.
+                text: "Document généré par MIZAN",
                 fontSize: 5.5, color: BRAND.mutedLight,
                 alignment: "center" as const,
               },
@@ -3519,7 +3651,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     }
 
     case "convocation":
-      content = reconstructionPlaceholder("convocation", docNum, syndInfo);
+      content = officialBody(header, input.title || getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", rows: [["Destinataire", member], ["Copropriété", buildingName ?? syndInfo.name], ["Date d'émission", today]] },
+        { kind: "text", text: body },
+      ], isArabic);
       break;
 
     case "contrat": {
@@ -3987,12 +4122,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const voteAbstain  = (input._voteAbstain  as string) || (input.voteAbstention as string) || "";
       const hasVoteData  = !!(voteFor || voteAgainst || voteAbstain);
       const effectDate   = (input.datePriseEffet as string) || today;
-      content = reconstructionPlaceholder("decision", docNum, syndInfo);
+      content = officialBody(header, input.title || getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", rows: [["Date de prise d'effet", effectDate], ["Copropriété", buildingName ?? syndInfo.name]] },
+        ...(hasVoteData ? [{ kind: "facts" as const, title: "Résultat du vote", rows: [["Pour", voteFor], ["Contre", voteAgainst], ["Abstention", voteAbstain]] as Array<[string, string]> }] : []),
+        { kind: "text", title: "Décision", text: body },
+      ], isArabic);
       break;
     }
 
     case "mise_en_demeure":
-      content = reconstructionPlaceholder("mise_en_demeure", docNum, syndInfo);
+      // Only the syndic's own text: no legal wording, deadline or penalty is added.
+      content = officialBody(header, input.title || getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", rows: [["Destinataire", member], ["Copropriété", buildingName ?? syndInfo.name], ["Date", today]] },
+        { kind: "text", text: body },
+      ], isArabic);
       break;
 
     // ── Rapport Financier ────────────────────────────────────────────────────────
@@ -4020,7 +4163,25 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const rapportExpenses      = (input._kpiTotalExpenses as string) || "—";
       const outstandingNum       = parseFloat(rapportOutstanding.replace(/\s/g, "").replace(",", "."));
 
-      content = reconstructionPlaceholder("rapport_financier", docNum, syndInfo);
+      void rapportApprouvePar; void rapportCollRate; void outstandingNum;
+      content = officialBody(header, input.title || `Rapport financier — exercice ${rapportExercice}`, accentColor, [
+        { kind: "facts", rows: [["Exercice", rapportExercice], ["Résidence", rapportBuilding], ["Établi par", (input.etabliPar as string) || oh?.treasurer?.fullName]] },
+        {
+          kind: "facts",
+          title: "Chiffres de l'exercice",
+          rows: [
+            ["Budget prévu", rapportTotalPrevu],
+            ["Réalisé", rapportTotalRealise],
+            ["Encaissements", rapportRevenue],
+            ["Dépenses", rapportExpenses],
+            ["Solde net", rapportNetBalance],
+            ["Trésorerie", rapportCashBalance],
+            ["Reste à recouvrer", rapportOutstanding !== "0" ? rapportOutstanding : null],
+            ["Taux de recouvrement", input._kpiCollectionRate ? `${input._kpiCollectionRate} %` : null],
+          ],
+        },
+        { kind: "text", title: "Commentaires", text: body },
+      ], isArabic);
       break;
     }
 
@@ -4037,7 +4198,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lotFloor     = (input.lotFloor as string | undefined) || (input._lotFloor as string | undefined);
       const fullAddress  = [propertyAddress, propertyCity].filter(Boolean).join(", ") || "—";
       const resDark      = adjustColorBrightness(accentColor, -20);
-      content = reconstructionPlaceholder("attestation_residence", docNum, syndInfo);
+      void resDark;
+      content = officialBody(header, getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", rows: [["Résident", member], ["Lot", lot], ["Étage", lotFloor], ["Résidence", propertyName], ["Adresse", fullAddress], ["Date", today]] },
+        { kind: "text", text: body },
+      ], isArabic);
       break;
     }
 
@@ -4209,7 +4374,27 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         || signatures.find((s) => ["president", "syndicate_admin"].includes(s.signerRole ?? ""))?.signerName
         || "—";
 
-      content = reconstructionPlaceholder("attestation_propriete", docNum, syndInfo);
+      // Only facts from the records or typed by the syndic — no default
+      // nationality, legal status, acquisition method or valuation.
+      content = officialBody(header, getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", title: "Propriétaire", rows: [["Nom", member], ["CIN", attMemberCIN], ["Téléphone", attPhone]] },
+        {
+          kind: "facts",
+          title: "Bien",
+          rows: [
+            ["Lot", lotNum],
+            ["Type", input._lotType as string],
+            ["Étage", attLotFloor],
+            ["Surface", attLotSurface !== "—" ? `${attLotSurface} m²` : null],
+            ["Tantièmes", tantiemes !== "—" ? `${tantiemes}` : null],
+            ["Résidence", propName],
+            ["Adresse", [propAddress, propCity].filter(Boolean).join(", ")],
+            ["Titre foncier", titreFoncier],
+            ["Date d'acquisition", input.acquisitionDate as string],
+          ],
+        },
+        { kind: "text", text: body || (input.legalCertText as string) },
+      ], isArabic);
       break;
     }
 
@@ -4995,7 +5180,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // ── ENTERPRISE FAMILY: Image 1 — two-column layout with 155pt sidebar ──
       footerFn = (_p: number, _ps: number) => ({
         columns: [
-          { text: "Ce document a été généré électroniquement. Aucune signature manuscrite n'est requise.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
           { text: `${_p} / ${_ps}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
         ],
       });
@@ -5030,7 +5215,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           "• Chèque libellé à l'ordre du syndicat de copropriété",
           "• Remise en espèces au bureau syndical (contre reçu)",
           ...(syndInfo.bankName ? [`\nBanque : ${syndInfo.bankName}`] : []),
-          ...(syndInfo.bankIban ? [`IBAN : ${syndInfo.bankIban}`] : []),
+          ...(syndInfo.bankIban ? [`${bankIdLabel(syndInfo.bankIban)} : ${syndInfo.bankIban}`] : []),
           ...(syndInfo.bankBic  ? [`BIC : ${syndInfo.bankBic}`]  : []),
           `\nRéférence à mentionner : ${receiptNum}`,
         ].join("\n"), accentColor) as object,
@@ -5057,7 +5242,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, accentColor, lang) as object,
       ];
 
-      content = reconstructionPlaceholder("appel_de_fonds", docNum, syndInfo);
+      content = officialBody(header, input.title || getDocTypeLabel(template, lang), accentColor, [
+        { kind: "facts", rows: [["Copropriétaire", member], ["Période", periode], ["Type", chargeType], ["Montant dû", `${amount.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`], ["Échéance", dueDate], ["Référence", receiptNum]] },
+        { kind: "facts", title: "Règlement", rows: [["Banque", syndInfo.bankName], ["IBAN / RIB", syndInfo.bankIban], ["BIC", syndInfo.bankBic]] },
+        { kind: "text", text: body },
+      ], isArabic);
       break;
     }
 
@@ -5073,7 +5262,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Enterprise footer
       footerFn = (_page: number, _pages: number) => ({
         columns: [
-          { text: "Ce document a été généré électroniquement. Aucune signature manuscrite n'est requise.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
           { text: `${_page} / ${_pages}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
         ],
       });
@@ -5181,7 +5370,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["ADRESSE", syndInfo.address || "—"],
           ["CONTACT", syndInfo.phone || "—"],
           ...(syndInfo.bankName ? [["BANQUE", syndInfo.bankName] as [string, string]] : []),
-          ...(syndInfo.bankIban ? [["IBAN", syndInfo.bankIban] as [string, string]] : []),
+          ...(syndInfo.bankIban ? [[bankIdLabel(syndInfo.bankIban), syndInfo.bankIban] as [string, string]] : []),
         ], accentColor) as object,
         buildSidebarInfoPanel("RÉSUMÉ FINANCIER", "◈", [
           ["SOUS-TOTAL HT", `${totalHT.toLocaleString("fr-MA")} MAD`],
@@ -5193,7 +5382,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, accentColor, lang) as object,
       ];
 
-      content = reconstructionPlaceholder("facture", docNum, syndInfo);
+      void tva; void totalTTC;
+      // No VAT is added: nothing in the data says it applies.
+      const fmtAmt = (v: number) => `${v.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
+      content = officialBody(header, `Facture ${invoiceRef}`, accentColor, [
+        { kind: "facts", rows: [["Destinataire", recipient], ["Statut", invoiceStatusLabel], ["Échéance", invoiceDue], ["Date", today]] },
+        {
+          kind: "table",
+          title: "Détail",
+          columns: [{ label: "Désignation", width: "*" }, { label: "Qté", width: 40, align: "right" }, { label: "Prix unitaire", width: 90, align: "right" }, { label: "Montant", width: 90, align: "right" }],
+          rows: invoiceLines.map((l) => [String(l.label), String(l.qty), fmtAmt(l.unitPrice), fmtAmt(l.total)]),
+          totalRow: ["Total", "", "", fmtAmt(totalHT)],
+        },
+        { kind: "text", text: body },
+      ], isArabic);
       break;
     }
 
@@ -5235,7 +5437,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ascenseur: "Panne ascenseur", structure: "Problème structurel", autre: "Autre",
       };
 
-      content = reconstructionPlaceholder("sinistre", docNum, syndInfo);
+      void sc; void uc; void indemnisedAmt;
+      content = officialBody(header, `Déclaration de sinistre ${claimNumber}`, accentColor, [
+        { kind: "facts", rows: [["Type", typeLabels[sinistreType] ?? sinistreType], ["Date", sinistreDate], ["Statut", (statusColors[sinistreStatus] ?? statusColors.declared).label], ["Urgence", uc.label], ["Résidence", buildingName_], ["Lot", lotNum], ["Déclaré par", reportedBy], ["Montant estimé", estimatedAmt !== "—" ? `${estimatedAmt} MAD` : null], ["Montant indemnisé", indemnisedAmt !== "—" ? `${indemnisedAmt} MAD` : null]] },
+        { kind: "text", title: "Description", text: sinistreDesc },
+        { kind: "text", title: "Suite donnée", text: resolutionNote },
+      ], isArabic);
       break;
     }
 
@@ -5280,7 +5487,29 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const sc = statusConfig[travauxStatus] || statusConfig.reported;
       const financialAmt = Number(invoiceAmt !== "—" ? invoiceAmt : actualAmt !== "—" ? actualAmt : estimatedAmt_ !== "—" ? estimatedAmt_ : "0");
 
-      content = reconstructionPlaceholder("travaux", docNum, syndInfo);
+      void pc; void sc; void financialAmt;
+      content = officialBody(header, `Ordre de travaux — ${travauxTitle}`, accentColor, [
+        {
+          kind: "facts",
+          rows: [
+            ["Type", typeLabels[travauxType] ?? travauxType],
+            ["Priorité", (priorityConfig[travauxPriority] ?? priorityConfig.normal).label],
+            ["Statut", (statusConfig[travauxStatus] ?? statusConfig.reported).label],
+            ["Résidence", buildingName_],
+            ["Lot", lotNum_],
+            ["Prestataire", prestataireNom],
+            ["Téléphone prestataire", prestatairePhone],
+            ["Signalé par", reportedBy_],
+            ["Validé par", validatedBy_],
+            ["Début", startDate_],
+            ["Fin", endDate_],
+            ["Montant estimé", estimatedAmt_ !== "—" ? `${estimatedAmt_} MAD` : null],
+            ["Montant réel", actualAmt !== "—" ? `${actualAmt} MAD` : null],
+            ["Montant facturé", invoiceAmt !== "—" ? `${invoiceAmt} MAD` : null],
+          ],
+        },
+        { kind: "text", title: "Description", text: travauxDesc },
+      ], isArabic);
       break;
     }
 
@@ -5288,11 +5517,28 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = reconstructionPlaceholder(template, docNum, syndInfo);
   }
 
+  if (isArabic && ARABIC_FONT !== PRIMARY_FONT) {
+    // Styles and blocks name the Latin font explicitly: switch them to Amiri.
+    const swap = (node: unknown): unknown => {
+      if (Array.isArray(node)) return node.map(swap);
+      if (node && typeof node === "object") {
+        const o: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) o[k] = k === "font" && v === PRIMARY_FONT ? ARABIC_FONT : typeof v === "function" ? v : swap(v);
+        return o;
+      }
+      return node;
+    };
+    content = swap(content) as unknown[];
+    Object.assign(styles, swap(styles));
+  }
   return {
     pageSize: "A4" as const,
     pageMargins: pageMarginOverride ?? ([40, 22, 40, 58] as [number, number, number, number]),
     content,
     styles,
+    // Arabic documents: Amiri everywhere (it also covers Latin), so the header,
+    // labels and body never fall back to a font without Arabic glyphs.
+    ...(isArabic ? { defaultStyle: { font: ARABIC_FONT } } : {}),
     ...(footerFn ? { footer: footerFn } : {}),
     ...(backgroundFn ? { background: backgroundFn } : {}),
     ...(watermark ? { watermark } : {}),
@@ -5358,3 +5604,6 @@ export const CATEGORY_TO_TEMPLATE: Record<string, DocumentTemplate> = {
   juridique:   "mise_en_demeure",
   finances:    "rapport_financier",
 };
+
+/** Layout checks (scripts): document definition and PDF bytes without storage. */
+export { buildDocDef as buildDocumentDefinition, buildPdfBuffer };

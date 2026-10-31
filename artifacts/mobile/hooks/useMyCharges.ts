@@ -4,6 +4,10 @@ import { apiRequest } from "@/lib/api";
 export interface MyChargesSummary {
   /** Amount still due across all calls (partial payments deducted). */
   due: number;
+  /** Amount called across all non-cancelled calls. */
+  total: number;
+  /** Part of `total` already settled (total − due, validated payments only). */
+  paid: number;
   overdueCount: number;
   underReviewCount: number;
   paidCount: number;
@@ -45,7 +49,8 @@ export function useMyCharges(enabled = true) {
                 : "due";
       const paidCount = rows.filter((a) => a.status === "paid").length;
       const openCount = rows.length - paidCount - overdueCount;
-      return { due, overdueCount, underReviewCount, paidCount, openCount, status };
+      const total = rows.reduce((s, a) => s + Number(a.amount), 0);
+      return { due, total, paid: Math.max(0, total - due), overdueCount, underReviewCount, paidCount, openCount, status };
     },
   });
 }

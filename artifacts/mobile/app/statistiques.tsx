@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -429,7 +430,8 @@ function MiniBar({
         flex: 1,
         height: 6,
         borderRadius: 3,
-        backgroundColor: "#e5e7eb",
+        // Neutral track, readable on both themes (no colours prop here).
+        backgroundColor: "rgba(128,128,128,0.22)",
         overflow: "hidden",
       }}
     >
@@ -552,20 +554,20 @@ function KpiCard({
             kpiStyles.trendBadge,
             {
               backgroundColor: trend.startsWith("+")
-                ? "#10b98118"
-                : "#ef444418",
+                ? "#13976C18"
+                : "#C8323C18",
             },
           ]}
         >
           <Feather
             name={trend.startsWith("+") ? "trending-up" : "trending-down"}
             size={10}
-            color={trend.startsWith("+") ? "#10b981" : "#ef4444"}
+            color={trend.startsWith("+") ? "#13976C" : "#C8323C"}
           />
           <Text
             style={[
               kpiStyles.trendText,
-              { color: trend.startsWith("+") ? "#10b981" : "#ef4444" },
+              { color: trend.startsWith("+") ? "#13976C" : "#C8323C" },
             ]}
           >
             {trend}
@@ -597,7 +599,7 @@ const kpiStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  value: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  value: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   label: { fontSize: 11, fontFamily: "Inter_500Medium", lineHeight: 16 },
   trendBadge: {
     flexDirection: "row",
@@ -726,39 +728,19 @@ export default function StatistiquesScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={22}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {STRINGS.title[lang]}
-        </Text>
-        <TouchableOpacity
-          style={[styles.exportBtn, { borderColor: colors.border }]}
-          onPress={() => {
+      <ScreenHeader
+        title={STRINGS.title[lang]}
+        action={{
+          icon: "download",
+          label: STRINGS.exportTitle[lang],
+          onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Share.share({
-              title: STRINGS.exportTitle[lang],
-              message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString(locale)}\nMIZAN`,
-            });
-          }}
-        >
-          <Feather name="download" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+            Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}
+${new Date().toLocaleDateString(locale)}
+MIZAN` });
+          },
+        }}
+      />
 
       <FilterTabs
         options={[
@@ -845,7 +827,7 @@ export default function StatistiquesScreen() {
                   label={STRINGS.activeSyndicates[lang]}
                   value={`${platformActiveSyndicates}`}
                   icon="briefcase"
-                  color="#10b981"
+                  color="#13976C"
                 />
               </View>
               <View style={styles.kpiGrid}>
@@ -853,13 +835,13 @@ export default function StatistiquesScreen() {
                   label={STRINGS.totalRevenue[lang]}
                   value={formatMad(platformRevenue)}
                   icon="trending-up"
-                  color="#f59e0b"
+                  color="#C98511"
                 />
                 <KpiCard
                   label={STRINGS.saasSubscriptions[lang]}
                   value={formatMad(subRevenue)}
                   icon="star"
-                  color="#8b5cf6"
+                  color="#1F8A9A"
                   sub={STRINGS.perYear[lang]}
                 />
               </View>
@@ -874,22 +856,22 @@ export default function StatistiquesScreen() {
                   {
                     label: STRINGS.cotisationRate[lang],
                     value: `${cotisationPaidRate}%`,
-                    color: "#10b981",
+                    color: "#13976C",
                   },
                   {
                     label: STRINGS.deliveredOrders[lang],
                     value: `${deliveredOrders}/${totalOrders}`,
-                    color: "#3b82f6",
+                    color: "#5A4AD6",
                   },
                   {
                     label: STRINGS.marketplaceProducts[lang],
                     value: `${products.length}`,
-                    color: "#f97316",
+                    color: "#C8642A",
                   },
                   {
                     label: STRINGS.openTickets[lang],
                     value: `${openTickets}`,
-                    color: "#ef4444",
+                    color: "#C8323C",
                   },
                 ].map((s, i, arr) => (
                   <View
@@ -999,7 +981,7 @@ export default function StatistiquesScreen() {
                 {membersChartData.length > 0 ? (
                   <BarChart
                     data={sliceForPeriod(membersChartData, period)}
-                    color="#10b981"
+                    color="#13976C"
                   />
                 ) : (
                   !loadingStats && (
@@ -1029,7 +1011,7 @@ export default function StatistiquesScreen() {
                   label={STRINGS.activeSyndicates[lang]}
                   value={`${syndicates.filter((s) => s.status === "active").length}`}
                   icon="check-circle"
-                  color="#10b981"
+                  color="#13976C"
                 />
                 <KpiCard
                   label={STRINGS.totalMembersCount[lang]}
@@ -1064,11 +1046,11 @@ export default function StatistiquesScreen() {
                   .map((sy, i) => {
                     const maxM = Math.max(...syndicates.map((s) => s.members));
                     const colors2 = [
-                      "#2563EB",
-                      "#3b82f6",
-                      "#10b981",
-                      "#f59e0b",
-                      "#ef4444",
+                      "#5A4AD6",
+                      "#5A4AD6",
+                      "#13976C",
+                      "#C98511",
+                      "#C8323C",
                     ];
                     const color = colors2[i % colors2.length];
                     return (
@@ -1145,8 +1127,8 @@ export default function StatistiquesScreen() {
                                 {
                                   backgroundColor:
                                     sy.status === "active"
-                                      ? "#10b98118"
-                                      : "#ef444418",
+                                      ? "#13976C18"
+                                      : "#C8323C18",
                                 },
                               ]}
                             >
@@ -1156,8 +1138,8 @@ export default function StatistiquesScreen() {
                                   {
                                     color:
                                       sy.status === "active"
-                                        ? "#10b981"
-                                        : "#ef4444",
+                                        ? "#13976C"
+                                        : "#C8323C",
                                   },
                                 ]}
                               >
@@ -1182,13 +1164,13 @@ export default function StatistiquesScreen() {
                   label={STRINGS.revenueLabel[lang]}
                   value={formatMad(platformRevenue)}
                   icon="arrow-down-circle"
-                  color="#10b981"
+                  color="#13976C"
                 />
                 <KpiCard
                   label={STRINGS.expensesLabel[lang]}
                   value={formatMad(platformExpenses)}
                   icon="arrow-up-circle"
-                  color="#ef4444"
+                  color="#C8323C"
                 />
               </View>
               <View style={styles.kpiGrid}>
@@ -1196,13 +1178,13 @@ export default function StatistiquesScreen() {
                   label={STRINGS.netBalance[lang]}
                   value={formatMad(platformRevenue - platformExpenses)}
                   icon="dollar-sign"
-                  color="#3b82f6"
+                  color="#5A4AD6"
                 />
                 <KpiCard
                   label={STRINGS.activeSubscriptions[lang]}
                   value={`${syndicateSubscriptions.filter((s) => s.status === "active").length}`}
                   icon="star"
-                  color="#8b5cf6"
+                  color="#1F8A9A"
                 />
               </View>
 
@@ -1225,7 +1207,7 @@ export default function StatistiquesScreen() {
                           {
                             fontSize: 11,
                             fontFamily: "Inter_600SemiBold",
-                            color: "#10b981",
+                            color: "#13976C",
                             marginBottom: 6,
                           },
                         ]}
@@ -1234,7 +1216,7 @@ export default function StatistiquesScreen() {
                       </Text>
                       <BarChart
                         data={sliceForPeriod(revenueChartData, period)}
-                        color="#10b981"
+                        color="#13976C"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -1243,7 +1225,7 @@ export default function StatistiquesScreen() {
                           {
                             fontSize: 11,
                             fontFamily: "Inter_600SemiBold",
-                            color: "#ef4444",
+                            color: "#C8323C",
                             marginBottom: 6,
                           },
                         ]}
@@ -1252,7 +1234,7 @@ export default function StatistiquesScreen() {
                       </Text>
                       <BarChart
                         data={sliceForPeriod(expensesChartData, period)}
-                        color="#ef4444"
+                        color="#C8323C"
                       />
                     </View>
                   </View>
@@ -1286,13 +1268,13 @@ export default function StatistiquesScreen() {
                   {
                     id: "plan_enterprise",
                     plan: STRINGS.enterprise[lang],
-                    color: "#f59e0b",
+                    color: "#C98511",
                   },
-                  { id: "plan_pro", plan: STRINGS.pro[lang], color: "#2563EB" },
+                  { id: "plan_pro", plan: STRINGS.pro[lang], color: "#5A4AD6" },
                   {
                     id: "plan_essentiel",
                     plan: STRINGS.essential[lang],
-                    color: "#6b7280",
+                    color: "#6A6680",
                   },
                 ].map((p) => {
                   const activeForPlan = syndicateSubscriptions.filter(
@@ -1354,13 +1336,13 @@ export default function StatistiquesScreen() {
                   label={STRINGS.activeProducts[lang]}
                   value={`${products.filter((p) => p.status === "approved").length}`}
                   icon="shopping-bag"
-                  color="#f97316"
+                  color="#C8642A"
                 />
                 <KpiCard
                   label={STRINGS.totalOrders[lang]}
                   value={`${totalOrders}`}
                   icon="package"
-                  color="#3b82f6"
+                  color="#5A4AD6"
                 />
               </View>
               <View style={styles.kpiGrid}>
@@ -1368,13 +1350,13 @@ export default function StatistiquesScreen() {
                   label={STRINGS.delivered[lang]}
                   value={`${deliveredOrders}`}
                   icon="check-circle"
-                  color="#10b981"
+                  color="#13976C"
                 />
                 <KpiCard
                   label={STRINGS.pendingValidation[lang]}
                   value={`${products.filter((p) => p.status === "pending_review").length}`}
                   icon="clock"
-                  color="#f59e0b"
+                  color="#C98511"
                 />
               </View>
 
@@ -1398,11 +1380,11 @@ export default function StatistiquesScreen() {
                 ).map((status) => {
                   const cnt = orders.filter((o) => o.status === status).length;
                   const colors2: Record<string, string> = {
-                    pending: "#f59e0b",
-                    confirmed: "#3b82f6",
-                    shipped: "#8b5cf6",
-                    delivered: "#10b981",
-                    cancelled: "#ef4444",
+                    pending: "#C98511",
+                    confirmed: "#5A4AD6",
+                    shipped: "#1F8A9A",
+                    delivered: "#13976C",
+                    cancelled: "#C8323C",
                   };
                   const labels: Record<string, string> = {
                     pending: STRINGS.statusPending[lang],
@@ -1485,7 +1467,7 @@ export default function StatistiquesScreen() {
                             {
                               fontSize: 11,
                               fontFamily: "Inter_700Bold",
-                              color: colors.primary,
+                              color: colors.tint,
                             },
                           ]}
                         >
@@ -1541,7 +1523,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { flex: 1, fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   exportBtn: {
     width: 38,
     height: 38,

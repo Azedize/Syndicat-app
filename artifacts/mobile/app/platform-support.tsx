@@ -12,7 +12,8 @@
  *   syndicate_admin triggers escalation from /support screen → creates a platform ticket here
  *   syndicate_admin can also create platform tickets directly (Feature Requests, Bugs, etc.)
  */
-import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -222,25 +223,79 @@ interface Reply {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Texts of the ticket list, detail and form (fr · en · ar · es).
+const PS: Record<string, Record<"fr" | "en" | "ar" | "es", string>> = {
+  cat_bug: { fr: "Bug technique", en: "Technical bug", ar: "خلل تقني", es: "Error técnico" },
+  cat_feature: { fr: "Demande de fonction", en: "Feature request", ar: "طلب ميزة", es: "Solicitud de función" },
+  cat_acces: { fr: "Accès / Compte", en: "Access / Account", ar: "الدخول / الحساب", es: "Acceso / Cuenta" },
+  cat_formation: { fr: "Formation", en: "Training", ar: "تكوين", es: "Formación" },
+  cat_autre: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
+  catDesc_bug: { fr: "Dysfonctionnement, erreur, panne", en: "Malfunction, error, outage", ar: "عطل، خطأ، توقف", es: "Fallo, error, avería" },
+  catDesc_feature: { fr: "Nouvelle fonctionnalité souhaitée", en: "A new feature you need", ar: "ميزة جديدة مطلوبة", es: "Nueva funcionalidad deseada" },
+  catDesc_acces: { fr: "Problème de connexion ou de droits", en: "Sign-in or permission problem", ar: "مشكلة في الدخول أو الصلاحيات", es: "Problema de conexión o de permisos" },
+  catDesc_formation: { fr: "Question sur l'utilisation du produit", en: "Question about using the product", ar: "سؤال حول استعمال التطبيق", es: "Pregunta sobre el uso del producto" },
+  catDesc_autre: { fr: "Toute autre demande", en: "Any other request", ar: "أي طلب آخر", es: "Cualquier otra solicitud" },
+  pri_high: { fr: "Critique", en: "Critical", ar: "حرجة", es: "Crítica" },
+  pri_medium: { fr: "Normal", en: "Normal", ar: "عادية", es: "Normal" },
+  pri_low: { fr: "Faible", en: "Low", ar: "منخفضة", es: "Baja" },
+  shortcutTitle: { fr: "Contacter le support plateforme", en: "Contact platform support", ar: "التواصل مع دعم المنصة", es: "Contactar con el soporte de la plataforma" },
+  shortcutSub: { fr: "Bug, demande de fonctionnalité, problème de compte…", en: "Bug, feature request, account problem…", ar: "خلل، طلب ميزة، مشكلة في الحساب…", es: "Error, solicitud de función, problema de cuenta…" },
+  emptyAdmin: { fr: "Aucun ticket plateforme", en: "No platform tickets", ar: "لا توجد تذاكر للمنصة", es: "Ningún ticket de plataforma" },
+  emptyUser: { fr: "Aucune demande envoyée", en: "No request sent", ar: "لم يُرسَل أي طلب", es: "Ninguna solicitud enviada" },
+  emptyAdminSub: { fr: "Tous les tickets ont été traités.", en: "Every ticket has been handled.", ar: "تمت معالجة جميع التذاكر.", es: "Todos los tickets se han tratado." },
+  emptyUserSub: { fr: "Utilisez ce canal pour signaler des bugs ou demander de nouvelles fonctionnalités.", en: "Use this channel to report bugs or ask for new features.", ar: "استعمل هذه القناة للإبلاغ عن الأخطاء أو طلب ميزات جديدة.", es: "Use este canal para informar de errores o pedir nuevas funciones." },
+  escalated: { fr: "Escaladé depuis le syndicat", en: "Escalated by the syndic", ar: "مُحال من السانديك", es: "Escalado por el administrador" },
+  ticket: { fr: "Ticket #{id}", en: "Ticket #{id}", ar: "تذكرة #{id}", es: "Ticket #{id}" },
+  resolve: { fr: "Résoudre", en: "Resolve", ar: "حلّ", es: "Resolver" },
+  escalationNotice: { fr: "Ce ticket a été escaladé depuis le support syndicat. Ticket d'origine : #{id}", en: "This ticket was escalated from the syndic's support. Original ticket: #{id}", ar: "أُحيلت هذه التذكرة من دعم السانديك. التذكرة الأصلية: #{id}", es: "Este ticket se escaló desde el soporte del administrador. Ticket original: #{id}" },
+  submittedBy: { fr: "Soumis par", en: "Submitted by", ar: "مقدَّم من", es: "Enviado por" },
+  description: { fr: "Description", en: "Description", ar: "الوصف", es: "Descripción" },
+  conversation: { fr: "Conversation ({n})", en: "Conversation ({n})", ar: "المحادثة ({n})", es: "Conversación ({n})" },
+  platformTeam: { fr: " · Équipe plateforme", en: " · Platform team", ar: " · فريق المنصة", es: " · Equipo de la plataforma" },
+  replyAdmin: { fr: "Réponse de l'équipe plateforme", en: "Platform team reply", ar: "رد فريق المنصة", es: "Respuesta del equipo de la plataforma" },
+  replyUser: { fr: "Ajouter des informations", en: "Add information", ar: "إضافة معلومات", es: "Añadir información" },
+  replyAdminPh: { fr: "Répondez au ticket de l'administrateur…", en: "Reply to the administrator's ticket…", ar: "ردّ على تذكرة المسؤول…", es: "Responda al ticket del administrador…" },
+  replyUserPh: { fr: "Fournissez des précisions supplémentaires…", en: "Give more details…", ar: "قدّم تفاصيل إضافية…", es: "Aporte más detalles…" },
+  send: { fr: "Envoyer", en: "Send", ar: "إرسال", es: "Enviar" },
+  resolvedBanner: { fr: "Ce ticket a été traité par l'équipe plateforme.", en: "The platform team has handled this ticket.", ar: "عالج فريق المنصة هذه التذكرة.", es: "El equipo de la plataforma ha tratado este ticket." },
+  newTitle: { fr: "Contacter le support plateforme", en: "Contact platform support", ar: "التواصل مع دعم المنصة", es: "Contactar con el soporte de la plataforma" },
+  admin: { fr: "Administrateur : ", en: "Administrator: ", ar: "المسؤول: ", es: "Administrador: " },
+  requestType: { fr: "Type de demande *", en: "Type of request *", ar: "نوع الطلب *", es: "Tipo de solicitud *" },
+  criticality: { fr: "Criticité", en: "Severity", ar: "درجة الأهمية", es: "Gravedad" },
+  subject: { fr: "Sujet *", en: "Subject *", ar: "الموضوع *", es: "Asunto *" },
+  subjectPh_bug: { fr: "Ex : Les signatures électroniques ne fonctionnent plus", en: "E.g. Electronic signatures no longer work", ar: "مثال: التوقيعات الإلكترونية لم تعد تعمل", es: "Ej.: Las firmas electrónicas ya no funcionan" },
+  subjectPh_feature: { fr: "Ex : Badges visiteurs avec QR code", en: "E.g. Visitor badges with a QR code", ar: "مثال: شارات الزوار برمز QR", es: "Ej.: Credenciales de visitante con código QR" },
+  subjectPh_acces: { fr: "Ex : Impossible de se connecter depuis l'application", en: "E.g. Cannot sign in from the app", ar: "مثال: تعذّر الدخول من التطبيق", es: "Ej.: No es posible iniciar sesión desde la aplicación" },
+  subjectPh_formation: { fr: "Ex : Comment configurer les appels de fonds automatiques ?", en: "E.g. How do I set up automatic calls for funds?", ar: "مثال: كيف أضبط نداءات الأموال التلقائية؟", es: "Ej.: ¿Cómo configuro las derramas automáticas?" },
+  subjectPh_autre: { fr: "Décrivez brièvement votre demande", en: "Describe your request briefly", ar: "صف طلبك باختصار", es: "Describa brevemente su solicitud" },
+  details: { fr: "Description détaillée *", en: "Detailed description *", ar: "وصف مفصّل *", es: "Descripción detallada *" },
+  detailsPhBug: { fr: "Décrivez le problème : quand est-il apparu ? Quels utilisateurs sont affectés ? Quels appareils ?", en: "Describe the problem: when did it start? Which users are affected? Which devices?", ar: "صف المشكلة: متى ظهرت؟ من المستخدمون المتأثرون؟ ما الأجهزة؟", es: "Describa el problema: ¿cuándo apareció? ¿Qué usuarios están afectados? ¿Qué dispositivos?" },
+  detailsPh: { fr: "Décrivez votre besoin en détail. Précisez le contexte métier et l'impact attendu.", en: "Describe your need in detail, with the business context and the expected impact.", ar: "صف حاجتك بالتفصيل، مع السياق والأثر المنتظر.", es: "Describa su necesidad en detalle, con el contexto y el impacto esperado." },
+  note: { fr: "Ce ticket est envoyé directement à l'équipe technique de la plateforme. Les résidents ne peuvent pas accéder à ce canal.", en: "This ticket goes straight to the platform's technical team. Residents cannot access this channel.", ar: "تُرسَل هذه التذكرة مباشرة إلى الفريق التقني للمنصة. لا يمكن للسكان الوصول إلى هذه القناة.", es: "Este ticket se envía directamente al equipo técnico de la plataforma. Los residentes no tienen acceso a este canal." },
+  sending: { fr: "Envoi en cours…", en: "Sending…", ar: "جارٍ الإرسال…", es: "Enviando…" },
+  submit: { fr: "Envoyer au support plateforme", en: "Send to platform support", ar: "إرسال إلى دعم المنصة", es: "Enviar al soporte de la plataforma" },
+};
+
+
 const CATEGORIES: { key: PlatformCat; labelFr: string; desc: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "bug",      labelFr: "Bug Technique",         desc: "Dysfonctionnement, erreur, panne",       icon: "alert-octagon",  color: "#ef4444" },
-  { key: "feature",  labelFr: "Demande de Fonction",   desc: "Nouvelle fonctionnalité souhaitée",      icon: "zap",            color: "#8b5cf6" },
-  { key: "acces",    labelFr: "Accès / Compte",        desc: "Problème de connexion ou de droits",     icon: "lock",           color: "#f59e0b" },
-  { key: "formation",labelFr: "Formation",              desc: "Question sur l'utilisation du produit",  icon: "book-open",      color: "#3b82f6" },
-  { key: "autre",    labelFr: "Autre",                  desc: "Toute autre demande",                    icon: "help-circle",    color: "#6b7280" },
+  { key: "bug",      labelFr: "Bug Technique",         desc: "Dysfonctionnement, erreur, panne",       icon: "alert-octagon",  color: "#C8323C" },
+  { key: "feature",  labelFr: "Demande de Fonction",   desc: "Nouvelle fonctionnalité souhaitée",      icon: "zap",            color: "#1F8A9A" },
+  { key: "acces",    labelFr: "Accès / Compte",        desc: "Problème de connexion ou de droits",     icon: "lock",           color: "#C98511" },
+  { key: "formation",labelFr: "Formation",              desc: "Question sur l'utilisation du produit",  icon: "book-open",      color: "#5A4AD6" },
+  { key: "autre",    labelFr: "Autre",                  desc: "Toute autre demande",                    icon: "help-circle",    color: "#6A6680" },
 ];
 
 const PRIORITIES: { key: Priority; labelFr: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "high",   labelFr: "Critique", icon: "alert-circle",   color: "#ef4444" },
-  { key: "medium", labelFr: "Normal",   icon: "alert-triangle", color: "#f59e0b" },
-  { key: "low",    labelFr: "Faible",   icon: "info",           color: "#3b82f6" },
+  { key: "high",   labelFr: "Critique", icon: "alert-circle",   color: "#C8323C" },
+  { key: "medium", labelFr: "Normal",   icon: "alert-triangle", color: "#C98511" },
+  { key: "low",    labelFr: "Faible",   icon: "info",           color: "#5A4AD6" },
 ];
 
 const STATUS_CFG = {
-  open:        { color: "#ef4444", icon: "alert-circle"  as const, label: "Ouvert" },
-  in_progress: { color: "#f59e0b", icon: "clock"         as const, label: "En cours" },
-  resolved:    { color: "#10b981", icon: "check-circle"  as const, label: "Résolu" },
-  closed:      { color: "#6b7280", icon: "x-circle"      as const, label: "Fermé" },
+  open:        { color: "#C8323C", icon: "alert-circle"  as const, label: "Ouvert" },
+  in_progress: { color: "#C98511", icon: "clock"         as const, label: "En cours" },
+  resolved:    { color: "#13976C", icon: "check-circle"  as const, label: "Résolu" },
+  closed:      { color: "#6A6680", icon: "x-circle"      as const, label: "Fermé" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -263,13 +318,18 @@ function PlatformSupportScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { t, lang, isRTL } = useLanguage();
+  const ps = (k: string, vars?: Record<string, string | number>) => {
+    let out = PS[k]?.[lang as "fr"] ?? PS[k]?.fr ?? k;
+    for (const [n, v] of Object.entries(vars ?? {})) out = out.split(`{${n}}`).join(String(v));
+    return out;
+  };
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
 
   const isSuperAdmin     = user?.role === "super_admin";
   const isSyndicateAdmin = user?.role === "syndicate_admin";
   const topPad           = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const rowDirection = isRTL ? "row-reverse" : "row";
+  const rowDirection = "row";
 
   // ── List state ──
   const [tickets,  setTickets]  = useState<PlatformTicket[]>([]);
@@ -409,10 +469,10 @@ function PlatformSupportScreen() {
   const openCount = tickets.filter((tk) => tk.status === "open").length;
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all",         label: "Tous" },
-    { key: "open",        label: "Ouverts" },
-    { key: "in_progress", label: "En cours" },
-    { key: "resolved",    label: "Résolus" },
+    { key: "all",         label: PLATFORM_COPY.all[lang] },
+    { key: "open",        label: PLATFORM_COPY.openFilter[lang] },
+    { key: "in_progress", label: PLATFORM_COPY.inProgress[lang] },
+    { key: "resolved",    label: PLATFORM_COPY.resolved[lang] },
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -420,50 +480,29 @@ function PlatformSupportScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { flexDirection: rowDirection, paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
-          <View style={{ flexDirection: rowDirection, alignItems: "center", gap: 8 }}>
-            <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("supportPlateforme")}</Text>
-            <View style={[styles.level2Badge, { backgroundColor: "#1F5EFF" + "18" }]}>
-              <Text style={[styles.level2BadgeTxt, { color: "#1F5EFF" }]}>{PLATFORM_COPY.level[lang]}</Text>
-            </View>
-          </View>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
-            {isSuperAdmin
-              ? `${openCount} ${PLATFORM_COPY.pending[lang]}`
-              : `${PLATFORM_COPY.technicalSubtitle[lang]} · ${openCount} ${PLATFORM_COPY.open[lang]}`}
-          </Text>
-        </View>
-        {isSyndicateAdmin && (
-          <TouchableOpacity
-            style={[styles.newBtn, { backgroundColor: "#1F5EFF" }]}
-            onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-          >
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={`${t("supportPlateforme")} · ${PLATFORM_COPY.level[lang]}`}
+        subtitle={isSuperAdmin ? `${openCount} ${PLATFORM_COPY.pending[lang]}` : `${PLATFORM_COPY.technicalSubtitle[lang]} · ${openCount} ${PLATFORM_COPY.open[lang]}`}
+        action={isSyndicateAdmin ? { icon: "plus", label: t("newItem"), onPress: () => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       {/* ── Hierarchy info banner ── */}
-      <View style={[styles.hierarchyBanner, { flexDirection: rowDirection, backgroundColor: "#1F5EFF" + "09", borderBottomColor: colors.border }]}>
+      <View style={[styles.hierarchyBanner, { flexDirection: rowDirection, backgroundColor: "#5A4AD6" + "09", borderBottomColor: colors.border }]}>
         <View style={styles.hierarchyStep}>
           <Feather name="users" size={13} color={colors.mutedForeground} />
           <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>{PLATFORM_COPY.residents[lang]}</Text>
         </View>
-        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
+        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
-          <Feather name="home" size={13} color="#f59e0b" />
-          <Text style={[styles.hierarchyTxt, { color: "#f59e0b" }]}>{PLATFORM_COPY.syndicate[lang]}</Text>
+          <Feather name="home" size={13} color={colors.warning} />
+          <Text style={[styles.hierarchyTxt, { color: colors.warning }]}>{PLATFORM_COPY.syndicate[lang]}</Text>
         </View>
-        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
+        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
-          <Feather name="life-buoy" size={13} color="#1F5EFF" />
-          <Text style={[styles.hierarchyTxt, { color: "#1F5EFF", fontFamily: "Inter_700Bold" }]}>{PLATFORM_COPY.platform[lang]} {isRTL ? "◀" : "▶"}</Text>
+          <Feather name="life-buoy" size={13} color="#5A4AD6" />
+          <Text style={[styles.hierarchyTxt, { color: "#5A4AD6", fontFamily: "Inter_700Bold" }]}>{PLATFORM_COPY.platform[lang]} {isRTL ? "◀" : "▶"}</Text>
         </View>
-        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
+        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
           <Feather name="code" size={13} color={colors.mutedForeground} />
           <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>{PLATFORM_COPY.technical[lang]}</Text>
@@ -473,10 +512,10 @@ function PlatformSupportScreen() {
       {/* ── Stats strip ── */}
       <View style={[styles.statsStrip, { flexDirection: rowDirection, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: PLATFORM_COPY.openFilter[lang], count: tickets.filter((t) => t.status === "open").length, color: "#ef4444" },
-          { label: PLATFORM_COPY.inProgress[lang], count: tickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
-          { label: PLATFORM_COPY.resolved[lang], count: tickets.filter((t) => t.status === "resolved").length, color: "#10b981" },
-          { label: PLATFORM_COPY.total[lang], count: tickets.length, color: "#1F5EFF" },
+          { label: PLATFORM_COPY.openFilter[lang], count: tickets.filter((t) => t.status === "open").length, color: colors.danger },
+          { label: PLATFORM_COPY.inProgress[lang], count: tickets.filter((t) => t.status === "in_progress").length, color: colors.warning },
+          { label: PLATFORM_COPY.resolved[lang], count: tickets.filter((t) => t.status === "resolved").length, color: colors.success },
+          { label: PLATFORM_COPY.total[lang], count: tickets.length, color: "#5A4AD6" },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDiv, { backgroundColor: colors.border }]} />}
@@ -493,7 +532,7 @@ function PlatformSupportScreen() {
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.filterBtn, { backgroundColor: filter === f.key ? "#1F5EFF" : "transparent" }]}
+            style={[styles.filterBtn, { backgroundColor: filter === f.key ? "#5A4AD6" : "transparent" }]}
             onPress={() => setFilter(f.key)}
           >
             <Text style={[styles.filterLbl, { color: filter === f.key ? "#fff" : colors.mutedForeground }]}>
@@ -508,7 +547,7 @@ function PlatformSupportScreen() {
         <LoadingState
           title={STATE_COPY.loadingTitle[lang]}
           description={STATE_COPY.loadingDescription[lang]}
-          accentColor="#1F5EFF"
+          accentColor="#5A4AD6"
         />
       ) : loadError ? (
         <ErrorState
@@ -516,7 +555,7 @@ function PlatformSupportScreen() {
           description={STATE_COPY.unavailableDescription[lang]}
           retryLabel={STATE_COPY.retry[lang]}
           onRetry={() => void fetchTickets()}
-          accentColor="#1F5EFF"
+          accentColor="#5A4AD6"
         />
       ) : (
         <FlatList
@@ -528,34 +567,34 @@ function PlatformSupportScreen() {
             isSyndicateAdmin ? (
               /* Shortcut card for syndicate admin */
               <TouchableOpacity
-                style={[styles.shortcutCard, { backgroundColor: "#1F5EFF" + "0D", borderColor: "#1F5EFF" + "30" }]}
+                style={[styles.shortcutCard, { backgroundColor: "#5A4AD6" + "0D", borderColor: "#5A4AD6" + "30" }]}
                 onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               >
-                <View style={[styles.shortcutIcon, { backgroundColor: "#1F5EFF" }]}>
+                <View style={[styles.shortcutIcon, { backgroundColor: "#5A4AD6" }]}>
                   <Feather name="send" size={20} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.shortcutTitle, { color: "#1F5EFF" }]}>Contacter le support plateforme</Text>
+                  <Text style={[styles.shortcutTitle, { color: "#5A4AD6" }]}>{ps("shortcutTitle")}</Text>
                   <Text style={[styles.shortcutSub, { color: colors.mutedForeground }]}>
-                    Bug, demande de fonctionnalité, problème de compte…
+                    {ps("shortcutSub")}
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={18} color="#1F5EFF" />
+                <Feather name="chevron-right" size={18} color="#5A4AD6" />
               </TouchableOpacity>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#1F5EFF" + "12" }]}>
-                <Feather name="life-buoy" size={36} color="#1F5EFF" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#5A4AD6" + "12" }]}>
+                <Feather name="life-buoy" size={36} color="#5A4AD6" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {isSuperAdmin ? "Aucun ticket plateforme" : "Aucune demande envoyée"}
+                {isSuperAdmin ? ps("emptyAdmin") : ps("emptyUser")}
               </Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
                 {isSuperAdmin
-                  ? "Tous les tickets ont été traités."
-                  : "Utilisez ce canal pour signaler des bugs ou demander de nouvelles fonctionnalités."}
+                  ? ps("emptyAdminSub")
+                  : ps("emptyUserSub")}
               </Text>
             </View>
           }
@@ -575,9 +614,9 @@ function PlatformSupportScreen() {
               >
                 {/* Escalation origin badge */}
                 {ticket.escalatedFrom && (
-                  <View style={[styles.escalatedBadge, { backgroundColor: "#ef4444" + "12" }]}>
-                    <Feather name="trending-up" size={10} color="#ef4444" />
-                    <Text style={[styles.escalatedTxt, { color: "#ef4444" }]}>Escaladé depuis le syndicat</Text>
+                  <View style={[styles.escalatedBadge, { backgroundColor: colors.danger + "12" }]}>
+                    <Feather name="trending-up" size={10} color={colors.danger} />
+                    <Text style={[styles.escalatedTxt, { color: colors.danger }]}>{ps("escalated")}</Text>
                   </View>
                 )}
                 <View style={styles.cardTop}>
@@ -593,17 +632,17 @@ function PlatformSupportScreen() {
                         {ticket.submittedBy}
                       </Text>
                       <Text style={[styles.dot, { color: colors.mutedForeground }]}>•</Text>
-                      <Text style={[styles.cardCat, { color: cc.color }]}>{cc.labelFr}</Text>
+                      <Text style={[styles.cardCat, { color: cc.color }]}>{ps(`cat_${cc.key}`)}</Text>
                     </View>
                   </View>
                   <View style={styles.cardRight}>
                     <View style={[styles.badge, { backgroundColor: pc.color + "15" }]}>
                       <Feather name={pc.icon} size={9} color={pc.color} />
-                      <Text style={[styles.badgeTxt, { color: pc.color }]}>{pc.labelFr}</Text>
+                      <Text style={[styles.badgeTxt, { color: pc.color }]}>{ps(`pri_${pc.key}`)}</Text>
                     </View>
                     <View style={[styles.badge, { backgroundColor: sc.color + "15" }]}>
                       <Feather name={sc.icon} size={9} color={sc.color} />
-                      <Text style={[styles.badgeTxt, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[styles.badgeTxt, { color: sc.color }]}>{PLATFORM_COPY[STATUS_COPY_KEYS[ticket.status]][lang]}</Text>
                     </View>
                   </View>
                 </View>
@@ -629,15 +668,15 @@ function PlatformSupportScreen() {
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                Ticket #{selected.id.slice(-6).toUpperCase()}
+                {ps("ticket", { id: selected.id.slice(-6).toUpperCase() })}
               </Text>
               {isSuperAdmin && selected.status !== "resolved" ? (
                 <TouchableOpacity
-                  style={[styles.resolveBtn, { backgroundColor: "#10b981" }]}
+                  style={[styles.resolveBtn, { backgroundColor: colors.success }]}
                   onPress={() => handleResolve(selected.id)}
                 >
                   <Feather name="check" size={12} color="#fff" />
-                  <Text style={styles.resolveBtnTxt}>Résoudre</Text>
+                  <Text style={styles.resolveBtnTxt}>{ps("resolve")}</Text>
                 </TouchableOpacity>
               ) : <View style={{ width: 72 }} />}
             </View>
@@ -649,10 +688,10 @@ function PlatformSupportScreen() {
             >
               {/* Escalation origin notice */}
               {selected.escalatedFrom && (
-                <View style={[styles.escalationNotice, { backgroundColor: "#ef4444" + "0C", borderColor: "#ef4444" + "30" }]}>
-                  <Feather name="trending-up" size={14} color="#ef4444" />
-                  <Text style={[styles.escalationNoticeTxt, { color: "#ef4444" }]}>
-                    Ce ticket a été escaladé depuis le support syndicat. Ticket d'origine : #{selected.escalatedFrom.slice(-6).toUpperCase()}
+                <View style={[styles.escalationNotice, { backgroundColor: colors.danger + "0C", borderColor: colors.danger + "30" }]}>
+                  <Feather name="trending-up" size={14} color={colors.danger} />
+                  <Text style={[styles.escalationNoticeTxt, { color: colors.danger }]}>
+                    {ps("escalationNotice", { id: selected.escalatedFrom.slice(-6).toUpperCase() })}
                   </Text>
                 </View>
               )}
@@ -664,22 +703,22 @@ function PlatformSupportScreen() {
               <View style={styles.badgeRow}>
                 <View style={[styles.chip, { backgroundColor: priCfg(selected.priority).color + "15" }]}>
                   <Feather name={priCfg(selected.priority).icon} size={11} color={priCfg(selected.priority).color} />
-                  <Text style={[styles.chipTxt, { color: priCfg(selected.priority).color }]}>{priCfg(selected.priority).labelFr}</Text>
+                  <Text style={[styles.chipTxt, { color: priCfg(selected.priority).color }]}>{ps(`pri_${selected.priority}`)}</Text>
                 </View>
                 <View style={[styles.chip, { backgroundColor: stCfg(selected.status).color + "15" }]}>
                   <Feather name={stCfg(selected.status).icon} size={11} color={stCfg(selected.status).color} />
-                  <Text style={[styles.chipTxt, { color: stCfg(selected.status).color }]}>{stCfg(selected.status).label}</Text>
+                  <Text style={[styles.chipTxt, { color: stCfg(selected.status).color }]}>{PLATFORM_COPY[STATUS_COPY_KEYS[selected.status]][lang]}</Text>
                 </View>
                 <View style={[styles.chip, { backgroundColor: catCfg(selected.category).color + "15" }]}>
                   <Feather name={catCfg(selected.category).icon} size={11} color={catCfg(selected.category).color} />
-                  <Text style={[styles.chipTxt, { color: catCfg(selected.category).color }]}>{catCfg(selected.category).labelFr}</Text>
+                  <Text style={[styles.chipTxt, { color: catCfg(selected.category).color }]}>{ps(`cat_${catCfg(selected.category).key}`)}</Text>
                 </View>
               </View>
 
               {/* Info grid */}
               <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Soumis par",  value: selected.submittedBy },
+                  { label: ps("submittedBy"), value: selected.submittedBy },
                   { label: PLATFORM_COPY.date[lang], value: fmtDate(selected.date, lang) },
                 ].map((row, i) => (
                   <View key={row.label}>
@@ -694,7 +733,7 @@ function PlatformSupportScreen() {
 
               {/* Description */}
               <View style={[styles.descBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.descLbl, { color: colors.foreground }]}>Description</Text>
+                <Text style={[styles.descLbl, { color: colors.foreground }]}>{ps("description")}</Text>
                 <Text style={[styles.descTxt, { color: colors.mutedForeground }]}>{selected.description}</Text>
               </View>
 
@@ -703,7 +742,7 @@ function PlatformSupportScreen() {
                 <LoadingState
                   title={STATE_COPY.loadingTitle[lang]}
                   description={STATE_COPY.loadingDescription[lang]}
-                  accentColor="#1F5EFF"
+                  accentColor="#5A4AD6"
                 />
               ) : repliesError ? (
                 <ErrorState
@@ -711,12 +750,12 @@ function PlatformSupportScreen() {
                   description={STATE_COPY.detailUnavailableDescription[lang]}
                   retryLabel={STATE_COPY.retry[lang]}
                   onRetry={() => void fetchReplies()}
-                  accentColor="#1F5EFF"
+                  accentColor="#5A4AD6"
                 />
               ) : replies.length > 0 && (
                 <View style={{ gap: 10 }}>
                   <Text style={[styles.threadLbl, { color: colors.foreground }]}>
-                    Conversation ({replies.length})
+                    {ps("conversation", { n: replies.length })}
                   </Text>
                   {replies.map((rp) => {
                     const fromPlatform = rp.authorId !== selected.submittedById;
@@ -726,13 +765,13 @@ function PlatformSupportScreen() {
                         style={[
                           styles.bubble,
                           fromPlatform
-                            ? [styles.bubblePlatform, { backgroundColor: "#1F5EFF" + "10", borderColor: "#1F5EFF" + "30" }]
+                            ? [styles.bubblePlatform, { backgroundColor: "#5A4AD6" + "10", borderColor: "#5A4AD6" + "30" }]
                             : [styles.bubbleUser,     { backgroundColor: colors.card, borderColor: colors.border }],
                         ]}
                       >
                         <View style={styles.bubbleHdr}>
-                          <Text style={[styles.bubbleAuthor, { color: fromPlatform ? "#1F5EFF" : colors.foreground }]}>
-                            {rp.authorName}{fromPlatform ? " · Équipe Plateforme" : ""}
+                          <Text style={[styles.bubbleAuthor, { color: fromPlatform ? "#5A4AD6" : colors.foreground }]}>
+                            {rp.authorName}{fromPlatform ? ps("platformTeam") : ""}
                           </Text>
                           <Text style={[styles.bubbleDate, { color: colors.mutedForeground }]}>{fmtDate(rp.createdAt, lang)}</Text>
                         </View>
@@ -747,11 +786,11 @@ function PlatformSupportScreen() {
               {selected.status !== "resolved" && selected.status !== "closed" && (
                 <View style={{ gap: 8 }}>
                   <Text style={[styles.replyLbl, { color: colors.foreground }]}>
-                    {isSuperAdmin ? "Réponse de l'équipe plateforme" : "Ajouter des informations"}
+                    {isSuperAdmin ? ps("replyAdmin") : ps("replyUser")}
                   </Text>
                   <TextInput
                     style={[styles.replyInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                    placeholder={isSuperAdmin ? "Répondez au ticket de l'administrateur…" : "Fournissez des précisions supplémentaires…"}
+                    placeholder={isSuperAdmin ? ps("replyAdminPh") : ps("replyUserPh")}
                     placeholderTextColor={colors.mutedForeground}
                     multiline
                     numberOfLines={4}
@@ -760,7 +799,7 @@ function PlatformSupportScreen() {
                   />
                   <TouchableOpacity
                     style={[styles.sendBtn, {
-                      backgroundColor: replyText.trim() && !replying ? "#1F5EFF" : colors.muted,
+                      backgroundColor: replyText.trim() && !replying ? "#5A4AD6" : colors.muted,
                     }]}
                     disabled={!replyText.trim() || replying}
                     onPress={handleReply}
@@ -770,7 +809,7 @@ function PlatformSupportScreen() {
                       : <Feather name="send" size={14} color={replyText.trim() ? "#fff" : colors.mutedForeground} />
                     }
                     <Text style={[styles.sendBtnTxt, { color: replyText.trim() && !replying ? "#fff" : colors.mutedForeground }]}>
-                      Envoyer
+                      {ps("send")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -778,10 +817,10 @@ function PlatformSupportScreen() {
 
               {/* ── Resolved banner ── */}
               {(selected.status === "resolved" || selected.status === "closed") && (
-                <View style={[styles.resolvedBanner, { backgroundColor: "#10b981" + "12", borderColor: "#10b981" + "30" }]}>
-                  <Feather name="check-circle" size={18} color="#10b981" />
-                  <Text style={[styles.resolvedTxt, { color: "#10b981" }]}>
-                    Ce ticket a été traité par l'équipe plateforme.
+                <View style={[styles.resolvedBanner, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
+                  <Feather name="check-circle" size={18} color={colors.success} />
+                  <Text style={[styles.resolvedTxt, { color: colors.success }]}>
+                    {ps("resolvedBanner")}
                   </Text>
                 </View>
               )}
@@ -799,7 +838,7 @@ function PlatformSupportScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Contacter le Support Plateforme</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{ps("newTitle")}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -811,16 +850,16 @@ function PlatformSupportScreen() {
           >
             {/* Submitter info */}
             <View style={[styles.prefilledCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Feather name="user" size={14} color="#1F5EFF" />
+              <Feather name="user" size={14} color="#5A4AD6" />
               <Text style={[styles.prefilledTxt, { color: colors.foreground }]}>
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>Administrateur : </Text>
+                <Text style={{ fontFamily: "Inter_600SemiBold" }}>{ps("admin")}</Text>
                 {user?.name}
               </Text>
             </View>
 
             {/* Category selector */}
             <View style={{ gap: 10 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Type de demande *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{ps("requestType")}</Text>
               {CATEGORIES.map((c) => {
                 const active = newCat === c.key;
                 return (
@@ -836,8 +875,8 @@ function PlatformSupportScreen() {
                       <Feather name={c.icon} size={18} color={active ? "#fff" : c.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.catCardTitle, { color: active ? c.color : colors.foreground }]}>{c.labelFr}</Text>
-                      <Text style={[styles.catCardDesc,  { color: colors.mutedForeground }]}>{c.desc}</Text>
+                      <Text style={[styles.catCardTitle, { color: active ? c.color : colors.foreground }]}>{ps(`cat_${c.key}`)}</Text>
+                      <Text style={[styles.catCardDesc,  { color: colors.mutedForeground }]}>{ps(`catDesc_${c.key}`)}</Text>
                     </View>
                     {active && <Feather name="check-circle" size={18} color={c.color} />}
                   </TouchableOpacity>
@@ -847,7 +886,7 @@ function PlatformSupportScreen() {
 
             {/* Priority */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Criticité</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{ps("criticality")}</Text>
               <View style={styles.chipRow}>
                 {PRIORITIES.map((p) => {
                   const active = newPri === p.key;
@@ -862,7 +901,7 @@ function PlatformSupportScreen() {
                       onPress={() => setNewPri(p.key)}
                     >
                       <Feather name={p.icon} size={13} color={active ? "#fff" : p.color} />
-                      <Text style={[styles.selectChipTxt, { color: active ? "#fff" : p.color }]}>{p.labelFr}</Text>
+                      <Text style={[styles.selectChipTxt, { color: active ? "#fff" : p.color }]}>{ps(`pri_${p.key}`)}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -871,33 +910,25 @@ function PlatformSupportScreen() {
 
             {/* Subject */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Sujet *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{ps("subject")}</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder={
-                  newCat === "bug"       ? "Ex : Les signatures électroniques ne fonctionnent plus" :
-                  newCat === "feature"   ? "Ex : Badges visiteurs avec QR code" :
-                  newCat === "acces"     ? "Ex : Impossible de se connecter depuis l'application" :
-                  newCat === "formation" ? "Ex : Comment configurer les appels de fonds automatiques ?" :
-                                          "Décrivez brièvement votre demande"
-                }
+                placeholder={ps(`subjectPh_${newCat}`)}
                 placeholderTextColor={colors.mutedForeground}
               />
             </View>
 
             {/* Description */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Description détaillée *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{ps("details")}</Text>
               <TextInput
                 style={[styles.fieldInput, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newDesc}
                 onChangeText={setNewDesc}
                 placeholder={
-                  newCat === "bug"
-                    ? "Décrivez le problème : quand est-il apparu ? Quels utilisateurs sont affectés ? Quels appareils ?"
-                    : "Décrivez votre besoin en détail. Précisez le contexte métier et l'impact attendu."
+                  newCat === "bug" ? ps("detailsPhBug") : ps("detailsPh")
                 }
                 placeholderTextColor={colors.mutedForeground}
                 multiline
@@ -906,17 +937,17 @@ function PlatformSupportScreen() {
             </View>
 
             {/* Note */}
-            <View style={[styles.noteBox, { backgroundColor: "#1F5EFF" + "0D", borderColor: "#1F5EFF" + "25" }]}>
-              <Feather name="shield" size={14} color="#1F5EFF" />
-              <Text style={[styles.noteTxt, { color: "#1F5EFF" }]}>
-                Ce ticket est envoyé directement à l'équipe technique de la plateforme. Les résidents ne peuvent pas accéder à ce canal.
+            <View style={[styles.noteBox, { backgroundColor: "#5A4AD6" + "0D", borderColor: "#5A4AD6" + "25" }]}>
+              <Feather name="shield" size={14} color="#5A4AD6" />
+              <Text style={[styles.noteTxt, { color: "#5A4AD6" }]}>
+                {ps("note")}
               </Text>
             </View>
 
             <TouchableOpacity
               style={[styles.submitBtn, {
                 backgroundColor: newTitle.trim() && newDesc.trim() && !submitting
-                  ? "#1F5EFF" : colors.muted,
+                  ? "#5A4AD6" : colors.muted,
               }]}
               onPress={handleCreate}
               disabled={!newTitle.trim() || !newDesc.trim() || submitting}
@@ -928,7 +959,7 @@ function PlatformSupportScreen() {
               <Text style={[styles.submitBtnTxt, {
                 color: newTitle.trim() && newDesc.trim() && !submitting ? "#fff" : colors.mutedForeground,
               }]}>
-                {submitting ? "Envoi en cours…" : "Envoyer au support plateforme"}
+                {submitting ? ps("sending") : ps("submit")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -956,7 +987,7 @@ const styles = StyleSheet.create({
   loadingTxt:      { fontSize: 13, fontFamily: "Inter_400Regular" },
   header:          { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn:         { padding: 4 },
-  title:           { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title:           { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle:        { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   newBtn:          { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   level2Badge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },

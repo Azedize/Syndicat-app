@@ -1,4 +1,6 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
+import { useTheme } from "@/context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -36,33 +38,33 @@ const TYPE_META: Record<
   warning: {
     prefixKey: "notificationFilterWarning",
     icon: "alert-triangle",
-    color: "#f59e0b",
-    bgColor: "#fffbeb",
-    borderColor: "#fef3c7",
+    color: "#C98511",
+    bgColor: "#FBF1DD",
+    borderColor: "#FBF1DD",
     badgeKey: "alertWarning",
   },
   error: {
     prefixKey: "notificationFilterUrgent",
     icon: "alert-circle",
-    color: "#ef4444",
+    color: "#C8323C",
     bgColor: "#fff5f5",
-    borderColor: "#fee2e2",
+    borderColor: "#FBE9EA",
     badgeKey: "alertError",
   },
   info: {
     prefixKey: "notificationFilterInfo",
     icon: "info",
-    color: "#3b82f6",
-    bgColor: "#eff6ff",
-    borderColor: "#dbeafe",
+    color: "#5A4AD6",
+    bgColor: "#EEEBFC",
+    borderColor: "#EEEBFC",
     badgeKey: "alertInfo",
   },
   success: {
     prefixKey: "notificationFilterSuccess",
     icon: "check-circle",
-    color: "#10b981",
+    color: "#13976C",
     bgColor: "#f0fdf4",
-    borderColor: "#d1fae5",
+    borderColor: "#E5F4EC",
     badgeKey: "alertSuccess",
   },
 };
@@ -173,11 +175,13 @@ export default function AlertsScreen() {
   };
 
   const handleTap = (alert: AppAlert) => {
-    setSelected(alert);
     if (!alert.read) {
       markAlertRead(alert.id);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    // A notification about something opens it; otherwise its detail is shown.
+    if (alert.link) router.push(alert.link as any);
+    else setSelected(alert);
   };
 
   const filterAccentColor = (f: Filter) => {
@@ -187,7 +191,7 @@ export default function AlertsScreen() {
   };
 
   // ─── Dark-mode-aware background tint ───────────────────────────────────────
-  const isDark = colors.background === "#0f172a" || colors.background === "#09090b";
+  const { isDark } = useTheme();
 
   const cardBg = (alert: AppAlert) => {
     const meta = TYPE_META[alert.type];
@@ -204,35 +208,11 @@ export default function AlertsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("notificationsTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {unread > 0
-              ? `${unread} ${t("notificationsUnreadCount").replace("{count}", "").trim()}`
-              : t("notificationsUpToDate")}
-          </Text>
-        </View>
-        {unread > 0 && (
-          <TouchableOpacity
-            style={[styles.markAllBtn, { backgroundColor: colors.primary + "15" }]}
-            onPress={handleMarkAllRead}
-          >
-            <Feather name="check-square" size={14} color={colors.primary} />
-            <Text style={[styles.markAllText, { color: colors.primary }]}>
-              {t("markAllShort")}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("notificationsTitle")}
+        subtitle={unread > 0 ? `${unread} ${t("notificationsUnreadCount").replace("{count}", "").trim()}` : t("notificationsUpToDate")}
+        action={unread > 0 ? { icon: "check-square", onPress: handleMarkAllRead, label: t("markAllShort") } : undefined}
+      />
 
       {/* ── Filter chips ── */}
       <ScrollView
@@ -400,7 +380,7 @@ export default function AlertsScreen() {
                   <Text style={[styles.notifDate, { color: colors.mutedForeground }]}>
                     {alert.date}
                   </Text>
-                  <Text style={[styles.notifSep, { color: colors.border }]}>·</Text>
+                  <Text style={[styles.notifSep, { color: colors.mutedForeground }]}>·</Text>
                   <Text style={[styles.notifTarget, { color: colors.mutedForeground }]}>
                     {alert.target === "all"
                       ? t("notificationTargetAll")
@@ -554,7 +534,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   markAllBtn: {
     flexDirection: "row",

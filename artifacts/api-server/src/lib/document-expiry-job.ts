@@ -43,7 +43,7 @@ async function notifyDocumentContacts(
   message: string,
 ): Promise<void> {
   if (!syndicateId) return;
-  createAlert({ title: subject, message, type: "warning", syndicateId, target: "admin" }).catch(() => {});
+  createAlert({ title: subject, message, type: "warning", syndicateId, target: "admin", link: "/documents" }).catch(() => {});
 
   const admins = await db
     .select({ email: usersTable.email })

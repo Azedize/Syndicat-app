@@ -10,12 +10,13 @@
  * an authorized payment confirmation.
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
 import {
   ActivityIndicator,
   Alert,
@@ -49,22 +50,22 @@ const PAYMENT_METHODS = [
   {
     id: "card",
     icon: "credit-card" as const,
-    color: "#2563EB",
+    color: "#5A4AD6",
   },
   {
     id: "bank_transfer",
     icon: "repeat" as const,
-    color: "#059669",
+    color: "#13976C",
   },
   {
     id: "paypal",
     icon: "dollar-sign" as const,
-    color: "#2563EB",
+    color: "#5A4AD6",
   },
   {
     id: "moroccan_gateway",
     icon: "globe" as const,
-    color: "#7C3AED",
+    color: "#0F6E7D",
   },
 ];
 
@@ -90,8 +91,8 @@ export default function PaymentScreen() {
   const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
   const [paymentState, setPaymentState] = useState<string | null>(null);
 
-  const gradColors: [string, string] = isDark ? ["#070D1A", "#0D1929"] : ["#EFF6FF", "#F8FAFF"];
-  const color = plan?.planColor ?? "#2563EB";
+  const gradColors: [string, string] = isDark ? ["#0E0C1C", "#17142B"] : ["#EEEBFC", "#F7F4EE"];
+  const color = plan?.planColor ?? "#5A4AD6";
 
   useEffect(() => {
     AsyncStorage.getItem(PENDING_PLAN_KEY).then((raw) => {
@@ -160,6 +161,22 @@ export default function PaymentScreen() {
     if (!plan?.planId) return;
     setLoading(true);
     try {
+      if (selectedMethod === "card") {
+        // Card: Stripe Checkout session created by the server; the subscription is
+        // activated by the signed Stripe webhook only, never by this screen.
+        const session = await apiRequest("/subscriptions/stripe/checkout", "POST", { planId: plan.planId, billingInterval: billing }, token);
+        const paymentId = session.data?.id ?? null;
+        setPendingPaymentId(paymentId);
+        setPaymentState(session.data?.status ?? "pending");
+        await AsyncStorage.setItem("@mizan_pending_payment", JSON.stringify({ paymentId, planId: plan.planId, billing }));
+        if (session.url) await WebBrowser.openBrowserAsync(session.url);
+        // back from the payment page: read the real status from the server
+        if (paymentId) {
+          const status = await apiRequest(`/subscriptions/payments/${paymentId}`, "GET").catch(() => null);
+          setPaymentState(status?.data?.status ?? "pending");
+        }
+        return;
+      }
       const storedKey = await AsyncStorage.getItem("@mizan_pending_payment_key");
       const idempotencyKey = storedKey ?? `${plan.planId}:${billing}:${selectedMethod}:${Date.now()}`;
       await AsyncStorage.setItem("@mizan_pending_payment_key", idempotencyKey);
@@ -192,8 +209,8 @@ export default function PaymentScreen() {
 
   if (loadingPlan) {
     return (
-      <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF", alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View style={[s.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC", alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#5A4AD6" />
       </View>
     );
   }
@@ -201,7 +218,7 @@ export default function PaymentScreen() {
   // No paid plan — show free trial confirmation
   if (!plan || !plan.planId || price === 0) {
     return (
-      <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
+      <View style={[s.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC" }]}>
         <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
         <ScrollView
           contentContainerStyle={{
@@ -212,14 +229,14 @@ export default function PaymentScreen() {
             alignItems: "center",
           }}
         >
-          <View style={[s.freeTrialCard, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#fff", borderColor: "#10B981" }]}>
-            <View style={[s.trialIconWrap, { backgroundColor: "#10B98120" }]}>
-              <Feather name="gift" size={36} color="#10B981" />
+          <View style={[s.freeTrialCard, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#fff", borderColor: "#13976C" }]}>
+            <View style={[s.trialIconWrap, { backgroundColor: "#13976C20" }]}>
+              <Feather name="gift" size={36} color="#13976C" />
             </View>
-            <Text style={[s.trialTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
+            <Text style={[s.trialTitle, { color: isDark ? "#EEEBFC" : "#120F2C" }]}>
               {t("paymentFreeTrialTitle")}
             </Text>
-            <Text style={[s.trialSub, { color: isDark ? "rgba(232,240,254,0.6)" : "#64748B" }]}>
+            <Text style={[s.trialSub, { color: isDark ? "rgba(232,240,254,0.6)" : "#6A6680" }]}>
               {t("paymentFreeTrialDescription")}
             </Text>
             <View style={[s.trialFeatures, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(16,185,129,0.15)" }]}>
@@ -230,15 +247,15 @@ export default function PaymentScreen() {
                 "paymentTrialFeatureCancel",
               ].map((featureKey) => (
                 <View key={featureKey} style={s.trialFeatureRow}>
-                  <Feather name="check-circle" size={14} color="#10B981" />
-                  <Text style={[s.trialFeatureText, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>
+                  <Feather name="check-circle" size={14} color="#13976C" />
+                  <Text style={[s.trialFeatureText, { color: isDark ? "rgba(232,240,254,0.75)" : "#3A3652" }]}>
                     {t(featureKey)}
                   </Text>
                 </View>
               ))}
             </View>
             <TouchableOpacity
-              style={[s.ctaBtn, { backgroundColor: "#10B981" }]}
+              style={[s.ctaBtn, { backgroundColor: "#13976C" }]}
               onPress={() => router.replace("/team-invite" as any)}
               activeOpacity={0.85}
             >
@@ -252,7 +269,7 @@ export default function PaymentScreen() {
   }
 
   return (
-    <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
+    <View style={[s.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC" }]}>
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
       <ScrollView
@@ -266,13 +283,13 @@ export default function PaymentScreen() {
       >
         {/* Back */}
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={20} color={isDark ? "#93C5FD" : "#2563EB"} />
+          <Feather name="arrow-left" size={20} color={isDark ? "#C9BEFF" : "#5A4AD6"} />
         </TouchableOpacity>
 
         {/* Header */}
         <View style={{ gap: 6 }}>
-          <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{t("paymentHeaderTitle")}</Text>
-          <Text style={[s.subtitle, { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" }]}>
+          <Text style={[s.title, { color: isDark ? "#EEEBFC" : "#120F2C" }]}>{t("paymentHeaderTitle")}</Text>
+          <Text style={[s.subtitle, { color: isDark ? "rgba(232,240,254,0.55)" : "#6A6680" }]}>
             {t("paymentHeaderStep")}
           </Text>
         </View>
@@ -291,7 +308,7 @@ export default function PaymentScreen() {
 
           {/* Billing toggle */}
           <View style={s.planCardBody}>
-            <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
+            <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#A6A1BE" }]}>
               {t("paymentBillingSection")}
             </Text>
             <View style={[s.toggleWrap, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.07)", borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(37,99,235,0.15)" }]}>
@@ -299,7 +316,7 @@ export default function PaymentScreen() {
                 style={[s.toggleBtn, billing === "monthly" && { backgroundColor: color }]}
                 onPress={() => { setBilling("monthly"); Haptics.selectionAsync(); }}
               >
-                <Text style={[s.toggleText, { color: billing === "monthly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#64748B") }]}>
+                <Text style={[s.toggleText, { color: billing === "monthly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#6A6680") }]}>
                   {t("paymentMonthly")}
                 </Text>
               </TouchableOpacity>
@@ -307,12 +324,12 @@ export default function PaymentScreen() {
                 style={[s.toggleBtn, billing === "yearly" && { backgroundColor: color }]}
                 onPress={() => { setBilling("yearly"); Haptics.selectionAsync(); }}
               >
-                <Text style={[s.toggleText, { color: billing === "yearly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#64748B") }]}>
+                <Text style={[s.toggleText, { color: billing === "yearly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#6A6680") }]}>
                   {t("paymentYearly")}
                 </Text>
                  {yearlyPrice !== null && price > 0 && yearlyPrice < price * 12 ? (
-                   <View style={[s.savePill, { backgroundColor: "#10B98125" }]}>
-                     <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#10B981" }}>
+                   <View style={[s.savePill, { backgroundColor: "#13976C25" }]}>
+                     <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#13976C" }}>
                        -{Math.round((1 - yearlyPrice / (price * 12)) * 100)}%
                      </Text>
                    </View>
@@ -325,12 +342,12 @@ export default function PaymentScreen() {
               <Text style={[s.priceBig, { color }]}>
                 {formatAmount(displayPrice ?? 0)} {lang === "ar" ? "د.م." : "MAD"}
               </Text>
-              <Text style={[s.pricePer, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>
+              <Text style={[s.pricePer, { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" }]}>
                 {billing === "yearly" ? t("paymentPerYear") : t("paymentPerMonth")}
               </Text>
               {billing === "yearly" && yearlyPrice !== null && (
-                <View style={[s.savingBadge, { backgroundColor: "#10B98120" }]}>
-                  <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#10B981" }}>
+                <View style={[s.savingBadge, { backgroundColor: "#13976C20" }]}>
+                  <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#13976C" }}>
                     {interpolate("paymentSavings", {
                       amount: formatAmount(price * 12 - (yearlyPrice ?? 0)),
                     })}
@@ -343,7 +360,7 @@ export default function PaymentScreen() {
 
         {/* Payment method */}
         <View style={{ gap: 12 }}>
-          <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
+          <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#A6A1BE" }]}>
             {t("paymentMethodsSection")}
           </Text>
            {PAYMENT_METHODS.filter((method) => configuredMethods.includes(method.id)).map((method) => (
@@ -361,10 +378,10 @@ export default function PaymentScreen() {
                  <Feather name={method.icon} size={20} color={method.color} />
                </View>
                <View style={{ flex: 1 }}>
-                 <Text style={[s.methodLabel, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
+                 <Text style={[s.methodLabel, { color: isDark ? "#EEEBFC" : "#120F2C" }]}>
                    {t(PAYMENT_METHOD_LABELS[method.id].labelKey)}
                  </Text>
-                 <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>
+                 <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#6A6680" }]}>
                    {t(PAYMENT_METHOD_LABELS[method.id].hintKey)}
                  </Text>
                </View>
@@ -376,9 +393,9 @@ export default function PaymentScreen() {
              </TouchableOpacity>
            ))}
            {configuredMethods.length === 0 && (
-             <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#f59e0b40" }]}>
-               <Feather name="alert-triangle" size={14} color="#f59e0b" />
-               <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#92400E" }]}>
+             <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#C9851140" }]}>
+               <Feather name="alert-triangle" size={14} color="#C98511" />
+               <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#8A5A08" }]}>
                  {t("paymentNoMethodsConfigured")}
                </Text>
              </View>
@@ -387,8 +404,8 @@ export default function PaymentScreen() {
 
         {/* Security note */}
         <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.04)", borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.1)" }]}>
-          <Feather name="shield" size={14} color={isDark ? "#60A5FA" : "#2563EB"} />
-          <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>
+          <Feather name="shield" size={14} color={isDark ? "#B39CFF" : "#5A4AD6"} />
+          <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" }]}>
             {t("paymentSecurityNote")}
           </Text>
         </View>
@@ -415,9 +432,9 @@ export default function PaymentScreen() {
         </TouchableOpacity>
 
         {pendingPaymentId && (
-          <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#f59e0b40" }]}>
-            <Feather name="clock" size={14} color="#f59e0b" />
-            <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#92400E" }]}>
+          <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#C9851140" }]}>
+            <Feather name="clock" size={14} color="#C98511" />
+            <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#8A5A08" }]}>
               {t("paymentPendingDescription")} {paymentState ? `(${paymentState})` : ""}
             </Text>
           </View>
@@ -428,7 +445,7 @@ export default function PaymentScreen() {
           style={{ alignItems: "center", paddingVertical: 8 }}
           onPress={() => router.replace("/team-invite" as any)}
         >
-          <Text style={[s.skipText, { color: isDark ? "rgba(232,240,254,0.35)" : "#94A3B8" }]}>
+          <Text style={[s.skipText, { color: isDark ? "rgba(232,240,254,0.35)" : "#A6A1BE" }]}>
             {t("paymentPayLater")}
           </Text>
         </TouchableOpacity>
@@ -447,7 +464,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     alignSelf: "flex-start",
   },
-  title: { fontFamily: "Inter_700Bold", fontSize: 28, letterSpacing: -0.3 },
+  title: { fontFamily: "Fraunces_600SemiBold", fontSize: 28 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
   sectionLabel: {
     fontFamily: "Inter_600SemiBold", fontSize: 11,
@@ -480,7 +497,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "baseline", gap: 6,
     padding: 16, borderRadius: 14, borderWidth: 1, flexWrap: "wrap",
   },
-  priceBig: { fontFamily: "Inter_700Bold", fontSize: 32, letterSpacing: -0.5 },
+  priceBig: { fontFamily: "Fraunces_600SemiBold", fontSize: 32 },
   pricePer: { fontFamily: "Inter_400Regular", fontSize: 14 },
   savingBadge: {
     paddingHorizontal: 8, paddingVertical: 4,
@@ -506,7 +523,7 @@ const s = StyleSheet.create({
   ctaBtn: {
     borderRadius: 16, paddingVertical: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
+    ...crossPlatformShadow({ color: "#5A4AD6", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
   },
   ctaBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
   skipText: { fontFamily: "Inter_400Regular", fontSize: 13 },
@@ -517,7 +534,7 @@ const s = StyleSheet.create({
     padding: 28, alignItems: "center", gap: 16,
   },
   trialIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  trialTitle: { fontFamily: "Inter_700Bold", fontSize: 24, textAlign: "center" },
+  trialTitle: { fontFamily: "Fraunces_600SemiBold", fontSize: 24, textAlign: "center" },
   trialSub: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", lineHeight: 22 },
   trialFeatures: { width: "100%", gap: 12, paddingTop: 16, borderTopWidth: 1 },
   trialFeatureRow: { flexDirection: "row", alignItems: "center", gap: 10 },

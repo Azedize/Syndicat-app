@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -87,7 +88,7 @@ function StarRow({
           <Feather
             name={n <= rating ? "star" : "star"}
             size={size}
-            color={n <= rating ? "#f59e0b" : colors.border}
+            color={n <= rating ? colors.warning : colors.border}
           />
         </TouchableOpacity>
       ))}
@@ -243,53 +244,11 @@ export default function ReviewsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              styles.title,
-              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
-            ]}
-          >
-            {t("revTitle")}
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color: colors.mutedForeground,
-                textAlign: isRTL ? "right" : "left",
-              },
-            ]}
-          >
-            {reviews.length} {t("revSubtitle")}
-          </Text>
-        </View>
-        {pendingReviewOrders.length > 0 && (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setShowAdd(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Feather name="edit-2" size={16} color="#fff" />
-            <Text style={styles.addBtnText}>{t("revAddBtn")}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("revTitle")}
+        subtitle={`${reviews.length} ${t("revSubtitle")}`}
+        action={pendingReviewOrders.length > 0 ? { icon: "edit-2", label: t("revAddBtn"), onPress: () => { setShowAdd(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       <FlatList
         data={filteredReviews}
@@ -337,7 +296,7 @@ export default function ReviewsScreen() {
                     >
                       {star}
                     </Text>
-                    <Feather name="star" size={11} color="#f59e0b" />
+                    <Feather name="star" size={11} color={colors.warning} />
                     <View
                       style={[
                         styles.ratingBar,
@@ -349,7 +308,7 @@ export default function ReviewsScreen() {
                           styles.ratingBarFill,
                           {
                             width: `${pct}%` as any,
-                            backgroundColor: "#f59e0b",
+                            backgroundColor: colors.warning,
                           },
                         ]}
                       />
@@ -383,7 +342,7 @@ export default function ReviewsScreen() {
                 }}
               >
                 <Feather name="star" size={16} color={colors.primary} />
-                <Text style={[styles.pendingText, { color: colors.primary }]}>
+                <Text style={[styles.pendingText, { color: colors.tint }]}>
                   {pendingReviewOrders.length}{" "}
                   {t(
                     pendingReviewOrders.length === 1
@@ -483,7 +442,7 @@ export default function ReviewsScreen() {
                     { backgroundColor: colors.primary + "18" },
                   ]}
                 >
-                  <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  <Text style={[styles.avatarText, { color: colors.tint }]}>
                     {initials}
                   </Text>
                 </View>
@@ -728,7 +687,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular" },
   addBtn: {
     flexDirection: "row",
@@ -748,7 +707,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryLeft: { alignItems: "center", gap: 6, minWidth: 80 },
-  bigRating: { fontSize: 40, fontFamily: "Inter_700Bold" },
+  bigRating: { fontSize: 40, fontFamily: "Fraunces_600SemiBold" },
   ratingCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
   summaryRight: { flex: 1, gap: 6, justifyContent: "center" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 6 },

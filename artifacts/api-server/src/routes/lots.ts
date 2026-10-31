@@ -20,7 +20,7 @@ import { requireAuth, isSyndicateTeamRole, type JwtPayload } from "../middleware
 import { getUserLotIds } from "../lib/scope.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getPagination } from "../lib/paginate.js";
-import { FinanceError, fromCents, isoDateSchema, sendFinanceError, toCents, uniqueViolation } from "../lib/treasury.js";
+import { FinanceError, fromCents, isoDateSchema, sendFinanceError, toCents, uniqueViolation, moneyDiff } from "../lib/treasury.js";
 import {
   chargesOfPersonSql,
   currentOwnersOf,
@@ -319,7 +319,7 @@ router.get("/lots", requireAuth, async (req, res) => {
     const statsByLot = new Map<string, { pending: number; overdue: number; pendingAmount: number }>();
     for (const c of charges) {
       const agg = statsByLot.get(c.lotId) ?? { pending: 0, overdue: 0, pendingAmount: 0 };
-      const outstanding = Number(c.amount ?? 0) - Number(c.amountPaid ?? 0);
+      const outstanding = moneyDiff(c.amount, c.amountPaid);
       if (["pending", "partially_paid", "pending_validation", "rejected"].includes(c.status ?? "")) {
         agg.pending++;
         agg.pendingAmount += outstanding;

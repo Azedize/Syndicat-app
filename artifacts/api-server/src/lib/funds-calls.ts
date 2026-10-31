@@ -16,14 +16,21 @@ import { FinanceError, fromCents, settlementStatus, toCents, type Tx } from "./t
  * states the amount still due and the passed due date, nothing more.
  */
 
-/** Obligations past their due date (local time) and not settled become "overdue". */
+/**
+ * Obligations past their due date (local time) on which nothing has been paid
+ * become "overdue" — the same rule as settlementStatus(): once something is
+ * paid the obligation stays "partially_paid" (with what remains due), even
+ * after the due date. The sweep used to turn those into "overdue", so a call's
+ * status depended on whether the last thing to touch it was a payment or the
+ * hourly job. Late partial payers still get their reminder (see below).
+ */
 export async function markOverdueCalls(syndicateId?: string): Promise<number> {
   const today = localToday();
   const rows = await db.execute(sql`
     UPDATE appels_de_fonds a SET status = 'overdue'
-    WHERE a.status IN ('pending', 'partially_paid', 'rejected')
+    WHERE a.status IN ('pending', 'rejected')
       AND a.due_date IS NOT NULL AND a.due_date < ${today}
-      AND a.amount > a.amount_paid
+      AND a.amount_paid = 0 AND a.amount > 0
       ${syndicateId ? sql`AND a.building_id IN (SELECT id FROM buildings WHERE syndicate_id = ${syndicateId})` : sql``}
     RETURNING a.id
   `);
@@ -85,12 +92,12 @@ async function sendReminder(appelId: string, kind: "overdue" | "manual", created
   return row;
 }
 
-/** One automatic reminder per overdue obligation (never after settlement or cancellation). */
+/** One automatic reminder per obligation past due with something left to pay — overdue or partially paid (never after settlement or cancellation). */
 export async function sendOverdueReminders(): Promise<number> {
   const candidates = (await db.execute(sql`
     SELECT a.id FROM appels_de_fonds a
     JOIN buildings b ON b.id = a.building_id JOIN syndicates s ON s.id = b.syndicate_id AND s.status = 'active'
-    WHERE a.status = 'overdue' AND a.amount > a.amount_paid AND a.due_date < ${localToday()}
+    WHERE a.status IN ('overdue', 'partially_paid') AND a.amount > a.amount_paid AND a.due_date < ${localToday()}
       AND NOT EXISTS (SELECT 1 FROM appel_reminders r WHERE r.appel_id = a.id AND r.kind = 'overdue')
     LIMIT 500
   `)) as unknown as { id: string }[];

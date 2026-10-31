@@ -396,7 +396,8 @@ async function main() {
     step("Ahmed: notified that his document is available", !!(await ahmed.waitForAlert("Votre document est disponible")));
     step("Ahmed: sees it in his documents", ((await ahmed.api("/documents")).json?.data ?? []).some((d: any) => d.id === docId));
     step("Leila: does not see it", !((await leila.api("/documents")).json?.data ?? []).some((d: any) => d.id === docId));
-    step("Leila: cannot open it by ID", (await leila.api(`/documents/${docId}`)).status === 403);
+    // A hidden document answers like a missing one (no existence disclosure).
+    step("Leila: cannot open it by ID", (await leila.api(`/documents/${docId}`)).status === 404);
 
     // Profile, password, logout, refresh, restart
     const prof = await ahmed.api("/profile", "PUT", { phone: "0677000111", profession: "Ingénieur" });

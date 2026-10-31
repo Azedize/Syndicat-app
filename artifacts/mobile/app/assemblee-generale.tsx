@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -173,12 +173,12 @@ function AssembleeGeneraleScreenInner() {
 
   const typeColor = (key: string): string =>
     ({
-      ag_ordinaire: "#3b82f6",
-      ag_extraordinaire: "#ef4444",
-      ag_constitutive: "#10b981",
-      ag_elective: "#f59e0b",
-       general: "#1F5EFF",
-     })[key] ?? "#1F5EFF";
+      ag_ordinaire: "#5A4AD6",
+      ag_extraordinaire: colors.danger,
+      ag_constitutive: colors.success,
+      ag_elective: colors.warning,
+       general: "#5A4AD6",
+     })[key] ?? "#5A4AD6";
 
   const typeIcon = (key: string): keyof typeof Feather.glyphMap =>
     (({
@@ -199,11 +199,11 @@ function AssembleeGeneraleScreenInner() {
 
   const statusColor = (key: string): string =>
     ({
-      scheduled: "#6b7280",
-      in_progress: "#10b981",
-      completed: "#3b82f6",
-      cancelled: "#ef4444",
-    })[key] ?? "#6b7280";
+      scheduled: "#6A6680",
+      in_progress: colors.success,
+      completed: "#5A4AD6",
+      cancelled: colors.danger,
+    })[key] ?? "#6A6680";
 
   const statusIcon = (key: string): keyof typeof Feather.glyphMap =>
     (({
@@ -484,27 +484,27 @@ function AssembleeGeneraleScreenInner() {
       <StatisticsHeader
         title={t("assemblee")}
         subtitle={`${ags.length} ${t("assemblee").toLowerCase()}`}
-         color="#1F5EFF"
+         color="#5A4AD6"
         stats={[
           {
             label: t("agFilterScheduled"),
             value: ags.filter((a) => a.status === "scheduled").length,
-            color: "#6b7280",
+            color: "#6A6680",
           },
           {
             label: t("agFilterInProgress"),
             value: ags.filter((a) => a.status === "in_progress").length,
-            color: "#10b981",
+            color: colors.success,
           },
           {
             label: t("agFilterCompleted"),
             value: ags.filter((a) => a.status === "completed").length,
-            color: "#3b82f6",
+            color: "#5A4AD6",
           },
           {
             label: t("resolutions"),
             value: ags.reduce((sum, a) => sum + a.adoptedResolutions, 0),
-             color: "#1F5EFF",
+             color: "#5A4AD6",
           },
         ]}
         action={
@@ -523,7 +523,7 @@ function AssembleeGeneraleScreenInner() {
       {/* Next AG banner */}
       {prochaine ? (
         <TouchableOpacity
-           style={[s.banner, { backgroundColor: "#1F5EFF" }]}
+           style={[s.banner, { backgroundColor: "#5A4AD6" }]}
           onPress={() => {
             setSelected(prochaine);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -562,14 +562,14 @@ function AssembleeGeneraleScreenInner() {
         options={FILTERS}
         value={filterStatus}
         onChange={setFilterStatus}
-         accentColor="#1F5EFF"
+         accentColor="#5A4AD6"
       />
 
       {loading ? (
         <LoadingState
           title={t("assemblee")}
           description={t("agLoadingMsg")}
-           accentColor="#1F5EFF"
+           accentColor="#5A4AD6"
         />
       ) : error ? (
         <ErrorState
@@ -577,7 +577,7 @@ function AssembleeGeneraleScreenInner() {
           description={t("agLoadError")}
           retryLabel={t("retry")}
           onRetry={() => load()}
-           accentColor="#1F5EFF"
+           accentColor="#5A4AD6"
         />
       ) : (
         <FlatList
@@ -592,21 +592,21 @@ function AssembleeGeneraleScreenInner() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-               tintColor="#1F5EFF"
+               tintColor="#5A4AD6"
             />
           }
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.empty}>
-               <View style={[s.stateIcon, { backgroundColor: "#1F5EFF15" }]}>
-                 <Feather name="calendar" size={32} color="#1F5EFF" />
+               <View style={[s.stateIcon, { backgroundColor: "#5A4AD615" }]}>
+                 <Feather name="calendar" size={32} color="#5A4AD6" />
               </View>
               <Text style={[s.stateTitle, { color: colors.foreground }]}>
                 {t("agNoData")}
               </Text>
               {isAdmin && (
                 <TouchableOpacity
-                   style={[s.emptyBtn, { backgroundColor: "#1F5EFF" }]}
+                   style={[s.emptyBtn, { backgroundColor: "#5A4AD6" }]}
                   onPress={() => setShowCreate(true)}
                 >
                   <Feather name="plus" size={14} color="#fff" />
@@ -635,7 +635,7 @@ function AssembleeGeneraleScreenInner() {
                   s.card,
                   {
                     backgroundColor: colors.card,
-                     borderColor: isUpcoming ? "#1F5EFF30" : colors.border,
+                     borderColor: isUpcoming ? "#5A4AD630" : colors.border,
                     borderLeftWidth: 4,
                     borderLeftColor: tColor,
                   },
@@ -761,9 +761,9 @@ function AssembleeGeneraleScreenInner() {
                     </Text>
                   </View>
                   {ag.userAttending ? (
-                    <View style={[s.badge, { backgroundColor: "#10b98118" }]}>
-                      <Feather name="check" size={10} color="#10b981" />
-                      <Text style={[s.badgeText, { color: "#10b981" }]}>
+                    <View style={[s.badge, { backgroundColor: colors.success + "18" }]}>
+                      <Feather name="check" size={10} color={colors.success} />
+                      <Text style={[s.badgeText, { color: colors.success }]}>
                         {t("agRegisteredStatus")}
                       </Text>
                     </View>
@@ -961,10 +961,10 @@ function AssembleeGeneraleScreenInner() {
                       selected.resolutions.map((res) => {
                         const resColor =
                           res.result === "adopted"
-                            ? "#10b981"
+                            ? colors.success
                             : res.result === "rejected"
-                              ? "#ef4444"
-                              : "#f59e0b";
+                              ? colors.danger
+                              : colors.warning;
                         const totalVoix =
                           res.tantiemesFor +
                           res.tantiemesAgainst +
@@ -1062,24 +1062,24 @@ function AssembleeGeneraleScreenInner() {
                                       s.progressFill,
                                       {
                                         width: `${pctFor}%` as any,
-                                        backgroundColor: "#10b981",
+                                        backgroundColor: colors.success,
                                       },
                                     ]}
                                   />
                                 </View>
                                 <View style={s.voteRow}>
                                   <Text
-                                    style={[s.voteLabel, { color: "#10b981" }]}
+                                    style={[s.voteLabel, { color: colors.success }]}
                                   >
                                     {t("votesFor")}: {res.tantiemesFor}
                                   </Text>
                                   <Text
-                                    style={[s.voteLabel, { color: "#ef4444" }]}
+                                    style={[s.voteLabel, { color: colors.danger }]}
                                   >
                                     {t("votesAgainst")}: {res.tantiemesAgainst}
                                   </Text>
                                   <Text
-                                    style={[s.voteLabel, { color: "#6b7280" }]}
+                                    style={[s.voteLabel, { color: "#6A6680" }]}
                                   >
                                     {t("abstentions")}: {res.tantiemesAbstain}
                                   </Text>
@@ -1139,7 +1139,7 @@ function AssembleeGeneraleScreenInner() {
                           s.actionBtn,
                           {
                             backgroundColor: selected.userAttending
-                              ? "#10b981"
+                              ? colors.success
                               : tColor,
                           },
                         ]}
@@ -1167,17 +1167,17 @@ function AssembleeGeneraleScreenInner() {
                             style={[
                               s.adminBtn,
                               {
-                                backgroundColor: "#10b98115",
-                                borderColor: "#10b98130",
+                                backgroundColor: colors.success + "15",
+                                borderColor: colors.success + "30",
                               },
                             ]}
                             onPress={() =>
                               handleStatusChange(selected, "in_progress")
                             }
                           >
-                            <Feather name="play" size={14} color="#10b981" />
+                            <Feather name="play" size={14} color={colors.success} />
                             <Text
-                              style={[s.adminBtnText, { color: "#10b981" }]}
+                              style={[s.adminBtnText, { color: colors.success }]}
                             >
                               {t("agStartAGBtn")}
                             </Text>
@@ -1188,8 +1188,8 @@ function AssembleeGeneraleScreenInner() {
                             style={[
                               s.adminBtn,
                               {
-                                backgroundColor: "#3b82f615",
-                                borderColor: "#3b82f630",
+                                backgroundColor: "#5A4AD615",
+                                borderColor: "#5A4AD630",
                               },
                             ]}
                             onPress={() =>
@@ -1199,10 +1199,10 @@ function AssembleeGeneraleScreenInner() {
                             <Feather
                               name="check-circle"
                               size={14}
-                              color="#3b82f6"
+                              color="#5A4AD6"
                             />
                             <Text
-                              style={[s.adminBtnText, { color: "#3b82f6" }]}
+                              style={[s.adminBtnText, { color: "#5A4AD6" }]}
                             >
                               {t("agCloseAGBtn")}
                             </Text>
@@ -1213,8 +1213,8 @@ function AssembleeGeneraleScreenInner() {
                             style={[
                               s.adminBtn,
                               {
-                                backgroundColor: "#1F5EFF15",
-                                borderColor: "#1F5EFF30",
+                                backgroundColor: "#5A4AD615",
+                                borderColor: "#5A4AD630",
                               },
                             ]}
                             onPress={() => handleGeneratePV(selected)}
@@ -1222,10 +1222,10 @@ function AssembleeGeneraleScreenInner() {
                             <Feather
                               name="file-text"
                               size={14}
-                              color="#1F5EFF"
+                              color="#5A4AD6"
                             />
                             <Text
-                              style={[s.adminBtnText, { color: "#1F5EFF" }]}
+                              style={[s.adminBtnText, { color: "#5A4AD6" }]}
                             >
                               {t("agGeneratePVBtn")}
                             </Text>
@@ -1235,16 +1235,16 @@ function AssembleeGeneraleScreenInner() {
                           style={[
                             s.adminBtn,
                             {
-                              backgroundColor: "#ef444415",
-                              borderColor: "#ef444430",
+                              backgroundColor: colors.danger + "15",
+                              borderColor: colors.danger + "30",
                             },
                           ]}
                           onPress={() =>
                             handleStatusChange(selected, "cancelled")
                           }
                         >
-                          <Feather name="x-circle" size={14} color="#ef4444" />
-                          <Text style={[s.adminBtnText, { color: "#ef4444" }]}>
+                          <Feather name="x-circle" size={14} color={colors.danger} />
+                          <Text style={[s.adminBtnText, { color: colors.danger }]}>
                             {t("agCancelAGBtn")}
                           </Text>
                         </TouchableOpacity>
@@ -1269,7 +1269,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#1F5EFF",
+                backgroundColor: "#5A4AD6",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1429,7 +1429,7 @@ function AssembleeGeneraleScreenInner() {
                 {
                   backgroundColor:
                     form.title.trim() && form.date.trim()
-                      ? "#1F5EFF"
+                      ? "#5A4AD6"
                       : colors.muted,
                   opacity: submitting ? 0.7 : 1,
                 },
@@ -1462,7 +1462,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#1F5EFF",
+                backgroundColor: "#5A4AD6",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1536,11 +1536,11 @@ function AssembleeGeneraleScreenInner() {
                     {
                       backgroundColor:
                         resForm.requiredMajority === m
-                          ? "#1F5EFF10"
+                          ? "#5A4AD610"
                           : colors.card,
                       borderColor:
                         resForm.requiredMajority === m
-                          ? "#1F5EFF"
+                          ? "#5A4AD6"
                           : colors.border,
                     },
                   ]}
@@ -1554,14 +1554,14 @@ function AssembleeGeneraleScreenInner() {
                       {
                         borderColor:
                           resForm.requiredMajority === m
-                            ? "#1F5EFF"
+                            ? "#5A4AD6"
                             : colors.border,
                       },
                     ]}
                   >
                     {resForm.requiredMajority === m && (
                       <View
-                        style={[s.radioInner, { backgroundColor: "#1F5EFF" }]}
+                        style={[s.radioInner, { backgroundColor: "#5A4AD6" }]}
                       />
                     )}
                   </View>
@@ -1577,7 +1577,7 @@ function AssembleeGeneraleScreenInner() {
                 s.submitBtn,
                 {
                   backgroundColor: resForm.title.trim()
-                    ? "#1F5EFF"
+                    ? "#5A4AD6"
                     : colors.muted,
                   opacity: submitting ? 0.7 : 1,
                 },
@@ -1610,7 +1610,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#1F5EFF",
+                backgroundColor: "#5A4AD6",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1639,22 +1639,22 @@ function AssembleeGeneraleScreenInner() {
               {
                 label: t("agTantFor"),
                 key: "tantiemesFor" as const,
-                color: "#10b981",
+                color: colors.success,
               },
               {
                 label: t("agTantAgainst"),
                 key: "tantiemesAgainst" as const,
-                color: "#ef4444",
+                color: colors.danger,
               },
               {
                 label: t("agTantAbstain"),
                 key: "tantiemesAbstain" as const,
-                color: "#6b7280",
+                color: "#6A6680",
               },
               {
                 label: t("agTantTotal"),
                 key: "totalTantiemes" as const,
-                color: "#1F5EFF",
+                color: "#5A4AD6",
               },
             ].map((field) => (
               <View key={field.key} style={{ gap: 6 }}>
@@ -1686,11 +1686,11 @@ function AssembleeGeneraleScreenInner() {
               <View
                 style={[
                   s.majorityInfo,
-                  { backgroundColor: "#1F5EFF10", borderColor: "#1F5EFF30" },
+                  { backgroundColor: "#5A4AD610", borderColor: "#5A4AD630" },
                 ]}
               >
-                <Feather name="info" size={14} color="#1F5EFF" />
-                <Text style={[s.majorityInfoText, { color: "#1F5EFF" }]}>
+                <Feather name="info" size={14} color="#5A4AD6" />
+                <Text style={[s.majorityInfoText, { color: "#5A4AD6" }]}>
                   {t("agMajorityInfo")}{" "}
                   {majorityLabel(showVoteModal.requiredMajority)}
                 </Text>
@@ -1700,7 +1700,7 @@ function AssembleeGeneraleScreenInner() {
             <TouchableOpacity
               style={[
                 s.submitBtn,
-                { backgroundColor: "#1F5EFF", opacity: submitting ? 0.7 : 1 },
+                { backgroundColor: "#5A4AD6", opacity: submitting ? 0.7 : 1 },
               ]}
               onPress={handleVote}
               disabled={submitting}
@@ -1730,7 +1730,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#1F5EFF",
+                backgroundColor: "#5A4AD6",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}

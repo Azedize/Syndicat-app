@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   segment: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: RADIUS.SM + 1,
     borderWidth: StyleSheet.hairlineWidth,
   },

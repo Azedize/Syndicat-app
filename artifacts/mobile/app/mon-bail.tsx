@@ -32,7 +32,7 @@ interface InfoRowProps {
   color?: string;
 }
 
-function InfoRow({ label, value, icon, color = "#2563EB" }: InfoRowProps) {
+function InfoRow({ label, value, icon, color = "#5A4AD6" }: InfoRowProps) {
   const colors = useColors();
   return (
     <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
@@ -167,7 +167,7 @@ function MonBailScreenInner() {
               paddingTop: topPad + 12,
               backgroundColor: colors.card,
               borderBottomColor: colors.border,
-              flexDirection: isRTL ? "row-reverse" : "row",
+              flexDirection: "row",
             },
           ]}
         >
@@ -185,7 +185,7 @@ function MonBailScreenInner() {
           <Text
             style={[
               styles.headerTitle,
-              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              { color: colors.foreground, textAlign: "auto" },
             ]}
           >
             {t("monBailTitle")} &amp; {t("rentTitle")}
@@ -224,7 +224,7 @@ function MonBailScreenInner() {
             paddingTop: topPad + 12,
             backgroundColor: colors.card,
             borderBottomColor: colors.border,
-            flexDirection: isRTL ? "row-reverse" : "row",
+            flexDirection: "row",
           },
         ]}
       >
@@ -242,7 +242,7 @@ function MonBailScreenInner() {
         <Text
           style={[
             styles.headerTitle,
-            { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+            { color: colors.foreground, textAlign: "auto" },
           ]}
         >
           {t("monBailTitle")} &amp; {t("rentTitle")}
@@ -305,31 +305,31 @@ function MonBailScreenInner() {
             label={t("monLeaseTypeLabel")}
             value={lease.lotType ?? t("notProvided")}
             icon="file-text"
-            color="#3b82f6"
+            color="#5A4AD6"
           />
           <InfoRow
             label={t("leaseStart")}
             value={formatDate(lease.leaseStart, t("notProvided"), lang)}
             icon="calendar"
-            color="#10b981"
+            color={colors.success}
           />
           <InfoRow
             label={t("leaseEnd")}
             value={formatDate(lease.leaseEnd, t("notProvided"), lang)}
             icon="calendar"
-            color="#f59e0b"
+            color={colors.warning}
           />
           <InfoRow
             label={t("monthlyRent")}
             value={formatMAD(lease.monthlyRent, t("na"), lang)}
             icon="credit-card"
-            color="#2563EB"
+            color="#5A4AD6"
           />
           <InfoRow
             label={t("monLeaseDepositLabel")}
             value={formatMAD(lease.depositAmount, t("na"), lang)}
             icon="shield"
-            color="#1F5EFF"
+            color="#5A4AD6"
           />
         </View>
 
@@ -348,19 +348,19 @@ function MonBailScreenInner() {
             label={t("residence")}
             value={lease.buildingName ?? t("notProvided")}
             icon="home"
-            color="#2563EB"
+            color="#5A4AD6"
           />
           <InfoRow
             label={t("lotNumber")}
             value={lease.lotNumber ?? t("notProvided")}
             icon="grid"
-            color="#3b82f6"
+            color="#5A4AD6"
           />
           <InfoRow
             label={t("floor")}
             value={lease.floor != null ? String(lease.floor) : t("notProvided")}
             icon="layers"
-            color="#10b981"
+            color={colors.success}
           />
         </View>
 
@@ -380,13 +380,13 @@ function MonBailScreenInner() {
               label={t("name")}
               value={lease.emergencyContact ?? t("na")}
               icon="user"
-              color="#ef4444"
+              color={colors.danger}
             />
             <InfoRow
               label={t("phone")}
               value={lease.emergencyPhone ?? t("na")}
               icon="phone"
-              color="#ef4444"
+              color={colors.danger}
             />
           </View>
         )}
@@ -428,7 +428,7 @@ function MonBailScreenInner() {
             activeOpacity={0.82}
           >
             <Feather name="folder" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+            <Text style={[styles.actionBtnText, { color: colors.tint }]}>
               {t("myDocuments")}
             </Text>
           </TouchableOpacity>

@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -23,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { localDate } from "@/lib/localDate";
 
 const TYPE_CONFIG: Record<
   Partner["type"],
@@ -31,47 +33,47 @@ const TYPE_CONFIG: Record<
   assurance: {
     labelKey: "partnerTypeAssurance",
     icon: "shield",
-    color: "#3b82f6",
+    color: "#5A4AD6",
   },
   banque: {
     labelKey: "partnerTypeBanque",
     icon: "credit-card",
-    color: "#10b981",
+    color: "#13976C",
   },
   formation: {
     labelKey: "partnerTypeFormation",
     icon: "book-open",
-    color: "#f59e0b",
+    color: "#C98511",
   },
-  sante: { labelKey: "partnerTypeSante", icon: "activity", color: "#ef4444" },
+  sante: { labelKey: "partnerTypeSante", icon: "activity", color: "#C8323C" },
   juridique: {
     labelKey: "partnerTypeJuridique",
     icon: "briefcase",
-    color: "#8b5cf6",
+    color: "#1F8A9A",
   },
   commercial: {
     labelKey: "partnerTypeCommercial",
     icon: "shopping-bag",
-    color: "#f97316",
+    color: "#C98511",
   },
-  autre: { labelKey: "partnerTypeOther", icon: "star", color: "#6b7280" },
+  autre: { labelKey: "partnerTypeOther", icon: "star", color: "#6A6680" },
 };
 
 const STATUS_CFG = {
   active: {
     labelKey: "partnerStatusActive",
-    color: "#10b981",
-    bg: "#10b98118",
+    color: "#13976C",
+    bg: "#13976C18",
   },
   pending: {
     labelKey: "partnerStatusPending",
-    color: "#f59e0b",
-    bg: "#f59e0b18",
+    color: "#C98511",
+    bg: "#C9851118",
   },
   expired: {
     labelKey: "partnerStatusExpired",
-    color: "#6b7280",
-    bg: "#6b728018",
+    color: "#6A6680",
+    bg: "#6A668018",
   },
 };
 
@@ -156,7 +158,7 @@ export default function PartenairesScreen() {
       benefit: newBenefit.trim(),
       discount: newDiscount.trim() || undefined,
       status: "pending",
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: localDate(),
       description: newDescription.trim(),
     });
     if (!saved) {
@@ -227,52 +229,11 @@ export default function PartenairesScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              styles.title,
-              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
-            ]}
-          >
-            {t("partenairesTitle")}
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color: colors.mutedForeground,
-                textAlign: isRTL ? "right" : "left",
-              },
-            ]}
-          >
-            {activeCount} {t("partnerActiveCount")}
-          </Text>
-        </View>
-        {isAdmin && (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowAdd(true);
-            }}
-          >
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("partenairesTitle")}
+        subtitle={`${activeCount} ${t("partnerActiveCount")}`}
+        action={isAdmin ? { icon: "plus", label: t("newItem"), onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAdd(true); } } : undefined}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -293,19 +254,19 @@ export default function PartenairesScreen() {
             {
               label: t("partnerActive"),
               value: activeCount,
-              color: "#10b981",
+              color: colors.success,
               icon: "check-circle" as const,
             },
             {
               label: t("partnerPending"),
               value: pendingCount,
-              color: "#f59e0b",
+              color: colors.warning,
               icon: "clock" as const,
             },
             {
               label: t("total"),
               value: partners.length,
-              color: colors.primary,
+              color: colors.tint,
               icon: "users" as const,
             },
           ].map((s, i, arr) => (
@@ -346,7 +307,7 @@ export default function PartenairesScreen() {
         >
           {(
             [
-              ["all", t("all"), "grid", "#6b7280"],
+              ["all", t("all"), "grid", "#6A6680"],
               ...Object.entries(TYPE_CONFIG).map(([k, v]) => [
                 k,
                 t(v.labelKey),
@@ -524,7 +485,7 @@ export default function PartenairesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-            <View style={styles.modalHandle} />
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             {selectedPartner && (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Partner header */}
@@ -597,14 +558,14 @@ export default function PartenairesScreen() {
                     style={[
                       styles.benefitBanner,
                       {
-                        backgroundColor: "#10b98115",
-                        borderColor: "#10b98130",
+                        backgroundColor: colors.success + "15",
+                        borderColor: colors.success + "30",
                       },
                     ]}
                   >
-                    <Feather name="tag" size={16} color="#10b981" />
+                    <Feather name="tag" size={16} color={colors.success} />
                     <Text
-                      style={[styles.benefitBannerText, { color: "#10b981" }]}
+                      style={[styles.benefitBannerText, { color: colors.success }]}
                     >
                       {selectedPartner.discount}
                     </Text>
@@ -696,7 +657,7 @@ export default function PartenairesScreen() {
 
                 {isAdmin && selectedPartner.status === "pending" && (
                   <TouchableOpacity
-                    style={[styles.activateBtn, { backgroundColor: "#10b981" }]}
+                    style={[styles.activateBtn, { backgroundColor: colors.success }]}
                     onPress={() => handleActivate(selectedPartner.id)}
                   >
                     <Feather name="check-circle" size={16} color="#fff" />
@@ -730,7 +691,7 @@ export default function PartenairesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-            <View style={styles.modalHandle} />
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {t("partnerNewTitle")}
             </Text>
@@ -920,7 +881,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   addBtn: {
     width: 40,
@@ -1004,7 +965,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#E7E1D6",
     alignSelf: "center",
     marginBottom: 16,
   },

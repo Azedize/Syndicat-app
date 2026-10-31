@@ -88,24 +88,10 @@ const QUICK_LINKS: NavItem[] = [
     match: ["/meetings"],
   },
   {
-    labelKey: "navNegotiations",
-    icon: "message-square",
-    route: "/negociations",
-    match: ["/negociations"],
-    adminOnly: true,
-  },
-  {
     labelKey: "pv",
     icon: "file-text",
     route: "/pv",
     match: ["/pv"],
-    adminOnly: true,
-  },
-  {
-    labelKey: "navHumanResources",
-    icon: "briefcase",
-    route: "/ressources-humaines",
-    match: ["/ressources-humaines"],
     adminOnly: true,
   },
   {
@@ -260,7 +246,7 @@ export function SidebarNav() {
       >
         <Feather name="search" size={15} color={colors.primary} />
         {showLabels && (
-          <Text style={[styles.searchText, { color: colors.primary }]}>
+          <Text style={[styles.searchText, { color: colors.tint }]}>
             {t("searchPlaceholder")}
           </Text>
         )}

@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -90,8 +91,7 @@ router.get("/publications", requireAuth, async (req, res) => {
 
     res.json(buildPagedResponse(enriched, Number(total), pagination));
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -128,8 +128,7 @@ router.post(
         .returning();
       res.status(201).json({ data: pub, message: "Publication créée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -194,8 +193,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
       res.json({ message: "Publication aimée", liked: true });
     }
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -243,8 +241,7 @@ router.post("/publications/:id/comments", requireAuth, async (req, res) => {
       .returning();
     res.status(201).json({ data: comment, message: "Commentaire ajouté" });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 

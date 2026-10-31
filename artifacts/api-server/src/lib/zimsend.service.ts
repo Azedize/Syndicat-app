@@ -23,6 +23,7 @@ import { db } from "@workspace/db";
 import { otpTokensTable } from "@workspace/db/schema";
 import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "./outbound.js";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,10 @@ export interface SendSmsResult {
  * Never logs the API key or message body.
  */
 export async function sendSMS(phone: string, message: string): Promise<SendSmsResult> {
+  if (outboundDeliveryDisabled()) {
+    logger.info({ phone }, "SMS skipped — outbound delivery disabled");
+    return { success: false, provider: "ZimSend", error: OUTBOUND_DISABLED_REASON };
+  }
   const config = getConfig();
 
   logger.info({ phone }, "ZimSend: sending SMS");

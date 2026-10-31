@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
 import { LangCode, useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -710,17 +711,17 @@ const getPriorityLabel = (prio: string, lang: LangCode) => {
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
-  urgent: "#EF4444",
-  high: "#F97316",
-  normal: "#3B82F6",
-  low: "#6B7280",
+  urgent: "#C8323C",
+  high: "#C8642A",
+  normal: "#5A4AD6",
+  low: "#6A6680",
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  in_progress: "#F97316",
-  scheduled: "#3B82F6",
-  planned: "#8B5CF6",
-  completed: "#10B981",
+  in_progress: "#C8642A",
+  scheduled: "#5A4AD6",
+  planned: "#1F8A9A",
+  completed: "#13976C",
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -926,8 +927,8 @@ function CategoryRow({
 }
 
 const CAT_COLORS = [
-  "#3B82F6","#10B981","#F59E0B","#8B5CF6","#EF4444",
-  "#06B6D4","#84CC16","#F97316","#EC4899","#1F5EFF",
+  "#5A4AD6","#13976C","#C98511","#1F8A9A","#C8323C",
+  "#1F8A9A","#84CC16","#C8642A","#C2456E","#5A4AD6",
 ];
 
 function PendingActionsPanel({
@@ -1159,19 +1160,7 @@ function TableauBordFinancierInner() {
   return (
     <View style={styles.root}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.primaryForeground} />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
-          {data && (
-            <Text style={styles.headerSub}>
-              {data.building.name} · {data.building.city}
-            </Text>
-          )}
-        </View>
-      </View>
+      <ScreenHeader title={STRINGS.headerTitle[lang]} subtitle={data ? `${data.building.name} · ${data.building.city}` : undefined} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -1773,7 +1762,7 @@ function createStyles(colors: Colors) {
     },
     tabActive: { backgroundColor: colors.card, ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.08, radius: 3, elevation: 2 }) },
     tabText: { fontSize: 13, color: colors.mutedForeground, fontWeight: "500" },
-    tabTextActive: { color: colors.primary, fontWeight: "700" },
+    tabTextActive: { color: colors.tint, fontWeight: "700" },
 
     card: {
       backgroundColor: colors.card,

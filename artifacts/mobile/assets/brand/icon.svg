@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88"><defs>
+  <linearGradient id="nuit" x1="0" y1="0" x2="88" y2="88" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2B2475"/><stop offset="1" stop-color="#14113A"/></linearGradient>
+  <linearGradient id="laiton" x1="24" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#D9A94E"/><stop offset="0.5" stop-color="#F6DA94"/><stop offset="1" stop-color="#C99A3E"/></linearGradient>
+</defs><rect width="88" height="88" fill="url(#nuit)"/><g transform="translate(44 44) scale(0.86) translate(-44 -41.5)">
+  <path d="M22 68 V42 C22 30 32 22 44 15 C56 22 66 30 66 42 V68" fill="none" stroke="#F7F4EE" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M44 37 V61" stroke="#F7F4EE" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <path d="M37 62 H51" stroke="#F7F4EE" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <g stroke="#E3B75C" stroke-width="1.6" stroke-linecap="round" fill="none"><path d="M33 37 L28.5 49 M33 37 L37.5 49"/><path d="M55 37 L50.5 49 M55 37 L59.5 49"/></g>
+  <path d="M27 49 H39 A6 4.5 0 0 1 27 49 Z" fill="url(#laiton)"/>
+  <path d="M49 49 H61 A6 4.5 0 0 1 49 49 Z" fill="url(#laiton)"/>
+  <path d="M31 37 H57" stroke="url(#laiton)" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="44" cy="37" r="3.8" fill="#8E82F5"/></g></svg>

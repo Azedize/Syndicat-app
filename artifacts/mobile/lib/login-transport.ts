@@ -20,6 +20,17 @@ export interface ApiUrlInput {
 const EMULATOR_ALIASES = new Set(["10.0.2.2", "10.0.3.2"]);
 const LOOPBACK = new Set(["localhost", "127.0.0.1"]);
 
+/**
+ * `expo start --tunnel` serves Metro through a public host (…exp.direct,
+ * …on.expo.app, ngrok). That tunnel forwards the bundler only, not the API:
+ * « tunnel-host:5000 » can never answer. Such a host is not the dev machine's
+ * address, so the API needs its own public URL (EXPO_PUBLIC_API_URL).
+ */
+export function isTunnelHost(host: string | null | undefined): boolean {
+  if (!host) return false;
+  return /(^|.)(exp.direct|on.expo.app|expo.app|ngrok.io|ngrok-free.app|ngrok.app|trycloudflare.com)$/i.test(host);
+}
+
 function hostOf(hostUri?: string | null): string | null {
   if (!hostUri) return null;
   const host = hostUri.split("/")[0].split(":")[0].trim();
@@ -36,7 +47,7 @@ export function resolveApiBaseUrl(input: ApiUrlInput): string {
   const metroHost = hostOf(input.hostUri);
   // A LAN address of the dev machine, as seen by a physical device.
   const lanHost =
-    metroHost && !LOOPBACK.has(metroHost) && !EMULATOR_ALIASES.has(metroHost) ? metroHost : null;
+    metroHost && !LOOPBACK.has(metroHost) && !EMULATOR_ALIASES.has(metroHost) && !isTunnelHost(metroHost) ? metroHost : null;
 
   if (apiUrl && apiUrl.trim()) {
     const base = apiUrl.trim().replace(/\/+$/, "");

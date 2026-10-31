@@ -12,7 +12,7 @@ import {
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
-import { FinanceError, sendFinanceError, uniqueViolation } from "../lib/treasury.js";
+import { FinanceError, sendFinanceError, toCents, uniqueViolation } from "../lib/treasury.js";
 import { orgRoleOf, portfolioSyndicateIds, resolveContextRole, TEAM_ROLES, type OrgRole } from "../lib/access.js";
 import { assignTrial } from "./subscriptions.js";
 
@@ -587,10 +587,11 @@ router.get("/organizations/:id/portfolio", requireAuth, async (req, res) => {
 
     const byCurrency = (field: string) => {
       const m = new Map<string, number>();
-      for (const r of rows) m.set(r.currency, Math.round(((m.get(r.currency) ?? 0) + Number(r[field])) * 100) / 100);
-      return [...m].map(([currency, amount]) => ({ currency, amount: amount.toFixed(2) }));
+      // per-currency totals in cents
+      for (const r of rows) m.set(r.currency, (m.get(r.currency) ?? 0) + toCents(r[field] as string | number | null));
+      return [...m].map(([currency, cents]) => ({ currency, amount: (cents / 100).toFixed(2) }));
     };
-    const sum = (field: string) => rows.reduce((s, r) => s + Number(r[field] ?? 0), 0);
+    const sum = (field: string) => rows.reduce((s, r) => s + toCents(r[field] as string | number | null), 0) / 100;
     const condominiums = rows.map((r) => ({
       id: r.id,
       name: r.name,

@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -270,8 +271,7 @@ router.get("/travaux", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -372,8 +372,7 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
 
     res.json({ data: { ...travail, prestataire, lot, building } });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -482,8 +481,8 @@ router.post("/travaux", requireAuth, async (req, res) => {
 
     if (priority === "urgent" || priority === "high") {
       createAlert({
-        title: `🔧 Travaux ${priority === "urgent" ? "URGENT" : "prioritaires"}: ${title}`,
-        message: description ?? "Intervention requise",
+        key: priority === "urgent" ? "works.urgent" : "works.priority",
+        params: { title, description: description ?? "" },
         type: priority === "urgent" ? "error" : "warning",
         syndicateId: building?.syndicateId ?? null,
         target: "admin",
@@ -499,8 +498,7 @@ router.post("/travaux", requireAuth, async (req, res) => {
 
     res.status(201).json({ data: travail, message: "Bon de travaux créé" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -545,8 +543,7 @@ router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) =
 
     res.json({ data: updated, message: "Prestataire assigné" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -593,8 +590,7 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
 
     res.json({ data: updated, message: "Rapport soumis, en attente de validation" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -739,8 +735,7 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     if (!updated) return void res.status(404).json({ error: "Not found" });
     res.json({ data: updated, message: "Bon de travaux mis à jour" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -762,8 +757,7 @@ router.delete("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     if (!deleted) return void res.status(404).json({ error: "Not found" });
     res.json({ success: true });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 

@@ -8,7 +8,7 @@
  * President, Treasurer, Secretary, and optional Committee Member.
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -44,7 +44,7 @@ const ROLES = [
     labelKey: "rolePresident",
     descriptionKey: "presidentDesc",
     icon: "award" as const,
-    color: "#2563EB",
+    color: "#5A4AD6",
     required: false,
   },
   {
@@ -52,7 +52,7 @@ const ROLES = [
     labelKey: "roleTresorier",
     descriptionKey: "treasurerDesc",
     icon: "dollar-sign" as const,
-    color: "#059669",
+    color: "#13976C",
     required: false,
   },
   {
@@ -60,7 +60,7 @@ const ROLES = [
     labelKey: "roleSecrétaire",
     descriptionKey: "secretaryDesc",
     icon: "file-text" as const,
-    color: "#7C3AED",
+    color: "#0F6E7D",
     required: false,
   },
   {
@@ -68,7 +68,7 @@ const ROLES = [
     labelKey: "roleMembreConseil",
     descriptionKey: "committeeMemberDesc",
     icon: "users" as const,
-    color: "#D97706",
+    color: "#C98511",
     required: false,
   },
 ];
@@ -119,7 +119,7 @@ function Field({
       <TextInput
         style={[
           s.input,
-          { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+          { color: colors.foreground, textAlign: "auto" },
         ]}
         value={value}
         onChangeText={onChangeText}
@@ -151,8 +151,8 @@ export default function TeamInviteScreen() {
   const [completed, setCompleted] = useState(false);
 
   const gradColors: [string, string] = isDark
-    ? ["#070D1A", "#0D1929"]
-    : ["#EFF6FF", "#F8FAFF"];
+    ? ["#0E0C1C", "#17142B"]
+    : ["#EEEBFC", "#F7F4EE"];
   const role = ROLES[currentStep];
   const form = forms[currentStep];
 
@@ -264,7 +264,7 @@ export default function TeamInviteScreen() {
   if (completed) {
     return (
       <View
-        style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}
+        style={[s.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC" }]}
       >
         <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
         <ScrollView
@@ -280,22 +280,22 @@ export default function TeamInviteScreen() {
           <View
             style={[
               s.successCircle,
-              { backgroundColor: "#10B98120", borderColor: "#10B981" },
+              { backgroundColor: "#13976C20", borderColor: "#13976C" },
             ]}
           >
-            <Feather name="check" size={48} color="#10B981" />
+            <Feather name="check" size={48} color="#13976C" />
           </View>
 
           <View style={{ alignItems: "center", gap: 8 }}>
             <Text
-              style={[s.doneTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}
+              style={[s.doneTitle, { color: isDark ? "#EEEBFC" : "#120F2C" }]}
             >
               {t("teamInviteCompleteTitle")}
             </Text>
             <Text
               style={[
                 s.doneSub,
-                { color: isDark ? "rgba(232,240,254,0.6)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.6)" : "#6A6680" },
               ]}
             >
               {t("teamInviteCompleteDescription")}
@@ -318,7 +318,7 @@ export default function TeamInviteScreen() {
               <Text
                 style={[
                   s.invitedTitle,
-                  { color: isDark ? "#E8F0FE" : "#0A1628" },
+                  { color: isDark ? "#EEEBFC" : "#120F2C" },
                 ]}
               >
                 {t("teamInviteSentTitle")}
@@ -328,25 +328,25 @@ export default function TeamInviteScreen() {
                 if (!invitedRole) return null;
                 return (
                   <View key={roleId} style={s.invitedRow}>
-                    <Feather name="mail" size={14} color="#10B981" />
+                    <Feather name="mail" size={14} color="#13976C" />
                     <Text
                       style={[
                         s.invitedText,
                         {
-                          color: isDark ? "rgba(232,240,254,0.75)" : "#374151",
+                          color: isDark ? "rgba(232,240,254,0.75)" : "#3A3652",
                         },
                       ]}
                     >
                       {roleLabel(invitedRole)}
                     </Text>
                     <View
-                      style={[s.invitedBadge, { backgroundColor: "#10B98118" }]}
+                      style={[s.invitedBadge, { backgroundColor: "#13976C18" }]}
                     >
                       <Text
                         style={{
                           fontFamily: "Inter_600SemiBold",
                           fontSize: 10,
-                          color: "#10B981",
+                          color: "#13976C",
                         }}
                       >
                         {t("teamInviteSent")}
@@ -375,7 +375,7 @@ export default function TeamInviteScreen() {
             <Text
               style={[
                 s.nextStepsTitle,
-                { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" },
+                { color: isDark ? "rgba(232,240,254,0.45)" : "#A6A1BE" },
               ]}
             >
               {t("teamInviteNextStepsTitle")}
@@ -397,14 +397,14 @@ export default function TeamInviteScreen() {
             ].map((item) => (
               <View key={item.text} style={s.nextStepRow}>
                 <View
-                  style={[s.nextStepIcon, { backgroundColor: "#2563EB18" }]}
+                  style={[s.nextStepIcon, { backgroundColor: "#5A4AD618" }]}
                 >
-                  <Feather name={item.icon} size={14} color="#2563EB" />
+                  <Feather name={item.icon} size={14} color="#5A4AD6" />
                 </View>
                 <Text
                   style={[
                     s.nextStepText,
-                    { color: isDark ? "rgba(232,240,254,0.7)" : "#374151" },
+                    { color: isDark ? "rgba(232,240,254,0.7)" : "#3A3652" },
                   ]}
                 >
                   {item.text}
@@ -415,7 +415,7 @@ export default function TeamInviteScreen() {
 
           {/* CTA */}
           <TouchableOpacity
-            style={[s.ctaBtn, { backgroundColor: "#2563EB" }]}
+            style={[s.ctaBtn, { backgroundColor: "#5A4AD6" }]}
             onPress={goToDashboard}
             activeOpacity={0.85}
           >
@@ -430,7 +430,7 @@ export default function TeamInviteScreen() {
   // ── Invitation step ───────────────────────────────────────────────────────
 
   return (
-    <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
+    <View style={[s.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC" }]}>
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView
@@ -449,13 +449,13 @@ export default function TeamInviteScreen() {
         >
           {/* Header */}
           <View style={{ gap: 6 }}>
-            <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
+            <Text style={[s.title, { color: isDark ? "#EEEBFC" : "#120F2C" }]}>
               {t("teamInviteTitle")}
             </Text>
             <Text
               style={[
                 s.subtitle,
-                { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.55)" : "#6A6680" },
               ]}
             >
               {t("teamInviteSubtitle")}
@@ -474,7 +474,7 @@ export default function TeamInviteScreen() {
                     height: 4,
                     backgroundColor:
                       i < currentStep
-                        ? "#10B981"
+                        ? "#13976C"
                         : i === currentStep
                           ? r.color
                           : isDark
@@ -504,14 +504,14 @@ export default function TeamInviteScreen() {
             </View>
             <View style={{ gap: 4 }}>
               <Text
-                style={[s.roleName, { color: isDark ? "#E8F0FE" : "#0A1628" }]}
+                style={[s.roleName, { color: isDark ? "#EEEBFC" : "#120F2C" }]}
               >
                 {roleLabel(role)}
               </Text>
               <Text
                 style={[
                   s.roleDesc,
-                  { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" },
+                  { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" },
                 ]}
               >
                 {roleDescription(role)}
@@ -521,7 +521,7 @@ export default function TeamInviteScreen() {
             <Text
               style={[
                 s.stepCounter,
-                { color: isDark ? "rgba(232,240,254,0.35)" : "#94A3B8" },
+                { color: isDark ? "rgba(232,240,254,0.35)" : "#A6A1BE" },
               ]}
             >
               {currentStep + 1}/{ROLES.length}
@@ -536,15 +536,15 @@ export default function TeamInviteScreen() {
                   key={roleId}
                   style={[
                     s.invitedChip,
-                    { backgroundColor: "#10B98115", borderColor: "#10B981" },
+                    { backgroundColor: "#13976C15", borderColor: "#13976C" },
                   ]}
                 >
-                  <Feather name="check" size={11} color="#10B981" />
+                  <Feather name="check" size={11} color="#13976C" />
                   <Text
                     style={{
                       fontFamily: "Inter_500Medium",
                       fontSize: 11,
-                      color: "#10B981",
+                      color: "#13976C",
                     }}
                   >
                     {roleLabel(
@@ -597,7 +597,7 @@ export default function TeamInviteScreen() {
               />
               {errors[currentStep] ? (
                 <View style={s.formError}>
-                  <Feather name="alert-circle" size={13} color="#EF4444" />
+                  <Feather name="alert-circle" size={13} color="#C8323C" />
                   <Text style={s.formErrorText}>{errors[currentStep]}</Text>
                 </View>
               ) : null}
@@ -619,12 +619,12 @@ export default function TeamInviteScreen() {
               <Feather
                 name="skip-forward"
                 size={20}
-                color={isDark ? "rgba(232,240,254,0.3)" : "#94A3B8"}
+                color={isDark ? "rgba(232,240,254,0.3)" : "#A6A1BE"}
               />
               <Text
                 style={[
                   s.skippedText,
-                  { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" },
+                  { color: isDark ? "rgba(232,240,254,0.4)" : "#A6A1BE" },
                 ]}
               >
                 {t("teamInviteSkipped").replace("{role}", roleLabel(role))}
@@ -646,7 +646,7 @@ export default function TeamInviteScreen() {
             <Text
               style={[
                 s.infoText,
-                { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" },
+                { color: isDark ? "rgba(232,240,254,0.6)" : "#4D4964" },
               ]}
             >
               {t("teamInviteInfo")}
@@ -702,7 +702,7 @@ export default function TeamInviteScreen() {
                 <Text
                   style={[
                     s.skipBtnText,
-                    { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" },
+                    { color: isDark ? "rgba(232,240,254,0.45)" : "#A6A1BE" },
                   ]}
                 >
                   {t("teamInviteSkipRole")}
@@ -735,7 +735,7 @@ export default function TeamInviteScreen() {
             <Text
               style={[
                 s.earlyExitText,
-                { color: isDark ? "rgba(232,240,254,0.25)" : "#CBD5E1" },
+                { color: isDark ? "rgba(232,240,254,0.25)" : "#D3CBBE" },
               ]}
             >
               {t("teamInviteLater")}
@@ -752,7 +752,7 @@ export default function TeamInviteScreen() {
 const s = StyleSheet.create({
   root: { flex: 1 },
 
-  title: { fontFamily: "Inter_700Bold", fontSize: 28, letterSpacing: -0.3 },
+  title: { fontFamily: "Fraunces_600SemiBold", fontSize: 28 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
 
   progressRow: { flexDirection: "row", gap: 6 },
@@ -804,7 +804,7 @@ const s = StyleSheet.create({
     flex: 1,
   },
   errorRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  errorText: { fontFamily: "Inter_400Regular", fontSize: 12, color: "#EF4444" },
+  errorText: { fontFamily: "Inter_400Regular", fontSize: 12, color: "#C8323C" },
 
   formError: {
     flexDirection: "row",
@@ -812,14 +812,14 @@ const s = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 10,
-    backgroundColor: "#EF444412",
-    borderColor: "#EF4444",
+    backgroundColor: "#C8323C12",
+    borderColor: "#C8323C",
     borderWidth: 1,
   },
   formErrorText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "#EF4444",
+    color: "#C8323C",
     flex: 1,
   },
 
@@ -860,7 +860,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.25, radius: 10, elevation: 5 }),
+    ...crossPlatformShadow({ color: "#5A4AD6", offsetY: 4, opacity: 0.25, radius: 10, elevation: 5 }),
   },
   ctaBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 
@@ -885,10 +885,9 @@ const s = StyleSheet.create({
     marginTop: 20,
   },
   doneTitle: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     fontSize: 28,
     textAlign: "center",
-    letterSpacing: -0.3,
   },
   doneSub: {
     fontFamily: "Inter_400Regular",

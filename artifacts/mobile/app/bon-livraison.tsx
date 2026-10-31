@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -21,6 +21,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { localDate } from "@/lib/localDate";
 
 type FilterType = "all" | "sortie" | "entree";
 
@@ -87,10 +88,10 @@ function formatDate(value: string, lang: Language) {
 }
 
 const STATUS_CONFIG: Record<BonLivraison["status"], { key: keyof typeof STRINGS; color: string }> = {
-  draft: { key: "statusDraft", color: "#6b7280" },
-  sent: { key: "statusSent", color: "#3b82f6" },
-  delivered: { key: "statusDelivered", color: "#10b981" },
-  cancelled: { key: "statusCancelled", color: "#ef4444" },
+  draft: { key: "statusDraft", color: "#6A6680" },
+  sent: { key: "statusSent", color: "#5A4AD6" },
+  delivered: { key: "statusDelivered", color: "#13976C" },
+  cancelled: { key: "statusCancelled", color: "#C8323C" },
 };
 
 export default function BonLivraisonScreen() {
@@ -120,30 +121,33 @@ export default function BonLivraisonScreen() {
   const totalEntree = bonsLivraison.filter((b) => b.type === "entree" && b.status === "delivered").reduce((s, b) => s + b.total, 0);
   const pending = bonsLivraison.filter((b) => b.status === "draft" || b.status === "sent").length;
 
-  const handleAdd = () => {
-    if (!newRecipient.trim() || !newItemLabel.trim() || !newItemPrice.trim()) return;
+  const [savingBl, setSavingBl] = useState(false);
+  const handleAdd = async () => {
+    if (!newRecipient.trim() || !newItemLabel.trim() || !newItemPrice.trim() || savingBl) return;
     const qty = parseInt(newItemQty) || 1;
-    const price = parseFloat(newItemPrice) || 0;
-    const total = qty * price;
-    const count = bonsLivraison.length + 1;
+    const price = parseFloat(newItemPrice.replace(",", ".")) || 0;
     const newBl: BonLivraison = {
-      id: `bl${Date.now()}`,
-      reference: `BL-2026-00${count}`,
+      id: "",
+      // allocated by the server (BL-<year>-<n>)
+      reference: "",
       recipient: newRecipient.trim(),
-      date: new Date().toISOString().slice(0, 10),
+      date: localDate(),
       items: [{ label: newItemLabel.trim(), quantity: qty, unitPrice: price }],
-      total,
+      total: Math.round(qty * price * 100) / 100,
       status: "draft",
       type: newType,
     };
-    addBonLivraison(newBl);
+    setSavingBl(true);
+    const saved = await addBonLivraison(newBl);
+    setSavingBl(false);
+    if (!saved) return; // the error is shown by the data layer
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAdd(false);
     setNewRecipient(""); setNewItemLabel(""); setNewItemQty("1"); setNewItemPrice("");
     showToast({
       type: "success",
       title: localize("createdTitle", lang),
-      message: localize("createdMessage", lang, { reference: newBl.reference }),
+      message: localize("createdMessage", lang, { reference: saved.reference }),
     });
   };
 
@@ -166,8 +170,9 @@ export default function BonLivraisonScreen() {
       { text: localize("cancel", lang), style: "cancel" },
       {
         text: localize("confirm", lang),
-        onPress: () => {
-          updateBonLivraisonStatus(bl.id, next);
+        onPress: async () => {
+          const ok = await updateBonLivraisonStatus(bl.id, next);
+          if (!ok) return;
           setSelected(null);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
@@ -177,7 +182,7 @@ export default function BonLivraisonScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -198,9 +203,9 @@ export default function BonLivraisonScreen() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: localize("outgoingDelivered", lang), value: formatMoney(totalSortie, lang), icon: "arrow-up-right" as const, color: "#ef4444" },
-          { label: localize("incomingReceived", lang), value: formatMoney(totalEntree, lang), icon: "arrow-down-left" as const, color: "#10b981" },
-          { label: localize("pending", lang), value: `${pending} BL`, icon: "clock" as const, color: "#f59e0b" },
+          { label: localize("outgoingDelivered", lang), value: formatMoney(totalSortie, lang), icon: "arrow-up-right" as const, color: colors.danger },
+          { label: localize("incomingReceived", lang), value: formatMoney(totalEntree, lang), icon: "arrow-down-left" as const, color: colors.success },
+          { label: localize("pending", lang), value: `${pending} BL`, icon: "clock" as const, color: colors.warning },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
             <View style={[styles.statIcon, { backgroundColor: s.color + "18" }]}>
@@ -258,18 +263,18 @@ export default function BonLivraisonScreen() {
               onPress={() => { setSelected(bl); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               activeOpacity={0.8}
             >
-              <View style={[styles.blTypeIcon, { backgroundColor: (isOut ? "#ef4444" : "#10b981") + "15" }]}>
+              <View style={[styles.blTypeIcon, { backgroundColor: (isOut ? colors.danger : colors.success) + "15" }]}>
                 <Feather
                   name={isOut ? "arrow-up-right" : "arrow-down-left"}
                   size={20}
-                  color={isOut ? "#ef4444" : "#10b981"}
+                  color={isOut ? colors.danger : colors.success}
                 />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={styles.blRefRow}>
                   <Text style={[styles.blRef, { color: colors.foreground }]}>{bl.reference}</Text>
-                  <View style={[styles.blTypeBadge, { backgroundColor: (isOut ? "#ef4444" : "#10b981") + "15" }]}>
-                    <Text style={[styles.blTypeBadgeText, { color: isOut ? "#ef4444" : "#10b981" }]}>
+                  <View style={[styles.blTypeBadge, { backgroundColor: (isOut ? colors.danger : colors.success) + "15" }]}>
+                    <Text style={[styles.blTypeBadgeText, { color: isOut ? colors.danger : colors.success }]}>
                        {isOut ? localize("outgoing", lang) : localize("incoming", lang)}
                     </Text>
                   </View>
@@ -309,8 +314,8 @@ export default function BonLivraisonScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.detailRef, { color: colors.foreground }]}>{selected.reference}</Text>
                   <View style={styles.detailTypRow}>
-                    <View style={[styles.blTypeBadge, { backgroundColor: (selected.type === "sortie" ? "#ef4444" : "#10b981") + "15" }]}>
-                      <Text style={[styles.blTypeBadgeText, { color: selected.type === "sortie" ? "#ef4444" : "#10b981" }]}>
+                    <View style={[styles.blTypeBadge, { backgroundColor: (selected.type === "sortie" ? colors.danger : colors.success) + "15" }]}>
+                      <Text style={[styles.blTypeBadgeText, { color: selected.type === "sortie" ? colors.danger : colors.success }]}>
                          {selected.type === "sortie" ? localize("outgoing", lang) : localize("incoming", lang)}
                       </Text>
                     </View>
@@ -351,7 +356,7 @@ export default function BonLivraisonScreen() {
 
               <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
                  <Text style={[styles.totalLabel, { color: colors.foreground }]}>{localize("total", lang)}</Text>
-                <Text style={[styles.totalAmount, { color: colors.primary }]}>
+                <Text style={[styles.totalAmount, { color: colors.tint }]}>
                    {formatMoney(selected.total, lang)}
                 </Text>
               </View>
@@ -408,8 +413,8 @@ export default function BonLivraisonScreen() {
                     style={[
                       styles.typeChip,
                       {
-                        backgroundColor: newType === t ? (t === "sortie" ? "#ef4444" : "#10b981") : colors.background,
-                        borderColor: newType === t ? (t === "sortie" ? "#ef4444" : "#10b981") : colors.border,
+                        backgroundColor: newType === t ? (t === "sortie" ? colors.danger : colors.success) : colors.background,
+                        borderColor: newType === t ? (t === "sortie" ? colors.danger : colors.success) : colors.border,
                       },
                     ]}
                     onPress={() => setNewType(t)}
@@ -465,7 +470,7 @@ export default function BonLivraisonScreen() {
 
               {newItemQty && newItemPrice ? (
                 <View style={[styles.previewTotal, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-                  <Text style={[styles.previewTotalText, { color: colors.primary }]}>
+                  <Text style={[styles.previewTotalText, { color: colors.tint }]}>
                      {localize("estimatedTotal", lang)}: {formatMoney((parseInt(newItemQty) || 0) * (parseFloat(newItemPrice) || 0), lang)}
                   </Text>
                 </View>
@@ -505,7 +510,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
   addBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", borderBottomWidth: 1 },
@@ -540,7 +545,7 @@ const styles = StyleSheet.create({
   emptyBox: { alignItems: "center", gap: 12, paddingVertical: 60 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#d1d5db", alignSelf: "center", marginBottom: 16 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D3CBBE", alignSelf: "center", marginBottom: 16 },
   detailModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 14, maxHeight: "90%" },
   detailHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
   detailRef: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 6 },
@@ -556,7 +561,7 @@ const styles = StyleSheet.create({
   itemPrice: { fontSize: 13, fontFamily: "Inter_700Bold", minWidth: 80, textAlign: "right" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1 },
   totalLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  totalAmount: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  totalAmount: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   actionBtns: { flexDirection: "row", gap: 12 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },

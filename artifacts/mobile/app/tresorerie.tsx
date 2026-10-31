@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -64,6 +64,14 @@ const S = {
   rib: { fr: "RIB (24 chiffres)", en: "RIB (24 digits)", ar: "رقم RIB (24 رقماً)", es: "RIB (24 dígitos)" },
   opening: { fr: "Solde d'ouverture (MAD)", en: "Opening balance (MAD)", ar: "الرصيد الافتتاحي (درهم)", es: "Saldo inicial (MAD)" },
   save: { fr: "Enregistrer", en: "Save", ar: "حفظ", es: "Guardar" },
+  makeDefault: { fr: "Compte par défaut", en: "Make default", ar: "جعله الحساب الافتراضي", es: "Cuenta predeterminada" },
+  makeDefaultTitle: { fr: "Utiliser ce compte par défaut ?", en: "Use this account by default?", ar: "استعمال هذا الحساب افتراضيًا؟", es: "¿Usar esta cuenta por defecto?" },
+  makeDefaultBody: { fr: "Son RIB sera affiché aux copropriétaires pour leurs virements et imprimé sur les appels de fonds.", en: "Its RIB will be shown to co-owners for their transfers and printed on calls for funds.", ar: "سيُعرض رقم RIB الخاص به على المالكين لتحويلاتهم ويُطبع على نداءات الأموال.", es: "Su RIB se mostrará a los copropietarios para sus transferencias y se imprimirá en las derramas." },
+  closeAccount: { fr: "Clôturer", en: "Close", ar: "إغلاق", es: "Cerrar" },
+  closeTitle: { fr: "Clôturer ce compte ?", en: "Close this account?", ar: "إغلاق هذا الحساب؟", es: "¿Cerrar esta cuenta?" },
+  closeBody: { fr: "Il ne recevra plus d'écritures. Son historique est conservé. Pour changer de RIB, ouvrez le nouveau compte puis clôturez l'ancien.", en: "It will receive no more entries. Its history is kept. To change the RIB, open the new account, then close the old one.", ar: "لن يتلقى أي قيود بعد الآن، ويُحتفظ بسجله. لتغيير RIB، افتح الحساب الجديد ثم أغلق القديم.", es: "No recibirá más asientos. Su historial se conserva. Para cambiar de RIB, abra la nueva cuenta y luego cierre la antigua." },
+  defaultSet: { fr: "Compte par défaut modifié", en: "Default account changed", ar: "تم تغيير الحساب الافتراضي", es: "Cuenta predeterminada cambiada" },
+  accountClosed: { fr: "Compte clôturé", en: "Account closed", ar: "تم إغلاق الحساب", es: "Cuenta cerrada" },
   cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
   from: { fr: "Depuis", en: "From", ar: "من", es: "Desde" },
   to: { fr: "Vers", en: "To", ar: "إلى", es: "Hacia" },
@@ -207,7 +215,9 @@ function TresorerieInner() {
   const canWrite = user?.role === "syndicate_admin" || user?.role === "treasurer";
   const canApprove = user?.role === "syndicate_admin" || user?.role === "president";
 
-  const [tab, setTab] = useState("accounts");
+  // A notification may open a given tab (e.g. ?tab=expenses).
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState(params.tab && ["accounts", "journal", "expenses", "reconciliation"].includes(params.tab) ? params.tab : "accounts");
   const [accounts, setAccounts] = useState<any[]>([]);
   const [journal, setJournal] = useState<{ data: any[]; totals?: any }>({ data: [] });
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -446,7 +456,7 @@ function TresorerieInner() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScreenHeader title={tr("title")} subtitle={`${tr("balance")} : ${mad(totalBalance, L)}`} color="#0f766e" />
+      <ScreenHeader title={tr("title")} subtitle={`${tr("balance")} : ${mad(totalBalance, L)}`} color={colors.teal} />
       <FilterChips
         options={[
           { key: "accounts", label: tr("accounts") },
@@ -456,14 +466,14 @@ function TresorerieInner() {
         ]}
         value={tab}
         onChange={setTab}
-        accentColor="#0f766e"
+       
       />
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#0f766e" />
+          <ActivityIndicator color={colors.teal} />
         </View>
       ) : loadError ? (
-        <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setLoading(true); load(); }} accentColor="#0f766e" />
+        <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setLoading(true); load(); }} />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
@@ -478,7 +488,7 @@ function TresorerieInner() {
                     <Btn busy={busy}
                       label={tr("transfer")}
                       icon="repeat"
-                      color="#0f766e"
+                      color={colors.teal}
                       onPress={() => {
                         idemKey.current = newKey("transfer");
                         setTransferForm({ fromAccountId: "", toAccountId: "", amount: "" });
@@ -494,7 +504,7 @@ function TresorerieInner() {
                 accounts.map((a) => (
                   <View key={a.id} style={[styles.card, card, a.status !== "active" && { opacity: 0.55 }]}>
                     <View style={styles.row}>
-                      <Feather name={a.kind === "bank" ? "briefcase" : "dollar-sign"} size={18} color="#0f766e" />
+                      <Feather name={a.kind === "bank" ? "briefcase" : "dollar-sign"} size={18} color={colors.teal} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitle, { color: colors.foreground }]}>
                           {a.label}{a.isDefault ? " ★" : ""}
@@ -503,12 +513,42 @@ function TresorerieInner() {
                           {a.kind === "bank" ? `${a.bankName ?? tr("bank")} · ${a.ribMasked ?? ""}` : tr("cash")}
                         </Text>
                       </View>
-                      <Text style={[styles.amount, { color: Number(a.balance) < 0 ? "#ef4444" : colors.foreground }]}>{mad(a.balance, L)}</Text>
+                      <Text style={[styles.amount, { color: Number(a.balance) < 0 ? colors.danger : colors.foreground }]}>{mad(a.balance, L)}</Text>
                     </View>
                     <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
                       {tr("inflow")} {mad(a.inflow, L)} · {tr("outflow")} {mad(a.outflow, L)}
                       {a.unreconciledEntries ? ` · ${a.unreconciledEntries} ${tr("toMatch").toLowerCase()}` : ""}
                     </Text>
+                    {canWrite && a.status === "active" ? (
+                      <View style={{ flexDirection: "row", gap: 16, marginTop: 6 }}>
+                        {!a.isDefault ? (
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            disabled={busy}
+                            onPress={() =>
+                              Alert.alert(tr("makeDefaultTitle"), tr("makeDefaultBody"), [
+                                { text: tr("cancel"), style: "cancel" },
+                                { text: tr("makeDefault"), onPress: () => run(() => apiRequest(`/treasury/accounts/${a.id}`, "PATCH", { isDefault: true }), tr("defaultSet")) },
+                              ])
+                            }
+                          >
+                            <Text style={{ color: colors.tint, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>★ {tr("makeDefault")}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          disabled={busy}
+                          onPress={() =>
+                            Alert.alert(tr("closeTitle"), tr("closeBody"), [
+                              { text: tr("cancel"), style: "cancel" },
+                              { text: tr("closeAccount"), style: "destructive", onPress: () => run(() => apiRequest(`/treasury/accounts/${a.id}`, "PATCH", { status: "closed" }), tr("accountClosed")) },
+                            ])
+                          }
+                        >
+                          <Text style={{ color: colors.danger, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{tr("closeAccount")}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                   </View>
                 ))
               )}
@@ -547,11 +587,11 @@ function TresorerieInner() {
                         <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
                           {e.entryNumber} · {e.entryDate} · {e.accountLabel}
                         </Text>
-                        <Text style={[styles.cardSub, { color: e.reversedBy ? "#6b7280" : e.reconciliation === "reconciled" ? "#10b981" : colors.mutedForeground }]}>
+                        <Text style={[styles.cardSub, { color: e.reversedBy ? colors.mutedForeground : e.reconciliation === "reconciled" ? colors.success : colors.mutedForeground }]}>
                           {e.reversedBy ? `${tr("reversed")} (${e.reversedBy})` : e.reconciliation === "reconciled" ? tr("reconciled") : ""}
                         </Text>
                       </View>
-                      <Text style={[styles.amount, { color: e.direction === "in" ? "#10b981" : "#ef4444" }]}>
+                      <Text style={[styles.amount, { color: e.direction === "in" ? colors.success : colors.danger }]}>
                         {e.direction === "in" ? "+" : "−"}{mad(e.amount, L)}
                       </Text>
                     </View>
@@ -597,7 +637,7 @@ function TresorerieInner() {
                         <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
                           {x.reference} · {x.supplierName ?? x.prestataireName ?? "—"} · {x.category}
                         </Text>
-                        <Text style={[styles.cardSub, { color: x.status === "paid" ? "#10b981" : x.status === "rejected" || x.status === "cancelled" ? "#ef4444" : "#f59e0b" }]}>
+                        <Text style={[styles.cardSub, { color: x.status === "paid" ? colors.success : x.status === "rejected" || x.status === "cancelled" ? colors.danger : colors.warning }]}>
                           {tr(`st_${x.status}` as keyof typeof S)}
                           {x.rejectionReason ? ` — ${x.rejectionReason}` : ""}
                         </Text>
@@ -607,21 +647,21 @@ function TresorerieInner() {
                     <View style={styles.row}>
                       <TouchableOpacity onPress={() => openFile(x.proofUrl)} style={styles.link}>
                         <Feather name="file-text" size={13} color={colors.primary} />
-                        <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("viewInvoice")}</Text>
+                        <Text style={{ color: colors.tint, fontSize: 12 }}>{tr("viewInvoice")}</Text>
                       </TouchableOpacity>
                       {canWrite && x.status === "draft" && (
                         <Btn busy={busy} label={tr("submit")} color={colors.primary} onPress={() => run(() => apiRequest(`/expenses/${x.id}/submit`, "POST"))} />
                       )}
                       {canApprove && x.status === "submitted" && (
                         <>
-                          <Btn busy={busy} label={tr("approve")} color="#10b981" onPress={() => run(() => apiRequest(`/expenses/${x.id}/approve`, "POST"))} />
-                          <Btn busy={busy} label={tr("reject")} color="#ef4444" onPress={() => { setRejectTarget(x); setReason(""); }} />
+                          <Btn busy={busy} label={tr("approve")} color={colors.success} onPress={() => run(() => apiRequest(`/expenses/${x.id}/approve`, "POST"))} />
+                          <Btn busy={busy} label={tr("reject")} color={colors.danger} onPress={() => { setRejectTarget(x); setReason(""); }} />
                         </>
                       )}
                       {canWrite && x.status === "approved" && (
                         <Btn busy={busy}
                           label={tr("pay")}
-                          color="#0f766e"
+                          color={colors.teal}
                           onPress={() => {
                             setPayForm({ paymentMethod: "virement", paymentReference: "", accountId: "" });
                             setPayTarget(x);
@@ -647,7 +687,7 @@ function TresorerieInner() {
                     onChange={(k) => { setBankId(k); setLoading(true); }}
                     options={activeAccounts.filter((a) => a.kind === "bank").map((a) => ({ key: a.id, label: a.label }))}
                   />
-                  <Btn busy={busy} color="#0f766e" label={tr("statements")} icon="book-open" onPress={() => router.push({ pathname: "/releves", params: { accountId: bankId } } as any)} />
+                  <Btn busy={busy} color={colors.teal} label={tr("statements")} icon="book-open" onPress={() => router.push({ pathname: "/releves", params: { accountId: bankId } } as any)} />
                   {canWrite && <Btn busy={busy} color={colors.primary} label={tr("importStatement")} icon="upload" onPress={() => setImportModal(true)} />}
                   {lines.length === 0 ? (
                     <Text style={[styles.empty, { color: colors.mutedForeground }]}>{tr("empty")}</Text>
@@ -660,9 +700,9 @@ function TresorerieInner() {
                             <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
                               {l.valueDate}{l.reference ? ` · ${l.reference}` : ""} · {tr(`ln_${l.status}` as keyof typeof S)}
                             </Text>
-                            {l.note ? <Text style={[styles.cardSub, { color: "#ef4444" }]}>{l.note}</Text> : null}
+                            {l.note ? <Text style={[styles.cardSub, { color: colors.danger }]}>{l.note}</Text> : null}
                           </View>
-                          <Text style={[styles.amount, { color: Number(l.amount) > 0 ? "#10b981" : "#ef4444" }]}>{mad(l.amount, L)}</Text>
+                          <Text style={[styles.amount, { color: Number(l.amount) > 0 ? colors.success : colors.danger }]}>{mad(l.amount, L)}</Text>
                         </View>
                       </TouchableOpacity>
                     ))
@@ -708,7 +748,7 @@ function TresorerieInner() {
         )}
         <Chips colors={colors} value={reverseKind} onChange={(k) => setReverseKind(k as "reversal" | "refund")} options={[{ key: "reversal", label: tr("kindReversal") }, { key: "refund", label: tr("kindRefund") }]} />
         <TextInput style={[...input, { minHeight: 80 }]} multiline placeholder={tr("reverseReason")} placeholderTextColor={colors.mutedForeground} value={reason} onChangeText={setReason} />
-        <Btn busy={busy} label={tr("reverse")} color="#ef4444" icon="rotate-ccw" onPress={submitReverse} />
+        <Btn busy={busy} label={tr("reverse")} color={colors.danger} icon="rotate-ccw" onPress={submitReverse} />
       </Sheet>
 
       {/* New expense */}
@@ -720,11 +760,11 @@ function TresorerieInner() {
         <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>{tr("category")}</Text>
         <Chips colors={colors} value={expenseForm.category} onChange={(k) => setExpenseForm((f) => ({ ...f, category: k }))} options={EXPENSE_CATEGORIES.map((c) => ({ key: c, label: c.replace(/_/g, " ") }))} />
         <TouchableOpacity style={[styles.card, card, styles.row]} onPress={attachInvoice}>
-          <Feather name={expenseForm.proofUrl ? "check-circle" : "paperclip"} size={16} color={expenseForm.proofUrl ? "#10b981" : colors.primary} />
+          <Feather name={expenseForm.proofUrl ? "check-circle" : "paperclip"} size={16} color={expenseForm.proofUrl ? colors.success : colors.primary} />
           <Text style={{ color: colors.foreground }}>{expenseForm.proofUrl ? tr("invoiceAttached") : tr("attachInvoice")}</Text>
         </TouchableOpacity>
         <Btn busy={busy} color={colors.primary} label={tr("submitForApproval")} icon="send" onPress={() => submitExpense(false)} />
-        <Btn busy={busy} color="#64748b" label={tr("saveDraft")} icon="edit-3" onPress={() => submitExpense(true)} />
+        <Btn busy={busy} color="#6A6680" label={tr("saveDraft")} icon="edit-3" onPress={() => submitExpense(true)} />
       </Sheet>
 
       {/* Pay an approved expense */}
@@ -747,13 +787,13 @@ function TresorerieInner() {
         )}
         <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>{tr("account")}</Text>
         <Chips colors={colors} value={payForm.accountId} onChange={(k) => setPayForm((f) => ({ ...f, accountId: k }))} options={accountOptions} />
-        <Btn busy={busy} label={tr("pay")} icon="check" color="#0f766e" onPress={submitPay} />
+        <Btn busy={busy} label={tr("pay")} icon="check" color={colors.teal} onPress={submitPay} />
       </Sheet>
 
       {/* Reject an expense */}
       <Sheet colors={colors} bottomInset={insets.bottom} closeLabel={tr("cancel")} visible={!!rejectTarget} title={tr("reject")} onClose={() => setRejectTarget(null)}>
         <TextInput style={[...input, { minHeight: 80 }]} multiline placeholder={tr("reverseReason")} placeholderTextColor={colors.mutedForeground} value={reason} onChangeText={setReason} />
-        <Btn busy={busy} label={tr("reject")} color="#ef4444" onPress={submitReject} />
+        <Btn busy={busy} label={tr("reject")} color={colors.danger} onPress={submitReject} />
       </Sheet>
 
       {/* Import a bank statement */}
@@ -794,7 +834,7 @@ function TresorerieInner() {
         <TextInput style={[...input, { minHeight: 70 }]} multiline placeholder={tr("anomalyNote")} placeholderTextColor={colors.mutedForeground} value={reason} onChangeText={setReason} />
         <Btn busy={busy}
           label={tr("anomaly")}
-          color="#f59e0b"
+          color={colors.warning}
           icon="alert-triangle"
           onPress={async () => {
             if (!lineTarget || reason.trim().length < 3) {

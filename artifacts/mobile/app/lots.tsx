@@ -22,7 +22,10 @@ import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import RoleGuard from "@/components/RoleGuard";
-import { ErrorState, LoadingState } from "@/components/DataState";
+import { ErrorState } from "@/components/DataState";
+import EmptyState from "@/components/EmptyState";
+import { Card, SearchField, Skeleton, StatusBadge, toneColors, type StatusTone } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
 // Unit types accepted by the API (routes/lots.ts LOT_TYPES).
@@ -59,21 +62,21 @@ const LOT_TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   local: "box",
 };
 
-const LOT_TYPE_COLORS: Record<string, string> = {
-  appartement: "#2563EB",
-  bureau: "#3b82f6",
-  commerce: "#f59e0b",
-  parking: "#6b7280",
-  cave: "#92400e",
-  local: "#10b981",
+const LOT_TYPE_TONES: Record<string, StatusTone> = {
+  appartement: "primary",
+  bureau: "info",
+  commerce: "warning",
+  parking: "neutral",
+  cave: "neutral",
+  local: "success",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  occupied: "#10b981",
-  rented: "#8b5cf6",
-  vacant: "#f59e0b",
-  for_sale: "#3b82f6",
-  for_rent: "#8b5cf6",
+const STATUS_TONES: Record<string, StatusTone> = {
+  occupied: "success",
+  rented: "info",
+  vacant: "warning",
+  for_sale: "primary",
+  for_rent: "info",
 };
 
 type Lot = {
@@ -102,7 +105,7 @@ function LotsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
-  const { lang, t } = useLanguage();
+  const { lang, t, isRTL } = useLanguage();
   const ls = (k: keyof typeof L_STR) => (L_STR[k] as Record<string, string>)[lang] ?? L_STR[k].fr;
   const canCreate = user?.role === "syndicate_admin" || user?.role === "secretary";
   const { isWide } = useBreakpoints();
@@ -285,334 +288,123 @@ function LotsScreenInner() {
     { key: "archived", label: ls("archived") },
   ];
 
-  // Skeleton loading card
-  const SkeletonCard = () => (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      <View style={styles.cardMain}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            backgroundColor: colors.secondary,
-          }}
-        />
-        <View style={{ flex: 1, gap: 8 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <View
-              style={{
-                height: 15,
-                width: "40%",
-                backgroundColor: colors.secondary,
-                borderRadius: 7,
-              }}
-            />
-            <View
-              style={{
-                height: 18,
-                width: 60,
-                backgroundColor: colors.secondary,
-                borderRadius: 9,
-              }}
-            />
-          </View>
-          <View
-            style={{
-              height: 11,
-              width: "60%",
-              backgroundColor: colors.secondary,
-              borderRadius: 6,
-            }}
-          />
-        </View>
-      </View>
-      <View style={[styles.personRow, { borderTopColor: colors.border }]}>
-        <View
-          style={{
-            height: 12,
-            width: "55%",
-            backgroundColor: colors.secondary,
-            borderRadius: 6,
-          }}
-        />
-      </View>
-      <View style={[styles.chargeRow, { borderTopColor: colors.border }]}>
-        <View
-          style={{
-            height: 12,
-            width: "30%",
-            backgroundColor: colors.secondary,
-            borderRadius: 6,
-          }}
-        />
-        <View
-          style={{
-            height: 22,
-            width: 70,
-            backgroundColor: colors.secondary,
-            borderRadius: 10,
-          }}
-        />
-      </View>
-    </View>
-  );
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatisticsHeader
         title={t("lotsTitle")}
         subtitle={params.buildingName ?? t("allBuildings")}
-        color={colors.primary}
+        action={canCreate ? { icon: "plus", onPress: openCreate, label: ls("create") } : undefined}
         stats={[
-          { label: t("total"), value: stats.total, color: colors.primary },
-          { label: t("lotsOccupied"), value: stats.occupied, color: "#10b981" },
-          { label: t("lotsVacant"), value: stats.vacant, color: "#f59e0b" },
-          { label: t("lotsOverdue"), value: stats.overdue, color: "#ef4444" },
+          { label: t("total"), value: stats.total },
+          { label: t("lotsOccupied"), value: stats.occupied, color: colors.success },
+          { label: t("lotsVacant"), value: stats.vacant, color: colors.warning },
+          { label: t("lotsOverdue"), value: stats.overdue, color: colors.danger },
         ]}
       />
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}>
-        <TextInput
-          style={[formStyles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-          placeholder={ls("search")}
-          placeholderTextColor={colors.mutedForeground}
-          value={query}
-          onChangeText={setQuery}
-          returnKeyType="search"
-          autoCorrect={false}
-        />
-        {canCreate && <ActionButton label={ls("create")} icon="plus" onPress={openCreate} />}
+      <View style={styles.searchWrap}>
+        <SearchField value={query} onChangeText={setQuery} placeholder={ls("search")} />
       </View>
 
-      <FilterChips
-        options={FILTERS}
-        value={filter}
-        onChange={setFilter}
-        accentColor={colors.primary}
-      />
+      <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
 
       {loading ? (
-        <LoadingState
-          title={t("lotsLoadingTitle")}
-          description={t("lotsLoadingDescription")}
-          accentColor={colors.primary}
-        />
+        <View style={styles.list}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={[styles.card, styles.skeletonCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Skeleton width={44} height={44} radius={12} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Skeleton width="45%" height={14} />
+                <Skeleton width="70%" height={11} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : loadError ? (
         <ErrorState
           title={t("lotsUnavailableTitle")}
           description={t("lotsUnavailableDescription")}
           retryLabel={t("retry")}
           onRetry={() => void load()}
-          accentColor={colors.primary}
         />
       ) : (
         <ScrollView
           contentContainerStyle={[
-            styles.list,
-            { paddingBottom: isWide ? 32 : insets.bottom + 100 },
+            filtered.length === 0 ? { flexGrow: 1 } : styles.list,
+            { paddingBottom: isWide ? 32 : insets.bottom + 32 },
           ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {filtered.length === 0 ? (
-            <View style={styles.empty}>
-              <Feather name="grid" size={36} color={colors.mutedForeground} />
-              <Text
-                style={[styles.emptyText, { color: colors.mutedForeground }]}
-              >
-                {t("noLotsFound")}
-              </Text>
-              <Text
-                style={[styles.emptyHint, { color: colors.mutedForeground }]}
-              >
-                {t("noLots")}
-              </Text>
-            </View>
+            <EmptyState
+              icon="grid"
+              title={t("noLotsFound")}
+              description={t("noLots")}
+              actionLabel={canCreate && !debouncedQuery && filter === "all" ? ls("create") : undefined}
+              onAction={canCreate && !debouncedQuery && filter === "all" ? openCreate : undefined}
+            />
           ) : (
             filtered.map((lot) => {
-              const tc = LOT_TYPE_COLORS[lot.type] ?? "#6b7280";
+              const typeT = LOT_TYPE_TONES[lot.type] ?? "neutral";
+              const tc = toneColors(colors, typeT);
               const ti = LOT_TYPE_ICONS[lot.type] ?? "home";
-              const sc = STATUS_COLORS[lot.status] ?? "#6b7280";
               const hasOverdue = (lot.chargeStats?.overdue ?? 0) > 0;
               const pendingAmt = lot.chargeStats?.pendingAmount ?? 0;
+              const details = [
+                getLotTypeLabel(lot.type),
+                !FLOORLESS.has(lot.type) && lot.floor != null ? `${t("floor")} ${lot.floor}` : null,
+                lot.surfaceM2 ? `${lot.surfaceM2} m²` : null,
+              ].filter(Boolean).join(" · ");
 
               return (
-                <TouchableOpacity
+                <Card
                   key={lot.id}
-                  style={[
-                    styles.card,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: hasOverdue ? "#ef444440" : colors.border,
-                    },
-                  ]}
+                  padding="none"
+                  accessibilityLabel={`${t("lotLabel")} ${lot.number}, ${details}`}
+                  style={hasOverdue ? { borderColor: colors.danger + "55" } : undefined}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Haptics.selectionAsync().catch(() => {});
                     router.push({ pathname: "/lot-detail", params: { id: lot.id } } as any);
                   }}
-                  activeOpacity={0.8}
                 >
                   <View style={styles.cardMain}>
-                    <View
-                      style={[styles.lotIcon, { backgroundColor: tc + "18" }]}
-                    >
-                      <Feather name={ti} size={20} color={tc} />
+                    <View style={[styles.lotIcon, { backgroundColor: tc.bg }]}>
+                      <Feather name={ti} size={20} color={tc.fg} />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.cardRow}>
-                        <Text
-                          style={[
-                            styles.lotNumber,
-                            { color: colors.foreground },
-                          ]}
-                        >
-                          {t("lotLabel")} {lot.number}
-                        </Text>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            { backgroundColor: sc + "18" },
-                          ]}
-                        >
-                          <Text style={[styles.statusText, { color: sc }]}>
-                            {getStatusLabel(lot.status)}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={[
-                          styles.lotType,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        {getLotTypeLabel(lot.type)} — {t("floor")} {lot.floor}
-                        {lot.surfaceM2 ? ` — ${lot.surfaceM2} m²` : ""}
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                      <Text style={[TYPE.subtitle, { color: colors.foreground }]} numberOfLines={1}>
+                        {t("lotLabel")} {lot.number}
+                      </Text>
+                      <Text style={[TYPE.secondary, { color: colors.textMuted }]} numberOfLines={1}>
+                        {details}
                       </Text>
                     </View>
+                    <StatusBadge label={getStatusLabel(lot.status)} tone={STATUS_TONES[lot.status] ?? "neutral"} />
                   </View>
 
-                  {/* Owner / Tenant */}
-                  <View
-                    style={[
-                      styles.personRow,
-                      { borderTopColor: colors.border },
-                    ]}
-                  >
-                    {lot.owner ? (
-                      <View style={styles.personCell}>
-                        <Feather name="user" size={13} color={colors.primary} />
-                        <Text
-                          style={[
-                            styles.personLabel,
-                            { color: colors.mutedForeground },
-                          ]}
-                        >
-                          {t("ownerLabel")}:{" "}
-                          <Text
-                            style={{
-                              color: colors.foreground,
-                              fontFamily: "Inter_500Medium",
-                            }}
-                          >
-                            {lot.owner.name}
-                          </Text>
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.personCell}>
-                        <Feather name="user-x" size={13} color="#f59e0b" />
-                        <Text
-                          style={[styles.personLabel, { color: "#f59e0b" }]}
-                        >
-                          {t("noOwnerRegistered")}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Charge status */}
-                  <View
-                    style={[
-                      styles.chargeRow,
-                      { borderTopColor: colors.border },
-                    ]}
-                  >
-                    <View style={styles.chargeInfo}>
-                      <Feather
-                        name="percent"
-                        size={12}
-                        color={colors.mutedForeground}
-                      />
-                      <Text
-                        style={[
-                          styles.chargeText,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        {lot.tantiemes} ‰ ({t("tantiemes").toLowerCase()})
+                  <View style={[styles.cardFoot, { borderTopColor: colors.border }]}>
+                    <View style={styles.footCell}>
+                      <Feather name={lot.owner ? "user" : "user-x"} size={13} color={lot.owner ? colors.textMuted : colors.warning} />
+                      <Text style={[TYPE.caption, { color: lot.owner ? colors.textSecondary : colors.warningText, flexShrink: 1 }]} numberOfLines={1}>
+                        {lot.owner ? lot.owner.name : t("noOwnerRegistered")}
                       </Text>
                     </View>
+                    <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+                      {lot.tantiemes} {t("tantiemes").toLowerCase()}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.cardFoot, { borderTopColor: colors.border }]}>
                     {pendingAmt > 0 ? (
-                      <View
-                        style={[
-                          styles.amtBadge,
-                          {
-                            backgroundColor: hasOverdue
-                              ? "#ef444418"
-                              : "#f59e0b18",
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name="alert-circle"
-                          size={11}
-                          color={hasOverdue ? "#ef4444" : "#f59e0b"}
-                        />
-                        <Text
-                          style={[
-                            styles.amtText,
-                            { color: hasOverdue ? "#ef4444" : "#f59e0b" },
-                          ]}
-                        >
-                          {formatMad(pendingAmt)} {t("amountDue").toLowerCase()}
-                        </Text>
-                      </View>
+                      <StatusBadge label={`${formatMad(pendingAmt)} — ${t("amountDue").toLowerCase()}`} tone={hasOverdue ? "danger" : "warning"} icon="alert-circle" />
                     ) : (
-                      <View
-                        style={[
-                          styles.amtBadge,
-                          { backgroundColor: "#10b98118" },
-                        ]}
-                      >
-                        <Feather
-                          name="check-circle"
-                          size={11}
-                          color="#10b981"
-                        />
-                        <Text style={[styles.amtText, { color: "#10b981" }]}>
-                          {t("upToDate")}
-                        </Text>
-                      </View>
+                      <StatusBadge label={t("upToDate")} tone="success" />
                     )}
+                    <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={colors.textMuted} />
                   </View>
-                </TouchableOpacity>
+                </Card>
               );
             })
           )}
@@ -624,15 +416,15 @@ function LotsScreenInner() {
         <FieldLabel label={ls("building")} error={formErrors.buildingId} />
         <ChoiceChips value={form.buildingId} onChange={(k) => setForm((f) => ({ ...f, buildingId: k }))} options={buildings.map((b) => ({ key: b.id, label: b.name }))} />
         <FieldLabel label={ls("reference")} error={formErrors.number} />
-        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.number ? "#ef4444" : colors.border, color: colors.foreground }]} autoCapitalize="characters" value={form.number} onChangeText={(v) => setForm((f) => ({ ...f, number: v }))} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.number ? colors.danger : colors.border, color: colors.foreground }]} autoCapitalize="characters" value={form.number} onChangeText={(v) => setForm((f) => ({ ...f, number: v }))} />
         <FieldLabel label={ls("type")} />
         <ChoiceChips value={form.type} onChange={(k) => setForm((f) => ({ ...f, type: k }))} options={CREATE_TYPES.map((k) => ({ key: k, label: getLotTypeLabel(k) }))} />
         <FieldLabel label={`${ls("floor")}${FLOORLESS.has(form.type) ? "" : " *"}`} error={formErrors.floor} />
-        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.floor ? "#ef4444" : colors.border, color: colors.foreground }]} keyboardType="numbers-and-punctuation" value={form.floor} onChangeText={(v) => setForm((f) => ({ ...f, floor: v }))} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.floor ? colors.danger : colors.border, color: colors.foreground }]} keyboardType="numbers-and-punctuation" value={form.floor} onChangeText={(v) => setForm((f) => ({ ...f, floor: v }))} />
         <FieldLabel label={ls("surface")} error={formErrors.surfaceM2} />
         <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]} keyboardType="decimal-pad" value={form.surfaceM2} onChangeText={(v) => setForm((f) => ({ ...f, surfaceM2: v }))} />
         <FieldLabel label={ls("tantiemes")} error={formErrors.tantiemes} />
-        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.tantiemes ? "#ef4444" : colors.border, color: colors.foreground }]} keyboardType="number-pad" value={form.tantiemes} onChangeText={(v) => setForm((f) => ({ ...f, tantiemes: v }))} />
+        <TextInput style={[formStyles.input, { backgroundColor: colors.card, borderColor: formErrors.tantiemes ? colors.danger : colors.border, color: colors.foreground }]} keyboardType="number-pad" value={form.tantiemes} onChangeText={(v) => setForm((f) => ({ ...f, tantiemes: v }))} />
         <FieldLabel label={ls("owner")} />
         <ChoiceChips value={form.ownerId} onChange={(k) => setForm((f) => ({ ...f, ownerId: k }))} options={[{ key: "", label: ls("noOwner") }, ...owners.map((o) => ({ key: o.id, label: o.name }))]} />
         <ActionButton label={ls("save")} icon="check" onPress={submitCreate} busy={creating} />
@@ -643,106 +435,20 @@ function LotsScreenInner() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  searchWrap: { paddingHorizontal: 16, paddingTop: 12 },
   list: { padding: 16, gap: 10 },
-  card: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
-  modalRoot: { flex: 1 },
-  modalHeader: {
+  card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  skeletonCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  cardMain: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  lotIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  cardFoot: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  modalHero: {
-    alignItems: "center",
     gap: 10,
-    padding: 20,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  modalHeroIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalHeroTitle: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  detailCard: {
-    borderRadius: 16,
-    borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 10,
-  },
-  detailLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  detailLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  sep2: { height: StyleSheet.hairlineWidth },
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-    paddingTop: 10,
-    paddingBottom: 2,
-  },
-  cardMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-  },
-  lotIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lotNumber: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  lotType: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  personRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  personCell: { flexDirection: "row", alignItems: "center", gap: 6 },
-  personLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  chargeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  chargeInfo: { flexDirection: "row", alignItems: "center", gap: 5 },
-  chargeText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  amtBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  amtText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
-  emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  footCell: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1, minWidth: 0 },
 });

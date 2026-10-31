@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { documentSequencesTable } from "@workspace/db/schema";
 import { sql } from "drizzle-orm";
+import { localToday } from "./charge-time.js";
 
 type SequenceExecutor = Pick<typeof db, "insert">;
 
@@ -17,7 +18,8 @@ export async function nextSequenceNumber(
   prefix: string,
   pad = 4,
 ): Promise<string> {
-  const year = new Date().getFullYear();
+  // Calendar year of the condominium's time zone (APP_TIMEZONE), not the server's.
+  const year = Number(localToday().slice(0, 4));
   const [row] = await executor
     .insert(documentSequencesTable)
     .values({ syndicateId: scopeId, prefix, year, currentValue: 1 })

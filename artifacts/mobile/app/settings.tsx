@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React from "react";
+import Constants from "expo-constants";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,14 +22,22 @@ import { LANG_OPTIONS, useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
+import { Avatar, Button, Card, Chip, ListItem, SectionHeader, StatusBadge } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
+import { apiRequest } from "@/lib/api";
+import { resolveAvatarUrl } from "@/lib/avatarUrl";
+import { useFileTicket } from "@/hooks/useFileTicket";
 import { useToast } from "@/context/ToastContext";
 import { ticketedUrl } from "@/services/api";
+import ThemeSwitcher from "@/components/theme/ThemeSwitcher";
 
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { logout, user } = useAuth();
-  const { isDark, toggle: toggleTheme, mode, setMode } = useTheme();
+  const { logout, user, token } = useAuth();
+  const fileTicket = useFileTicket(!!token);
+  const { mode, setMode } = useTheme();
   const { lang, setLang, t, isRTL } = useLanguage();
   const {
     notificationPreferences,
@@ -91,13 +100,6 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const initials =
-    user?.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ?? "";
   const roleLabel =
     user?.role === "super_admin"
       ? t("superAdmin")
@@ -115,614 +117,178 @@ export default function SettingsScreen() {
                   ? t("roleTenant")
                   : t("member");
 
+  // Real server reachability (GET /healthz), not a fixed label.
+  const [server, setServer] = useState<"checking" | "ok" | "down">("checking");
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest("/healthz")
+      .then(() => !cancelled && setServer("ok"))
+      .catch(() => !cancelled && setServer("down"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const notifDisabled = notificationPreferencesLoading || notificationPreferences.length === 0;
+  const switchProps = (value: boolean) => ({
+    trackColor: { false: colors.border, true: colors.primary },
+    thumbColor: Platform.OS === "android" ? (value ? colors.primaryForeground : colors.surface) : undefined,
+  });
+
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          backgroundColor: colors.background,
-          direction: isRTL ? "rtl" : "ltr",
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={22}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {t("settingsTitle")}
-        </Text>
-      </View>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+      <ScreenHeader title={t("settingsTitle")} />
 
-      <ScrollView
-        contentContainerStyle={{
-          padding: 20,
-          gap: 20,
-          paddingBottom: insets.bottom + 40,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Profile card */}
-        <TouchableOpacity
-          style={[
-            styles.profileCard,
-            {
-              backgroundColor: colors.primary,
-              flexDirection: isRTL ? "row-reverse" : "row",
-            },
-          ]}
-          onPress={() => router.push("/profile" as any)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileInitials}>{initials}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.profileName}>{user?.name}</Text>
-            <Text style={styles.profileRole}>{roleLabel}</Text>
-            {user?.syndicate ? (
-              <Text style={styles.profileSyndicate}>{user.syndicate}</Text>
-            ) : null}
-          </View>
-          <View style={styles.profileChevron}>
-            <Feather name="edit-2" size={14} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.profileChevronText}>{t("editProfile")}</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Appearance */}
-        <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {t("appearanceSection")}
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            {/* Dark mode toggle */}
-            <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-              <View
-                style={[
-                  styles.rowIcon,
-                  {
-                    backgroundColor: isDark
-                      ? "#f59e0b18"
-                      : colors.primary + "18",
-                  },
-                ]}
-              >
-                <Feather
-                  name={isDark ? "moon" : "sun"}
-                  size={16}
-                  color={isDark ? "#f59e0b" : colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.navLabel, { color: colors.foreground }]}>
-                  {t("darkModeLabel")}
-                </Text>
-                <Text
-                  style={[styles.navSub, { color: colors.mutedForeground }]}
-                >
-                  {mode === "system"
-                    ? t("systemAuto")
-                    : isDark
-                      ? t("enabled")
-                      : t("disabled")}
-                </Text>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={() => {
-                  toggleTheme();
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                trackColor={{
-                  false: colors.muted,
-                  true: colors.primary + "80",
-                }}
-                thumbColor={isDark ? colors.primary : colors.mutedForeground}
-              />
-            </View>
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            {/* System theme option */}
-            <TouchableOpacity
-              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-              onPress={() => {
-                setMode("system");
-                Haptics.selectionAsync();
-              }}
-            >
-              <View
-                style={[
-                  styles.rowIcon,
-                  { backgroundColor: colors.primary + "18" },
-                ]}
-              >
-                <Feather name="monitor" size={16} color={colors.primary} />
-              </View>
-              <Text
-                style={[styles.navLabel, { color: colors.foreground, flex: 1 }]}
-              >
-                {t("followSystemTheme")}
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 22, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        {/* Profile */}
+        <Card onPress={() => router.push("/profile" as any)} accessibilityLabel={`${user?.name ?? ""} — ${t("editProfile")}`}>
+          <View style={styles.profileRow}>
+            <Avatar name={user?.name ?? "?"} uri={resolveAvatarUrl(user?.avatar, fileTicket)} size={52} />
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+              <Text style={[TYPE.subtitle, { color: colors.foreground }]} numberOfLines={1}>
+                {user?.name}
               </Text>
-              {mode === "system" ? (
-                <Feather name="check" size={18} color={colors.primary} />
+              <StatusBadge label={roleLabel} tone="primary" icon="user" />
+              {user?.syndicate ? (
+                <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+                  {user.syndicate}
+                </Text>
               ) : null}
-            </TouchableOpacity>
+            </View>
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={colors.textMuted} />
           </View>
+        </Card>
+
+        {/* Appearance: explicit choice light / dark / system */}
+        <View style={styles.group}>
+          <SectionHeader title={t("appearanceSection")} />
+          <Card padding="md" style={{ gap: 12 }}>
+            <Text style={[TYPE.label, { color: colors.textSecondary }]}>{t("uiTheme")}</Text>
+            <ThemeSwitcher testID="settings-theme" />
+          </Card>
         </View>
 
         {/* Notifications */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {t("notificationsSection")}
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            {notificationPreferencesLoading &&
-            notificationPreferences.length === 0 ? (
+          <SectionHeader title={t("notificationsSection")} actionLabel={t("seeAll")} onAction={() => router.push("/notifications" as any)} />
+          <Card padding="none">
+            {notificationPreferencesLoading && notificationPreferences.length === 0 ? (
               <View style={styles.syncRow}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text
-                  style={[styles.navSub, { color: colors.mutedForeground }]}
-                >
-                  {t("settingsNotificationsLoading")}
-                </Text>
+                <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{t("settingsNotificationsLoading")}</Text>
               </View>
-            ) : notificationPreferencesLoadError &&
-              notificationPreferences.length === 0 ? (
-              <TouchableOpacity
-                style={styles.syncRow}
-                onPress={refreshNotificationPreferences}
-              >
-                <Feather
-                  name="refresh-cw"
-                  size={15}
-                  color={colors.destructive}
-                />
-                <Text
-                  style={[
-                    styles.navSub,
-                    { color: colors.destructive, flex: 1 },
-                  ]}
-                >
-                  {t("settingsNotificationsUnavailable")}
-                </Text>
-                <Text style={[styles.retryText, { color: colors.primary }]}>
-                  {t("settingsNotificationsRetry")}
-                </Text>
-              </TouchableOpacity>
+            ) : notificationPreferencesLoadError && notificationPreferences.length === 0 ? (
+              <ListItem icon="alert-circle" iconTone="danger" title={t("settingsNotificationsUnavailable")} trailing={<Button label={t("settingsNotificationsRetry")} size="sm" variant="ghost" onPress={refreshNotificationPreferences} />} divider />
             ) : null}
-            <SettingRow
-              icon="bell"
-              label={t("pushNotifications")}
-              sub={t("pushNotificationsSub")}
-              value={channelValue("push")}
-              onToggle={(value) => handleNotificationToggle("push", value)}
-              colors={colors}
-              disabled={
-                notificationPreferencesLoading ||
-                notificationPreferences.length === 0
-              }
-              isRTL={isRTL}
-            />
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow
-              icon="mail"
-              label={t("emailNotifications")}
-              sub={t("emailNotificationsSub")}
-              value={channelValue("email")}
-              onToggle={(value) => handleNotificationToggle("email", value)}
-              colors={colors}
-              disabled={
-                notificationPreferencesLoading ||
-                notificationPreferences.length === 0
-              }
-              isRTL={isRTL}
-            />
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow
-              icon="bell"
-              label={t("inAppNotifications")}
-              sub={t("inAppNotificationsSub")}
-              value={channelValue("inApp")}
-              onToggle={(value) => handleNotificationToggle("inApp", value)}
-              colors={colors}
-              disabled={
-                notificationPreferencesLoading ||
-                notificationPreferences.length === 0
-              }
-              isRTL={isRTL}
-            />
-          </View>
+            {(
+              [
+                ["push", "smartphone", t("pushNotifications"), t("pushNotificationsSub")],
+                ["email", "mail", t("emailNotifications"), t("emailNotificationsSub")],
+                ["inApp", "bell", t("inAppNotifications"), t("inAppNotificationsSub")],
+              ] as const
+            ).map(([channel, icon, label, sub], i) => (
+              <ListItem
+                key={channel}
+                icon={icon}
+                title={label}
+                subtitle={sub}
+                divider={i < 2}
+                trailing={
+                  <Switch
+                    value={channelValue(channel)}
+                    disabled={notifDisabled}
+                    onValueChange={(v) => handleNotificationToggle(channel, v)}
+                    accessibilityLabel={label}
+                    {...switchProps(channelValue(channel))}
+                  />
+                }
+              />
+            ))}
+          </Card>
         </View>
 
         {/* Language */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {t("languageSection")}
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
+          <SectionHeader title={t("languageSection")} />
+          <Card padding="none">
             {LANG_OPTIONS.map((option, i) => (
-              <View key={option.code}>
-                {i > 0 ? (
-                  <View
-                    style={[styles.sep, { backgroundColor: colors.border }]}
-                  />
-                ) : null}
-                <TouchableOpacity
-                  style={[styles.langRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-                  onPress={() => {
-                    setLang(option.code);
-                    Haptics.selectionAsync();
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.rowIcon,
-                      { backgroundColor: colors.primary + "18" },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 16 }}>{option.flag}</Text>
+              <ListItem
+                key={option.code}
+                leading={
+                  <View style={[styles.flag, { backgroundColor: colors.surfaceMuted }]}>
+                    <Text style={{ fontSize: 18 }}>{option.flag}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.navLabel, { color: colors.foreground }]}
-                    >
-                      {option.nativeLabel}
-                    </Text>
-                    {option.rtl && (
-                      <Text
-                        style={[
-                          styles.navSub,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        {t("rtlLabel")}
-                      </Text>
-                    )}
-                  </View>
-                  {lang === option.code ? (
-                    <Feather name="check" size={18} color={colors.primary} />
-                  ) : null}
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Security */}
-        <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {t("securitySection")}
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <SettingRow
-              icon="cpu"
-              label={t("biometricAuth")}
-              sub={t("securityFeatureUnavailableSub")}
-              value={false}
-              onToggle={showUnavailableSecurity}
-              colors={colors}
-              disabled
-              isRTL={isRTL}
-            />
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow
-              icon="shield"
-              label={t("twoFactorAuth")}
-              sub={t("securityFeatureUnavailableSub")}
-              value={false}
-              onToggle={showUnavailableSecurity}
-              colors={colors}
-              disabled
-              isRTL={isRTL}
-            />
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow
-              icon="lock"
-              label={t("autoLockLabel")}
-              sub={t("securityFeatureUnavailableSub")}
-              value={false}
-              onToggle={showUnavailableSecurity}
-              colors={colors}
-              disabled
-              isRTL={isRTL}
-            />
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <TouchableOpacity
-              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-              onPress={() => router.push("/profile" as any)}
-            >
-              <View
-                style={[
-                  styles.rowIcon,
-                  { backgroundColor: colors.primary + "18" },
-                ]}
-              >
-                <Feather name="key" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.navLabel, { color: colors.foreground }]}>
-                  {t("changePassword")}
-                </Text>
-                <Text
-                  style={[styles.navSub, { color: colors.mutedForeground }]}
-                >
-                  {t("viaProfilePage")}
-                </Text>
-              </View>
-              <Feather
-                name={isRTL ? "chevron-left" : "chevron-right"}
-                size={18}
-                color={colors.mutedForeground}
+                }
+                title={option.nativeLabel}
+                subtitle={option.rtl ? t("rtlLabel") : undefined}
+                onPress={() => {
+                  setLang(option.code);
+                  Haptics.selectionAsync().catch(() => {});
+                }}
+                divider={i < LANG_OPTIONS.length - 1}
+                trailing={lang === option.code ? <Feather name="check-circle" size={20} color={colors.primary} accessibilityLabel={t("enabled")} /> : undefined}
               />
-            </TouchableOpacity>
-            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <TouchableOpacity
-              style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}
-              onPress={exportMyData}
-              accessibilityRole="button"
-            >
-              <View
-                style={[
-                  styles.rowIcon,
-                  { backgroundColor: colors.primary + "18" },
-                ]}
-              >
-                <Feather name="download" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.navLabel, { color: colors.foreground }]}>
-                  {t("exportMyData")}
-                </Text>
-                <Text
-                  style={[styles.navSub, { color: colors.mutedForeground }]}
-                >
-                  {t("exportMyDataSub")}
-                </Text>
-              </View>
-              <Feather
-                name={isRTL ? "chevron-left" : "chevron-right"}
-                size={18}
-                color={colors.mutedForeground}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* About */}
-        <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {t("aboutSection")}
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            {[
-              {
-                icon: "info" as const,
-                label: t("appVersion"),
-                value: t("appVersionValue"),
-              },
-              {
-                icon: "server" as const,
-                label: t("serverStatus"),
-                value: t("operational"),
-              },
-            ].map((item, i) => (
-              <View key={item.label}>
-                {i > 0 ? (
-                  <View
-                    style={[styles.sep, { backgroundColor: colors.border }]}
-                  />
-                ) : null}
-                <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
-                  <View
-                    style={[
-                      styles.rowIcon,
-                      { backgroundColor: colors.primary + "18" },
-                    ]}
-                  >
-                    <Feather
-                      name={item.icon}
-                      size={16}
-                      color={colors.primary}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.navLabel,
-                      { color: colors.foreground, flex: 1 },
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                  <Text
-                    style={[styles.navValue, { color: colors.mutedForeground }]}
-                  >
-                    {item.value}
-                  </Text>
-                </View>
-              </View>
             ))}
-          </View>
+          </Card>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity
-          style={[styles.logoutBtn, { borderColor: colors.destructive + "50" }]}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-        >
-          <Feather name="log-out" size={16} color={colors.destructive} />
-          <Text style={[styles.logoutText, { color: colors.destructive }]}>
-            {t("logout")}
-          </Text>
-        </TouchableOpacity>
+        {/* Security & data */}
+        <View style={styles.group}>
+          <SectionHeader title={t("securitySection")} />
+          <Card padding="none">
+            <ListItem icon="key" title={t("changePassword")} subtitle={t("viaProfilePage")} onPress={() => router.push("/profile" as any)} chevron divider />
+            <ListItem icon="download" title={t("exportMyData")} subtitle={t("exportMyDataSub")} onPress={exportMyData} chevron divider />
+            {(
+              [
+                ["cpu", t("biometricAuth")],
+                ["shield", t("twoFactorAuth")],
+                ["lock", t("autoLockLabel")],
+              ] as const
+            ).map(([icon, label], i) => (
+              <ListItem
+                key={label}
+                icon={icon}
+                iconTone="neutral"
+                title={label}
+                subtitle={t("uiUnavailableFeature")}
+                onPress={showUnavailableSecurity}
+                divider={i < 2}
+                trailing={<StatusBadge label={t("disabled")} tone="neutral" icon={null} />}
+              />
+            ))}
+          </Card>
+        </View>
+
+        {/* About: real version and server reachability */}
+        <View style={styles.group}>
+          <SectionHeader title={t("aboutSection")} />
+          <Card padding="none">
+            <ListItem icon="info" title={t("appVersion")} trailing={<Text style={[TYPE.bodyStrong, { color: colors.textSecondary }]}>{Constants.expoConfig?.version ?? "—"}</Text>} divider />
+            <ListItem
+              icon="server"
+              iconTone={server === "ok" ? "success" : server === "down" ? "danger" : "neutral"}
+              title={t("serverStatus")}
+              trailing={
+                <StatusBadge
+                  label={server === "ok" ? t("uiReachable") : server === "down" ? t("uiUnreachable") : t("uiChecking")}
+                  tone={server === "ok" ? "success" : server === "down" ? "danger" : "neutral"}
+                />
+              }
+            />
+          </Card>
+        </View>
+
+        <Button label={t("logout")} icon="log-out" variant="secondary" fullWidth onPress={handleLogout} style={{ borderColor: colors.danger + "55" }} />
       </ScrollView>
-    </View>
-  );
-}
-
-function SettingRow({
-  icon,
-  label,
-  sub,
-  value,
-  onToggle,
-  colors,
-  disabled = false,
-  isRTL,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  sub?: string;
-  value: boolean;
-  onToggle: (value: boolean) => void;
-  colors: any;
-  disabled?: boolean;
-  isRTL?: boolean;
-}) {
-  return (
-    <View style={[styles.navRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
-      <View
-        style={[styles.rowIcon, { backgroundColor: colors.primary + "18" }]}
-      >
-        <Feather name={icon} size={16} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.navLabel, { color: colors.foreground }]}>
-          {label}
-        </Text>
-        {sub ? (
-          <Text style={[styles.navSub, { color: colors.mutedForeground }]}>
-            {sub}
-          </Text>
-        ) : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        disabled={disabled}
-        trackColor={{ false: colors.muted, true: colors.primary + "80" }}
-        thumbColor={value ? colors.primary : colors.mutedForeground}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-  },
-  backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  profileCard: {
-    borderRadius: 20,
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  profileAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileInitials: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
-  profileName: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
-  profileRole: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 2,
-  },
-  profileSyndicate: {
-    fontSize: 10,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 1,
-  },
-  profileChevron: { alignItems: "center", gap: 4 },
-  profileChevronText: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    color: "rgba(255,255,255,0.8)",
-  },
-  group: { gap: 8 },
-  groupTitle: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1,
-    marginStart: 4,
-  },
-  card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  navRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  navSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
-  syncRow: { flexDirection: "row", alignItems: "center", gap: 9, padding: 14 },
-  retryText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  navValue: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  langRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
-  sep: { height: 1, marginHorizontal: 14 },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-  },
-  logoutText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  group: { gap: 10 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  syncRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16 },
+  flag: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

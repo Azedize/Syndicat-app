@@ -25,6 +25,7 @@ import { useData, type Invoice } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
 import { useToast } from "@/context/ToastContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
@@ -68,13 +69,21 @@ function formatDate(value: string, lang: "fr" | "en" | "ar" | "es"): string {
 
 type TabType = "factures" | "devis";
 
-const STATUS_CONFIG: Record<Invoice["status"], { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  draft:     { labelKey: "invStatusDraft",     color: "#6b7280", icon: "edit-3"   },
-  sent:      { labelKey: "invStatusSent",      color: "#3b82f6", icon: "send"     },
-  paid:      { labelKey: "invStatusPaid",      color: "#10b981", icon: "check-circle" },
-  overdue:   { labelKey: "invStatusOverdue",   color: "#ef4444", icon: "alert-circle" },
-  cancelled: { labelKey: "invStatusCancelled", color: "#6b7280", icon: "x-circle" },
+// Every status accepted by PATCH /invoices/:id/status, plus a neutral
+// fallback: an unknown value (e.g. legacy "pending" rows) used to crash the list.
+const STATUS_CONFIG: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  issued:    { labelKey: "invStatusSent",      color: "#5A4AD6", icon: "send"     },
+  partially_paid: { labelKey: "partiallyPaid", color: "#C98511", icon: "pie-chart" },
+  due:       { labelKey: "pendingLabel",       color: "#C98511", icon: "clock"    },
+  draft:     { labelKey: "invStatusDraft",     color: "#6A6680", icon: "edit-3"   },
+  sent:      { labelKey: "invStatusSent",      color: "#5A4AD6", icon: "send"     },
+  paid:      { labelKey: "invStatusPaid",      color: "#13976C", icon: "check-circle" },
+  overdue:   { labelKey: "invStatusOverdue",   color: "#C8323C", icon: "alert-circle" },
+  cancelled: { labelKey: "invStatusCancelled", color: "#6A6680", icon: "x-circle" },
 };
+
+const STATUS_FALLBACK = { labelKey: "pendingLabel", color: "#6A6680", icon: "clock" as const };
+const statusOf = (s: string) => STATUS_CONFIG[s] ?? STATUS_FALLBACK;
 
 export default function InvoicesScreen() {
   return (
@@ -220,28 +229,18 @@ function InvoicesScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{t("invHeaderTitle")}</Text>
-          <Text style={styles.headerSub}>{t("invHeaderSub")}</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}
-          onPress={() => { setShowAdd(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-        >
-          <Feather name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t("invHeaderTitle")}
+        subtitle={t("invHeaderSub")}
+        action={{ icon: "plus", label: t("uiAdd"), onPress: () => setShowAdd(true) }}
+      />
 
       {/* Summary */}
       <View style={[styles.summaryRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { value: totalRevenue, label: t("invEncaisse"), color: "#10b981" },
-          { value: totalPending, label: t("invEnAttente"), color: "#f59e0b" },
-          { value: totalOverdue, label: t("invEnRetard"), color: "#ef4444" },
+          { value: totalRevenue, label: t("invEncaisse"), color: colors.success },
+          { value: totalPending, label: t("invEnAttente"), color: colors.warning },
+          { value: totalOverdue, label: t("invEnRetard"), color: colors.danger },
         ].map(({ value, label, color }) => (
           <View key={label} style={[styles.statBox, { backgroundColor: color + "12" }]}>
             <Text style={[styles.statValue, { color }]}>{formatMAD(value, lang)}</Text>
@@ -306,27 +305,27 @@ function InvoicesScreenInner() {
           </View>
         }
         renderItem={({ item: inv }) => {
-          const sc = STATUS_CONFIG[inv.status];
+          const sc = statusOf(inv.status);
           return (
             <TouchableOpacity
               style={[styles.invoiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => { setSelectedInvoice(inv); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               activeOpacity={0.8}
             >
-              <View style={[styles.invIcon, { backgroundColor: inv.type === "facture" ? colors.primary + "15" : "#f59e0b15" }]}>
+              <View style={[styles.invIcon, { backgroundColor: inv.type === "facture" ? colors.primary + "15" : colors.warning + "15" }]}>
                 <Feather
                   name={inv.type === "facture" ? "file-text" : "clipboard"}
                   size={20}
-                  color={inv.type === "facture" ? colors.primary : "#f59e0b"}
+                  color={inv.type === "facture" ? colors.primary : colors.warning}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={[styles.invRef, { color: colors.foreground }]}>{inv.reference}</Text>
                   {inv.proofUri ? (
-                    <View style={[styles.proofBadge, { backgroundColor: "#10b98118" }]}>
-                      <Feather name="paperclip" size={9} color="#10b981" />
-                      <Text style={[styles.proofBadgeText, { color: "#10b981" }]}>{t("invJustificatif")}</Text>
+                    <View style={[styles.proofBadge, { backgroundColor: colors.success + "18" }]}>
+                      <Feather name="paperclip" size={9} color={colors.success} />
+                      <Text style={[styles.proofBadgeText, { color: colors.success }]}>{t("invJustificatif")}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -365,9 +364,9 @@ function InvoicesScreenInner() {
                     {selectedInvoice.type === "facture" ? t("invFacture") : t("invDevis")}
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: STATUS_CONFIG[selectedInvoice.status].color + "18" }]}>
-                  <Text style={[styles.statusText, { color: STATUS_CONFIG[selectedInvoice.status].color }]}>
-                    {t(STATUS_CONFIG[selectedInvoice.status].labelKey)}
+                <View style={[styles.statusBadge, { backgroundColor: statusOf(selectedInvoice.status).color + "18" }]}>
+                  <Text style={[styles.statusText, { color: statusOf(selectedInvoice.status).color }]}>
+                    {t(statusOf(selectedInvoice.status).labelKey)}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedInvoice(null)} style={{ marginStart: 12 }}>
@@ -403,7 +402,7 @@ function InvoicesScreenInner() {
                 ))}
                 <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
                   <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t("invTotal")}</Text>
-                  <Text style={[styles.totalAmount, { color: colors.primary }]}>
+                  <Text style={[styles.totalAmount, { color: colors.tint }]}>
                     {formatMAD(selectedInvoice.amount, lang)}
                   </Text>
                 </View>
@@ -429,15 +428,15 @@ function InvoicesScreenInner() {
                     <Feather name="zoom-in" size={20} color="#fff" />
                     <Text style={styles.proofThumbOverlayText}>{t("invAppuyerAgrandir")}</Text>
                   </View>
-                  <View style={[styles.proofVerified, { backgroundColor: "#10b981" }]}>
+                  <View style={[styles.proofVerified, { backgroundColor: colors.success }]}>
                     <Feather name="check" size={10} color="#fff" />
                     <Text style={styles.proofVerifiedText}>{t("invJustifJoint")}</Text>
                   </View>
                 </TouchableOpacity>
               ) : (
-                <View style={[styles.noProof, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-                  <Feather name="alert-triangle" size={18} color="#ef4444" />
-                  <Text style={[styles.noProofText, { color: "#ef4444" }]}>
+                <View style={[styles.noProof, { backgroundColor: colors.danger + "10", borderColor: colors.danger + "30" }]}>
+                  <Feather name="alert-triangle" size={18} color={colors.danger} />
+                  <Text style={[styles.noProofText, { color: colors.danger }]}>
                     {t("invAucunJustifJoint")}
                   </Text>
                 </View>
@@ -561,18 +560,18 @@ function InvoicesScreenInner() {
             {/* ── Justificatif section ── */}
             <View style={[
               styles.proofSection,
-              { borderColor: proofError ? "#ef4444" : colors.border, backgroundColor: proofError ? "#ef444405" : colors.background }
+              { borderColor: proofError ? colors.danger : colors.border, backgroundColor: proofError ? colors.danger + "05" : colors.background }
             ]}>
               {/* Header */}
               <View style={styles.proofSectionHeader}>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Feather name="paperclip" size={15} color={proofError ? "#ef4444" : colors.primary} />
-                    <Text style={[styles.proofSectionTitle, { color: proofError ? "#ef4444" : colors.foreground }]}>
+                    <Feather name="paperclip" size={15} color={proofError ? colors.danger : colors.primary} />
+                    <Text style={[styles.proofSectionTitle, { color: proofError ? colors.danger : colors.foreground }]}>
                       {t("invProofSectionTitle")}
                     </Text>
-                    <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: "#ef444418" }}>
-                      <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: "#ef4444" }}>{t("invObligatoireBadge")}</Text>
+                    <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.danger + "18" }}>
+                      <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: colors.danger }}>{t("invObligatoireBadge")}</Text>
                     </View>
                   </View>
                   <Text style={[styles.proofSectionSub, { color: colors.mutedForeground }]}>
@@ -583,7 +582,7 @@ function InvoicesScreenInner() {
 
               {proofError && !proofUpload && (
                 <View style={styles.proofErrorBanner}>
-                  <Feather name="alert-circle" size={13} color="#ef4444" />
+                  <Feather name="alert-circle" size={13} color={colors.danger} />
                   <Text style={styles.proofErrorText}>{t("invProofErrorBanner")}</Text>
                 </View>
               )}
@@ -607,7 +606,7 @@ function InvoicesScreenInner() {
                         </Text>
                       </View>
                     )}
-                    <View style={[styles.proofPreviewBadge, { backgroundColor: "#10b981" }]}>
+                    <View style={[styles.proofPreviewBadge, { backgroundColor: colors.success }]}>
                       <Feather name="check-circle" size={12} color="#fff" />
                       <Text style={styles.proofPreviewBadgeText}>{t("invJustifJoint")}</Text>
                     </View>
@@ -623,19 +622,19 @@ function InvoicesScreenInner() {
                       <Text style={[styles.proofActionBtnText, { color: colors.foreground }]}>{t("invChanger")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.proofActionBtn, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}
+                      style={[styles.proofActionBtn, { backgroundColor: colors.danger + "10", borderColor: colors.danger + "30" }]}
                       onPress={() => { setProofUpload(null); setProofError(false); }}
                       disabled={proofUploading || isSubmitting}
                     >
-                      <Feather name="trash-2" size={14} color="#ef4444" />
-                      <Text style={[styles.proofActionBtnText, { color: "#ef4444" }]}>{t("invSupprimer")}</Text>
+                      <Feather name="trash-2" size={14} color={colors.danger} />
+                      <Text style={[styles.proofActionBtnText, { color: colors.danger }]}>{t("invSupprimer")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : proofUploading ? (
                 <View style={[styles.proofUploadZone, { borderColor: colors.primary + "60", backgroundColor: colors.primary + "06", gap: 12 }]}>
                   <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.primary }}>
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.tint }}>
                     {t("invUploading")}
                   </Text>
                 </View>
@@ -645,17 +644,17 @@ function InvoicesScreenInner() {
                   style={[
                     styles.proofUploadZone,
                     {
-                      borderColor: proofError ? "#ef4444" : colors.primary + "60",
-                      backgroundColor: proofError ? "#ef444408" : colors.primary + "06",
+                      borderColor: proofError ? colors.danger : colors.primary + "60",
+                      backgroundColor: proofError ? colors.danger + "08" : colors.primary + "06",
                     },
                   ]}
                   onPress={showPickerOptions}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.proofUploadIcon, { backgroundColor: proofError ? "#ef444418" : colors.primary + "18" }]}>
-                    <Feather name="upload-cloud" size={28} color={proofError ? "#ef4444" : colors.primary} />
+                  <View style={[styles.proofUploadIcon, { backgroundColor: proofError ? colors.danger + "18" : colors.primary + "18" }]}>
+                    <Feather name="upload-cloud" size={28} color={proofError ? colors.danger : colors.primary} />
                   </View>
-                  <Text style={[styles.proofUploadTitle, { color: proofError ? "#ef4444" : colors.primary }]}>
+                  <Text style={[styles.proofUploadTitle, { color: proofError ? colors.danger : colors.primary }]}>
                     {t("invTeleverser")}
                   </Text>
                   <Text style={[styles.proofUploadSub, { color: colors.mutedForeground }]}>
@@ -719,7 +718,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 2 },
   addBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 
@@ -753,7 +752,7 @@ const styles = StyleSheet.create({
   detailModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%" },
   addModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "95%" },
   detailHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  detailRef: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  detailRef: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   detailType: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   detailInfo: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 12 },
   detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -767,7 +766,7 @@ const styles = StyleSheet.create({
   itemPrice: { fontSize: 13, fontFamily: "Inter_700Bold", minWidth: 80, textAlign: "right" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", padding: 14, borderTopWidth: 1 },
   totalLabel: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  totalAmount: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  totalAmount: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   actionBtns: { flexDirection: "row", gap: 12 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14 },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
@@ -812,7 +811,7 @@ const styles = StyleSheet.create({
   },
 
   // Add form
-  addTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  addTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   addSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   typeRow: { flexDirection: "row", gap: 10 },
   typeChip: {
@@ -837,9 +836,9 @@ const styles = StyleSheet.create({
   proofSectionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 16 },
   proofErrorBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#ef444415", borderRadius: 10, padding: 10,
+    backgroundColor: "#C8323C15", borderRadius: 10, padding: 10,
   },
-  proofErrorText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#ef4444", flex: 1 },
+  proofErrorText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#C8323C", flex: 1 },
   proofPreviewWrap: { position: "relative", borderRadius: 14, overflow: "hidden" },
   proofPreview: { width: "100%", height: 160, borderRadius: 14 },
   proofPreviewBadge: {

@@ -95,7 +95,7 @@ export function ErrorState({
   accentColor,
 }: ErrorStateProps) {
   const colors = useColors();
-  const accent = accentColor ?? colors.destructive ?? "#ef4444";
+  const accent = accentColor ?? colors.destructive ?? "#C8323C";
 
   return (
     <StateShell>

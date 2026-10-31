@@ -62,10 +62,10 @@ const CATEGORIES = [
 ];
 
 const PRIORITIES = [
-  { key: "low", labelKey: "priorityLow", color: "#64748b" },
-  { key: "normal", labelKey: "priorityNormal", color: "#3b82f6" },
-  { key: "high", labelKey: "priorityHigh", color: "#f59e0b" },
-  { key: "urgent", labelKey: "priorityUrgent", color: "#ef4444" },
+  { key: "low", labelKey: "priorityLow", color: "#6A6680" },
+  { key: "normal", labelKey: "priorityNormal", color: "#5A4AD6" },
+  { key: "high", labelKey: "priorityHigh", color: "#C98511" },
+  { key: "urgent", labelKey: "priorityUrgent", color: "#C8323C" },
 ];
 
 const FIELD_TYPES = ["text", "date", "number", "boolean", "select"] as const;
@@ -399,12 +399,12 @@ export default function TemplateRequestModal({
                 width: 80,
                 height: 80,
                 borderRadius: 40,
-                backgroundColor: "#10b98120",
+                backgroundColor: "#13976C20",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Feather name="check-circle" size={44} color="#10b981" />
+              <Feather name="check-circle" size={44} color="#13976C" />
             </View>
             <Text
               style={[
@@ -426,7 +426,7 @@ export default function TemplateRequestModal({
               {copy("sentDescription")}
             </Text>
             <TouchableOpacity
-              style={[s.submitBtn, { backgroundColor: "#10b981" }]}
+              style={[s.submitBtn, { backgroundColor: "#13976C" }]}
               onPress={onClose}
               activeOpacity={0.85}
             >
@@ -446,7 +446,7 @@ export default function TemplateRequestModal({
               <View>
                 <Text style={[s.label, { color: colors.foreground }]}>
                   {copy("templateTitle")}{" "}
-                  <Text style={{ color: "#ef4444" }}>*</Text>
+                  <Text style={{ color: "#C8323C" }}>*</Text>
                 </Text>
                 <TextInput
                   style={[
@@ -467,7 +467,7 @@ export default function TemplateRequestModal({
               {/* Category */}
               <View>
                 <Text style={[s.label, { color: colors.foreground }]}>
-                  {copy("category")} <Text style={{ color: "#ef4444" }}>*</Text>
+                  {copy("category")} <Text style={{ color: "#C8323C" }}>*</Text>
                 </Text>
                 <ScrollView
                   horizontal
@@ -715,7 +715,7 @@ export default function TemplateRequestModal({
                       </Text>
                     </View>
                     <TouchableOpacity onPress={() => removeField(f.id)}>
-                      <Feather name="trash-2" size={14} color="#ef4444" />
+                      <Feather name="trash-2" size={14} color="#C8323C" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -781,9 +781,9 @@ export default function TemplateRequestModal({
                         s.chip,
                         {
                           backgroundColor: newFieldReq
-                            ? "#ef444415"
+                            ? "#C8323C15"
                             : colors.background,
-                          borderColor: newFieldReq ? "#ef4444" : colors.border,
+                          borderColor: newFieldReq ? "#C8323C" : colors.border,
                         },
                       ]}
                       onPress={() => setNewFieldReq((p) => !p)}
@@ -793,7 +793,7 @@ export default function TemplateRequestModal({
                           s.chipText,
                           {
                             color: newFieldReq
-                              ? "#ef4444"
+                              ? "#C8323C"
                               : colors.mutedForeground,
                           },
                         ]}
@@ -818,7 +818,7 @@ export default function TemplateRequestModal({
                     disabled={!newFieldName.trim()}
                   >
                     <Feather name="plus" size={12} color={colors.primary} />
-                    <Text style={[s.chipText, { color: colors.primary }]}>
+                    <Text style={[s.chipText, { color: colors.tint }]}>
                       {copy("addField")}
                     </Text>
                   </TouchableOpacity>
@@ -857,11 +857,11 @@ export default function TemplateRequestModal({
                 <View
                   style={[
                     s.errorBanner,
-                    { borderColor: "#ef444430", backgroundColor: "#ef444410" },
+                    { borderColor: "#C8323C30", backgroundColor: "#C8323C10" },
                   ]}
                 >
-                  <Feather name="alert-circle" size={14} color="#ef4444" />
-                  <Text style={{ fontSize: 12, color: "#ef4444", flex: 1 }}>
+                  <Feather name="alert-circle" size={14} color="#C8323C" />
+                  <Text style={{ fontSize: 12, color: "#C8323C", flex: 1 }}>
                     {error}
                   </Text>
                 </View>

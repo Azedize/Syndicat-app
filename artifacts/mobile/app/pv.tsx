@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState, useEffect, useCallback } from "react";
@@ -26,6 +26,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { localDate } from "@/lib/localDate";
 
 type PVType = "bureau" | "ag" | "commission" | "election" | "urgence";
 type PVStatus = "draft" | "pending" | "published";
@@ -47,20 +48,20 @@ const TYPE_CONFIG_META: Record<
   PVType,
   { key: string; icon: keyof typeof Feather.glyphMap; color: string }
 > = {
-  bureau: { key: "pvTypeBureau", icon: "briefcase", color: "#2563EB" },
-  ag: { key: "pvTypeAG", icon: "users", color: "#3b82f6" },
-  commission: { key: "pvTypeCommission", icon: "layers", color: "#10b981" },
-  election: { key: "pvTypeElection", icon: "check-square", color: "#f59e0b" },
-  urgence: { key: "pvTypeUrgence", icon: "alert-triangle", color: "#ef4444" },
+  bureau: { key: "pvTypeBureau", icon: "briefcase", color: "#5A4AD6" },
+  ag: { key: "pvTypeAG", icon: "users", color: "#5A4AD6" },
+  commission: { key: "pvTypeCommission", icon: "layers", color: "#13976C" },
+  election: { key: "pvTypeElection", icon: "check-square", color: "#C98511" },
+  urgence: { key: "pvTypeUrgence", icon: "alert-triangle", color: "#C8323C" },
 };
 
 const STATUS_CONFIG_META: Record<
   PVStatus,
   { key: string; color: string; bg: string }
 > = {
-  draft: { key: "pvStatusDraft", color: "#6b7280", bg: "#6b728018" },
-  pending: { key: "pvStatusPending", color: "#f59e0b", bg: "#f59e0b18" },
-  published: { key: "pvStatusPublished", color: "#10b981", bg: "#10b98118" },
+  draft: { key: "pvStatusDraft", color: "#6A6680", bg: "#6A668018" },
+  pending: { key: "pvStatusPending", color: "#C98511", bg: "#C9851118" },
+  published: { key: "pvStatusPublished", color: "#13976C", bg: "#13976C18" },
 };
 
 // ─── API mapping ──────────────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ function PVScreenInner() {
         type: MEETING_TYPE_MAP[newType],
         description: newSummary.trim(),
         agenda: newResolutions.join("\n"),
-        date: new Date().toISOString().slice(0, 10),
+        date: localDate(),
       });
       await fetchPVs();
       setShowCreate(false);
@@ -305,13 +306,13 @@ function PVScreenInner() {
       />
       <FilterChips
         options={[
-          { key: "all", label: t("pvFilterAllStatus"), color: "#6b7280" },
-          { key: "published", label: t("pvFilterPublished"), color: "#10b981" },
-          { key: "draft", label: t("pvFilterDraft"), color: "#6b7280" },
+          { key: "all", label: t("pvFilterAllStatus"), color: "#6A6680" },
+          { key: "published", label: t("pvFilterPublished"), color: colors.success },
+          { key: "draft", label: t("pvFilterDraft"), color: "#6A6680" },
         ]}
         value={filterStatus}
         onChange={(k) => setFilterStatus(k as "all" | PVStatus)}
-        accentColor="#6b7280"
+        accentColor="#6A6680"
         mode="equal"
       />
 
@@ -336,8 +337,8 @@ function PVScreenInner() {
               title={t("pvNoneMatching")}
               description={
                 isAdmin
-                  ? "Créez un nouveau procès-verbal pour commencer."
-                  : "Aucun procès-verbal disponible pour le moment."
+                  ? t("pvEmptyCreate")
+                  : t("pvEmptyNone")
               }
               actionLabel={isAdmin ? t("pvNewTitle") : undefined}
               onAction={
@@ -553,7 +554,7 @@ function PVScreenInner() {
                         <Text
                           style={[styles.pvHeroMetaText, { color: tc.color }]}
                         >
-                          {selectedPV.presences} présences
+                          {t("pvPresenceCount").replace("{n}", String(selectedPV.presences))}
                         </Text>
                       </View>
                       <View style={styles.pvHeroMeta}>
@@ -617,7 +618,7 @@ function PVScreenInner() {
                       <Text
                         style={[
                           styles.resolutionNumText,
-                          { color: colors.primary },
+                          { color: colors.tint },
                         ]}
                       >
                         {i + 1}
@@ -665,7 +666,7 @@ function PVScreenInner() {
                         <Text
                           style={[
                             styles.sigInitials,
-                            { color: colors.primary },
+                            { color: colors.tint },
                           ]}
                         >
                           {s
@@ -684,7 +685,7 @@ function PVScreenInner() {
                         <Feather
                           name="check-circle"
                           size={15}
-                          color="#10b981"
+                          color={colors.success}
                         />
                       ) : null}
                     </View>
@@ -719,15 +720,15 @@ function PVScreenInner() {
                     style={[
                       styles.actionBtn,
                       {
-                        backgroundColor: "#10b98118",
+                        backgroundColor: colors.success + "18",
                         borderWidth: 1,
-                        borderColor: "#10b98140",
+                        borderColor: colors.success + "40",
                       },
                     ]}
                     onPress={() => handlePublish(selectedPV.id)}
                   >
-                    <Feather name="globe" size={15} color="#10b981" />
-                    <Text style={[styles.actionBtnText, { color: "#10b981" }]}>
+                    <Feather name="globe" size={15} color={colors.success} />
+                    <Text style={[styles.actionBtnText, { color: colors.success }]}>
                       {t("pvPublishBtn")}
                     </Text>
                   </TouchableOpacity>
@@ -886,7 +887,7 @@ function PVScreenInner() {
                     <Text
                       style={[
                         styles.resolutionNumText,
-                        { color: colors.primary },
+                        { color: colors.tint },
                       ]}
                     >
                       {i + 1}
@@ -1006,7 +1007,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   addBtn: {
     width: 38,

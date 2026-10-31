@@ -17,7 +17,7 @@ import { requireAuth, type JwtPayload } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { notifyUser } from "../lib/notify.js";
 import { isDebtorOfCharge } from "../lib/units.js";
-import { FinanceError, sendFinanceError, uniqueViolation } from "../lib/treasury.js";
+import { FinanceError, sendFinanceError, uniqueViolation, moneyDiff } from "../lib/treasury.js";
 import {
   buildingLots,
   computationView,
@@ -342,7 +342,7 @@ router.post("/allocations/preview", requireAuth, async (req, res) => {
 async function notifyDebtors(appels: { ownerId: string | null; amount: string; dueDate: string | null; period: string }[], syndicateId: string) {
   for (const a of appels) {
     const uid = await resolveOwnerUserId(db, a.ownerId, syndicateId);
-    await notifyUser(uid, { title: "Nouvel appel de fonds", message: `Appel de fonds ${a.period} : ${a.amount} MAD à régler avant le ${a.dueDate}.`, type: "info", syndicateId });
+    await notifyUser(uid, { key: "fundsCall.new", params: { period: a.period, amount: a.amount, dueDate: a.dueDate }, type: "info", syndicateId });
   }
 }
 
@@ -666,7 +666,7 @@ router.get("/appels-de-fonds/:id/account", requireAuth, async (req, res) => {
       a.allocationId ? db.select({ reference: callsTable.reference, status: callsTable.status }).from(callsTable).where(eq(callsTable.id, a.allocationId)) : Promise.resolve([undefined]),
       db.select({ label: treasuryAccountsTable.label, bankName: treasuryAccountsTable.bankName, rib: treasuryAccountsTable.rib }).from(treasuryAccountsTable).where(and(eq(treasuryAccountsTable.syndicateId, syndicateId!), eq(treasuryAccountsTable.kind, "bank"), eq(treasuryAccountsTable.status, "active"), eq(treasuryAccountsTable.isDefault, true))),
     ]);
-    const remaining = Math.max(0, Math.round((Number(a.amount) - Number(a.amountPaid)) * 100)) / 100;
+    const remaining = Math.max(0, moneyDiff(a.amount, a.amountPaid));
     const open = !["paid", "cancelled"].includes(a.status ?? "");
     res.json({
       data: {
@@ -704,8 +704,10 @@ router.get("/appels-de-fonds/:id/account", requireAuth, async (req, res) => {
           ? {
               methods: ["virement", "cheque", "especes"],
               online: false,
-              note: "Le paiement en ligne n'est pas disponible : déclarez votre paiement avec son justificatif ; il compte une fois validé par le trésorier.",
+              note: "Payez par virement sur le compte du syndicat en indiquant la référence en motif, puis déclarez votre paiement avec son justificatif ; il compte une fois validé par le trésorier.",
               bankAccount: bank[0] ? { label: bank[0].label, bankName: bank[0].bankName, rib: bank[0].rib } : null,
+              // Motive to write in the transfer: lets the treasurer match the bank line to this call.
+              reference: a.paymentReference ?? null,
             }
           : null,
       },

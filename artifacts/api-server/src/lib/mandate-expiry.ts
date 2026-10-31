@@ -4,9 +4,10 @@ import { eq, and, lte } from "drizzle-orm";
 import { createAlert, sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
 import { scheduleJob } from "./scheduler.js";
+import { localToday } from "./charge-time.js";
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localToday();
 }
 
 /**
@@ -29,8 +30,8 @@ export async function checkExpiringMandates(): Promise<void> {
         await sendPushToUsers([mandate.userId], "Mandat expiré", `Votre mandat de ${mandate.role} est arrivé à échéance le ${mandate.mandateEnd}.`, { mandateId: mandate.id });
       }
       await createAlert({
-        title: "Mandat expiré",
-        message: `Le mandat de ${mandate.name} (${mandate.role}) est arrivé à échéance — une nouvelle élection peut être nécessaire.`,
+        key: "mandate.expired",
+        params: { name: mandate.name, role: mandate.role },
         type: "warning",
         syndicateId: mandate.syndicateId,
         target: "admin",

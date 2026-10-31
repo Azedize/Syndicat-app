@@ -18,15 +18,19 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { ErrorState } from "@/components/DataState";
+import EmptyState from "@/components/EmptyState";
+import FilterTabs from "@/components/FilterTabs";
+import ScreenHeader from "@/components/ScreenHeader";
+import { Button, Card, ListItem, type StatusTone } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 
 type TabType = "preferences" | "historique";
 
-const ALERT_COLORS = {
-  info: "#3b82f6",
-  warning: "#f59e0b",
-  success: "#10b981",
-  error: "#ef4444",
+const ALERT_TONES: Record<string, StatusTone> = {
+  info: "info",
+  warning: "warning",
+  success: "success",
+  error: "danger",
 };
 
 const ALERT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -54,7 +58,8 @@ export default function NotificationsScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
-  const [tab, setTab] = useState<TabType>("preferences");
+  // Opening notifications is first about reading them.
+  const [tab, setTab] = useState<TabType>("historique");
   const unread = alerts.filter((a) => !a.read).length;
   const channelValue = (channel: "push" | "email" | "inApp") =>
     notificationPreferences.length > 0 &&
@@ -157,67 +162,20 @@ export default function NotificationsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-            flexDirection: isRTL ? "row-reverse" : "row",
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={22}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {t("notificationsTitle")}
-        </Text>
-        <View style={{ width: 38 }} />
-      </View>
+      <ScreenHeader
+        title={t("notificationsTitle")}
+        subtitle={unread > 0 ? `${unread} ${t("uiUnread")}` : undefined}
+        action={tab === "historique" && unread > 0 ? { icon: "check-square", label: t("markAllReadBtn"), onPress: handleMarkAllRead } : undefined}
+      />
 
-      <View
-        style={[
-          styles.tabRow,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+      <FilterTabs
+        options={[
+          { key: "historique", label: t("historyTab"), count: unread || undefined },
+          { key: "preferences", label: t("preferencesTab") },
         ]}
-      >
-        {(["preferences", "historique"] as TabType[]).map((tabKey) => (
-          <TouchableOpacity
-            key={tabKey}
-            style={[
-              styles.tabBtn,
-              tab === tabKey && {
-                borderBottomColor: colors.primary,
-                borderBottomWidth: 2,
-              },
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setTab(tabKey);
-            }}
-          >
-            <Text
-              style={[
-                styles.tabLabel,
-                {
-                  color:
-                    tab === tabKey ? colors.primary : colors.mutedForeground,
-                },
-              ]}
-            >
-              {tabKey === "preferences"
-                ? t("preferencesTab")
-                : `${t("historyTab")}${unread > 0 ? ` (${unread})` : ""}`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        value={tab}
+        onChange={(k) => setTab(k as TabType)}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -272,7 +230,7 @@ export default function NotificationsScreen() {
               {[
                 {
                   icon: "bell" as const,
-                  color: colors.primary,
+                  color: colors.tint,
                   label: t("pushNotifsLabel"),
                   sub: t("pushNotifsSub"),
                   channel: "push" as const,
@@ -280,7 +238,7 @@ export default function NotificationsScreen() {
                 },
                 {
                   icon: "mail" as const,
-                  color: "#3b82f6",
+                  color: colors.info,
                   label: t("emailNotifsLabel"),
                   sub: t("emailNotifsSub"),
                   channel: "email" as const,
@@ -288,7 +246,7 @@ export default function NotificationsScreen() {
                 },
                 {
                   icon: "bell" as const,
-                  color: "#10b981",
+                  color: colors.success,
                   label: t("inAppNotifications"),
                   sub: t("inAppNotificationsSub"),
                   channel: "inApp" as const,
@@ -301,7 +259,7 @@ export default function NotificationsScreen() {
                       style={[styles.sep, { backgroundColor: colors.border }]}
                     />
                   )}
-                  <View style={[styles.switchRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
+                  <View style={[styles.switchRow, { flexDirection: "row" }] }>
                     <View
                       style={[
                         styles.rowIcon,
@@ -338,7 +296,7 @@ export default function NotificationsScreen() {
                         false: colors.border,
                         true: item.color + "60",
                       }}
-                      thumbColor={item.value ? item.color : "#f4f3f4"}
+                      thumbColor={item.value ? item.color : colors.surface}
                     />
                   </View>
                 </View>
@@ -360,7 +318,7 @@ export default function NotificationsScreen() {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
-                <View style={[styles.prefHeader, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
+                <View style={[styles.prefHeader, { flexDirection: "row" }] }>
                   {(() => {
                     const meta = categoryMeta(
                       pref.category ||
@@ -419,7 +377,7 @@ export default function NotificationsScreen() {
                   ]}
                 />
 
-                <View style={[styles.prefChannels, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
+                <View style={[styles.prefChannels, { flexDirection: "row" }] }>
                   {[
                     {
                       key: "push" as const,
@@ -480,10 +438,8 @@ export default function NotificationsScreen() {
                           false: colors.border,
                           true: pref.color + "60",
                         }}
-                        thumbColor={pref[ch.key] ? pref.color : "#f4f3f4"}
-                        style={{
-                          transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
-                        }}
+                        thumbColor={pref[ch.key] ? pref.color : colors.surface}
+                        accessibilityLabel={`${ch.label}`}
                       />
                     </View>
                   ))}
@@ -495,197 +451,42 @@ export default function NotificationsScreen() {
 
         {tab === "historique" && (
           <>
-            {unread > 0 && (
-              <TouchableOpacity
-                style={[
-                  styles.markAllBtn,
-                  {
-                    backgroundColor: colors.primary + "15",
-                    borderColor: colors.primary + "30",
-                  },
-                ]}
-                onPress={handleMarkAllRead}
-              >
-                <Feather name="check-square" size={15} color={colors.primary} />
-                <Text style={[styles.markAllText, { color: colors.primary }]}>
-                  {t("markAllReadBtn")} ({unread})
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Summary strip */}
-            <View
-              style={[
-                styles.summaryRow,
-                {
-                  backgroundColor: colors.surfaceElevated,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              {(["info", "warning", "success", "error"] as const).map(
-                (type, i, arr) => {
-                  const count = alerts.filter((a) => a.type === type).length;
-                  return (
-                    <View
-                      key={type}
-                      style={[
-                        styles.summaryCell,
-                        i < arr.length - 1
-                          ? {
-                              borderRightWidth: isRTL ? 0 : 1,
-                              borderLeftWidth: isRTL ? 1 : 0,
-                              borderRightColor: colors.border,
-                              borderLeftColor: colors.border,
-                            }
-                          : null,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.summaryDot,
-                          { backgroundColor: ALERT_COLORS[type] + "20" },
-                        ]}
-                      >
-                        <Feather
-                          name={ALERT_ICONS[type]}
-                          size={13}
-                          color={ALERT_COLORS[type]}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.summaryCount,
-                          { color: colors.foreground },
-                        ]}
-                      >
-                        {count}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.summaryLabel,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        {type === "info"
-                          ? t("alertInfo")
-                          : type === "warning"
-                            ? t("alertWarning")
-                            : type === "success"
-                              ? t("alertSuccess")
-                              : t("alertError")}
-                      </Text>
-                    </View>
-                  );
-                },
-              )}
-            </View>
-
-            {/* Notification list */}
-            {alerts.map((alert) => {
-              const c = ALERT_COLORS[alert.type];
-              const ico = ALERT_ICONS[alert.type];
-              return (
-                <TouchableOpacity
-                  key={alert.id}
-                  style={[
-                    styles.notifCard,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: alert.read ? colors.border : c + "40",
-                      borderLeftWidth: alert.read ? 1 : isRTL ? 0 : 4,
-                      borderRightWidth: alert.read ? 1 : isRTL ? 4 : 0,
-                      borderLeftColor: alert.read ? colors.border : isRTL ? colors.border : c,
-                      borderRightColor: alert.read ? colors.border : isRTL ? c : colors.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    markAlertRead(alert.id);
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <View
-                    style={[
-                      styles.notifIconWrap,
-                      { backgroundColor: c + "18" },
-                    ]}
-                  >
-                    <Feather name={ico} size={18} color={c} />
-                  </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <View style={[styles.notifTitleRow, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
-                      <Text
-                        style={[
-                          styles.notifTitle,
-                          {
-                            color: colors.foreground,
-                            textAlign: isRTL ? "right" : "left",
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {alert.title}
-                      </Text>
-                      {!alert.read && (
-                        <View
-                          style={[styles.unreadDot, { backgroundColor: c }]}
-                        />
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.notifMsg,
-                        {
-                          color: colors.mutedForeground,
-                          textAlign: isRTL ? "right" : "left",
-                        },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {alert.message}
-                    </Text>
-                    <View style={[styles.notifFooter, { flexDirection: isRTL ? "row-reverse" : "row" }] }>
-                      <View
-                        style={[styles.typeChip, { backgroundColor: c + "18" }]}
-                      >
-                        <Text style={[styles.typeChipText, { color: c }]}>
-                          {alert.type === "info"
-                            ? t("alertInfo")
-                            : alert.type === "warning"
-                              ? t("alertWarning")
-                              : alert.type === "success"
-                                ? t("alertSuccess")
-                                : t("alertError")}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.notifDate,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        {alert.date}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            {alerts.length === 0 && (
-              <View style={styles.emptyState}>
-                <Feather
-                  name="bell-off"
-                  size={40}
-                  color={colors.mutedForeground}
-                />
-                <Text
-                  style={[styles.emptyText, { color: colors.mutedForeground }]}
-                >
-                  {t("notificationNoneTitle")}
-                </Text>
-              </View>
+            {alerts.length === 0 ? (
+              <EmptyState icon="bell-off" title={t("notificationNoneTitle")} />
+            ) : (
+              <>
+                {unread > 0 ? (
+                  <Button label={`${t("markAllReadBtn")} (${unread})`} icon="check-square" variant="secondary" fullWidth onPress={handleMarkAllRead} />
+                ) : null}
+                <Card padding="none">
+                  {alerts.map((alert, i) => {
+                    const tone = ALERT_TONES[alert.type] ?? "info";
+                    const typeLabel =
+                      alert.type === "info" ? t("alertInfo") : alert.type === "warning" ? t("alertWarning") : alert.type === "success" ? t("alertSuccess") : t("alertError");
+                    return (
+                      <ListItem
+                        key={alert.id}
+                        icon={ALERT_ICONS[alert.type] ?? "bell"}
+                        iconTone={tone}
+                        title={alert.title}
+                        subtitle={alert.message}
+                        meta={`${typeLabel} · ${alert.date}`}
+                        divider={i < alerts.length - 1}
+                        accessibilityHint={alert.read ? undefined : t("uiUnread")}
+                        trailing={!alert.read ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} accessibilityLabel={t("uiUnread")} /> : undefined}
+                        chevron={!!alert.link}
+                        onPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          markAlertRead(alert.id);
+                          // Opens what the notification is about (the server gives the
+                          // link only to roles allowed there; the screen checks again).
+                          if (alert.link) router.push(alert.link as any);
+                        }}
+                      />
+                    );
+                  })}
+                </Card>
+              </>
             )}
           </>
         )}
@@ -713,7 +514,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     textAlign: "center",
   },
   tabRow: { flexDirection: "row", borderBottomWidth: 1 },

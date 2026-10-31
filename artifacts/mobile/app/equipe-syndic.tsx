@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -54,21 +54,23 @@ export default function EquipeSyndicScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const ROLE_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-    super_admin:      { label: t("teamSuperAdmin"),     color: "#2563EB", icon: "shield" },
-    syndicate_admin:  { label: t("teamSyndicAdmin"),    color: "#3b82f6", icon: "briefcase" },
-    president:        { label: t("teamPresidentRole"),  color: "#f59e0b", icon: "award" },
-    tresorier:        { label: t("teamTresorierRole"),  color: "#10b981", icon: "dollar-sign" },
-    secretaire:       { label: t("teamSecretaireRole"), color: "#ec4899", icon: "edit-3" },
-    member:           { label: t("teamCopropriétaire"), color: "#6b7280", icon: "user" },
-    committee_member: { label: t("roleMembreConseil"),  color: "#8b5cf6", icon: "layers" },
+    super_admin:      { label: t("teamSuperAdmin"),     color: "#5A4AD6", icon: "shield" },
+    syndicate_admin:  { label: t("teamSyndicAdmin"),    color: "#5A4AD6", icon: "briefcase" },
+    president:        { label: t("teamPresidentRole"),  color: colors.warning, icon: "award" },
+    tresorier:        { label: t("teamTresorierRole"),  color: colors.success, icon: "dollar-sign" },
+    secretaire:       { label: t("teamSecretaireRole"), color: "#C2456E", icon: "edit-3" },
+    member:           { label: t("teamCopropriétaire"), color: "#6A6680", icon: "user" },
+    committee_member: { label: t("roleMembreConseil"),  color: "#1F8A9A", icon: "layers" },
   };
 
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) { setLoading(true); setError(false); }
       const data = await apiRequest("/team", "GET", undefined, token);
-      setTeam(data.data ?? []);
-      setSyndicate(data.syndicate ?? null);
+      // GET /team answers { syndicate, admins, committee } (each row typed).
+      const d = data.data ?? {};
+      setTeam([...(d.admins ?? []), ...(d.committee ?? [])]);
+      setSyndicate(d.syndicate ?? null);
     } catch {
       if (!silent) setError(true);
     } finally {
@@ -124,7 +126,7 @@ export default function EquipeSyndicScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#3b82f6" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -143,20 +145,20 @@ export default function EquipeSyndicScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#5A4AD6" size="large" />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
             {t("teamLoadingDesc")}
           </Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <View style={[styles.errorIcon, { backgroundColor: "#ef444415" }]}>
-            <Feather name="wifi-off" size={32} color="#ef4444" />
+          <View style={[styles.errorIcon, { backgroundColor: colors.danger + "15" }]}>
+            <Feather name="wifi-off" size={32} color={colors.danger} />
           </View>
           <Text style={[styles.errorTitle, { color: colors.foreground }]}>{t("error")}</Text>
           <Text style={[styles.errorDesc, { color: colors.mutedForeground }]}>{t("teamLoadError")}</Text>
           <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: "#3b82f6" }]}
+            style={[styles.retryBtn, { backgroundColor: "#5A4AD6" }]}
             onPress={() => load()}
           >
             <Feather name="refresh-cw" size={14} color="#fff" />
@@ -166,12 +168,12 @@ export default function EquipeSyndicScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A4AD6" />}
           showsVerticalScrollIndicator={false}
         >
           {/* Syndicate Contact Card */}
           {syndicate ? (
-            <View style={[styles.syndicateCard, { backgroundColor: "#3b82f6" }]}>
+            <View style={[styles.syndicateCard, { backgroundColor: "#5A4AD6" }]}>
               <View style={styles.syndicateCardTop}>
                 <View style={[styles.syndicateIcon, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                   <Feather name="home" size={22} color="#fff" />
@@ -240,8 +242,8 @@ export default function EquipeSyndicScreen() {
 
           {team.length === 0 ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#3b82f615" }]}>
-                <Feather name="users" size={32} color="#3b82f6" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#5A4AD615" }]}>
+                <Feather name="users" size={32} color="#5A4AD6" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 {t("teamEmptyTitle")}
@@ -274,7 +276,7 @@ export default function EquipeSyndicScreen() {
             {[
               { label: t("phoneLabel"),       key: "phone"       as const, placeholder: "+212 5xx xx xx xx" },
               { label: t("emailLabel"),       key: "email"       as const, placeholder: "contact@syndicat.ma" },
-              { label: t("addressLabel"),     key: "address"     as const, placeholder: "Adresse complète" },
+              { label: t("addressLabel"),     key: "address"     as const, placeholder: t("fullAddressPh") },
               { label: t("websiteLabel"),     key: "website"     as const, placeholder: "https://syndicat.ma" },
               { label: t("officeHoursLabel"), key: "officeHours" as const, placeholder: "Lun-Ven 9h-12h" },
             ].map((f) => (
@@ -294,7 +296,7 @@ export default function EquipeSyndicScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#3b82f6", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#5A4AD6", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleSaveSyndicate}
               disabled={submitting}
             >
@@ -325,7 +327,7 @@ function MemberCard({
 }) {
   const roleCfg =
     roleConfig[member.committeeRole ?? member.role] ??
-    roleConfig["member"] ?? { label: member.role, color: "#6b7280", icon: "user" as const };
+    roleConfig["member"] ?? { label: member.role, color: "#6A6680", icon: "user" as const };
   const initials = member.name
     .split(" ")
     .map((w) => w[0])
@@ -353,18 +355,18 @@ function MemberCard({
       <View style={memberStyles.actions}>
         {member.phone ? (
           <TouchableOpacity
-            style={[memberStyles.actionBtn, { backgroundColor: "#10b98118" }]}
+            style={[memberStyles.actionBtn, { backgroundColor: colors.success + "18" }]}
             onPress={() => onCall(member.phone!)}
           >
-            <Feather name="phone" size={15} color="#10b981" />
+            <Feather name="phone" size={15} color={colors.success} />
           </TouchableOpacity>
         ) : null}
         {member.email ? (
           <TouchableOpacity
-            style={[memberStyles.actionBtn, { backgroundColor: "#3b82f618" }]}
+            style={[memberStyles.actionBtn, { backgroundColor: "#5A4AD618" }]}
             onPress={() => onEmail(member.email)}
           >
-            <Feather name="mail" size={15} color="#3b82f6" />
+            <Feather name="mail" size={15} color="#5A4AD6" />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -377,7 +379,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 20, flexDirection: "row", alignItems: "center", gap: 14 },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   editBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
   list: { padding: 16, gap: 10 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },

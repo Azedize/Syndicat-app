@@ -98,10 +98,18 @@ export const usersTable = pgTable(
     cin: text("cin"),                    // Moroccan CIN (Carte d'Identité Nationale)
     passwordHash: text("password_hash").notNull(),
     mustChangePassword: boolean("must_change_password").notNull().default(false),
+    /**
+     * unverified (default) | verified (confirmed by a code sent to it) |
+     * undeliverable (reserved domain, or known not to receive mail). Mail is
+     * never sent to an undeliverable address; the account itself keeps working.
+     */
+    emailStatus: text("email_status").notNull().default("unverified"),
     role: text("role").notNull().default("member"),
     status: text("status").notNull().default("active"),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "set null" }),
     pushToken: text("push_token"),
+    // Language of push notifications (fr | ar | en | es); null = French.
+    language: text("language"),
     profession: text("profession"),
     avatar: text("avatar"),
     createdAt: createdAt(),
@@ -362,6 +370,8 @@ export const appelsDeFondsTable = pgTable(
     originalAmount: money("original_amount"),
     paidDate: text("paid_date"),
     receiptNumber: text("receipt_number"),
+    /** What the co-owner writes in the bank transfer (e.g. A203-2026Q4-CC-7F3A9B). Unique. */
+    paymentReference: text("payment_reference"),
     rejectionReason: text("rejection_reason"),
     validatedBy: text("validated_by"),
     validatedAt: timestamp("validated_at"),
@@ -378,6 +388,7 @@ export const appelsDeFondsTable = pgTable(
     // One live call per lot, period and charge type — makes generation
     // idempotent; a cancelled call (correction) no longer blocks its successor.
     uniqueIndex("appels_lot_period_type_uq").on(t.lotId, t.period, t.type).where(sql`${t.status} IS DISTINCT FROM 'cancelled'`),
+    uniqueIndex("appels_payment_reference_uq").on(t.paymentReference).where(sql`${t.paymentReference} IS NOT NULL`),
     index("appels_allocation_idx").on(t.allocationId),
     check(
       "appels_amount_paid_range",
@@ -1038,6 +1049,41 @@ export const announcementsTable = pgTable("announcements", {
   createdAt: createdAt(),
 },
   (t) => [index("announcements_syndicate_id_idx").on(t.syndicateId)],
+);
+
+/** "Lu et compris": one acknowledgement per person and announcement. */
+export const announcementAcknowledgementsTable = pgTable(
+  "announcement_acknowledgements",
+  {
+    id: id(),
+    announcementId: text("announcement_id").notNull().references(() => announcementsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    acknowledgedAt: timestamp("acknowledged_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("announcement_ack_unique").on(t.announcementId, t.userId),
+    index("announcement_ack_announcement_idx").on(t.announcementId),
+  ],
+);
+
+/**
+ * Proof that a user accepted a given version of a legal text (CGU, privacy
+ * policy): who, which version, when, from where. One row per version.
+ */
+export const termsAcceptancesTable = pgTable(
+  "terms_acceptances",
+  {
+    id: id(),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    /** "cgu" | "privacy" */
+    document: text("document").notNull(),
+    version: text("version").notNull(),
+    acceptedAt: timestamp("accepted_at").notNull().defaultNow(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+  },
+  (t) => [uniqueIndex("terms_acceptance_unique").on(t.userId, t.document, t.version)],
 );
 
 // ─── Documents ──────────────────────────────────────────────────────────────
@@ -1701,6 +1747,12 @@ export const alertsTable = pgTable("alerts", {
   // Personal notification: when set, only this user sees the alert
   // (payment validated/rejected, reply to their ticket…), whatever `target`.
   recipientUserId: text("recipient_user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  // Template (lib/notification-texts.ts) and its values: the notification is
+  // rendered in the reader's language. title/message keep the French text.
+  key: text("key"),
+  params: jsonb("params").$type<Record<string, string | number>>(),
+  // App screen the notification opens, given only to roles allowed there.
+  link: text("link"),
   createdAt: createdAt(),
 },
   (t) => [
@@ -1906,7 +1958,7 @@ export const emailLogsTable = pgTable(
     // Template key used to render the email (e.g. "welcome", "password_reset") —
     // lets the Email Center group/filter by flow.
     template: text("template").notNull(),
-    // status: pending | sent | failed
+    // status: pending | sent | failed | skipped (undeliverable address, not attempted)
     status: text("status").notNull().default("pending"),
     errorMessage: text("error_message"),
     retryCount: integer("retry_count").notNull().default(0),
@@ -1914,6 +1966,8 @@ export const emailLogsTable = pgTable(
     // Rendered body, kept so a failed email can be retried without recomputing
     // the template (e.g. after a transient SMTP outage).
     bodyHtml: text("body_html"),
+    // Provider's id when it accepted the message (proof of « sent »).
+    providerMessageId: text("provider_message_id"),
     sentAt: timestamp("sent_at"),
     createdAt: createdAt(),
   },

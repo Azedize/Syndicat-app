@@ -3,13 +3,10 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,14 +18,18 @@ import { apiRequest } from "@/lib/api";
 import StatCard from "@/components/StatCard";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import EmptyState from "@/components/EmptyState";
+import ScreenHeader from "@/components/ScreenHeader";
+import { Card, Chip, IconButton, SearchField, SectionHeader, StatusBadge, toneColors, type StatusTone } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
 
 type SortKey = "name" | "lots" | "unpaid" | "city";
 
-const BUILDING_TYPE_COLORS: Record<string, string> = {
-  residential: "#2563EB",
-  commercial: "#f59e0b",
-  office: "#3b82f6",
-  mixed: "#10b981",
+const BUILDING_TYPE_TONES: Record<string, StatusTone> = {
+  residential: "primary",
+  commercial: "warning",
+  office: "info",
+  mixed: "success",
 };
 
 type Building = {
@@ -67,8 +68,8 @@ type BuildingStats = {
   financialBalance: number;
 };
 
-function typeColor(type: string) {
-  return BUILDING_TYPE_COLORS[type] ?? "#6b7280";
+function typeTone(type: string): StatusTone {
+  return BUILDING_TYPE_TONES[type] ?? "neutral";
 }
 
 function aggregateStats(stats: BuildingStats[]) {
@@ -108,7 +109,7 @@ function BuildingsScreenInner() {
   const colors  = useColors();
   const insets  = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
 
   const isSuperAdmin = user?.role === "super_admin";
@@ -126,7 +127,6 @@ function BuildingsScreenInner() {
   const [sortAsc,      setSortAsc]      = useState(true);
   const [showFilters,  setShowFilters]  = useState(false);
 
-  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const BUILDING_TYPE_LABELS: Record<string, string> = {
     residential: t("residential"),
@@ -215,7 +215,7 @@ function BuildingsScreenInner() {
   }, [buildings, search, filterType, filterStatus, sortKey, sortAsc]);
 
   const toggleSort = (key: SortKey) => {
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     if (sortKey === key) {
       setSortAsc((v) => !v);
     } else {
@@ -224,339 +224,175 @@ function BuildingsScreenInner() {
     }
   };
 
+  const canCreate = isSuperAdmin || user?.role === "syndicate_admin";
+  const filtersActive = filterType !== "all" || filterStatus !== "all";
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: topPad + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{t("buildingsResidences")}</Text>
-           <Text style={styles.headerSub}>
-             {buildings.length} {t("managedBuildings")}
-           </Text>
-        </View>
-        {(isSuperAdmin || user?.role === "syndicate_admin") && (
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/syndicate-setup" as any); }}
-            activeOpacity={0.8}
-          >
-            <Feather name="plus" size={20} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("buildingsResidences")}
+        subtitle={`${buildings.length} ${t("managedBuildings")}`}
+        action={canCreate ? { icon: "plus", label: t("uiAdd"), onPress: () => router.push("/syndicate-setup" as any) } : undefined}
+      />
 
       {loading ? (
         <View style={styles.center}>
-          <LoadingState
-            title={t("buildingsLoadingTitle")}
-            description={t("buildingsLoadingDescription")}
-            accentColor={colors.primary}
-          />
+          <LoadingState title={t("buildingsLoadingTitle")} description={t("buildingsLoadingDescription")} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <ErrorState
-            title={t("buildingsLoadErrorTitle")}
-            description={error}
-            retryLabel={t("retry")}
-            onRetry={() => { void load(); }}
-            accentColor={colors.primary}
-          />
+          <ErrorState title={t("buildingsLoadErrorTitle")} description={error} retryLabel={t("retry")} onRetry={() => { void load(); }} />
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 32 }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-
-          {/* Stats strip (super_admin only) */}
+          {/* Overview (super_admin only) */}
           {isSuperAdmin && bldgStats.length > 0 && (
-            <>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                 {t("buildingsOverview").toUpperCase()}
-              </Text>
+            <View style={styles.section}>
+              <SectionHeader title={t("buildingsOverview")} />
               <View style={styles.statsGrid}>
-                <StatCard
-                  label={t("buildingsTitle")}
-                  value={globalStats.buildings}
-                  icon="home"
-                  iconColor={colors.primary}
-                />
-                <StatCard
-                  label={t("units")}
-                  value={globalStats.totalLots}
-                  icon="grid"
-                  iconColor="#3b82f6"
-                />
+                <StatCard label={t("buildingsTitle")} value={globalStats.buildings} icon="home" />
+                <StatCard label={t("units")} value={globalStats.totalLots} icon="grid" tone="info" />
               </View>
               <View style={styles.statsGrid}>
-                <StatCard
-                   label={t("occupied")}
-                  value={globalStats.occupiedLots}
-                  icon="check-circle"
-                  iconColor="#10b981"
-                   subtitle={`${globalStats.vacantLots} ${t("vacant")}`}
-                />
-                <StatCard
-                   label={t("owners")}
-                  value={globalStats.owners}
-                  icon="user"
-                  iconColor="#8b5cf6"
-                   subtitle={`${globalStats.tenants} ${t("tenants")}`}
-                />
+                <StatCard label={t("occupied")} value={globalStats.occupiedLots} icon="check-circle" tone="success" subtitle={`${globalStats.vacantLots} ${t("vacant")}`} />
+                <StatCard label={t("owners")} value={globalStats.owners} icon="user" tone="info" subtitle={`${globalStats.tenants} ${t("tenants")}`} />
               </View>
               <View style={styles.statsGrid}>
+                <StatCard label={t("buildingIncidents")} value={globalStats.incidents} icon="alert-triangle" tone="warning" />
                 <StatCard
-                   label={t("buildingIncidents")}
-                  value={globalStats.incidents}
-                  icon="alert-triangle"
-                  iconColor="#f59e0b"
-                />
-                <StatCard
-                   label={t("collectionRate")}
+                  label={t("collectionRate")}
                   value={`${collectionRate}%`}
                   icon="percent"
-                  iconColor={collectionRate >= 80 ? "#10b981" : collectionRate >= 60 ? "#f59e0b" : "#ef4444"}
-                   subtitle={`${globalStats.unpaidCharges} ${t("unpaidCharges")}`}
+                  tone={collectionRate >= 80 ? "success" : collectionRate >= 60 ? "warning" : "danger"}
+                  subtitle={`${globalStats.unpaidCharges} ${t("unpaidCharges")}`}
                 />
               </View>
               <View style={styles.statsGrid}>
-                <StatCard
-                  label="Documents"
-                  value={globalStats.documents}
-                  icon="file-text"
-                  iconColor="#1F5EFF"
-                />
-                <StatCard
-                  label="Réunions AG"
-                  value={globalStats.meetings}
-                  icon="calendar"
-                  iconColor="#0ea5e9"
-                />
-              </View>
-            </>
-          )}
-
-          {/* Search bar */}
-          <View style={[styles.searchRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="search" size={16} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.foreground }]}
-               placeholder={t("searchBuildings")}
-              placeholderTextColor={colors.mutedForeground}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")}>
-                <Feather name="x" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={() => { Haptics.selectionAsync(); setShowFilters((v) => !v); }}
-              style={[styles.filterToggle, { backgroundColor: showFilters ? colors.primary + "20" : "transparent" }]}
-            >
-              <Feather name="sliders" size={16} color={showFilters ? colors.primary : colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Filter panel */}
-          {showFilters && (
-            <View style={[styles.filterPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.filterLabel, { color: colors.mutedForeground }]}>{t("buildingType").toUpperCase()}</Text>
-              <View style={styles.chipRow}>
-                {FILTER_TYPES.map((f) => (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: filterType === f.key ? colors.primary : colors.background,
-                        borderColor: filterType === f.key ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => { Haptics.selectionAsync(); setFilterType(f.key); }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: filterType === f.key ? "#fff" : colors.mutedForeground },
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-               <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>{t("status").toUpperCase()}</Text>
-              <View style={styles.chipRow}>
-                {FILTER_STATUS.map((f) => (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: filterStatus === f.key ? colors.primary : colors.background,
-                        borderColor: filterStatus === f.key ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => { Haptics.selectionAsync(); setFilterStatus(f.key); }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: filterStatus === f.key ? "#fff" : colors.mutedForeground },
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-               <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>{t("sortBy").toUpperCase()}</Text>
-              <View style={styles.chipRow}>
-                {SORT_OPTIONS.map((s) => (
-                  <TouchableOpacity
-                    key={s.key}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: sortKey === s.key ? colors.primary : colors.background,
-                        borderColor: sortKey === s.key ? colors.primary : colors.border,
-                        flexDirection: "row",
-                        gap: 4,
-                      },
-                    ]}
-                    onPress={() => toggleSort(s.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: sortKey === s.key ? "#fff" : colors.mutedForeground },
-                      ]}
-                    >
-                      {s.label}
-                    </Text>
-                    {sortKey === s.key && (
-                      <Feather
-                        name={sortAsc ? "arrow-up" : "arrow-down"}
-                        size={11}
-                        color="#fff"
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                <StatCard label={t("documents")} value={globalStats.documents} icon="file-text" />
+                <StatCard label={t("meetings")} value={globalStats.meetings} icon="calendar" tone="info" />
               </View>
             </View>
           )}
 
-          {/* Results count */}
-          {(search || filterType !== "all" || filterStatus !== "all") && buildings.length > 0 && (
-            <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-               {displayed.length} {t("results")}
-              {search ? ` pour "${search}"` : ""}
+          {/* Search + filters */}
+          <View style={styles.searchRow}>
+            <SearchField value={search} onChangeText={setSearch} placeholder={t("searchBuildings")} style={{ flex: 1 }} />
+            <IconButton
+              icon="sliders"
+              accessibilityLabel={t("sortBy")}
+              onPress={() => setShowFilters((v) => !v)}
+              badge={filtersActive ? (filterType !== "all" ? 1 : 0) + (filterStatus !== "all" ? 1 : 0) : undefined}
+              style={showFilters ? { backgroundColor: colors.primarySoft, borderColor: colors.primary } : undefined}
+            />
+          </View>
+
+          {showFilters && (
+            <Card padding="md" style={{ gap: 10 }}>
+              <Text style={[TYPE.overline, { color: colors.textMuted }]}>{t("buildingType").toLocaleUpperCase()}</Text>
+              <View style={styles.chipRow}>
+                {FILTER_TYPES.map((f) => (
+                  <Chip key={f.key} label={f.label} selected={filterType === f.key} onPress={() => setFilterType(f.key)} />
+                ))}
+              </View>
+              <Text style={[TYPE.overline, { color: colors.textMuted, marginTop: 6 }]}>{t("status").toLocaleUpperCase()}</Text>
+              <View style={styles.chipRow}>
+                {FILTER_STATUS.map((f) => (
+                  <Chip key={f.key} label={f.label} selected={filterStatus === f.key} onPress={() => setFilterStatus(f.key)} />
+                ))}
+              </View>
+              <Text style={[TYPE.overline, { color: colors.textMuted, marginTop: 6 }]}>{t("sortBy").toLocaleUpperCase()}</Text>
+              <View style={styles.chipRow}>
+                {SORT_OPTIONS.map((s) => (
+                  <Chip
+                    key={s.key}
+                    label={s.label}
+                    selected={sortKey === s.key}
+                    icon={sortKey === s.key ? (sortAsc ? "arrow-up" : "arrow-down") : undefined}
+                    onPress={() => toggleSort(s.key)}
+                  />
+                ))}
+              </View>
+            </Card>
+          )}
+
+          {(search || filtersActive) && buildings.length > 0 && (
+            <Text style={[TYPE.caption, { color: colors.textMuted, paddingHorizontal: 4 }]}>
+              {displayed.length} {t("results")}
             </Text>
           )}
 
-          {/* Empty state */}
           {buildings.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
-                <Feather name="home" size={32} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noBuildings")}</Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                 {t("buildingsEmptyDescription")}
-              </Text>
-            </View>
+            <EmptyState
+              icon="home"
+              title={t("noBuildings")}
+              description={t("buildingsEmptyDescription")}
+              actionLabel={canCreate ? t("uiAdd") : undefined}
+              onAction={canCreate ? () => router.push("/syndicate-setup" as any) : undefined}
+            />
           ) : displayed.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
-                <Feather name="search" size={32} color={colors.primary} />
-              </View>
-               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noResults")}</Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                 {t("noBuildingMatches")}
-              </Text>
-              <TouchableOpacity
-                style={[styles.retryBtn, { backgroundColor: colors.primary, marginTop: 8 }]}
-                onPress={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
-              >
-                 <Text style={styles.retryBtnText}>{t("resetFilters")}</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon="search"
+              title={t("noResults")}
+              description={t("noBuildingMatches")}
+              actionLabel={t("resetFilters")}
+              onAction={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
+            />
           ) : (
-            displayed.map((building) => (
-              <TouchableOpacity
-                key={building.id}
-                style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({
-                    pathname: "/lots",
-                    params: { buildingId: building.id, buildingName: building.name },
-                  } as any);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.buildingIcon, { backgroundColor: typeColor(building.type) + "18" }]}>
-                    <Feather name="home" size={22} color={typeColor(building.type)} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>
-                      {building.name}
-                    </Text>
-                    <Text style={[styles.cardAddress, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {building.address}, {building.city}
-                    </Text>
-                  </View>
-                  <View style={[styles.typeBadge, { backgroundColor: typeColor(building.type) + "18" }]}>
-                    <Text style={[styles.typeBadgeText, { color: typeColor(building.type) }]}>
-                      {BUILDING_TYPE_LABELS[building.type] ?? building.type}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
-                  {[
-                    { icon: "layers" as const,      label: `${building.totalFloors} ${t("floors")}`,                  color: "#1F5EFF" },
-                    { icon: "grid" as const,         label: `${building.lotCount || building.totalLots} ${t("units")}`, color: "#3b82f6" },
-                    { icon: "tool" as const,         label: `${building.openTravaux} ${t("travaux")}`,                   color: building.openTravaux > 0 ? "#f59e0b" : "#10b981" },
-                    { icon: "credit-card" as const,  label: `${building.pendingCharges} ${t("unpaidCharges")}`,         color: building.pendingCharges > 0 ? "#ef4444" : "#10b981" },
-                  ].map((info) => (
-                    <View key={info.label} style={styles.infoCell}>
-                      <Feather name={info.icon} size={13} color={info.color} />
-                      <Text style={[styles.infoCellText, { color: colors.mutedForeground }]}>{info.label}</Text>
+            displayed.map((building) => {
+              const tone = typeTone(building.type);
+              const tc = toneColors(colors, tone);
+              const lots = building.lotCount || building.totalLots;
+              return (
+                <Card
+                  key={building.id}
+                  padding="none"
+                  accessibilityLabel={`${building.name}, ${building.address}, ${building.city}`}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    router.push({ pathname: "/lots", params: { buildingId: building.id, buildingName: building.name } } as any);
+                  }}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.buildingIcon, { backgroundColor: tc.bg }]}>
+                      <Feather name="home" size={20} color={tc.fg} />
                     </View>
-                  ))}
-                </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                      <Text style={[TYPE.subtitle, { color: colors.foreground }]} numberOfLines={1}>
+                        {building.name}
+                      </Text>
+                      <Text style={[TYPE.secondary, { color: colors.textMuted }]} numberOfLines={1}>
+                        {building.address}, {building.city}
+                      </Text>
+                    </View>
+                    <StatusBadge label={BUILDING_TYPE_LABELS[building.type] ?? building.type} tone={tone} icon={null} />
+                  </View>
 
-                <View style={styles.cardFooter}>
-                  <View style={[styles.statusDot, { backgroundColor: building.status === "active" ? "#10b981" : "#ef4444" }]} />
-                  <Text style={[styles.cardFooterText, { color: colors.mutedForeground }]}>
-                    {building.status === "active" ? t("statusActive") : t("statusInactive")}
-                    {building.constructionYear ? ` — ${t("builtIn")} ${building.constructionYear}` : ""}
-                  </Text>
-                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={[styles.metrics, { borderTopColor: colors.border, backgroundColor: colors.surfaceMuted + "80" }]}>
+                    <Metric icon="layers" value={building.totalFloors} label={t("floors")} />
+                    <Metric icon="grid" value={lots} label={t("units")} />
+                    <Metric icon="tool" value={building.openTravaux} label={t("travaux")} tone={building.openTravaux > 0 ? "warning" : undefined} />
+                    <Metric icon="credit-card" value={building.pendingCharges} label={t("unpaidCharges")} tone={building.pendingCharges > 0 ? "danger" : undefined} />
+                  </View>
+
+                  <View style={styles.cardFooter}>
+                    <StatusBadge label={building.status === "active" ? t("statusActive") : t("statusInactive")} tone={building.status === "active" ? "success" : "neutral"} />
+                    {building.constructionYear ? (
+                      <Text style={[TYPE.caption, { color: colors.textMuted, flex: 1 }]} numberOfLines={1}>
+                        {t("builtIn")} {building.constructionYear}
+                      </Text>
+                    ) : (
+                      <View style={{ flex: 1 }} />
+                    )}
+                    <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={colors.textMuted} />
+                  </View>
+                </Card>
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -564,45 +400,35 @@ function BuildingsScreenInner() {
   );
 }
 
+/** One figure of a building card: value + label, toned only when it needs attention. */
+function Metric({ icon, value, label, tone }: { icon: keyof typeof Feather.glyphMap; value: number; label: string; tone?: StatusTone }) {
+  const colors = useColors();
+  const tc = tone ? toneColors(colors, tone) : null;
+  return (
+    <View style={styles.metric} accessible accessibilityLabel={`${value} ${label}`}>
+      <View style={styles.metricTop}>
+        <Feather name={icon} size={13} color={tc?.fg ?? colors.textMuted} />
+        <Text style={[TYPE.bodyStrong, { color: tc?.text ?? colors.foreground, fontVariant: ["tabular-nums"] }]}>{value}</Text>
+      </View>
+      <Text style={[TYPE.caption, { color: colors.textMuted, textAlign: "center" }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  root:           { flex: 1 },
-  header:         { paddingHorizontal: 20, paddingBottom: 20, flexDirection: "row", alignItems: "center", gap: 14 },
-  backBtn:        { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  headerTitle:    { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub:      { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 2 },
-  addBtn:         { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  list:           { padding: 16, gap: 12 },
-  sectionLabel:   { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, paddingHorizontal: 4 },
-  statsGrid:      { flexDirection: "row", gap: 12 },
-  searchRow:      { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
-  searchInput:    { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", padding: 0 },
-  filterToggle:   { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  filterPanel:    { borderRadius: 14, borderWidth: 1, padding: 14, gap: 6 },
-  filterLabel:    { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8 },
-  chipRow:        { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip:           { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 4 },
-  chipText:       { fontSize: 12, fontFamily: "Inter_500Medium" },
-  resultCount:    { fontSize: 12, fontFamily: "Inter_400Regular", paddingHorizontal: 4 },
-  card:           { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
-  cardHeader:     { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, paddingBottom: 12 },
-  buildingIcon:   { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  cardName:       { fontSize: 16, fontFamily: "Inter_700Bold" },
-  cardAddress:    { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  typeBadge:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  typeBadgeText:  { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  infoRow:        { flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 10 },
-  infoCell:       { flex: 1, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 4 },
-  infoCellText:   { fontSize: 11, fontFamily: "Inter_400Regular" },
-  cardFooter:     { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  statusDot:      { width: 7, height: 7, borderRadius: 4 },
-  cardFooterText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular" },
-  center:         { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
-  loadingText:    { fontSize: 14, fontFamily: "Inter_400Regular" },
-  errorText:      { fontSize: 14, fontFamily: "Inter_500Medium", textAlign: "center" },
-  retryBtn:       { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 8 },
-  retryBtnText:   { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  empty:          { alignItems: "center", gap: 12, paddingVertical: 60, paddingHorizontal: 32 },
-  emptyIcon:      { width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  emptyTitle:     { fontSize: 18, fontFamily: "Inter_700Bold" },
-  emptyText:      { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  root:        { flex: 1 },
+  list:        { padding: 16, gap: 12 },
+  section:     { gap: 12, marginBottom: 4 },
+  statsGrid:   { flexDirection: "row", gap: 12 },
+  searchRow:   { flexDirection: "row", alignItems: "center", gap: 10 },
+  chipRow:     { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  cardHeader:  { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
+  buildingIcon:{ width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  metrics:     { flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 10, paddingHorizontal: 8 },
+  metric:      { flex: 1, alignItems: "center", gap: 2, minWidth: 0 },
+  metricTop:   { flexDirection: "row", alignItems: "center", gap: 5 },
+  cardFooter:  { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  center:      { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
 });

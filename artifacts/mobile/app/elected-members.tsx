@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import { router } from "expo-router";
 import React from "react";
 import { ActivityIndicator, Alert, FlatList, Platform, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -67,12 +68,7 @@ function ElectedMembersInner() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>{t("electedMembers")}</Text>
-      </View>
+      <ScreenHeader title={t("electedMembers")} />
 
       {isLoading ? (
         <LoadingState title={t("electedMembers")} description={t("mandatesLoadDescription")} />
@@ -88,7 +84,7 @@ function ElectedMembersInner() {
           data={mandates}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={() => { void refetch(); }} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={styles.center}>
               <Feather name="award" size={40} color={colors.mutedForeground} />

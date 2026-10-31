@@ -259,7 +259,8 @@ async function main() {
     step("neighbour does not see it in the list", !(khadijaDocs.json?.data ?? []).some((d: any) => d.id === personalDocId));
     step("both still see general syndicate documents", (khadijaDocs.json?.data ?? []).some((d: any) => d.id === "doc_1") && (mohammedDocs.json?.data ?? []).some((d: any) => d.id === "doc_1"));
     const direct = await api(khadija, `/documents/${personalDocId}`);
-    step("neighbour cannot open it by ID", direct.status === 403, `status=${direct.status}`);
+    // Hidden documents answer like missing ones (no existence disclosure).
+    step("neighbour cannot open it by ID", direct.status === 404, `status=${direct.status}`);
     const versions = await api(khadija, `/documents/${personalDocId}/versions`);
     // 404: the library does not even confirm that the document exists.
     step("neighbour cannot read its version history", [403, 404].includes(versions.status), `status=${versions.status}`);

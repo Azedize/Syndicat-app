@@ -96,7 +96,7 @@ const NEXT: Record<CondominiumStatus, Exclude<CondominiumStatus, "draft">[]> = {
   suspended: ["active", "archived"],
   archived: [],
 };
-const STATUS_COLOR: Record<CondominiumStatus, string> = { draft: "#64748b", active: "#10b981", suspended: "#f59e0b", archived: "#94a3b8" };
+const STATUS_COLOR: Record<CondominiumStatus, string> = { draft: "#6A6680", active: "#13976C", suspended: "#C98511", archived: "#A6A1BE" };
 const newKey = () => `condo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const money = (m: MoneyByCurrency) => (m.length ? m.map((x) => `${Number(x.amount).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} ${x.currency}`).join(" · ") : "0");
 
@@ -124,7 +124,7 @@ function CreateSheet({ visible, orgId, onClose, onCreated, tr }: { visible: bool
       <TextInput
         value={f[field]}
         onChangeText={(v) => setF((p) => ({ ...p, [field]: v }))}
-        style={[formStyles.input, { borderColor: err?.field === field ? "#ef4444" : colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+        style={[formStyles.input, { borderColor: err?.field === field ? colors.danger : colors.border, color: colors.foreground, backgroundColor: colors.card }]}
         placeholderTextColor={colors.mutedForeground}
         {...extra}
       />
@@ -174,7 +174,7 @@ function CreateSheet({ visible, orgId, onClose, onCreated, tr }: { visible: bool
       <FieldLabel label={tr("language")} error={err?.field === "defaultLanguage" ? err.message : null} />
       <ChoiceChips value={f.defaultLanguage} onChange={(v) => setF((p) => ({ ...p, defaultLanguage: v }))} options={["fr", "ar", "en", "es"].map((k) => ({ key: k, label: k.toUpperCase() }))} />
       {input("fiscalYearStartMonth", "fiscalMonth", { keyboardType: "number-pad", maxLength: 2 })}
-      {err && !err.field ? <Text style={{ color: "#ef4444" }}>{err.message}</Text> : null}
+      {err && !err.field ? <Text style={{ color: colors.danger }}>{err.message}</Text> : null}
       <ActionButton label={tr("create")} icon="plus" onPress={submit} busy={busy} />
     </FormSheet>
   );
@@ -216,11 +216,11 @@ function StatusSheet({ condo, onClose, onDone, tr }: { condo: PortfolioRow | nul
       ) : (
         <>
           <ChoiceChips value={target} onChange={setTarget} options={options.map((k) => ({ key: k, label: label(k) }))} />
-          {target === "archived" ? <Text style={{ color: "#b45309", fontSize: 13 }}>{tr("archiveWarn")}</Text> : null}
+          {target === "archived" ? <Text style={{ color: "#A86D0B", fontSize: 13 }}>{tr("archiveWarn")}</Text> : null}
           <FieldLabel label={tr("reason")} />
           <TextInput value={reason} onChangeText={setReason} multiline style={[formStyles.input, { minHeight: 70, borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} />
-          {err ? <Text style={{ color: "#ef4444" }}>{err}</Text> : null}
-          <ActionButton label={tr("confirm")} onPress={submit} busy={busy} color={target === "archived" ? "#ef4444" : undefined} />
+          {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
+          <ActionButton label={tr("confirm")} onPress={submit} busy={busy} color={target === "archived" ? colors.danger : undefined} />
         </>
       )}
     </FormSheet>
@@ -287,7 +287,7 @@ function TeamSheet({ condo, onClose, tr, lang }: { condo: PortfolioRow | null; o
               />
             </View>
           )}
-          {err ? <Text style={{ color: "#ef4444" }}>{err}</Text> : null}
+          {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("assignments")}</Text>
           {active.length === 0 ? <Text style={{ color: colors.mutedForeground }}>{tr("noAssignment")}</Text> : null}
           {active.map((a) => (
@@ -303,7 +303,7 @@ function TeamSheet({ condo, onClose, tr, lang }: { condo: PortfolioRow | null; o
                 <ActionButton
                   label={tr("revoke")}
                   icon="user-x"
-                  color="#ef4444"
+                  color={colors.danger}
                   busy={busy === a.id}
                   onPress={() =>
                     Alert.alert(tr("revoke"), tr("revokeConfirm"), [
@@ -462,7 +462,7 @@ export default function PortefeuilleScreen() {
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("totals")} · {org?.name}</Text>
           <TouchableOpacity onPress={() => setShowDefs((v) => !v)} accessibilityRole="button" style={styles.row}>
             <Feather name="info" size={14} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("definitions")}</Text>
+            <Text style={{ color: colors.tint, fontSize: 12 }}>{tr("definitions")}</Text>
           </TouchableOpacity>
         </View>
         {!pf ? (
@@ -497,7 +497,7 @@ export default function PortefeuilleScreen() {
           {isAdmin && (
             <TouchableOpacity onPress={() => setCreating(true)} style={styles.row} accessibilityRole="button">
               <Feather name="plus-circle" size={16} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{tr("newCondo")}</Text>
+              <Text style={{ color: colors.tint, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{tr("newCondo")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -523,13 +523,13 @@ export default function PortefeuilleScreen() {
               {open && (
                 <View style={{ gap: 8, marginTop: 10 }}>
                   <View style={styles.actions}>
-                    <ActionButton label={tr("drillOutstanding")} icon="credit-card" onPress={() => setDrill({ condo: c, kind: "outstanding" })} color="#0f766e" />
-                    <ActionButton label={tr("drillIncidents")} icon="alert-triangle" onPress={() => setDrill({ condo: c, kind: "incidents" })} color="#f59e0b" />
+                    <ActionButton label={tr("drillOutstanding")} icon="credit-card" onPress={() => setDrill({ condo: c, kind: "outstanding" })} color="#0F6E7D" />
+                    <ActionButton label={tr("drillIncidents")} icon="alert-triangle" onPress={() => setDrill({ condo: c, kind: "incidents" })} color={colors.warning} />
                   </View>
                   <View style={styles.actions}>
                     <ActionButton label={tr("work")} icon="log-in" onPress={() => work(c)} busy={switching === c.id} disabled={!!switching || (c.status === "archived" && !isAdmin)} />
-                    {isAdmin && <ActionButton label={tr("team")} icon="users" onPress={() => setTeamOf(c)} color="#2563EB" />}
-                    {isAdmin && <ActionButton label={tr("status")} icon="sliders" onPress={() => setStatusOf(c)} color="#64748b" />}
+                    {isAdmin && <ActionButton label={tr("team")} icon="users" onPress={() => setTeamOf(c)} color="#5A4AD6" />}
+                    {isAdmin && <ActionButton label={tr("status")} icon="sliders" onPress={() => setStatusOf(c)} color="#6A6680" />}
                   </View>
                 </View>
               )}

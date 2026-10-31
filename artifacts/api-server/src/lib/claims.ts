@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { JwtPayload } from "../middleware/auth.js";
 import { sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
+import { localToday } from "./charge-time.js";
 
 /**
  * Claims & incidents — business rules shared by the routes, the board and the
@@ -133,7 +134,7 @@ async function deliver(
         title: message.title,
         message: message.body,
         type: message.type ?? "info",
-        date: new Date().toISOString().slice(0, 10),
+        date: localToday(),
         syndicateId: n.syndicateId,
         target: "all",
         recipientUserId: n.userId,

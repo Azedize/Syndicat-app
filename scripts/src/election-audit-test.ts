@@ -13,11 +13,11 @@
 // fixture users using the same JWT_SECRET the server verifies against — every other endpoint below
 // (elections, candidates, votes, transitions, mandates) is still exercised over real HTTP.
 import jwt from "jsonwebtoken";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
-const BASE = "http://localhost:80/api";
+const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const PASSWORD = "password123";
 const JWT_SECRET = process.env.JWT_SECRET!;
 if (!JWT_SECRET) throw new Error("JWT_SECRET not set in this environment");
@@ -66,13 +66,13 @@ const OWNER_EMAILS = [
   "khadija.ouazzani", "omar.fassi", "nadia.chraibi", "hamza.berrada", "leila.alami",
   "mehdi.sekkat", "amina.kettani", "rachid.lahlou", "zineb.tahiri", "adil.cherkaoui",
   "souad.belghiti", "yassine.benjelloun", "malika.squalli", "nabil.guessous", "youssef.alaoui",
-].map((slug) => `${slug}@alandalous-audit.ma`);
+].map((slug) => `${slug}@alandalous-audit.test`);
 
-const TENANT_EMAILS = ["rania.sabri", "anas.idrissi", "salma.benaissa", "othmane.rifai", "ikram.toumi"].map((slug) => `${slug}@tenant-audit.ma`);
+const TENANT_EMAILS = ["rania.sabri", "anas.idrissi", "salma.benaissa", "othmane.rifai", "ikram.toumi"].map((slug) => `${slug}@tenant-audit.test`);
 
-const ADMIN_EMAIL = "admin@alandalous-audit.ma";
-const OTHER_ADMIN_EMAIL = "admin@zaytoune-audit.ma";
-const OTHER_MEMBER_EMAIL = "intrus@zaytoune-audit.ma";
+const ADMIN_EMAIL = "admin@alandalous-audit.test";
+const OTHER_ADMIN_EMAIL = "admin@zaytoune-audit.test";
+const OTHER_MEMBER_EMAIL = "intrus@zaytoune-audit.test";
 
 const AHMED = OWNER_EMAILS[0];
 const SARA = OWNER_EMAILS[1];
@@ -120,6 +120,7 @@ async function main() {
         endDate: iso(3),
       },
     });
+    if (!json?.data) console.log("createElection: réponse inattendue", JSON.stringify(json)?.slice(0, 300));
     return json?.data;
   }
 
@@ -315,7 +316,18 @@ async function main() {
   console.log(JSON.stringify({ total: checks.length, passed: checks.filter((c) => c.pass).length, failed: checks.filter((c) => !c.pass).length, checks }, null, 2));
 }
 
-main().catch((err) => {
-  console.error("FATAL:", err);
-  process.exit(1);
-});
+// The database pool would keep the process alive: close it, and exit non-zero
+// when a check failed so a runner sees the result.
+main()
+  .then(async () => {
+    const failed = checks.filter((c) => !c.pass).length;
+    console.log(`
+${checks.length - failed}/${checks.length} election audit checks passed`);
+    await pool.end().catch(() => {});
+    process.exit(failed ? 1 : 0);
+  })
+  .catch(async (err) => {
+    console.error("FATAL:", err);
+    await pool.end().catch(() => {});
+    process.exit(1);
+  });

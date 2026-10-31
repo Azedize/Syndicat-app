@@ -20,6 +20,7 @@ import {
   partnersTable,
   payslipsTable,
   announcementsTable,
+  announcementAcknowledgementsTable,
   usersTable,
   membersTable,
 } from "@workspace/db/schema";
@@ -31,6 +32,7 @@ import {
 } from "../lib/syndicate-filter.js";
 import { findForeignReference } from "../lib/scope.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
+import { asLang, notificationLink, renderNotification } from "../lib/notification-texts.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -407,8 +409,8 @@ router.post("/support", requireAuth, async (req, res) => {
     if (scope === "syndicate") {
       // Level 1: alert and notify syndicate admin only
       createAlert({
-        title: "Nouveau ticket support",
-        message: `"${result.data.title}" de ${req.user!.name} (${result.data.priority}).`,
+        key: "ticket.new",
+        params: { title: result.data.title, author: req.user!.name, priority: result.data.priority },
         type: urgencyType,
         syndicateId: sid || null,
         target: "admin",
@@ -441,8 +443,8 @@ router.post("/support", requireAuth, async (req, res) => {
     } else {
       // Level 2: alert and notify all super_admins
       createAlert({
-        title: "Nouveau ticket plateforme",
-        message: `"${result.data.title}" de ${req.user!.name} — syndicat ${sid ?? "?"} (${result.data.priority}).`,
+        key: "ticket.platformNew",
+        params: { title: result.data.title, author: req.user!.name, priority: result.data.priority },
         type: urgencyType,
         syndicateId: null,
         target: "admin",
@@ -550,15 +552,15 @@ router.post("/support/:id/replies", requireAuth, async (req, res) => {
     // replies, the team when the submitter adds a message.
     if (ticket.submittedById && ticket.submittedById !== req.user!.userId) {
       void notifyUser(ticket.submittedById, {
-        title: "Réponse à votre ticket",
-        message: `${req.user!.name} a répondu à « ${ticket.title} ».`,
+        key: "ticket.reply",
+        params: { author: req.user!.name, title: ticket.title },
         type: "info",
         syndicateId: ticket.syndicateId || null,
       });
     } else {
       createAlert({
-        title: "Nouveau message sur un ticket",
-        message: `${req.user!.name} a complété le ticket « ${ticket.title} ».`,
+        key: "ticket.userMessage",
+        params: { author: req.user!.name, title: ticket.title },
         type: "info",
         syndicateId: ticket.syndicateId || null,
         target: "admin",
@@ -602,8 +604,8 @@ router.put(
         .returning();
       if (ticket.submittedById && ticket.submittedById !== req.user!.userId) {
         void notifyUser(ticket.submittedById, {
-          title: "Ticket résolu",
-          message: `Votre ticket « ${ticket.title} » a été marqué comme résolu.`,
+          key: "ticket.resolved",
+          params: { title: ticket.title },
           type: "success",
           syndicateId: ticket.syndicateId || null,
         });
@@ -686,8 +688,8 @@ router.post(
 
       // Notify super_admins
       createAlert({
-        title: "Ticket escaladé vers la plateforme",
-        message: `"${ticket.title}" a été escaladé par ${req.user!.name}.`,
+        key: "ticket.escalated",
+        params: { title: ticket.title, author: req.user!.name },
         type: "error",
         syndicateId: null,
         target: "admin",
@@ -843,10 +845,19 @@ router.get("/alerts", requireAuth, async (req, res) => {
         : [];
 
     const readSet = new Set(readRows.map((r) => r.alertId));
-    const annotated = rows.map((a) => ({
-      ...a,
-      readByUser: readSet.has(a.id),
-    }));
+    // In the reader's language (?lang=, else Accept-Language); the link only
+    // when this role may open the screen it points to.
+    const lang = asLang(typeof req.query.lang === "string" ? req.query.lang : String(req.headers["accept-language"] ?? "").slice(0, 2));
+    const annotated = rows.map((a) => {
+      const text = renderNotification(a.key, a.params as Record<string, string | number> | null, lang);
+      return {
+        ...a,
+        title: text?.title ?? a.title,
+        message: text?.message ?? a.message,
+        link: notificationLink(a.key, a.link, req.user!.role),
+        readByUser: readSet.has(a.id),
+      };
+    });
 
     res.json({ ...buildPagedResponse(annotated, Number(total), pagination) });
   } catch (err) {
@@ -1202,7 +1213,45 @@ router.get("/announcements", requireAuth, async (req, res) => {
         .offset(pagination.offset),
       db.select({ value: count() }).from(announcementsTable).where(where),
     ]);
-    res.json(buildPagedResponse(rows, Number(total), pagination));
+    // "Lu et compris": the viewer's own acknowledgement, and the count for the team.
+    const ids = rows.map((r) => r.id);
+    const acks = ids.length
+      ? await db
+          .select({ announcementId: announcementAcknowledgementsTable.announcementId, userId: announcementAcknowledgementsTable.userId })
+          .from(announcementAcknowledgementsTable)
+          .where(inArray(announcementAcknowledgementsTable.announcementId, ids))
+      : [];
+    const team = req.user!.role !== "member" && req.user!.role !== "tenant";
+    const data = rows.map((r) => {
+      const mine = acks.filter((a) => a.announcementId === r.id);
+      return {
+        ...r,
+        acknowledged: mine.some((a) => a.userId === req.user!.userId),
+        ...(team ? { acknowledgementCount: mine.length } : {}),
+      };
+    });
+    res.json(buildPagedResponse(data, Number(total), pagination));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// POST /announcements/:id/acknowledge — idempotent "lu et compris".
+router.post("/announcements/:id/acknowledge", requireAuth, async (req, res) => {
+  try {
+    const where = syndicateWhere(req, announcementsTable.syndicateId);
+    const [ann] = await db
+      .select({ id: announcementsTable.id, syndicateId: announcementsTable.syndicateId })
+      .from(announcementsTable)
+      .where(and(eq(announcementsTable.id, String(req.params.id)), where));
+    if (!ann) return void res.status(404).json({ error: "Annonce introuvable" });
+    const [row] = await db
+      .insert(announcementAcknowledgementsTable)
+      .values({ announcementId: ann.id, userId: req.user!.userId, syndicateId: ann.syndicateId })
+      .onConflictDoNothing({ target: [announcementAcknowledgementsTable.announcementId, announcementAcknowledgementsTable.userId] })
+      .returning();
+    res.status(row ? 201 : 200).json({ data: { announcementId: ann.id, acknowledged: true }, duplicate: !row });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

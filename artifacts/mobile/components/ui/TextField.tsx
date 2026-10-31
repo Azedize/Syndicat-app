@@ -14,7 +14,9 @@ interface TextFieldProps extends Omit<TextInputProps, "style"> {
 }
 
 /** Labelled text input with focus ring, helper and accessible error. */
-export default function TextField({ label, required, error, helper, editable = true, multiline, ...input }: TextFieldProps) {
+export default function TextField({ label: rawLabel, required, error, helper, editable = true, multiline, ...input }: TextFieldProps) {
+  // Many translated labels already end with " *": keep a single marker.
+  const label = required ? rawLabel.replace(/\s*\*\s*$/, "") : rawLabel;
   const colors = useColors();
   const { isRTL } = useLanguage();
   const [focused, setFocused] = useState(false);

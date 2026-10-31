@@ -22,10 +22,11 @@ import {
   usersTable,
   alertsTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, sql } from "drizzle-orm";
 import { createAlert, sendEmail, sendPushToUsers } from "./notify.js";
 import { logger } from "./logger.js";
 import { scheduleJob } from "./scheduler.js";
+import { localToday } from "./charge-time.js";
 
 const REMINDER_THRESHOLDS_DAYS = [7, 3, 1] as const;
 
@@ -49,7 +50,7 @@ function getExpiryDate(row: {
 
 /** True if we already sent a reminder at this threshold for this syndicate today. */
 async function alreadySentReminder(syndicateId: string, daysLeft: number): Promise<boolean> {
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = localToday()!;
   const titlePattern = daysLeft === 1
     ? "⚠️ Abonnement expire demain !"
     : `⏰ Abonnement expire dans ${daysLeft} jours`;
@@ -60,7 +61,7 @@ async function alreadySentReminder(syndicateId: string, daysLeft: number): Promi
     .where(
       and(
         eq(alertsTable.syndicateId, syndicateId),
-        eq(alertsTable.title, titlePattern),
+        or(eq(alertsTable.title, titlePattern), and(eq(alertsTable.key, "subscription.expiring"), sql`${alertsTable.params}->>'days' = ${String(daysLeft)}`)),
         eq(alertsTable.date, today),
       ),
     )
@@ -163,10 +164,8 @@ async function runSubscriptionReminderScan(): Promise<void> {
 
       // 1. Create in-app alert (visible in the mobile notifications screen)
       await createAlert({
-        title: alertTitle,
-        message:
-          `Renouvelez votre abonnement pour maintenir l'accès complet à MIZAN. ` +
-          `Après expiration: mode lecture seule.`,
+        key: "subscription.expiring",
+        params: { days },
         type: days === 1 ? "error" : "warning",
         syndicateId,
         target: "admin",

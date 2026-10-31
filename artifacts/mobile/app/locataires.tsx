@@ -23,6 +23,8 @@ import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import { Avatar, ListItem, StatusBadge, type StatusTone } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -53,9 +55,9 @@ const STATUS_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "#10b981",
-  expired: "#ef4444",
-  pending: "#f59e0b",
+  active: "#13976C",
+  expired: "#C8323C",
+  pending: "#C98511",
 };
 
 export default function LocatairesScreen() {
@@ -346,11 +348,10 @@ function LocatairesScreenInner() {
       <StatisticsHeader
         title={t("locatairesTitle")}
         subtitle={`${tenants.length} ${t("locatairesTitle").toLowerCase()}`}
-        color="#06b6d4"
         stats={[
-          { label: t("statusActive"), value: activeCount, color: "#10b981" },
-          { label: t("expiringLabel"), value: expiringCount, color: "#f59e0b" },
-          { label: t("total"), value: tenants.length, color: "#06b6d4" },
+          { label: t("statusActive"), value: activeCount, color: colors.success },
+          { label: t("expiringLabel"), value: expiringCount, color: colors.warning },
+          { label: t("total"), value: tenants.length },
         ]}
         action={
           isAdmin
@@ -397,7 +398,6 @@ function LocatairesScreenInner() {
         options={FILTERS}
         value={filter}
         onChange={setFilter}
-        accentColor="#06b6d4"
       />
 
       {loading ? (
@@ -417,8 +417,7 @@ function LocatairesScreenInner() {
           description={t("tenantsUnavailableDescription")}
           retryLabel={t("retry")}
           onRetry={() => void load()}
-          accentColor="#06b6d4"
-        />
+          />
       ) : (
         <FlatList
           data={filtered}
@@ -432,7 +431,7 @@ function LocatairesScreenInner() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#06b6d4"
+              tintColor={colors.primary}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -452,7 +451,6 @@ function LocatairesScreenInner() {
             </View>
           }
           renderItem={({ item: ten }) => {
-            const color = STATUS_COLORS[ten.status] ?? "#6b7280";
             const icon = STATUS_ICONS[ten.status] ?? "clock";
             const label = getStatusLabel(ten.status);
             const daysLeft = ten.leaseEnd
@@ -463,91 +461,30 @@ function LocatairesScreenInner() {
             const isExpiring =
               daysLeft !== null && daysLeft <= 30 && daysLeft >= 0;
 
+            const tone: StatusTone = ten.status === "active" ? "success" : ten.status === "expired" ? "danger" : "warning";
+            const subtitle = [ten.lotNumber ? `${t("lotLabel")} ${ten.lotNumber}` : null, ten.buildingName].filter(Boolean).join(" · ");
             return (
-              <TouchableOpacity
-                style={[
-                  s.card,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: isExpiring ? "#f59e0b40" : colors.border,
-                    borderLeftWidth: isExpiring ? 4 : 1,
-                    borderLeftColor: isExpiring ? "#f59e0b" : colors.border,
-                  },
-                ]}
-                onPress={() => setSelected(ten)}
-                activeOpacity={0.8}
-              >
-                <View style={s.cardTop}>
-                  <View style={[s.avatar, { backgroundColor: "#06b6d418" }]}>
-                    <Text style={[s.avatarText, { color: "#06b6d4" }]}>
-                      {ten.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.name, { color: colors.foreground }]}>
-                      {ten.name}
-                    </Text>
-                    {ten.email ? (
-                      <Text style={[s.meta, { color: colors.mutedForeground }]}>
-                        {ten.email}
-                      </Text>
-                    ) : null}
-                    {ten.lotNumber ? (
-                      <View style={s.lotRow}>
-                        <Feather
-                          name="home"
-                          size={11}
-                          color={colors.mutedForeground}
-                        />
-                        <Text
-                          style={[s.meta, { color: colors.mutedForeground }]}
-                        >
-                          Lot {ten.lotNumber}
+              <View style={[s.rowCard, { backgroundColor: colors.card, borderColor: isExpiring ? colors.warning + "66" : colors.border }]}>
+                <ListItem
+                  leading={<Avatar name={ten.name} size={44} />}
+                  title={ten.name}
+                  subtitle={subtitle || ten.email || undefined}
+                  meta={ten.leaseEnd ? `${t("leaseExpiry")} ${formatDate(ten.leaseEnd)}${isExpiring ? ` (${daysLeft} ${t("daysShort")})` : ""}` : undefined}
+                  onPress={() => setSelected(ten)}
+                  trailing={
+                    <View style={{ alignItems: "flex-end", gap: 6 }}>
+                      <StatusBadge label={label} tone={tone} icon={icon} />
+                      {isExpiring ? <StatusBadge label={t("expiringLabel")} tone="warning" icon="clock" /> : null}
+                      {ten.monthlyRent ? (
+                        <Text style={[TYPE.caption, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>
+                          {formatMad(ten.monthlyRent)}
+                          {t("perMonthShort")}
                         </Text>
-                        {ten.buildingName ? (
-                          <Text
-                            style={[s.meta, { color: colors.mutedForeground }]}
-                          >
-                            • {ten.buildingName}
-                          </Text>
-                        ) : null}
-                      </View>
-                    ) : null}
-                    {ten.leaseEnd ? (
-                      <Text
-                        style={[
-                          s.meta,
-                          {
-                            color: isExpiring
-                              ? "#f59e0b"
-                              : colors.mutedForeground,
-                          },
-                        ]}
-                      >
-                        {t("leaseExpiry")} {formatDate(ten.leaseEnd)}
-                        {isExpiring ? ` (${daysLeft} ${t("daysShort")})` : ""}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={{ alignItems: "flex-end", gap: 6 }}>
-                    <View style={[s.badge, { backgroundColor: color + "18" }]}>
-                      <Feather name={icon} size={10} color={color} />
-                      <Text style={[s.badgeText, { color }]}>{label}</Text>
+                      ) : null}
                     </View>
-                    {ten.monthlyRent ? (
-                      <Text style={[s.rent, { color: colors.foreground }]}>
-                        {formatMad(ten.monthlyRent)}
-                        {t("perMonthShort")}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              </TouchableOpacity>
+                  }
+                />
+              </View>
             );
           }}
         />
@@ -735,7 +672,7 @@ function LocatairesScreenInner() {
               {
                 label: t("tenantLotId"),
                 key: "lotId" as const,
-                placeholder: "ID du lot occupé",
+                placeholder: t("tenantLotIdPh"),
               },
               {
                 label: t("leaseStartLabel"),
@@ -760,7 +697,7 @@ function LocatairesScreenInner() {
               {
                 label: t("emergencyContactLabel"),
                 key: "emergencyContact" as const,
-                placeholder: "Nom du contact",
+                placeholder: t("tenantContactNamePh"),
               },
               {
                 label: t("emergencyPhoneLabel"),
@@ -770,7 +707,7 @@ function LocatairesScreenInner() {
               {
                 label: t("notes"),
                 key: "notes" as const,
-                placeholder: "Informations complémentaires...",
+                placeholder: t("tenantNotesPh"),
               },
             ].map((field) => (
               <View key={field.key} style={{ gap: 6 }}>
@@ -805,7 +742,7 @@ function LocatairesScreenInner() {
               style={[
                 s.submitBtn,
                 {
-                  backgroundColor: form.name.trim() ? "#06b6d4" : colors.muted,
+                  backgroundColor: form.name.trim() ? colors.primary : colors.muted,
                   opacity: submitting ? 0.7 : 1,
                 },
               ]}
@@ -849,6 +786,7 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular" },
   card: { borderRadius: 16, borderWidth: 1, padding: 14 },
+  rowCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: {
     width: 46,

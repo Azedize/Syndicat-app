@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ import {
 } from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
+import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -60,15 +62,15 @@ const TYPE_CONFIG: Record<
   MessageType,
   { label: string; icon: keyof typeof Feather.glyphMap; color: string }
 > = {
-  circulaire: { label: "Circulaire", icon: "mail", color: "#3b82f6" },
-  convocation: { label: "Convocation", icon: "calendar", color: "#8b5cf6" },
-  decision: { label: "Décision", icon: "check-square", color: "#10b981" },
-  rapport: { label: "Rapport", icon: "file-text", color: "#f59e0b" },
-  note: { label: "Note de service", icon: "edit-3", color: "#6b7280" },
+  circulaire: { label: "Circulaire", icon: "mail", color: "#5A4AD6" },
+  convocation: { label: "Convocation", icon: "calendar", color: "#1F8A9A" },
+  decision: { label: "Décision", icon: "check-square", color: "#13976C" },
+  rapport: { label: "Rapport", icon: "file-text", color: "#C98511" },
+  note: { label: "Note de service", icon: "edit-3", color: "#6A6680" },
   mise_en_demeure: {
     label: "Mise en demeure",
     icon: "alert-circle",
-    color: "#ef4444",
+    color: "#C8323C",
   },
 };
 
@@ -108,7 +110,7 @@ function mapApiAnnouncement(
     priority: mapPriority(a.priority),
     attachments: 0,
     requiresAcknowledgment: a.priority === "urgent",
-    acknowledged: false,
+    acknowledged: a.acknowledged ?? false,
     isOwn: a.authorId === currentUserId,
   };
 }
@@ -201,7 +203,14 @@ export default function MessagerieInterneScreen() {
     setSelected(msg);
   };
 
-  const handleAcknowledge = (id: string) => {
+  // Recorded by the API (POST /announcements/:id/acknowledge), visible to the syndic.
+  const handleAcknowledge = async (id: string) => {
+    try {
+      await apiRequest(`/announcements/${id}/acknowledge`, "POST");
+    } catch (e: any) {
+      showToast({ type: "error", title: t("error"), message: e?.message ?? t("uiActionFailed") });
+      return;
+    }
     setAcknowledgedIds((prev) => new Set([...prev, id]));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     showToast({
@@ -261,7 +270,7 @@ export default function MessagerieInterneScreen() {
   };
 
   const priorityColor = (p: string) =>
-    p === "urgent" ? "#ef4444" : p === "normal" ? "#3b82f6" : "#10b981";
+    p === "urgent" ? colors.danger : p === "normal" ? "#5A4AD6" : colors.success;
   const typeLabel = (type: MessageType) =>
     ({
       circulaire: t("messageTypeCircular"),
@@ -325,18 +334,18 @@ export default function MessagerieInterneScreen() {
             </View>
             {item.priority === "urgent" && (
               <View
-                style={[styles.urgentBadge, { backgroundColor: "#ef444418" }]}
+                style={[styles.urgentBadge, { backgroundColor: colors.danger + "18" }]}
               >
-                <Feather name="zap" size={10} color="#ef4444" />
-                <Text style={[styles.urgentText, { color: "#ef4444" }]}>
+                <Feather name="zap" size={10} color={colors.danger} />
+                <Text style={[styles.urgentText, { color: colors.danger }]}>
                   {t("urgentBadge")}
                 </Text>
               </View>
             )}
             {item.requiresAcknowledgment && !acked && (
-              <View style={[styles.ackBadge, { backgroundColor: "#f59e0b18" }]}>
-                <Feather name="check-circle" size={10} color="#f59e0b" />
-                <Text style={[styles.ackText, { color: "#f59e0b" }]}>
+              <View style={[styles.ackBadge, { backgroundColor: colors.warning + "18" }]}>
+                <Feather name="check-circle" size={10} color={colors.warning} />
+                <Text style={[styles.ackText, { color: colors.warning }]}>
                   {t("ackRequired")}
                 </Text>
               </View>
@@ -355,38 +364,11 @@ export default function MessagerieInterneScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("messagerieTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {t("messagerieSubtitle")}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.composeBtn, { backgroundColor: colors.primary }]}
-          onPress={() => {
-            setShowCompose(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-        >
-          <Feather name="edit-3" size={15} color="#fff" />
-          <Text style={styles.composeBtnText}>{t("composeLabel")}</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t("messagerieTitle")}
+        subtitle={t("messagerieSubtitle")}
+        action={{ icon: "edit-3", label: t("composeLabel"), onPress: () => { setShowCompose(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } }}
+      />
 
       {/* Search */}
       <View
@@ -693,20 +675,20 @@ export default function MessagerieInterneScreen() {
                         style={[
                           styles.arBox,
                           {
-                            backgroundColor: acked ? "#10b98110" : "#f59e0b10",
-                            borderColor: acked ? "#10b98130" : "#f59e0b30",
+                            backgroundColor: acked ? colors.success + "10" : colors.warning + "10",
+                            borderColor: acked ? colors.success + "30" : colors.warning + "30",
                           },
                         ]}
                       >
                         <Feather
                           name={acked ? "check-circle" : "alert-circle"}
                           size={16}
-                          color={acked ? "#10b981" : "#f59e0b"}
+                          color={acked ? colors.success : colors.warning}
                         />
                         <Text
                           style={[
                             styles.arText,
-                            { color: acked ? "#10b981" : "#f59e0b" },
+                            { color: acked ? colors.success : colors.warning },
                           ]}
                         >
                           {acked ? t("ackSent") : t("ackPending")}
@@ -866,17 +848,17 @@ export default function MessagerieInterneScreen() {
                   {
                     key: "urgent" as const,
                     label: t("urgentePriority"),
-                    color: "#ef4444",
+                    color: colors.danger,
                   },
                   {
                     key: "normal" as const,
                     label: t("normalePriority"),
-                    color: "#3b82f6",
+                    color: "#5A4AD6",
                   },
                   {
                     key: "low" as const,
                     label: t("faibleePriority"),
-                    color: "#10b981",
+                    color: colors.success,
                   },
                 ].map((p) => {
                   const active = newPriority === p.key;

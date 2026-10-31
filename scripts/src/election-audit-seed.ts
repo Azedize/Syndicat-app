@@ -16,8 +16,15 @@ import {
   buildingsTable,
   lotsTable,
   tenantsTable,
+  syndicateSubscriptionsTable,
+  subscriptionPlansTable,
 } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { assertDevDatabase } from "./seedgen/guard";
+
+// These fixtures use a shared, weak password and delete the previous run:
+// they must never reach a database other than a local development one.
+assertDevDatabase();
 
 const PASSWORD_HASH = await bcrypt.hash("password123", 10);
 
@@ -46,6 +53,7 @@ async function run() {
     const oldUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.syndicateId, existing.id));
     // Cascade deletes (FK onDelete cascade) handle members/tenants/lots/buildings/elections/etc.
     for (const u of oldUsers) await db.delete(usersTable).where(eq(usersTable.id, u.id));
+    await db.delete(syndicateSubscriptionsTable).where(eq(syndicateSubscriptionsTable.syndicateId, existing.id));
     await db.delete(syndicatesTable).where(eq(syndicatesTable.id, existing.id));
   }
 
@@ -64,13 +72,23 @@ async function run() {
     } as any)
     .returning();
   console.log(`Syndicate: ${syndicate.id}`);
+  const [plan] = await db.select({ id: subscriptionPlansTable.id }).from(subscriptionPlansTable).limit(1);
+  const activeSubscription = (syndicateId: string) => ({
+    syndicateId,
+    planId: plan?.id ?? null,
+    status: "active",
+    currentPeriodStart: new Date(),
+    currentPeriodEnd: new Date(Date.now() + 365 * 86_400_000),
+    notes: "Abonnement de test (election-audit-seed)",
+  });
+  await db.insert(syndicateSubscriptionsTable).values(activeSubscription(syndicate.id) as any);
 
   // ── Syndicate Admin ──
   const [adminUser] = await db
     .insert(usersTable)
     .values({
       name: "Nawal Idrissi (Admin Syndic)",
-      email: "admin@alandalous-audit.ma",
+      email: "admin@alandalous-audit.test",
       passwordHash: PASSWORD_HASH,
       role: "syndicate_admin",
       status: "active",
@@ -103,7 +121,7 @@ async function run() {
   for (let i = 0; i < OWNER_NAMES.length; i++) {
     const name = OWNER_NAMES[i];
     const slug = name.toLowerCase().replace(/[^a-z]+/g, ".").replace(/^\.|\.$/g, "");
-    const email = `${slug}@alandalous-audit.ma`;
+    const email = `${slug}@alandalous-audit.test`;
     const apartment = apartmentFor(i);
 
     const [member] = await db
@@ -149,7 +167,7 @@ async function run() {
   for (let i = 0; i < TENANT_NAMES.length; i++) {
     const name = TENANT_NAMES[i];
     const slug = name.toLowerCase().replace(/[^a-z]+/g, ".").replace(/^\.|\.$/g, "");
-    const email = `${slug}@tenant-audit.ma`;
+    const email = `${slug}@tenant-audit.test`;
 
     await db.insert(tenantsTable).values({
       name,
@@ -178,21 +196,23 @@ async function run() {
   if (existingOther) {
     const oldUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.syndicateId, existingOther.id));
     for (const u of oldUsers) await db.delete(usersTable).where(eq(usersTable.id, u.id));
+    await db.delete(syndicateSubscriptionsTable).where(eq(syndicateSubscriptionsTable.syndicateId, existingOther.id));
     await db.delete(syndicatesTable).where(eq(syndicatesTable.id, existingOther.id));
   }
   const [otherSyndicate] = await db
     .insert(syndicatesTable)
     .values({ name: "Résidence Zaytoune (Autre Syndicat)", abbreviation: "OTHER-AUDIT", city: "Rabat", country: "Maroc", status: "active" } as any)
     .returning();
+  await db.insert(syndicateSubscriptionsTable).values(activeSubscription(otherSyndicate.id) as any);
   const [otherAdmin] = await db
     .insert(usersTable)
-    .values({ name: "Autre Admin", email: "admin@zaytoune-audit.ma", passwordHash: PASSWORD_HASH, role: "syndicate_admin", status: "active", syndicateId: otherSyndicate.id } as any)
+    .values({ name: "Autre Admin", email: "admin@zaytoune-audit.test", passwordHash: PASSWORD_HASH, role: "syndicate_admin", status: "active", syndicateId: otherSyndicate.id } as any)
     .returning();
   const [otherMemberUser] = await db
     .insert(usersTable)
-    .values({ name: "Intrus Externe", email: "intrus@zaytoune-audit.ma", passwordHash: PASSWORD_HASH, role: "member", status: "active", syndicateId: otherSyndicate.id } as any)
+    .values({ name: "Intrus Externe", email: "intrus@zaytoune-audit.test", passwordHash: PASSWORD_HASH, role: "member", status: "active", syndicateId: otherSyndicate.id } as any)
     .returning();
-  await db.insert(membersTable).values({ name: "Intrus Externe", email: "intrus@zaytoune-audit.ma", syndicateId: otherSyndicate.id, status: "active", cotisationStatus: "paid" } as any);
+  await db.insert(membersTable).values({ name: "Intrus Externe", email: "intrus@zaytoune-audit.test", syndicateId: otherSyndicate.id, status: "active", cotisationStatus: "paid" } as any);
   console.log(`Second syndicate (cross-tenant test): ${otherSyndicate.id}, admin=${otherAdmin.email}, member=${otherMemberUser.email}`);
 
   console.log("\n=== SEED SUMMARY (write down for the test run) ===");
@@ -204,6 +224,9 @@ async function run() {
     tenants: tenants.map((t) => ({ name: t.name, email: t.email })),
     otherSyndicate: { id: otherSyndicate.id, adminEmail: otherAdmin.email, memberEmail: otherMemberUser.email },
   }, null, 2));
+
+  // Reserved test domains receive no e-mail: flag them, like seed.ts does.
+  await pool`UPDATE users SET email_status = 'undeliverable' WHERE email ~* '@(alandalous|tenant|zaytoune)-audit\.test$' AND email_status <> 'undeliverable'`;
 
   await pool.end();
 }

@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { sql, inArray, isNull } from "drizzle-orm";
@@ -207,8 +208,7 @@ router.get("/elections", requireAuth, async (req, res) => {
         : elections;
     res.json({ data: await enrichElections(visible, req.user!.userId) });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -272,8 +272,7 @@ router.get("/elections/mandates", requireAuth, async (req, res) => {
       : [];
     res.json({ data: mandates });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -408,8 +407,7 @@ router.get("/elections/:id", requireAuth, async (req, res) => {
       delegatedToMe,
     });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -542,8 +540,7 @@ router.post(
         .status(201)
         .json({ data: election, message: "Élection créée avec succès" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -606,8 +603,7 @@ router.put(
       });
       res.json({ data: updated, message: "Élection mise à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -747,8 +743,8 @@ router.post(
           details: `Résultats publiés, ${winners.length} mandat(s) créé(s)${tie ? " (égalité résolue manuellement)" : ""}`,
         });
         await createAlert({
-          title: "Résultats publiés",
-          message: `Les résultats de "${election.title}" sont disponibles.`,
+          key: "election.results",
+          params: { title: election.title },
           type: "info",
           syndicateId: election.syndicateId,
           target: "all",
@@ -798,8 +794,8 @@ router.post(
 
       if (result.data.action === "open_candidacy") {
         await createAlert({
-          title: "Élection annoncée",
-          message: `Candidatures ouvertes pour "${election.title}"`,
+          key: "election.announced",
+          params: { title: election.title },
           type: "info",
           syndicateId: election.syndicateId,
           target: "all",
@@ -818,8 +814,8 @@ router.post(
           { electionId: id },
         );
         await createAlert({
-          title: "Vote ouvert",
-          message: `Le vote pour "${election.title}" est ouvert.`,
+          key: "election.voteOpen",
+          params: { title: election.title },
           type: "info",
           syndicateId: election.syndicateId,
           target: "all",
@@ -834,8 +830,7 @@ router.post(
       });
       res.json({ data: updated, message: "Statut mis à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1051,8 +1046,7 @@ router.post(
       });
       res.status(201).json({ data: candidate, message: "Candidature déposée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1144,8 +1138,7 @@ router.put(
       });
       res.json({ data: updated, message: "Candidature mise à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1212,8 +1205,7 @@ router.post(
       });
       res.json({ data: updated, message: "Candidature retirée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1281,8 +1273,7 @@ router.put(
         .returning();
       res.json({ data: updated, message: "Programme mis à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1350,8 +1341,7 @@ router.post(
       }
       res.status(201).json({ data: q, message: "Question envoyée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1413,8 +1403,7 @@ router.put(
         .returning();
       res.json({ data: updated, message: "Réponse publiée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -1635,8 +1624,7 @@ router.get("/elections/:id/eligible-voters", requireAuth, async (req, res) => {
       .where(inArray(usersTable.id, ids));
     res.json({ data: rows.filter((u) => u.id !== req.user!.userId) });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -1837,8 +1825,7 @@ router.delete("/elections/:id/delegate", requireAuth, async (req, res) => {
     });
     res.json({ data: updated, message: "Pouvoir révoqué" });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -1937,8 +1924,7 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -2000,8 +1986,7 @@ router.put(
       });
       res.json({ data: updated, message: "Bulletins invalides enregistrés" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -2051,8 +2036,8 @@ router.post(
         .returning();
 
       await createAlert({
-        title: "Démission",
-        message: `${mandate.name} (${mandate.role}) a démissionné de son mandat.`,
+        key: "mandate.resigned",
+        params: { name: mandate.name, role: mandate.role },
         type: "warning",
         syndicateId: mandate.syndicateId,
         target: "admin",
@@ -2065,8 +2050,7 @@ router.post(
       });
       res.json({ data: updated, message: "Démission enregistrée" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -2137,8 +2121,8 @@ router.post(
           );
       }
       await createAlert({
-        title: "Révocation de mandat",
-        message: `${mandate.name} (${mandate.role}) a été révoqué(e) de son mandat par l'administration.`,
+        key: "mandate.revoked",
+        params: { name: mandate.name, role: mandate.role },
         type: "warning",
         syndicateId: mandate.syndicateId,
         target: "admin",
@@ -2151,8 +2135,7 @@ router.post(
       });
       res.json({ data: updated, message: "Mandat révoqué" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );

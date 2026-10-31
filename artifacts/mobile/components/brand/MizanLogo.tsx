@@ -1,66 +1,18 @@
 /**
  * MizanLogo — Official MIZAN brand component.
  *
- * Renders the MIZAN balance mark combined with the wordmark and optional tagline.
- * The mark is intentionally vector-based so it stays clear from compact navigation
- * contexts through documents and onboarding.
+ * Renders the MIZAN mark (components/brand/MizanMark: a riad arch holding a
+ * level balance) with the wordmark and optional tagline.
  */
 
 import React from "react";
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-} from "react-native-svg";
 import { MIZAN } from "@/constants/brand";
+import { useLanguage } from "@/context/LanguageContext";
+import MizanMark from "./MizanMark";
 
-interface ShieldProps {
-  height: number;
-  isDark: boolean;
-}
-
-function Shield({ height, isDark }: ShieldProps) {
-  const markFill = isDark ? MIZAN.colors.navyMid : MIZAN.colors.white;
-  const markStroke = isDark ? MIZAN.colors.white : MIZAN.colors.navyDeep;
-  const blueId = isDark ? "mizanBlueDark" : "mizanBlueLight";
-
-  return (
-    <Svg width={height} height={height} viewBox="0 0 88 88">
-      <Defs>
-        <LinearGradient id={blueId} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={MIZAN.colors.blueLight} />
-          <Stop offset="1" stopColor={MIZAN.colors.teal} />
-        </LinearGradient>
-      </Defs>
-      <Rect
-        x="3"
-        y="3"
-        width="82"
-        height="82"
-        rx="24"
-        fill={markFill}
-        stroke={isDark ? "rgba(255,255,255,0.18)" : MIZAN.colors.bluePale}
-        strokeWidth="1.5"
-      />
-      <Path
-        d="M18 59 V29 L32 43 L44 25 L56 43 L70 29 V59"
-        fill="none"
-        stroke={markStroke}
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path d="M20 68 H68" stroke={MIZAN.colors.gold} strokeWidth="4" strokeLinecap="round" />
-      <Circle cx="20" cy="68" r="3.5" fill={MIZAN.colors.gold} />
-      <Circle cx="44" cy="68" r="3.5" fill={`url(#${blueId})`} />
-      <Circle cx="68" cy="68" r="3.5" fill={MIZAN.colors.gold} />
-      <Path d="M44 25 V18" stroke={`url(#${blueId})`} strokeWidth="3" strokeLinecap="round" />
-    </Svg>
-  );
+function Shield({ height }: { height: number; isDark: boolean }) {
+  return <MizanMark size={height} tile />;
 }
 
 export type LogoVariant = "full" | "horizontal" | "icon" | "compact";
@@ -82,6 +34,7 @@ export default function MizanLogo({
   style,
 }: MizanLogoProps) {
   const isDark = colorScheme === "dark";
+  const { t } = useLanguage();
   const textColor = isDark ? MIZAN.colors.white : MIZAN.colors.navyDeep;
   const taglineColor = isDark ? MIZAN.colors.bluePale : MIZAN.colors.blue;
   const wordmarkSize = Math.round(size * 0.31);
@@ -115,7 +68,7 @@ export default function MizanLogo({
               allowFontScaling={false}
               numberOfLines={1}
             >
-              {MIZAN.taglineShort.toUpperCase()}
+              {t("appTagline").toUpperCase()}
             </Text>
           )}
         </View>
@@ -143,7 +96,7 @@ export default function MizanLogo({
           ]}
           allowFontScaling={false}
         >
-          {MIZAN.tagline.toUpperCase()}
+          {t("appTagline").toUpperCase()}
         </Text>
       )}
     </View>
@@ -154,6 +107,7 @@ const styles = StyleSheet.create({
   col: { alignItems: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   wordmarkCol: { justifyContent: "center", gap: 2 },
-  wordmark: { fontFamily: "Inter_700Bold" },
+  // The wordmark is Latin in every language: always Fraunces.
+  wordmark: { fontFamily: "Fraunces_600SemiBold" },
   tagline: { fontFamily: "Inter_500Medium" },
 });

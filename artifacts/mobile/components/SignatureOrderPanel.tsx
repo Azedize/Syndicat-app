@@ -106,7 +106,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
     return (
       <View style={[s.card, { borderColor: colors.border, backgroundColor: colors.card, padding: 16, gap: 10 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Feather name="alert-circle" size={16} color="#ef4444" />
+          <Feather name="alert-circle" size={16} color="#C8323C" />
           <Text style={[s.signerLabel, { color: colors.foreground, flex: 1 }]}>{t("signatureLoadError")}</Text>
         </View>
         <Text style={[s.signerMeta, { color: colors.mutedForeground }]}>{t("signatureLoadErrorDescription")}</Text>
@@ -116,7 +116,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
           activeOpacity={0.8}
         >
           <Feather name="refresh-cw" size={13} color={colors.primary} />
-          <Text style={[s.retryBtnText, { color: colors.primary }]}>{t("signatureRetry")}</Text>
+          <Text style={[s.retryBtnText, { color: colors.tint }]}>{t("signatureRetry")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -164,15 +164,15 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
     <View style={[s.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
       {/* Header */}
       <View style={s.cardHeader}>
-        <View style={[s.iconWrap, { backgroundColor: "#1F5EFF15" }]}>
-          <Feather name="pen-tool" size={14} color="#1F5EFF" />
+        <View style={[s.iconWrap, { backgroundColor: "#5A4AD615" }]}>
+          <Feather name="pen-tool" size={14} color="#5A4AD6" />
         </View>
         <Text style={[s.cardTitle, { color: colors.foreground }]}>{t("signatureTitle")}</Text>
         <View style={[s.badge, {
-          backgroundColor: data.allSigned ? "#10b98115" : data.totalCompleted > 0 ? "#f59e0b15" : colors.muted,
+          backgroundColor: data.allSigned ? "#13976C15" : data.totalCompleted > 0 ? "#C9851115" : colors.muted,
         }]}>
           <Text style={[s.badgeText, {
-            color: data.allSigned ? "#10b981" : data.totalCompleted > 0 ? "#f59e0b" : colors.mutedForeground,
+            color: data.allSigned ? "#13976C" : data.totalCompleted > 0 ? "#C98511" : colors.mutedForeground,
           }]}>
             {data.totalCompleted}/{data.totalRequired || data.totalCompleted}
           </Text>
@@ -185,7 +185,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
           <View style={[s.progressTrack, { backgroundColor: colors.muted }]}>
             <View style={[s.progressFill, {
               width: `${data.percentage}%` as any,
-              backgroundColor: data.allSigned ? "#10b981" : colors.primary,
+              backgroundColor: data.allSigned ? "#13976C" : colors.primary,
             }]} />
           </View>
           <Text style={[s.progressText, { color: colors.mutedForeground }]}>{data.percentage}%</Text>
@@ -205,8 +205,8 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                 {/* Timeline connector */}
                 <View style={{ alignItems: "center", width: 32 }}>
                   <View style={[s.stepDot, {
-                    backgroundColor: done ? "#10b981" : isNext ? colors.primary : colors.muted,
-                    borderColor:     done ? "#10b981" : isNext ? colors.primary : colors.border,
+                    backgroundColor: done ? "#13976C" : isNext ? colors.primary : colors.muted,
+                    borderColor:     done ? "#13976C" : isNext ? colors.primary : colors.border,
                   }]}>
                     {done
                       ? <Feather name="check" size={12} color="#fff" />
@@ -216,7 +216,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                     }
                   </View>
                   {!isLast && (
-                    <View style={[s.connector, { backgroundColor: done ? "#10b981" : colors.border }]} />
+                    <View style={[s.connector, { backgroundColor: done ? "#13976C" : colors.border }]} />
                   )}
                 </View>
 
@@ -227,13 +227,13 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                       {translateRole(req.label)}
                     </Text>
                     {done && (
-                      <View style={[s.chip, { backgroundColor: "#10b98115" }]}>
-                        <Text style={[s.chipText, { color: "#10b981" }]}>{t("signatureSigned")}</Text>
+                      <View style={[s.chip, { backgroundColor: "#13976C15" }]}>
+                        <Text style={[s.chipText, { color: "#13976C" }]}>{t("signatureSigned")}</Text>
                       </View>
                     )}
                     {isNext && !done && (
                       <View style={[s.chip, { backgroundColor: colors.primary + "15" }]}>
-                        <Text style={[s.chipText, { color: colors.primary }]}>{t("signaturePending")}</Text>
+                        <Text style={[s.chipText, { color: colors.tint }]}>{t("signaturePending")}</Text>
                       </View>
                     )}
                     {!done && !isNext && (
@@ -265,7 +265,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
           ) : (
             data.completedSignatures.map((sig) => (
               <View key={sig.id} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-                <View style={[s.stepDot, { backgroundColor: sig.isValid ? "#10b981" : "#ef4444", borderColor: sig.isValid ? "#10b981" : "#ef4444" }]}>
+                <View style={[s.stepDot, { backgroundColor: sig.isValid ? "#13976C" : "#C8323C", borderColor: sig.isValid ? "#13976C" : "#C8323C" }]}>
                   <Feather name={sig.isValid ? "check" : "x"} size={12} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -275,8 +275,8 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                   </Text>
                 </View>
                 {sig.isValid === false && (
-                  <View style={[s.chip, { backgroundColor: "#ef444415" }]}>
-                    <Text style={[s.chipText, { color: "#ef4444" }]}>{t("signatureInvalid")}</Text>
+                  <View style={[s.chip, { backgroundColor: "#C8323C15" }]}>
+                    <Text style={[s.chipText, { color: "#C8323C" }]}>{t("signatureInvalid")}</Text>
                   </View>
                 )}
               </View>
@@ -307,9 +307,9 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
 
       {/* All signed indicator */}
       {data.allSigned && hasOrder && (
-        <View style={[s.ctaRow, { borderTopColor: colors.border, backgroundColor: "#10b98108" }]}>
-          <Feather name="check-circle" size={16} color="#10b981" />
-          <Text style={{ fontSize: 13, color: "#10b981", fontWeight: "700" }}>
+        <View style={[s.ctaRow, { borderTopColor: colors.border, backgroundColor: "#13976C08" }]}>
+          <Feather name="check-circle" size={16} color="#13976C" />
+          <Text style={{ fontSize: 13, color: "#13976C", fontWeight: "700" }}>
              {t("signatureAllCollected")}
           </Text>
         </View>

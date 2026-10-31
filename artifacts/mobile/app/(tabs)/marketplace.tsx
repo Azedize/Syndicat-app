@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ResidenceMarket from "@/components/marketplace/ResidenceMarket";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -89,20 +90,21 @@ const STATUS_KEYS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  approved: "#22c55e",
-  pending_review: "#f59e0b",
-  rejected: "#ef4444",
-  modification_requested: "#f97316",
-  sold_out: "#94a3b8",
-  reserved: "#1F5EFF",
-  sold: "#94a3b8",
+  approved: "#13976C",
+  pending_review: "#C98511",
+  rejected: "#C8323C",
+  modification_requested: "#C8642A",
+  sold_out: "#A6A1BE",
+  reserved: "#5A4AD6",
+  sold: "#A6A1BE",
 };
 
 type AdminTab = "catalogue" | "validation" | "signales" | "commandes" | "stats";
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function MarketplaceScreen() {
+/** Platform moderation (super admin): queues, reports, statistics, orders. */
+function ModerationMarketplace() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -299,19 +301,19 @@ export default function MarketplaceScreen() {
       >
         <View style={[styles.cardImagePlaceholder, { backgroundColor: colors.secondary }]}>
           {p.featured && (
-            <View style={[styles.featuredBadge, { backgroundColor: "#f59e0b" }]}>
+            <View style={[styles.featuredBadge, { backgroundColor: colors.warning }]}>
               <Feather name="star" size={10} color="#fff" />
               <Text style={styles.featuredBadgeText}>{t("featuredLabel")}</Text>
             </View>
           )}
           {isReserved && (
-            <View style={[styles.reservedBadge, { backgroundColor: "#1F5EFF" }]}>
+            <View style={[styles.reservedBadge, { backgroundColor: "#5A4AD6" }]}>
               <Feather name="lock" size={10} color="#fff" />
               <Text style={styles.featuredBadgeText}>{t("marketplaceStatusReserved")}</Text>
             </View>
           )}
           {isSold && (
-            <View style={[styles.reservedBadge, { backgroundColor: "#94a3b8" }]}>
+            <View style={[styles.reservedBadge, { backgroundColor: "#A6A1BE" }]}>
               <Feather name="check-circle" size={10} color="#fff" />
               <Text style={styles.featuredBadgeText}>{t("marketplaceStatusSold")}</Text>
             </View>
@@ -320,7 +322,7 @@ export default function MarketplaceScreen() {
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={2}>{p.name ?? ""}</Text>
-          <Text style={[styles.cardPrice, { color: colors.primary }]}>{price}</Text>
+          <Text style={[styles.cardPrice, { color: colors.tint }]}>{price}</Text>
           <View style={styles.cardMeta}>
             <View style={[styles.conditionBadge, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.conditionText, { color: colors.mutedForeground }]}>
@@ -346,7 +348,7 @@ export default function MarketplaceScreen() {
   };
 
   const renderPendingCard = ({ item: p }: { item: Product }) => (
-    <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: "#f59e0b40", borderLeftColor: "#f59e0b" }]}>
+    <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: colors.warning + "40", borderLeftColor: colors.warning }]}>
       <View style={{ flex: 1 }}>
         <Text style={[styles.pendingName, { color: colors.foreground }]}>{p.name ?? ""}</Text>
         <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
@@ -373,12 +375,12 @@ export default function MarketplaceScreen() {
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.modBtn, { backgroundColor: "#f9731615" }]}
+          style={[styles.modBtn, { backgroundColor: colors.warning + "15" }]}
           onPress={() => openRequestMod(p.id, p.name)}
           disabled={moderating === p.id}
         >
-          <Feather name="edit" size={14} color="#f97316" />
-          <Text style={[styles.modBtnText, { color: "#f97316" }]}>{t("marketplaceModify")}</Text>
+          <Feather name="edit" size={14} color={colors.warning} />
+          <Text style={[styles.modBtnText, { color: colors.warning }]}>{t("marketplaceModify")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
@@ -393,7 +395,7 @@ export default function MarketplaceScreen() {
           onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
         >
           <Feather name="eye" size={14} color={colors.primary} />
-          <Text style={[styles.modBtnText, { color: colors.primary }]}>{t("marketplaceView")}</Text>
+          <Text style={[styles.modBtnText, { color: colors.tint }]}>{t("marketplaceView")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -423,7 +425,7 @@ export default function MarketplaceScreen() {
           onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
         >
           <Feather name="eye" size={14} color={colors.primary} />
-          <Text style={[styles.modBtnText, { color: colors.primary }]}>{t("marketplaceReview")}</Text>
+          <Text style={[styles.modBtnText, { color: colors.tint }]}>{t("marketplaceReview")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
@@ -442,7 +444,7 @@ export default function MarketplaceScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background, borderBottomColor: "transparent" }]}>
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>{t("marketplaceTitle")}</Text>
@@ -467,7 +469,7 @@ export default function MarketplaceScreen() {
                 </TouchableOpacity>
                 <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
                   <Feather name="shield" size={14} color={colors.primary} />
-                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>{t("marketplaceSuperAdmin")}</Text>
+                  <Text style={[styles.adminBadgeText, { color: colors.tint }]}>{t("marketplaceSuperAdmin")}</Text>
                 </View>
               </>
             ) : isSyndicateAdmin ? (
@@ -731,7 +733,7 @@ export default function MarketplaceScreen() {
               maxLength={1000}
             />
             <TouchableOpacity
-              style={[styles.modSubmitBtn, { backgroundColor: !modReason.trim() ? colors.secondary : "#f97316" }]}
+              style={[styles.modSubmitBtn, { backgroundColor: !modReason.trim() ? colors.secondary : colors.warning }]}
               onPress={submitModRequest}
               disabled={!modReason.trim() || submittingMod}
             >
@@ -790,7 +792,7 @@ function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh, t, lan
     );
   }
 
-  const statusColors: Record<string, string> = { pending: "#f59e0b", confirmed: colors.primary, shipped: "#1F5EFF", delivered: colors.success, cancelled: colors.destructive };
+  const statusColors: Record<string, string> = { pending: "#C98511", confirmed: colors.primary, shipped: "#5A4AD6", delivered: colors.success, cancelled: colors.destructive };
   const statusLabels: Record<string, string> = {
     pending: t("ordStatusPending"),
     confirmed: t("ordStatusConfirmed"),
@@ -814,7 +816,7 @@ function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh, t, lan
           <View style={{ flex: 1 }}>
             <Text style={[styles.orderName, { color: colors.foreground }]}>{o.productName}</Text>
             <Text style={[styles.orderMeta, { color: colors.mutedForeground }]}>{o.buyerName} → {o.sellerName}</Text>
-            <Text style={[styles.orderAmount, { color: colors.primary }]}>{formatMAD(o.amount, lang)} MAD</Text>
+            <Text style={[styles.orderAmount, { color: colors.tint }]}>{formatMAD(o.amount, lang)} MAD</Text>
           </View>
           <View style={[styles.orderStatus, { backgroundColor: (statusColors[o.status] ?? colors.mutedForeground) + "20" }]}>
             <Text style={[styles.orderStatusText, { color: statusColors[o.status] ?? colors.mutedForeground }]}>{statusLabels[o.status] ?? o.status}</Text>
@@ -853,10 +855,10 @@ function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh, t, la
   if (!stats) return <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>;
 
   const kpis = [
-    { label: t("marketplaceStatsPending"), value: stats.pending, color: "#f59e0b", icon: "clock" as const },
+    { label: t("marketplaceStatsPending"), value: stats.pending, color: colors.warning, icon: "clock" as const },
     { label: t("marketplaceStatsApproved"), value: stats.approved, color: colors.success, icon: "check-circle" as const },
-    { label: t("marketplaceStatsReserved"), value: stats.reserved, color: "#1F5EFF", icon: "lock" as const },
-    { label: t("marketplaceStatsSold"), value: stats.sold, color: "#94a3b8", icon: "check-circle" as const },
+    { label: t("marketplaceStatsReserved"), value: stats.reserved, color: "#5A4AD6", icon: "lock" as const },
+    { label: t("marketplaceStatsSold"), value: stats.sold, color: "#A6A1BE", icon: "check-circle" as const },
     { label: t("marketplaceStatsRejected"), value: stats.rejected, color: colors.destructive, icon: "x-circle" as const },
     { label: t("marketplaceStatsReported"), value: stats.reported, color: colors.destructive, icon: "flag" as const },
   ];
@@ -878,7 +880,7 @@ function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh, t, la
           <Text style={[styles.sectionHeader, { color: colors.foreground }]}>{t("marketplaceTopSellers")}</Text>
           {stats.topSellers.map((s: any, i: number) => (
             <View key={s.sellerId ?? i} style={[styles.rankRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.rankNum, { color: colors.primary }]}>#{i + 1}</Text>
+              <Text style={[styles.rankNum, { color: colors.tint }]}>#{i + 1}</Text>
               <Text style={[styles.rankName, { color: colors.foreground }]}>{s.sellerName ?? "—"}</Text>
               <Text style={[styles.rankValue, { color: colors.mutedForeground }]}>{t("marketplaceSalesCount").replace("{count}", String(s.totalSold))}</Text>
             </View>
@@ -967,3 +969,13 @@ const styles = StyleSheet.create({
   rankName: { fontSize: 13, fontWeight: "600" },
   rankValue: { fontSize: 12 },
 });
+
+/**
+ * Residents, the syndic and the council see the residence's market (listings
+ * of their own condominium, providers); the platform moderator keeps the
+ * moderation console.
+ */
+export default function MarketplaceScreen() {
+  const { user } = useAuth();
+  return user?.role === "super_admin" ? <ModerationMarketplace /> : <ResidenceMarket />;
+}

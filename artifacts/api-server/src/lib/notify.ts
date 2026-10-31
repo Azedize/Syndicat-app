@@ -1,9 +1,12 @@
+import { outboundDeliveryDisabled } from "./outbound.js";
 import { db } from "@workspace/db";
 import { alertsTable, usersTable } from "@workspace/db/schema";
 import { and, isNotNull, inArray, eq, isNull, or, type SQL } from "drizzle-orm";
 import { logger } from "./logger.js";
 import { sendTransactionalEmail } from "./email/emailService.js";
 import { SYNDICATE_TEAM_ROLES, type UserRole } from "../middleware/auth.js";
+import { localToday } from "./charge-time.js";
+import { asLang, frenchCopy, notificationLink, renderNotification, type NotificationKey, type NotificationParams } from "./notification-texts.js";
 
 /** Audience "admin" = the syndicate management team (+ platform owner). */
 const ADMIN_ROLES: string[] = ["super_admin", ...SYNDICATE_TEAM_ROLES];
@@ -49,12 +52,37 @@ export async function sendEmailToMany(
   await Promise.all(recipients.map((email) => sendEmail(email, subject, html, template, syndicateId)));
 }
 
-export interface AlertPayload {
-  title: string;
-  message: string;
+/**
+ * A notification. Prefer `key` + `params` (lib/notification-texts.ts): it is
+ * then shown in each reader's language and links to the screen it concerns.
+ * `title`/`message` alone remain for texts without a template (French only).
+ */
+export type AlertPayload = {
   type: "info" | "warning" | "success" | "error";
   syndicateId?: string | null;
   target?: "all" | "admin" | "member";
+  /** Overrides the template's link (e.g. a precise record). */
+  link?: string;
+} & (
+  | { key: NotificationKey; params?: NotificationParams; title?: undefined; message?: undefined }
+  | { key?: undefined; params?: undefined; title: string; message: string }
+);
+
+/** French copy stored with the row (old clients, logs) + template columns. */
+function storedFields(payload: AlertPayload) {
+  if (payload.key) {
+    const params = Object.fromEntries(Object.entries(payload.params ?? {}).map(([k, v]) => [k, v === null || v === undefined ? "" : v])) as Record<string, string | number>;
+    const fr = frenchCopy(payload.key, params);
+    return { title: fr.title, message: fr.message, key: payload.key as string, params, link: payload.link ?? null };
+  }
+  return { title: payload.title!, message: payload.message!, key: null, params: null, link: payload.link ?? null };
+}
+
+/** Text of a push for a recipient's language (the template's, else the stored text). */
+function pushText(payload: AlertPayload, language: string | null | undefined) {
+  const stored = storedFields(payload);
+  const r = payload.key ? renderNotification(payload.key, stored.params, asLang(language)) : null;
+  return { title: r?.title ?? stored.title, body: r?.message ?? stored.message };
 }
 
 /**
@@ -62,10 +90,9 @@ export interface AlertPayload {
  * to every user who has a registered push token.
  */
 export async function createAlert(payload: AlertPayload): Promise<void> {
-  const date = new Date().toISOString().split("T")[0];
+  const date = localToday();
   await db.insert(alertsTable).values({
-    title: payload.title,
-    message: payload.message,
+    ...storedFields(payload),
     type: payload.type,
     date,
     syndicateId: payload.syndicateId ?? null,
@@ -95,23 +122,22 @@ async function sendExpoPush(payload: AlertPayload): Promise<void> {
   // target === "all" imposes no role filter, but still respects syndicateId scoping above.
 
   const rows = await db
-    .select({ pushToken: usersTable.pushToken })
+    .select({ pushToken: usersTable.pushToken, language: usersTable.language, role: usersTable.role })
     .from(usersTable)
     .where(and(...conditions));
 
-  const tokens = rows
-    .map((r) => r.pushToken)
-    .filter((t): t is string => typeof t === "string" && t.startsWith("ExponentPushToken["));
+  const valid = rows.filter((r): r is { pushToken: string; language: string | null; role: string } => typeof r.pushToken === "string" && r.pushToken.startsWith("ExponentPushToken["));
+  if (valid.length === 0) return;
+  const stored = storedFields(payload);
 
-  if (tokens.length === 0) return;
-
+  // Each recipient receives the push in their own language.
   await deliverExpoPush(
-    tokens.map((token) => ({
-      to: token,
+    valid.map((r) => ({
+      to: r.pushToken,
       sound: "default" as const,
-      title: payload.title,
-      body: payload.message,
-      data: { alertType: payload.type, syndicateId: payload.syndicateId ?? null },
+      ...pushText(payload, r.language),
+      // The link only for a role allowed on that screen.
+      data: { alertType: payload.type, syndicateId: payload.syndicateId ?? null, key: payload.key ?? null, link: notificationLink(stored.key, stored.link, r.role) },
     })),
   );
 }
@@ -128,17 +154,20 @@ export async function notifyUser(
   if (!userId) return;
   try {
     await db.insert(alertsTable).values({
-      title: payload.title,
-      message: payload.message,
+      ...storedFields(payload as AlertPayload),
       type: payload.type,
-      date: new Date().toISOString().split("T")[0],
+      date: localToday(),
       syndicateId: payload.syndicateId ?? null,
       target: "all",
       recipientUserId: userId,
     });
-    await sendPushToUsers([userId], payload.title, payload.message, {
-      alertType: payload.type,
-    });
+    const [recipient] = await db.select({ pushToken: usersTable.pushToken, language: usersTable.language, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
+    if (recipient?.pushToken?.startsWith("ExponentPushToken[")) {
+      const text = pushText(payload as AlertPayload, recipient.language);
+      await deliverExpoPush([{ to: recipient.pushToken, sound: "default", ...text, data: { alertType: payload.type, key: payload.key ?? null, link: notificationLink(storedFields(payload as AlertPayload).key, storedFields(payload as AlertPayload).link, recipient.role) } }]).catch((err: Error) => {
+        logger.warn({ err: err.message }, "Personal push delivery failed");
+      });
+    }
   } catch (err: any) {
     logger.warn({ err: err?.message, userId }, "Personal notification failed");
   }
@@ -204,6 +233,10 @@ export async function sendPushToSyndicate(
 async function deliverExpoPush(
   messages: Array<{ to: string; sound: "default"; title: string; body: string; data?: Record<string, unknown> }>,
 ): Promise<void> {
+  if (outboundDeliveryDisabled()) {
+    logger.info({ count: messages.length }, "Push skipped — outbound delivery disabled");
+    return;
+  }
   const res = await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",
     headers: {

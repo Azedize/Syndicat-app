@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
@@ -160,8 +161,9 @@ const PAYMENT_METHODS = [
   {
     id: "paypal",
     label: "PayPal",
-    configured: () =>
-      Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
+    // No PayPal integration exists (no order creation, no verified webhook):
+    // credentials alone must not offer a method nobody can complete.
+    configured: () => false,
     provider: "paypal",
   },
   // Bank transfer does not require a third-party credential: the transfer
@@ -175,11 +177,10 @@ const PAYMENT_METHODS = [
   {
     id: "moroccan_gateway",
     label: "Passerelle marocaine",
-    configured: () =>
-      Boolean(
-        process.env.MOROCCAN_PAYMENT_GATEWAY_URL &&
-        process.env.MOROCCAN_PAYMENT_GATEWAY_KEY,
-      ),
+    // Not integrated: the provider (CMI or another acquirer) and its technical
+    // specification (payment page, signed server notification) must be
+    // contracted first. See PAYMENT_PROVIDERS.md.
+    configured: () => false,
     provider: "moroccan_gateway",
   },
 ] as const;
@@ -366,8 +367,7 @@ router.get("/subscriptions/plans/public", async (_req, res) => {
       .orderBy(subscriptionPlansTable.sortOrder, subscriptionPlansTable.name);
     res.json({ data: plans });
   } catch (e) {
-    logger.error(e, "Failed to fetch public plans");
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(_req, res, e);
   }
 });
 
@@ -382,8 +382,7 @@ router.get("/subscriptions/plans", requireAuth, async (_req, res) => {
       .orderBy(subscriptionPlansTable.sortOrder, subscriptionPlansTable.name);
     res.json({ data: plans });
   } catch (e) {
-    logger.error(e, "subscriptions/plans error");
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(_req, res, e);
   }
 });
 
@@ -401,8 +400,7 @@ router.get(
         .orderBy(subscriptionPlansTable.sortOrder, subscriptionPlansTable.name);
       res.json({ data: plans });
     } catch (e) {
-      logger.error(e, "subscriptions/plans/all error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(_req, res, e);
     }
   },
 );
@@ -469,8 +467,7 @@ router.post(
 
       res.status(201).json({ data: plan, message: "Plan créé" });
     } catch (e) {
-      logger.error(e, "POST subscriptions/plans error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -531,8 +528,7 @@ router.put(
       }
       res.json({ data: updated, message: "Plan mis à jour" });
     } catch (e) {
-      logger.error(e, "PUT subscriptions/plans/:id error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -623,8 +619,7 @@ router.get(
 
       res.json({ data: enriched });
     } catch (e) {
-      logger.error(e, "subscriptions/my error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -686,8 +681,7 @@ router.get(
         },
       });
     } catch (e) {
-      logger.error(e, "subscriptions/status error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -749,8 +743,7 @@ router.get(
 
       res.json({ data: enriched });
     } catch (e) {
-      logger.error(e, "GET subscriptions error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(_req, res, e);
     }
   },
 );
@@ -1016,8 +1009,7 @@ router.get(
         .orderBy(desc(subscriptionPaymentsTable.createdAt));
       res.json({ data: payments });
     } catch (e) {
-      logger.error(e, "GET subscriptions/payments error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1071,8 +1063,7 @@ router.get(
       }
       res.json({ data: payment });
     } catch (e) {
-      logger.error(e, "GET subscription payment by id error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1208,8 +1199,7 @@ router.post(
         message: "Paiement échoué. Vous pouvez réessayer.",
       });
     } catch (e) {
-      logger.error(e, "POST subscription payment fail error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1291,8 +1281,7 @@ router.post(
         message: "Paiement annulé. Vous pouvez réessayer.",
       });
     } catch (e) {
-      logger.error(e, "POST subscription payment cancel error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1406,8 +1395,7 @@ router.post(
         message: "Nouvelle tentative de paiement créée",
       });
     } catch (e) {
-      logger.error(e, "POST subscription payment retry error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1499,8 +1487,7 @@ router.post(
         message: "Paiement remboursé et abonnement clôturé",
       });
     } catch (e) {
-      logger.error(e, "POST subscription payment refund error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1618,8 +1605,7 @@ router.put(
       }
       res.json({ data: updated, message: "Mis à jour" });
     } catch (e) {
-      logger.error(e, "PUT subscriptions/:id error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1650,8 +1636,7 @@ router.post(
       const sub = await assignTrial(syndicateId);
       res.status(201).json({ data: sub, message: "Essai gratuit activé" });
     } catch (e) {
-      logger.error(e, "POST subscriptions/trial error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1662,6 +1647,8 @@ router.get(
   "/subscriptions/invoices",
   requireAuth,
   (req, res, next) => requireSubscriptionScope(req, res, next, true),
+  // Billing documents, like the payments: the syndic, not every resident.
+  requireAdmin,
   async (req, res) => {
     try {
       const user = req.user!;
@@ -1682,8 +1669,7 @@ router.get(
 
       res.json({ data: invoices });
     } catch (e) {
-      logger.error(e, "GET subscriptions/invoices error");
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );

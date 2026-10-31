@@ -24,7 +24,7 @@ import { eq, and, or, count, sum, gte, lt, desc, sql, inArray } from "drizzle-or
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere } from "../lib/syndicate-filter.js";
 
-import { fromCents } from "../lib/treasury.js";
+import { fromCents, toCents } from "../lib/treasury.js";
 import { METRIC_DEFINITIONS, cashBalances, collectionRate, ledgerFlows, ymd } from "../lib/finance-metrics.js";
 
 /**
@@ -332,7 +332,7 @@ router.get(
                 c.createdAt >= m.from &&
                 c.createdAt <= m.to,
             )
-            .reduce((s, c) => s + Number(c.amount ?? 0), 0),
+            .reduce((s, c) => s + toCents(c.amount), 0) / 100,
         ),
       }));
 

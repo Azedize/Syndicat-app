@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
 import { useLanguage } from "@/context/LanguageContext";
 import { marketplace } from "@/services/api";
 
@@ -102,9 +103,9 @@ export default function OrdersScreen() {
   const totalEarned = sales.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.amount), 0);
 
   const statusConfig = (status: OrderStatus) => ({
-    pending: { color: "#f59e0b", icon: "clock" as const },
-    confirmed: { color: "#3b82f6", icon: "check" as const },
-    shipped: { color: colors.primary, icon: "truck" as const },
+    pending: { color: colors.warning, icon: "clock" as const },
+    confirmed: { color: "#5A4AD6", icon: "check" as const },
+    shipped: { color: colors.tint, icon: "truck" as const },
     delivered: { color: colors.success, icon: "check-circle" as const },
     cancelled: { color: colors.destructive, icon: "x-circle" as const },
   }[status] ?? { color: colors.mutedForeground, icon: "package" as const });
@@ -144,7 +145,7 @@ export default function OrdersScreen() {
   };
 
   const STATS = [
-    { label: t("ordStatPurchases"), value: purchases.length, color: colors.primary },
+    { label: t("ordStatPurchases"), value: purchases.length, color: colors.tint },
     { label: t("ordStatSales"), value: sales.length, color: colors.success },
     { label: t("ordStatSpent"), value: formatMoney(totalSpent, lang), color: colors.destructive },
     { label: t("ordStatEarned"), value: formatMoney(totalEarned, lang), color: colors.success },
@@ -176,17 +177,10 @@ export default function OrdersScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("ordTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {orders.length} {orders.length === 1 ? t("ordSubtitleSingular") : t("ordSubtitlePlural")}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={t("ordTitle")}
+        subtitle={`${orders.length} ${orders.length === 1 ? t("ordSubtitleSingular") : t("ordSubtitlePlural")}`}
+      />
 
       {/* Stats strip */}
       <View style={[styles.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -319,11 +313,11 @@ export default function OrdersScreen() {
               <View style={styles.orderActions}>
                 {tab === "purchases" && order.status === "delivered" ? (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b30", borderWidth: 1 }]}
+                    style={[styles.actionBtn, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30", borderWidth: 1 }]}
                     onPress={(e) => { e.stopPropagation?.(); handleLeaveReview(order); }}
                   >
-                    <Feather name="star" size={13} color="#f59e0b" />
-                    <Text style={[styles.actionText, { color: "#f59e0b" }]}>{t("ordLeaveReview")}</Text>
+                    <Feather name="star" size={13} color={colors.warning} />
+                    <Text style={[styles.actionText, { color: colors.warning }]}>{t("ordLeaveReview")}</Text>
                   </TouchableOpacity>
                 ) : null}
                 {tab === "sales" && order.status === "pending" ? (
@@ -369,7 +363,7 @@ export default function OrdersScreen() {
                   <Feather name="package" size={40} color={colors.primary} />
                 </View>
                 <Text style={[styles.orderHeroProduct, { color: colors.foreground }]}>{selected.productName}</Text>
-                <Text style={[styles.orderHeroAmount, { color: colors.primary }]}>
+                <Text style={[styles.orderHeroAmount, { color: colors.tint }]}>
                    {formatMoney(Number(selected.amount), lang)}
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: statusConfig(selected.status).color + "15" }]}>
@@ -433,11 +427,11 @@ export default function OrdersScreen() {
               {/* Actions */}
               {tab === "purchases" && selected.status === "delivered" ? (
                 <TouchableOpacity
-                  style={[styles.modalAction, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b30", borderWidth: 1 }]}
+                  style={[styles.modalAction, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30", borderWidth: 1 }]}
                   onPress={() => handleLeaveReview(selected)}
                 >
-                  <Feather name="star" size={16} color="#f59e0b" />
-                   <Text style={[styles.modalActionText, { color: "#f59e0b" }]}>{t("ordLeaveReview")}</Text>
+                  <Feather name="star" size={16} color={colors.warning} />
+                   <Text style={[styles.modalActionText, { color: colors.warning }]}>{t("ordLeaveReview")}</Text>
                 </TouchableOpacity>
               ) : null}
 
@@ -465,7 +459,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   statsBar: { flexDirection: "row", paddingVertical: 14, borderBottomWidth: 1 },
   statItem: { flex: 1, alignItems: "center", gap: 2 },
@@ -508,7 +502,7 @@ const styles = StyleSheet.create({
   orderHero: { borderRadius: 20, borderWidth: 1, padding: 24, alignItems: "center", gap: 8 },
   orderHeroIcon: { width: 80, height: 80, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   orderHeroProduct: { fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center" },
-  orderHeroAmount: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  orderHeroAmount: { fontSize: 26, fontFamily: "Fraunces_600SemiBold" },
   trackerCard: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 14 },
   trackerTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   detailCard: { borderRadius: 16, borderWidth: 1, padding: 4 },

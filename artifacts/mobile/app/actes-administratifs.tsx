@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
@@ -27,6 +28,7 @@ import RoleGuard from "@/components/RoleGuard";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { localDate } from "@/lib/localDate";
 
 type ActeType =
   | "convocation"
@@ -60,17 +62,17 @@ const TYPE_CONFIG: Record<
   ActeType,
   { label: string; icon: keyof typeof Feather.glyphMap; color: string }
 > = {
-  convocation: { label: "Convocation", icon: "mail", color: "#3b82f6" },
-  decision: { label: "Décision", icon: "check-square", color: "#10b981" },
-  pv: { label: "Procès-verbal", icon: "file-text", color: "#2563EB" },
-  proces_verbal_ag: { label: "PV d'AG", icon: "users", color: "#f59e0b" },
-  resolution: { label: "Résolution", icon: "clipboard", color: "#1F5EFF" },
-  mandat: { label: "Mandat", icon: "shield", color: "#8b5cf6" },
-  attestation: { label: "Attestation", icon: "award", color: "#ec4899" },
+  convocation: { label: "Convocation", icon: "mail", color: "#5A4AD6" },
+  decision: { label: "Décision", icon: "check-square", color: "#13976C" },
+  pv: { label: "Procès-verbal", icon: "file-text", color: "#5A4AD6" },
+  proces_verbal_ag: { label: "PV d'AG", icon: "users", color: "#C98511" },
+  resolution: { label: "Résolution", icon: "clipboard", color: "#5A4AD6" },
+  mandat: { label: "Mandat", icon: "shield", color: "#1F8A9A" },
+  attestation: { label: "Attestation", icon: "award", color: "#C2456E" },
   courrier_officiel: {
     label: "Courrier officiel",
     icon: "send",
-    color: "#f97316",
+    color: "#C98511",
   },
 };
 
@@ -85,26 +87,26 @@ const STATUT_CONFIG: Record<
 > = {
   brouillon: {
     label: "Brouillon",
-    color: "#6b7280",
-    bg: "#6b728018",
+    color: "#6A6680",
+    bg: "#6A668018",
     icon: "edit-3",
   },
   valide: {
     label: "Validé",
-    color: "#10b981",
-    bg: "#10b98118",
+    color: "#13976C",
+    bg: "#13976C18",
     icon: "check-circle",
   },
   diffuse: {
     label: "Diffusé",
-    color: "#3b82f6",
-    bg: "#3b82f618",
+    color: "#5A4AD6",
+    bg: "#5A4AD618",
     icon: "send",
   },
   archive: {
     label: "Archivé",
-    color: "#6b7280",
-    bg: "#6b728015",
+    color: "#6A6680",
+    bg: "#6A668015",
     icon: "archive",
   },
 };
@@ -165,7 +167,7 @@ function ActesAdministratifsScreenInner() {
   const [formTitre, setFormTitre] = useState("");
   const [formObjet, setFormObjet] = useState("");
   const [formDate, setFormDate] = useState(
-    new Date().toISOString().split("T")[0],
+    localDate(),
   );
   const [formEcheance, setFormEcheance] = useState("");
   const [formAuteur, setFormAuteur] = useState(user?.name ?? "");
@@ -321,7 +323,7 @@ function ActesAdministratifsScreenInner() {
     setFormNumero("");
     setFormTitre("");
     setFormObjet("");
-    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormDate(localDate());
     setFormEcheance("");
     setFormAuteur(user?.name ?? "");
     setFormResume("");
@@ -350,51 +352,11 @@ function ActesAdministratifsScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("actesTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {loading
-              ? t("actsLoading")
-              : t("actsSummary")
-                  .replace("{total}", String(actes.length))
-                  .replace(
-                    "{drafts}",
-                    String(
-                      actes.filter((a) => a.statut === "brouillon").length,
-                    ),
-                  )}
-          </Text>
-        </View>
-        {isAdmin ? (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              resetForm();
-              setCreating(true);
-            }}
-          >
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
-      </View>
+      <ScreenHeader
+        title={t("actesTitle")}
+        subtitle={loading ? t("actsLoading") : t("actsSummary").replace("{total}", String(actes.length)).replace("{drafts}", String(actes.filter((a) => a.statut === "brouillon").length))}
+        action={isAdmin ? { icon: "plus", label: t("newItem"), onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); resetForm(); setCreating(true); } } : undefined}
+      />
 
       {/* Status filter */}
       <ScrollView
@@ -630,12 +592,12 @@ function ActesAdministratifsScreenInner() {
                         <View
                           style={[
                             styles.statutBadge,
-                            { backgroundColor: "#ef444415" },
+                            { backgroundColor: colors.danger + "15" },
                           ]}
                         >
-                          <Feather name="star" size={9} color="#ef4444" />
+                          <Feather name="star" size={9} color={colors.danger} />
                           <Text
-                            style={[styles.statutText, { color: "#ef4444" }]}
+                            style={[styles.statutText, { color: colors.danger }]}
                           >
                             {t("actsImportant")}
                           </Text>
@@ -692,8 +654,8 @@ function ActesAdministratifsScreenInner() {
                   </View>
                   {acte.dateEcheance ? (
                     <View style={styles.acteMeta}>
-                      <Feather name="clock" size={11} color="#ef4444" />
-                      <Text style={[styles.acteMetaText, { color: "#ef4444" }]}>
+                      <Feather name="clock" size={11} color={colors.danger} />
+                      <Text style={[styles.acteMetaText, { color: colors.danger }]}>
                         {t("actsDueDate")}: {acte.dateEcheance}
                       </Text>
                     </View>
@@ -947,7 +909,7 @@ function ActesAdministratifsScreenInner() {
                             <View
                               style={[
                                 styles.sigDot,
-                                { backgroundColor: "#10b981" },
+                                { backgroundColor: colors.success },
                               ]}
                             />
                             <Text
@@ -961,7 +923,7 @@ function ActesAdministratifsScreenInner() {
                             <Feather
                               name="check-circle"
                               size={13}
-                              color="#10b981"
+                              color={colors.success}
                             />
                           </View>
                         ))}
@@ -1120,10 +1082,10 @@ function ActesAdministratifsScreenInner() {
                     {/* Delete (admin only) */}
                     {isAdmin && (
                       <TouchableOpacity
-                        style={[styles.deleteBtn, { borderColor: "#ef444440" }]}
+                        style={[styles.deleteBtn, { borderColor: colors.danger + "40" }]}
                         onPress={() => handleDelete(selected)}
                       >
-                        <Feather name="trash-2" size={14} color="#ef4444" />
+                        <Feather name="trash-2" size={14} color={colors.danger} />
                         <Text style={styles.deleteBtnText}>
                           {t("actsDeleteAction")}
                         </Text>
@@ -1448,8 +1410,8 @@ function ActesAdministratifsScreenInner() {
               style={[
                 styles.importantToggle,
                 {
-                  backgroundColor: formImportant ? "#ef444415" : colors.card,
-                  borderColor: formImportant ? "#ef4444" : colors.border,
+                  backgroundColor: formImportant ? colors.danger + "15" : colors.card,
+                  borderColor: formImportant ? colors.danger : colors.border,
                 },
               ]}
               onPress={() => {
@@ -1460,12 +1422,12 @@ function ActesAdministratifsScreenInner() {
               <Feather
                 name={formImportant ? "star" : "star"}
                 size={16}
-                color={formImportant ? "#ef4444" : colors.mutedForeground}
+                color={formImportant ? colors.danger : colors.mutedForeground}
               />
               <Text
                 style={[
                   styles.importantText,
-                  { color: formImportant ? "#ef4444" : colors.mutedForeground },
+                  { color: formImportant ? colors.danger : colors.mutedForeground },
                 ]}
               >
                 {formImportant
@@ -1491,7 +1453,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   addBtn: {
     width: 36,
@@ -1658,7 +1620,7 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
-    color: "#ef4444",
+    color: "#C8323C",
   },
   statutChip: {
     flexDirection: "row",

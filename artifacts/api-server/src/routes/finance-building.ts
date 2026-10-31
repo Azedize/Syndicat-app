@@ -18,6 +18,7 @@ import {
   requireAuth,
   requireRole,
 } from "../middleware/auth.js";
+import { moneySum, moneyDiff } from "../lib/treasury.js";
 
 const router = Router();
 
@@ -106,8 +107,8 @@ router.get(
 
       const enriched = buildings.map((b) => {
         const appels = (appelsByBuilding.get(b.id) ?? []).filter((a) => a.status !== "cancelled");
-        const totalDu = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-        const totalEncaisse = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+        const totalDu = moneySum(appels.map((a) => a.amount));
+        const totalEncaisse = moneySum(appels.map((a) => a.amountPaid));
         const tauxRecouvrement =
           totalDu > 0 ? Math.round((totalEncaisse / totalDu) * 100) : 0;
         return {
@@ -236,12 +237,12 @@ router.get(
       // covered (partial payments included); the rest is outstanding.
       const owedAppels = appels.filter((a) => a.status !== "cancelled");
       const paidOf = (a: (typeof appels)[number]) => Number(a.amountPaid ?? 0);
-      const outstandingOf = (a: (typeof appels)[number]) => Number(a.amount ?? 0) - Number(a.amountPaid ?? 0);
+      const outstandingOf = (a: (typeof appels)[number]) => moneyDiff(a.amount, a.amountPaid);
       const isOverdue = (a: (typeof appels)[number]) => a.status === "overdue";
       const isPending = (a: (typeof appels)[number]) =>
         ["pending", "partially_paid", "pending_validation", "rejected"].includes(a.status ?? "");
 
-      const totalMontantDu = owedAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const totalMontantDu = moneySum(owedAppels.map((a) => a.amount));
       const totalEncaisse = owedAppels.reduce((s, a) => s + paidOf(a), 0);
       const totalImpaye = owedAppels.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
       const totalEnAttente = owedAppels.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
@@ -309,7 +310,7 @@ router.get(
         const paid = pa.reduce((s, a) => s + paidOf(a), 0);
         const overdue = pa.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
         const pending = pa.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
-        const total = pa.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+        const total = moneySum(pa.map((a) => a.amount));
         return {
           period,
           paid: Math.round(paid),
@@ -389,10 +390,10 @@ router.get(
             enCours: activeTravaux.length,
             termines: doneTravaux.length,
             budgetEstime: Math.round(
-              travaux.reduce((s, t) => s + Number(t.estimatedAmount ?? 0), 0),
+              moneySum(travaux.map((t) => t.estimatedAmount)),
             ),
             depenseReelle: Math.round(
-              doneTravaux.reduce((s, t) => s + Number(t.actualAmount ?? 0), 0),
+              moneySum(doneTravaux.map((t) => t.actualAmount)),
             ),
             urgents: travaux.filter(
               (t) => t.priority === "urgent" && t.status !== "completed",

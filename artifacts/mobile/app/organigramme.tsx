@@ -5,7 +5,8 @@
  * with real DB data, role-colour coding, interactive detail modals,
  * and a super-admin national view.
  */
-import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -141,16 +142,16 @@ function formatDate(s: string | null | undefined, locale = "fr-FR"): string {
 
 function statusBadge(status: OrgNode["status"]): { labelKey: string; color: string; bg: string } {
   switch (status) {
-    case "active":   return { labelKey: "orgModalStatusActive", color: "#059669", bg: "#d1fae5" };
-    case "expiring": return { labelKey: "orgModalStatusExpiring", color: "#d97706", bg: "#fef3c7" };
-    case "expired":  return { labelKey: "orgModalStatusExpired", color: "#dc2626", bg: "#fee2e2" };
+    case "active":   return { labelKey: "orgModalStatusActive", color: "#13976C", bg: "#E5F4EC" };
+    case "expiring": return { labelKey: "orgModalStatusExpiring", color: "#C98511", bg: "#FBF1DD" };
+    case "expired":  return { labelKey: "orgModalStatusExpired", color: "#C8323C", bg: "#FBE9EA" };
   }
 }
 
 function govStatusColor(s: NationalSyndicate["governanceStatus"]): string {
-  if (s === "healthy")  return "#059669";
-  if (s === "warning")  return "#d97706";
-  return "#dc2626";
+  if (s === "healthy")  return "#0B7A57";
+  if (s === "warning")  return "#A86D0B";
+  return "#B42530";
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -158,10 +159,10 @@ function govStatusColor(s: NationalSyndicate["governanceStatus"]): string {
 /** Top-of-screen dashboard stat cards */
 function StatCards({ stats, colors, t }: { stats: OrgStats; colors: ReturnType<typeof useColors>; t: (key: string) => string }) {
   const cards = [
-    { label: t("orgStatActiveMandates"), value: stats.activeMandates, icon: "award" as const, color: "#2563EB" },
-    { label: t("orgStatCommitteeMembers"), value: stats.committeeCount, icon: "users" as const, color: "#7C3AED" },
-    { label: t("orgStatExpiring"), value: stats.expiringMandates, icon: "clock" as const, color: "#EA580C" },
-    { label: t("orgStatVacant"), value: stats.vacantPositions, icon: "alert-circle" as const, color: "#dc2626" },
+    { label: t("orgStatActiveMandates"), value: stats.activeMandates, icon: "award" as const, color: "#5A4AD6" },
+    { label: t("orgStatCommitteeMembers"), value: stats.committeeCount, icon: "users" as const, color: "#0F6E7D" },
+    { label: t("orgStatExpiring"), value: stats.expiringMandates, icon: "clock" as const, color: "#A8501F" },
+    { label: t("orgStatVacant"), value: stats.vacantPositions, icon: "alert-circle" as const, color: colors.danger },
   ];
   return (
     <View style={styles.statRow}>
@@ -273,8 +274,8 @@ function VacantCard({ roleLabel, color, colors, t }: { roleLabel: string; color:
         <Text style={[styles.vacantLabel, { color: colors.mutedForeground }]}>{roleLabel}</Text>
          <Text style={[styles.vacantSub, { color: color }]}>{t("orgVacantPosition")}</Text>
       </View>
-      <View style={[styles.statusBadge, { backgroundColor: "#fee2e2" }]}>
-         <Text style={[styles.statusBadgeText, { color: "#dc2626" }]}>{t("orgVacantBadge")}</Text>
+      <View style={[styles.statusBadge, { backgroundColor: colors.dangerSoft }]}>
+         <Text style={[styles.statusBadgeText, { color: colors.danger }]}>{t("orgVacantBadge")}</Text>
       </View>
     </View>
   );
@@ -330,7 +331,7 @@ function RoleModal({ node, visible, onClose, isAdmin, colors, t, locale }: {
             {node.appointedAt && (
                <InfoRow icon="clock" label={t("orgModalAppointed")} value={formatDate(node.appointedAt, locale)} colors={colors} />
             )}
-            <View style={styles.infoRowWrap}>
+            <View style={[styles.infoRowWrap, { borderBottomColor: colors.border }]}>
               <Feather name="activity" size={14} color={colors.mutedForeground} />
                <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("orgModalStatus")}</Text>
               <View style={[styles.statusBadge, { backgroundColor: badge.bg, marginLeft: "auto" }]}>
@@ -342,7 +343,7 @@ function RoleModal({ node, visible, onClose, isAdmin, colors, t, locale }: {
           {/* Permissions sections */}
           {sections.map((sec) => (
             <View key={sec.title} style={[styles.permSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.permHeader}>
+              <View style={[styles.permHeader, { borderBottomColor: colors.border }]}>
                 <View style={[styles.permIconWrap, { backgroundColor: node.color + "15" }]}>
                   <Feather name={sec.icon} size={14} color={node.color} />
                 </View>
@@ -371,7 +372,7 @@ function InfoRow({ icon, label, value, colors }: {
   colors: ReturnType<typeof useColors>;
 }) {
   return (
-    <View style={styles.infoRowWrap}>
+    <View style={[styles.infoRowWrap, { borderBottomColor: colors.border }]}>
       <Feather name={icon} size={14} color={colors.mutedForeground} />
       <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{label}</Text>
       <Text style={[styles.infoValue, { color: colors.foreground }]} numberOfLines={1}>{value}</Text>
@@ -472,7 +473,7 @@ export default function OrganigrammeScreen() {
             <NatStat icon="home" value={item.buildingsCount} label={t("orgNatBuildings")} colors={colors} />
             <NatStat icon="users" value={item.membersCount} label={t("orgNatMembers")} colors={colors} />
             <NatStat icon="award" value={item.councilCount} label={t("orgNatCouncil")} colors={colors} />
-            <NatStat icon="user-x" value={item.vacantPositions} label={t("orgNatVacant")} colors={colors} color={item.vacantPositions > 0 ? "#dc2626" : undefined} />
+            <NatStat icon="user-x" value={item.vacantPositions} label={t("orgNatVacant")} colors={colors} color={item.vacantPositions > 0 ? colors.danger : undefined} />
           </View>
 
           {item.president && (
@@ -485,7 +486,7 @@ export default function OrganigrammeScreen() {
             <View style={styles.natAlerts}>
               {item.alerts.map((a) => (
                 <View key={a} style={styles.natAlert}>
-                  <Feather name="alert-triangle" size={10} color="#d97706" />
+                  <Feather name="alert-triangle" size={10} color={colors.warning} />
                   <Text style={styles.natAlertText}>{a}</Text>
                 </View>
               ))}
@@ -499,12 +500,7 @@ export default function OrganigrammeScreen() {
   if (loading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
-        </View>
+        <ScreenHeader title={t("orgTitle")} />
         <LoadingState title={t("orgLoading")} />
       </View>
     );
@@ -513,12 +509,7 @@ export default function OrganigrammeScreen() {
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
-        </View>
+        <ScreenHeader title={t("orgTitle")} />
         <ErrorState
           title={t("orgLoadError")}
           description={t("orgLoadErrorDescription")}
@@ -532,37 +523,17 @@ export default function OrganigrammeScreen() {
   const h = orgData?.hierarchy;
   const stats = orgData?.stats;
   const syndicate = orgData?.syndicate;
-  const synColor = syndicate?.logoColor ?? "#7c3aed";
+  const synColor = syndicate?.logoColor ?? "#0F6E7D";
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
-          {syndicate && (
-            <Text style={[styles.headerSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {syndicate.name}
-            </Text>
-          )}
-        </View>
-        <View style={styles.headerActions}>
-          {isSuperAdmin && (
-            <TouchableOpacity
-              style={[styles.headerBtn, showNational ? { backgroundColor: colors.primary } : { backgroundColor: colors.muted }]}
-              onPress={() => { setShowNational((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            >
-              <Feather name="globe" size={16} color={showNational ? "#fff" : colors.foreground} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={[styles.headerBtn, { backgroundColor: colors.muted }]} onPress={handleShare}>
-            <Feather name="share-2" size={16} color={colors.foreground} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ScreenHeader
+        title={t("orgTitle")}
+        subtitle={syndicate ? syndicate.name : undefined}
+        action={{ icon: "share-2", label: t("shareLabel"), onPress: handleShare }}
+        action2={isSuperAdmin ? { icon: "globe", label: t("orgNationalView"), onPress: () => { setShowNational((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       {/* ── Super Admin National View ── */}
       {isSuperAdmin && showNational && nationalData ? (
@@ -570,11 +541,11 @@ export default function OrganigrammeScreen() {
           {/* National summary strip */}
           <View style={[styles.natSummary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <View style={styles.natSummaryInner}>
-              <NatSumStat value={nationalData.summary.total} label={t("orgNatSummaryTotal")} color="#2563EB" />
-              <NatSumStat value={nationalData.summary.healthy} label={t("orgNatSummaryHealthy")} color="#059669" />
-              <NatSumStat value={nationalData.summary.warnings} label={t("orgNatSummaryWarnings")} color="#d97706" />
-              <NatSumStat value={nationalData.summary.critical} label={t("orgNatSummaryCritical")} color="#dc2626" />
-              <NatSumStat value={nationalData.summary.totalVacancies} label={t("orgNatSummaryVacancies")} color="#ef4444" />
+              <NatSumStat value={nationalData.summary.total} label={t("orgNatSummaryTotal")} color="#5A4AD6" />
+              <NatSumStat value={nationalData.summary.healthy} label={t("orgNatSummaryHealthy")} color={colors.success} />
+              <NatSumStat value={nationalData.summary.warnings} label={t("orgNatSummaryWarnings")} color={colors.warning} />
+              <NatSumStat value={nationalData.summary.critical} label={t("orgNatSummaryCritical")} color={colors.danger} />
+              <NatSumStat value={nationalData.summary.totalVacancies} label={t("orgNatSummaryVacancies")} color={colors.danger} />
             </View>
           </View>
           <FlatList
@@ -595,8 +566,8 @@ export default function OrganigrammeScreen() {
           {/* ── Super admin: no syndicate selected ── */}
           {isSuperAdmin && !orgData && (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 16 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: "#7C3AED15", alignItems: "center", justifyContent: "center" }}>
-                <Feather name="globe" size={28} color="#7C3AED" />
+              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: "#0F6E7D15", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="globe" size={28} color="#0F6E7D" />
               </View>
               <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, textAlign: "center" }}>
                 {t("orgNationalView")}
@@ -605,7 +576,7 @@ export default function OrganigrammeScreen() {
                 {t("orgNationalDesc")}
               </Text>
               <TouchableOpacity
-                style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#7C3AED", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#0F6E7D", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
                 onPress={() => { setShowNational(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
               >
                 <Feather name="globe" size={16} color="#fff" />
@@ -616,8 +587,8 @@ export default function OrganigrammeScreen() {
 
           {/* ── Governance alerts ── */}
           {stats && stats.alerts.length > 0 && (
-            <View style={[styles.alertBanner, { backgroundColor: "#fef3c7", borderColor: "#fbbf24" }]}>
-              <Feather name="alert-triangle" size={14} color="#d97706" />
+            <View style={[styles.alertBanner, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
+              <Feather name="alert-triangle" size={14} color={colors.warning} />
               <View style={{ flex: 1, gap: 2 }}>
                 {stats.alerts.map((a) => (
                   <Text key={a} style={styles.alertText}>{a}</Text>
@@ -639,8 +610,8 @@ export default function OrganigrammeScreen() {
 
           {(!isSuperAdmin || orgData) && <View style={styles.chartWrap}>
             {/* Level 2: Syndicate Admin */}
-            <View style={[styles.levelLabel, { backgroundColor: "#2563EB10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#2563EB" }]}>{t("orgLevel1")}</Text>
+            <View style={[styles.levelLabel, { backgroundColor: "#5A4AD610" }]}>
+              <Text style={[styles.levelLabelText, { color: "#5A4AD6" }]}>{t("orgLevel1")}</Text>
             </View>
 
             {h && h.admins.length > 0 ? (
@@ -651,55 +622,55 @@ export default function OrganigrammeScreen() {
                 </React.Fragment>
               ))
             ) : (
-              <VacantCard roleLabel={t("orgVacantAdmin")} color="#2563EB" colors={colors} t={t} />
+              <VacantCard roleLabel={t("orgVacantAdmin")} color="#5A4AD6" colors={colors} t={t} />
             )}
 
             {/* Level 3: Président */}
-            <Connector color="#7C3AED" />
-            <View style={[styles.levelLabel, { backgroundColor: "#7C3AED10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#7C3AED" }]}>{t("orgLevel2")}</Text>
+            <Connector color="#0F6E7D" />
+            <View style={[styles.levelLabel, { backgroundColor: "#0F6E7D10" }]}>
+              <Text style={[styles.levelLabelText, { color: "#0F6E7D" }]}>{t("orgLevel2")}</Text>
             </View>
             {h?.president ? (
               <NodeCard node={h.president} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel={t("orgVacantPresident")} color="#7C3AED" colors={colors} t={t} />
+              <VacantCard roleLabel={t("orgVacantPresident")} color="#0F6E7D" colors={colors} t={t} />
             )}
 
             {/* Level 4: Trésorier */}
-            <Connector color="#059669" />
-            <View style={[styles.levelLabel, { backgroundColor: "#05966910" }]}>
-              <Text style={[styles.levelLabelText, { color: "#059669" }]}>{t("orgLevel3")}</Text>
+            <Connector color={colors.success} />
+            <View style={[styles.levelLabel, { backgroundColor: colors.success + "10" }]}>
+              <Text style={[styles.levelLabelText, { color: colors.success }]}>{t("orgLevel3")}</Text>
             </View>
             {h?.treasurer ? (
               <NodeCard node={h.treasurer} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel={t("orgVacantTreasurer")} color="#059669" colors={colors} t={t} />
+              <VacantCard roleLabel={t("orgVacantTreasurer")} color={colors.success} colors={colors} t={t} />
             )}
 
             {/* Level 5: Secrétaire */}
-            <Connector color="#EA580C" />
-            <View style={[styles.levelLabel, { backgroundColor: "#EA580C10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#EA580C" }]}>{t("orgLevel4")}</Text>
+            <Connector color="#A8501F" />
+            <View style={[styles.levelLabel, { backgroundColor: "#A8501F10" }]}>
+              <Text style={[styles.levelLabelText, { color: "#A8501F" }]}>{t("orgLevel4")}</Text>
             </View>
             {h?.secretary ? (
               <NodeCard node={h.secretary} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel={t("orgVacantSecretary")} color="#EA580C" colors={colors} t={t} />
+              <VacantCard roleLabel={t("orgVacantSecretary")} color="#A8501F" colors={colors} t={t} />
             )}
 
             {/* Level 6: Membres du Bureau */}
             {h && (h.committeeMembers.length > 0 || true) && (
               <>
-                <Connector color="#6B7280" />
-                <View style={[styles.levelLabel, { backgroundColor: "#6B728010" }]}>
-                  <Text style={[styles.levelLabelText, { color: "#6B7280" }]}>{t("orgLevel5")}</Text>
+                <Connector color="#6A6680" />
+                <View style={[styles.levelLabel, { backgroundColor: "#6A668010" }]}>
+                  <Text style={[styles.levelLabelText, { color: "#6A6680" }]}>{t("orgLevel5")}</Text>
                 </View>
                 {h.committeeMembers.length > 0 ? (
                   h.committeeMembers.map((m) => (
                     <NodeCard key={m.id} node={m} colors={colors} onPress={setSelectedNode} t={t} />
                   ))
                 ) : (
-                  <VacantCard roleLabel={t("orgStatCommitteeMembers")} color="#6B7280" colors={colors} t={t} />
+                  <VacantCard roleLabel={t("orgStatCommitteeMembers")} color="#6A6680" colors={colors} t={t} />
                 )}
               </>
             )}
@@ -776,7 +747,7 @@ function NatSumStat({ value, label, color }: { value: number; label: string; col
   return (
     <View style={styles.natSumStat}>
       <Text style={[styles.natSumVal, { color }]}>{value}</Text>
-      <Text style={[styles.natSumLabel, { color: "#6b7280" }]}>{label}</Text>
+      <Text style={[styles.natSumLabel, { color: "#6A6680" }]}>{label}</Text>
     </View>
   );
 }
@@ -816,7 +787,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  alertText: { fontSize: 12, color: "#92400e", fontWeight: "500", lineHeight: 18 },
+  alertText: { fontSize: 12, color: "#8A5A08", fontWeight: "500", lineHeight: 18 },
 
   // Stat cards
   statRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 16 },
@@ -973,7 +944,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#E7E1D6",
   },
   infoLabel: { fontSize: 12, fontWeight: "500", width: 90 },
   infoValue: { fontSize: 12, fontWeight: "600", flex: 1, textAlign: "right" },
@@ -985,7 +956,7 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#E7E1D6",
   },
   permIconWrap: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   permTitle: { fontSize: 13, fontWeight: "700" },
@@ -1019,5 +990,5 @@ const styles = StyleSheet.create({
   natPresident: { fontSize: 12 },
   natAlerts: { gap: 4 },
   natAlert: { flexDirection: "row", alignItems: "center", gap: 5 },
-  natAlertText: { fontSize: 11, color: "#92400e" },
+  natAlertText: { fontSize: 11, color: "#8A5A08" },
 });

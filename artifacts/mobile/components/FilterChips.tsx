@@ -68,11 +68,14 @@ function Chip({
       onPress={onPress}
       activeOpacity={0.75}
       hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={opt.count !== undefined ? `${opt.label} (${opt.count})` : opt.label}
       style={[
         styles.chip,
         equal ? styles.chipEqual : styles.chipAuto,
         {
-          backgroundColor: active ? activeColor : colors.secondary,
+          backgroundColor: active ? activeColor : colors.surface,
           borderColor: active ? activeColor : colors.border,
         },
       ]}
@@ -151,7 +154,7 @@ export default function FilterChips({
       accentColor={resolvedAccentColor}
       equal={resolvedMode === "equal"}
       onPress={() => {
-        Haptics.selectionAsync();
+        Haptics.selectionAsync().catch(() => {});
         onChange(opt.key);
       }}
     />
@@ -164,7 +167,7 @@ export default function FilterChips({
           styles.bar,
           styles.equalRow,
           width < 390 && styles.compactRow,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colors.background, borderBottomColor: colors.border },
         ]}
       >
         {options.map(renderChip)}
@@ -176,7 +179,7 @@ export default function FilterChips({
     <View
       style={[
         styles.bar,
-        { backgroundColor: colors.card, borderBottomColor: colors.border },
+        { backgroundColor: colors.background, borderBottomColor: colors.border },
       ]}
     >
       <ScrollView
@@ -246,7 +249,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   chipIcon: {
-    marginRight: 6,
+    marginEnd: 6,
   },
   chipText: {
     fontSize: 12,
@@ -255,7 +258,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   countPill: {
-    marginLeft: 6,
+    marginStart: 6,
     minWidth: 18,
     height: 18,
     borderRadius: 9,

@@ -1,4 +1,6 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
+import { initialEmailStatus, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../lib/email/deliverability.js";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -20,6 +22,7 @@ import { welcomeTemplate } from "../lib/email/templates.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { createAlert } from "../lib/notify.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -131,8 +134,7 @@ router.get(
 
       res.json(buildPagedResponse(enriched, Number(total), pagination));
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -148,7 +150,7 @@ router.post(
       phone: z.string().default(""),
       profession: z.string().default(""),
       syndicateId: z.string().optional(),
-      joinDate: z.string().default(new Date().toISOString().split("T")[0]),
+      joinDate: z.string().default(localToday()),
       // Also create the co-owner's login (member role, temporary password
       // that must be changed at first login) and email the invitation.
       inviteToApp: z.boolean().default(false),
@@ -198,6 +200,8 @@ router.post(
 
       const { inviteToApp, ...memberData } = result.data;
       const email = memberData.email.trim().toLowerCase();
+      // Notices, calls for funds and receipts go to this address.
+      if (reservedEmailRefused(email)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
 
       // One member record per person and syndicate: the same person may own
       // lots in several syndicates, but not be registered twice in one.
@@ -255,6 +259,7 @@ router.post(
             role: "member",
             status: "active",
             syndicateId,
+            emailStatus: initialEmailStatus(email),
           });
         }
 
@@ -274,8 +279,8 @@ router.post(
       });
 
       createAlert({
-        title: "Nouveau membre",
-        message: `${member!.name} vient de rejoindre le syndicat.`,
+        key: "member.joined",
+        params: { name: member!.name },
         type: "success",
         syndicateId: syndicateId || null,
         target: "admin",
@@ -298,8 +303,7 @@ router.post(
             : accountNotice ?? "Membre ajouté avec succès",
         });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -342,8 +346,7 @@ router.get(
       }
       res.json({ data: member });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -404,8 +407,7 @@ router.put(
       }
       res.json({ data: updated, message: "Membre mis à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );
@@ -493,8 +495,7 @@ router.put(
 
       res.json({ data: updated!, message: "Statut mis à jour" });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, err);
     }
   },
 );

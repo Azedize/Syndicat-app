@@ -12,6 +12,7 @@
 import jwt from "jsonwebtoken";
 import { asc, and, eq } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { writableSubscriptionSql } from "./test-domain.js";
 import {
   budgetsTable,
   buildingsTable,
@@ -107,19 +108,33 @@ function requireFixture<T>(
 }
 
 async function main(): Promise<void> {
-  const [users, syndicates] = await Promise.all([
+  const [users, syndicates, writableRows] = await Promise.all([
     db.select().from(usersTable),
     db.select({ id: syndicatesTable.id }).from(syndicatesTable),
+    // Condominiums open to writes: a suspended or expired one answers 423/402
+    // before the cross-syndicate check this suite is about.
+    // It also needs the records the checks act on (meeting, election, building,
+    // document), so a small fixture condominium is never picked.
+    pool.unsafe(
+      `SELECT s.id FROM syndicates s WHERE s.status = 'active' AND ${writableSubscriptionSql("s")}
+         AND EXISTS (SELECT 1 FROM meetings m WHERE m.syndicate_id = s.id)
+         AND EXISTS (SELECT 1 FROM elections e WHERE e.syndicate_id = s.id)
+         AND EXISTS (SELECT 1 FROM buildings b WHERE b.syndicate_id = s.id)
+         AND EXISTS (SELECT 1 FROM documents d WHERE d.syndicate_id = s.id)`,
+    ) as unknown as Promise<{ id: string }[]>,
   ]);
+  const writable = new Set(writableRows.map((r) => r.id));
 
   const superAdmin = users.find((user) => user.role === "super_admin");
   const adminA = users.find(
-    (user) => user.role === "syndicate_admin" && !!user.syndicateId,
+    (user) => user.role === "syndicate_admin" && !!user.syndicateId && writable.has(user.syndicateId) && user.status === "active",
   );
   const adminB = users.find(
     (user) =>
       user.role === "syndicate_admin" &&
       !!user.syndicateId &&
+      writable.has(user.syndicateId) &&
+      user.status === "active" &&
       user.syndicateId !== adminA?.syndicateId,
   );
   requireFixture("super_admin", superAdmin);
@@ -382,11 +397,12 @@ async function main(): Promise<void> {
       (await api(`/budgets/${budgetA.id}`, { token: tokens.adminB })).status,
       403,
     );
+    // A hidden document answers like a missing one (no existence disclosure).
     expectStatus(
       "cross-syndicate document detail",
       (await api(`/documents/${documentA.id}`, { token: tokens.adminB }))
         .status,
-      403,
+      404,
     );
     expectStatus(
       "cross-syndicate private object",

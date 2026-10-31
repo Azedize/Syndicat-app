@@ -257,8 +257,8 @@ router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => 
 
 function alertApprovers(sid: string, expense: { reference: string; label: string; amount: string }) {
   createAlert({
-    title: "Dépense à approuver",
-    message: `${expense.reference} : ${expense.label} (${expense.amount} MAD) attend une approbation.`,
+    key: "expense.toApprove",
+    params: { reference: expense.reference, label: expense.label, amount: expense.amount },
     type: "info",
     syndicateId: sid,
     target: "admin",

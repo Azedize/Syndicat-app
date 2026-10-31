@@ -1,6 +1,8 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import { Button as UIButton } from "@/components/ui";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { getApiBaseUrl, getFileTicket, getToken, withFileTicket } from "@/services/api";
 import React, { useRef, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
@@ -64,123 +66,12 @@ const CAT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 };
 
 const CAT_COLORS: Record<string, string> = {
-  pv: "#10b981",
-  juridique: "#ef4444",
-  finances: "#f59e0b",
-  attestation: "#8b5cf6",
+  pv: "#13976C",
+  juridique: "#C8323C",
+  finances: "#C98511",
+  attestation: "#1F8A9A",
 };
 
-// ── V1 — 12 essential production templates ────────────────────────────────────
-const DOC_TEMPLATES = [
-  {
-    id: "t1",
-    name: "Attestation d'adhésion",
-    icon: "award" as const,
-    color: "#8b5cf6",
-    desc: "Certifie l'appartenance d'un membre au syndicat",
-    category: "attestation" as const,
-    templateId: "attestation",
-  },
-  {
-    id: "t2",
-    name: "Attestation de résidence",
-    icon: "home" as const,
-    color: "#0891b2",
-    desc: "Certifie la résidence d'un copropriétaire dans l'immeuble",
-    category: "attestation" as const,
-    templateId: "attestation_residence",
-  },
-  {
-    id: "t3",
-    name: "Attestation de propriété",
-    icon: "key" as const,
-    color: "#2563EB",
-    desc: "Certifie la propriété d'un lot de copropriété",
-    category: "attestation" as const,
-    templateId: "attestation_propriete",
-  },
-  {
-    id: "t4",
-    name: "Attestation de paiement",
-    icon: "check-circle" as const,
-    color: "#16a34a",
-    desc: "Certifie le paiement des charges pour la période indiquée",
-    category: "attestation" as const,
-    templateId: "attestation_paiement",
-  },
-  {
-    id: "t5",
-    name: "Convocation officielle",
-    icon: "calendar" as const,
-    color: "#3b82f6",
-    desc: "Convocation officielle à une réunion",
-    category: "pv" as const,
-    templateId: "convocation",
-  },
-  {
-    id: "t6",
-    name: "Procès-verbal de réunion",
-    icon: "clipboard" as const,
-    color: "#10b981",
-    desc: "Procès-verbal officiel enregistrant les délibérations",
-    category: "pv" as const,
-    templateId: "pv",
-  },
-  {
-    id: "t7",
-    name: "Décision syndicale",
-    icon: "check-circle" as const,
-    color: "#16a34a",
-    desc: "Décision officielle prise par le bureau syndical",
-    category: "pv" as const,
-    templateId: "decision",
-  },
-  {
-    id: "t8",
-    name: "Rapport financier",
-    icon: "dollar-sign" as const,
-    color: "#f59e0b",
-    desc: "Bilan financier de la période avec prévisions et réalisations",
-    category: "finances" as const,
-    templateId: "rapport_financier",
-  },
-  {
-    id: "t9",
-    name: "Appel de fonds",
-    icon: "file-text" as const,
-    color: "#06b6d4",
-    desc: "Appel de charges communes avec données copropriétaire auto",
-    category: "finances" as const,
-    templateId: "appel_de_fonds",
-  },
-  {
-    id: "t10",
-    name: "Facture",
-    icon: "file-minus" as const,
-    color: "#dc2626",
-    desc: "Facture officielle avec lignes et montants automatiques",
-    category: "finances" as const,
-    templateId: "facture",
-  },
-  {
-    id: "t11",
-    name: "Contrat",
-    icon: "file-text" as const,
-    color: "#0891b2",
-    desc: "Contrat formel entre le syndicat et un tiers",
-    category: "juridique" as const,
-    templateId: "contrat",
-  },
-  {
-    id: "t12",
-    name: "Mise en demeure",
-    icon: "alert-circle" as const,
-    color: "#ef4444",
-    desc: "Document légal de mise en demeure officielle",
-    category: "juridique" as const,
-    templateId: "mise_en_demeure",
-  },
-];
 
 // ─── Document-detail i18n strings ────────────────────────────────────────────
 
@@ -914,6 +805,12 @@ export default function DocumentsScreen() {
   // List / filter
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
+  // Status chosen on the documents dashboard (/documents?status=…). « expiring »
+  // is a retention bucket, not a status: it opens the full list.
+  const routeParams = useLocalSearchParams<{ status?: string }>();
+  const [statusFilter, setStatusFilter] = useState<string | null>(
+    routeParams.status && routeParams.status !== "expiring" ? String(routeParams.status) : null,
+  );
   const [refreshing, setRefreshing] = useState(false);
 
   // Selected document
@@ -921,15 +818,6 @@ export default function DocumentsScreen() {
 
   // Generate modal
   const [showGenerate, setShowGenerate] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<
-    (typeof DOC_TEMPLATES)[0] | null
-  >(null);
-  const [genMember, setGenMember] = useState("");
-  const [genNote, setGenNote] = useState("");
-  const [genLanguage, setGenLanguage] = useState<"fr" | "ar" | "en" | "es">(
-    "fr",
-  );
 
   // Edit modal
   const [showEdit, setShowEdit] = useState(false);
@@ -1020,7 +908,8 @@ export default function DocumentsScreen() {
     const matchCat = category === "all" || d.category === category;
     const matchSearch =
       !search || d.title.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const matchStatus = !statusFilter || d.status === statusFilter;
+    return matchCat && matchSearch && matchStatus;
   });
 
   // ─── Status display ──────────────────────────────────────────────────────────
@@ -1030,20 +919,20 @@ export default function DocumentsScreen() {
       ({
         published: { label: t("docStatusPublished"), color: colors.success },
         draft: { label: t("docStatusDraft"), color: colors.mutedForeground },
-        pending: { label: t("docStatusPending"), color: "#f59e0b" },
-        generated: { label: t("docStatusGenerated"), color: "#3b82f6" },
+        pending: { label: t("docStatusPending"), color: colors.warning },
+        generated: { label: t("docStatusGenerated"), color: "#5A4AD6" },
         pending_review: {
           label: t("docStatusPendingReview"),
-          color: "#f59e0b",
+          color: colors.warning,
         },
-        validated: { label: t("docStatusValidated"), color: "#10b981" },
-        signed: { label: t("docStatusSigned"), color: "#8b5cf6" },
+        validated: { label: t("docStatusValidated"), color: colors.success },
+        signed: { label: t("docStatusSigned"), color: "#1F8A9A" },
         archived: {
           label: t("docStatusArchived"),
           color: colors.mutedForeground,
         },
-        rejected: { label: t("docStatusRejected"), color: "#ef4444" },
-        expired: { label: t("docStatusExpired"), color: "#dc2626" },
+        rejected: { label: t("docStatusRejected"), color: colors.danger },
+        expired: { label: t("docStatusExpired"), color: colors.danger },
       }) as Record<string, { label: string; color: string }>
     )[status] ?? { label: status, color: colors.mutedForeground };
 
@@ -1059,55 +948,6 @@ export default function DocumentsScreen() {
       });
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  // ─── Generate ────────────────────────────────────────────────────────────────
-
-  const handleGenerate = async () => {
-    if (!selectedTemplate || generating) return;
-    const content = [genMember && `Destinataire: ${genMember}`, genNote]
-      .filter(Boolean)
-      .join("\n");
-    setGenerating(true);
-    try {
-      const { documents: docsApi } = await import("@/services/api");
-      await docsApi.generate(
-        selectedTemplate.name,
-        selectedTemplate.category,
-        content || undefined,
-        selectedTemplate.templateId,
-        genMember || undefined,
-        genLanguage,
-      );
-      logActivity({
-        action: "Document généré",
-        target: selectedTemplate.name,
-        route: "/documents",
-        icon: "file-text",
-        color: MIZAN.colors.blue,
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await refreshDocuments().catch(() => {});
-      showToast({
-        type: "success",
-        title: docText("generatedTitle"),
-        message: docText("generatedMessage", { name: selectedTemplate.name }),
-      });
-      setShowGenerate(false);
-      setSelectedTemplate(null);
-      setGenMember("");
-      setGenNote("");
-      setGenLanguage("fr");
-    } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({
-        type: "error",
-        title: docText("generationError"),
-        message: docText("generationFailed"),
-      });
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -1346,7 +1186,7 @@ export default function DocumentsScreen() {
         target: selected.title,
         route: "/documents",
         icon: "edit-3",
-        color: "#8b5cf6",
+        color: "#1F8A9A",
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshDocuments().catch(() => {});
@@ -1733,109 +1573,29 @@ export default function DocumentsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("documentsTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {t("documentsCount").replace("{count}", String(filtered.length))}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() =>
-            toggleFavorite({
-              id: FAV_ID,
-              title: t("documentsTitle"),
-              icon: "file-text",
-              color: MIZAN.colors.blue,
-              route: "/documents",
-            })
-          }
-          style={{ padding: 6 }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather
-            name="star"
-            size={20}
-            color={isFavorite(FAV_ID) ? "#f59e0b" : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-        {isAdmin ? (
-          <TouchableOpacity
-            style={{ padding: 6, marginRight: 4 }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/documents-recycle-bin");
-            }}
-          >
-            <Feather name="trash-2" size={20} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        ) : null}
-        {isAdmin ? (
-          <>
-            {/* Bundle docs (admin) */}
-            <TouchableOpacity
-              style={{ padding: 6, marginRight: 2 }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => {
-                setShowBundleMenu((v) => !v);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Feather
-                name="package"
-                size={20}
-                color={showBundleMenu ? colors.primary : colors.mutedForeground}
-              />
-            </TouchableOpacity>
-            {/* Demander un nouveau modèle (admin) */}
-            <TouchableOpacity
-              style={{ padding: 6, marginRight: 2 }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => {
-                setShowTemplateRequest(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Feather name="layout" size={20} color={colors.mutedForeground} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.generateBtn, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                setShowGenerate(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Feather name="file-plus" size={16} color="#fff" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          /* Demander un document (member / tenant) */
-          <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: "#8b5cf6" }]}
-            onPress={() => {
-              setShowMemberRequest(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Feather name="send" size={16} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <>
+      <ScreenHeader
+        title={t("documentsTitle")}
+        subtitle={t("documentsCount").replace("{count}", String(filtered.length))}
+        action2={{
+          icon: "star",
+          label: t("docFavorite"),
+          onPress: () => toggleFavorite({ id: FAV_ID, title: t("documentsTitle"), icon: "file-text", color: MIZAN.colors.blue, route: "/documents" }),
+        }}
+        action={
+          isAdmin
+            ? { icon: "file-plus", label: t("docGenerate"), onPress: () => { setShowGenerate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } }
+            : { icon: "send", label: t("docRequest"), onPress: () => { setShowMemberRequest(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } }
+        }
+      />
+      {isAdmin ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: colors.background }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <UIButton label={t("docToolRecycle")} icon="trash-2" size="sm" variant="secondary" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/documents-recycle-bin"); }} />
+          <UIButton label={t("docToolBundles")} icon="package" size="sm" variant={showBundleMenu ? "primary" : "secondary"} onPress={() => { setShowBundleMenu((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} />
+          <UIButton label={t("docToolTemplate")} icon="layout" size="sm" variant="secondary" onPress={() => { setShowTemplateRequest(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} />
+        </ScrollView>
+      ) : null}
+      </>
 
       {/* ── Search ── */}
       <View
@@ -1896,14 +1656,14 @@ export default function DocumentsScreen() {
             count: documents.filter(
               (d) => d.status === "pending" || d.status === "pending_review",
             ).length,
-            color: "#f59e0b",
+            color: colors.warning,
           },
           {
             label: DOC_STRINGS.signedCount[lang],
             count: documents.filter(
               (d) => d.status === "signed" || d.status === "validated",
             ).length,
-            color: "#8b5cf6",
+            color: "#1F8A9A",
           },
         ].map((s) => (
           <View key={s.label} style={styles.statItem}>
@@ -1933,6 +1693,20 @@ export default function DocumentsScreen() {
           accentColor={colors.primary}
         />
       ) : (
+        <>
+        {statusFilter ? (
+          <TouchableOpacity
+            onPress={() => setStatusFilter(null)}
+            accessibilityRole="button"
+            accessibilityLabel={t("docStatusFilterClear")}
+            style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, marginHorizontal: 16, marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primary + "18" }}
+          >
+            <Text style={{ color: colors.tint, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>
+              {t("docStatusFilterLabel").replace("{status}", statusConfig(statusFilter).label)}
+            </Text>
+            <Feather name="x" size={14} color={colors.tint} />
+          </TouchableOpacity>
+        ) : null}
         <FlatList
           data={filtered}
           keyExtractor={(d) => d.id}
@@ -2045,6 +1819,7 @@ export default function DocumentsScreen() {
             );
           }}
         />
+        </>
       )}
 
       {/* ── Member document request modal ── */}
@@ -2093,21 +1868,21 @@ export default function DocumentsScreen() {
               {
                 type: "recovery" as BundleType,
                 icon: "alert-triangle" as const,
-                color: "#dc2626",
+                color: colors.danger,
                 label: docText("bundleRecovery"),
                 sub: docText("bundleRecoverySub"),
               },
               {
                 type: "sale" as BundleType,
                 icon: "package" as const,
-                color: "#7c3aed",
+                color: "#0F6E7D",
                 label: docText("bundleSale"),
                 sub: docText("bundleSaleSub"),
               },
               {
                 type: "ag" as BundleType,
                 icon: "users" as const,
-                color: "#3b82f6",
+                color: "#5A4AD6",
                 label: docText("bundleAg"),
                 sub: docText("bundleAgSub"),
               },
@@ -2202,7 +1977,7 @@ export default function DocumentsScreen() {
                 dlState.phase === "done"
                   ? colors.success
                   : dlState.phase === "error"
-                    ? "#ef4444"
+                    ? colors.danger
                     : colors.primary
               }
             />
@@ -2278,7 +2053,7 @@ export default function DocumentsScreen() {
 
           {/* % label */}
           {dlState.phase === "downloading" ? (
-            <Text style={[styles.dlPct, { color: colors.primary }]}>
+            <Text style={[styles.dlPct, { color: colors.tint }]}>
               {Math.round(dlState.progress * 100)}%
             </Text>
           ) : null}
@@ -2315,7 +2090,7 @@ export default function DocumentsScreen() {
             <TouchableOpacity
               style={[
                 styles.dlBtn,
-                { backgroundColor: "#ef4444", marginTop: 10 },
+                { backgroundColor: colors.danger, marginTop: 10 },
               ]}
               onPress={() => {
                 if (selected) retryDownload(selected);
@@ -2577,18 +2352,18 @@ export default function DocumentsScreen() {
                               <View
                                 style={[
                                   detailStyles.verifiedChip,
-                                  { backgroundColor: "#10b98115" },
+                                  { backgroundColor: colors.success + "15" },
                                 ]}
                               >
                                 <Feather
                                   name="shield"
                                   size={10}
-                                  color="#10b981"
+                                  color={colors.success}
                                 />
                                 <Text
                                   style={[
                                     detailStyles.verifiedChipText,
-                                    { color: "#10b981" },
+                                    { color: colors.success },
                                   ]}
                                 >
                                   {DOC_STRINGS.verified[lang]}
@@ -2691,9 +2466,9 @@ export default function DocumentsScreen() {
                                   ? DOC_STRINGS.validated[lang]
                                   : DOC_STRINGS.pending[lang],
                               valueColor: isSigned
-                                ? "#8b5cf6"
+                                ? "#1F8A9A"
                                 : isValid
-                                  ? "#10b981"
+                                  ? colors.success
                                   : colors.mutedForeground,
                             },
                             {
@@ -2703,7 +2478,7 @@ export default function DocumentsScreen() {
                                 ? DOC_STRINGS.verified[lang]
                                 : DOC_STRINGS.notVerified[lang],
                               valueColor: isVerified
-                                ? "#10b981"
+                                ? colors.success
                                 : colors.mutedForeground,
                             },
                           ] as {
@@ -2827,10 +2602,10 @@ export default function DocumentsScreen() {
                           <View
                             style={[
                               detailStyles.actionIcon,
-                              { backgroundColor: "#3b82f615" },
+                              { backgroundColor: "#5A4AD615" },
                             ]}
                           >
-                            <Feather name="share-2" size={20} color="#3b82f6" />
+                            <Feather name="share-2" size={20} color="#5A4AD6" />
                           </View>
                           <Text
                             style={[
@@ -2857,10 +2632,10 @@ export default function DocumentsScreen() {
                           <View
                             style={[
                               detailStyles.actionIcon,
-                              { backgroundColor: "#06b6d415" },
+                              { backgroundColor: "#1F8A9A15" },
                             ]}
                           >
-                            <Feather name="grid" size={20} color="#06b6d4" />
+                            <Feather name="grid" size={20} color="#1F8A9A" />
                           </View>
                           <Text
                             style={[
@@ -2887,13 +2662,13 @@ export default function DocumentsScreen() {
                           <View
                             style={[
                               detailStyles.actionIcon,
-                              { backgroundColor: "#f59e0b15" },
+                              { backgroundColor: colors.warning + "15" },
                             ]}
                           >
                             <Feather
                               name="message-square"
                               size={20}
-                              color="#f59e0b"
+                              color={colors.warning}
                             />
                           </View>
                           <Text
@@ -2921,10 +2696,10 @@ export default function DocumentsScreen() {
                           <View
                             style={[
                               detailStyles.actionIcon,
-                              { backgroundColor: "#64748b15" },
+                              { backgroundColor: "#6A668015" },
                             ]}
                           >
-                            <Feather name="clock" size={20} color="#64748b" />
+                            <Feather name="clock" size={20} color="#6A6680" />
                           </View>
                           <Text
                             style={[
@@ -2953,13 +2728,13 @@ export default function DocumentsScreen() {
                             <View
                               style={[
                                 detailStyles.actionIcon,
-                                { backgroundColor: "#8b5cf615" },
+                                { backgroundColor: "#1F8A9A15" },
                               ]}
                             >
                               <Feather
                                 name="edit-3"
                                 size={20}
-                                color="#8b5cf6"
+                                color="#1F8A9A"
                               />
                             </View>
                             <Text
@@ -3095,7 +2870,7 @@ export default function DocumentsScreen() {
                               style={[
                                 detailStyles.wfPrimaryBtn,
                                 {
-                                  backgroundColor: "#f59e0b",
+                                  backgroundColor: colors.warning,
                                   opacity: workflowBusy ? 0.55 : 1,
                                 },
                               ]}
@@ -3121,7 +2896,7 @@ export default function DocumentsScreen() {
                                   detailStyles.wfPrimaryBtn,
                                   {
                                     flex: 1,
-                                    backgroundColor: "#10b981",
+                                    backgroundColor: colors.success,
                                     opacity: workflowBusy ? 0.55 : 1,
                                   },
                                 ]}
@@ -3149,7 +2924,7 @@ export default function DocumentsScreen() {
                                   detailStyles.wfPrimaryBtn,
                                   {
                                     flex: 1,
-                                    backgroundColor: "#ef4444",
+                                    backgroundColor: colors.danger,
                                     opacity: workflowBusy ? 0.55 : 1,
                                   },
                                 ]}
@@ -3177,7 +2952,7 @@ export default function DocumentsScreen() {
                               style={[
                                 detailStyles.wfPrimaryBtn,
                                 {
-                                  backgroundColor: "#10b981",
+                                  backgroundColor: colors.success,
                                   opacity: workflowBusy ? 0.55 : 1,
                                 },
                               ]}
@@ -3203,7 +2978,7 @@ export default function DocumentsScreen() {
                                   detailStyles.wfOutlineBtn,
                                   {
                                     flex: 1,
-                                    borderColor: "#64748b40",
+                                    borderColor: "#6A668040",
                                     opacity: workflowBusy ? 0.55 : 1,
                                   },
                                 ]}
@@ -3213,12 +2988,12 @@ export default function DocumentsScreen() {
                                 <Feather
                                   name="archive"
                                   size={14}
-                                  color="#64748b"
+                                  color="#6A6680"
                                 />
                                 <Text
                                   style={[
                                     detailStyles.wfOutlineBtnText,
-                                    { color: "#64748b" },
+                                    { color: "#6A6680" },
                                   ]}
                                 >
                                   {DOC_STRINGS.archive[lang]}
@@ -3228,19 +3003,19 @@ export default function DocumentsScreen() {
                             <TouchableOpacity
                               style={[
                                 detailStyles.wfOutlineBtn,
-                                { flex: 1, borderColor: "#ef444440" },
+                                { flex: 1, borderColor: colors.danger + "40" },
                               ]}
                               onPress={handleDelete}
                             >
                               <Feather
                                 name="trash-2"
                                 size={14}
-                                color="#ef4444"
+                                color={colors.danger}
                               />
                               <Text
                                 style={[
                                   detailStyles.wfOutlineBtnText,
-                                  { color: "#ef4444" },
+                                  { color: colors.danger },
                                 ]}
                               >
                                 {DOC_STRINGS.delete[lang]}
@@ -3333,7 +3108,7 @@ export default function DocumentsScreen() {
                     flex: 1,
                     backgroundColor: sigEmpty
                       ? colors.mutedForeground
-                      : "#8b5cf6",
+                      : "#1F8A9A",
                     opacity: signing ? 0.7 : 1,
                   },
                 ]}
@@ -3504,8 +3279,8 @@ export default function DocumentsScreen() {
                   styles.overlayBtn,
                   {
                     backgroundColor: rejectReason.trim()
-                      ? "#ef4444"
-                      : "#ef444460",
+                      ? colors.danger
+                      : colors.danger + "60",
                     flex: 1,
                     opacity: workflowBusy ? 0.6 : 1,
                   },
@@ -3591,7 +3366,7 @@ export default function DocumentsScreen() {
                     <Text
                       style={[
                         styles.versionBadgeText,
-                        { color: colors.primary },
+                        { color: colors.tint },
                       ]}
                     >
                       v{v.versionNumber}
@@ -3658,7 +3433,7 @@ export default function DocumentsScreen() {
                 width: "100%",
               }}
             >
-              <Feather name="grid" size={20} color="#06b6d4" />
+              <Feather name="grid" size={20} color="#1F8A9A" />
               <Text
                 style={[
                   styles.overlayTitle,
@@ -3687,13 +3462,13 @@ export default function DocumentsScreen() {
                   justifyContent: "center",
                 }}
               >
-                <ActivityIndicator color="#06b6d4" size="large" />
+                <ActivityIndicator color="#1F8A9A" size="large" />
               </View>
             ) : qrDataUrl ? (
               <View
                 style={[
                   styles.qrContainer,
-                  { backgroundColor: "#fff", borderColor: colors.border },
+                  { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
                 {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
@@ -3758,7 +3533,7 @@ export default function DocumentsScreen() {
                 {docText("commentsTitle")}
               </Text>
             </View>
-            <Feather name="message-square" size={20} color="#f59e0b" />
+            <Feather name="message-square" size={20} color={colors.warning} />
           </View>
 
           {/* Comment input */}
@@ -3792,7 +3567,7 @@ export default function DocumentsScreen() {
                 styles.commentSendBtn,
                 {
                   backgroundColor: commentText.trim()
-                    ? "#f59e0b"
+                    ? colors.warning
                     : colors.muted,
                   opacity: postingComment ? 0.6 : 1,
                 },
@@ -3810,7 +3585,7 @@ export default function DocumentsScreen() {
 
           {commentsLoading ? (
             <View style={styles.empty}>
-              <ActivityIndicator color="#f59e0b" />
+              <ActivityIndicator color={colors.warning} />
             </View>
           ) : comments.length === 0 ? (
             <View style={styles.empty}>
@@ -3866,7 +3641,7 @@ export default function DocumentsScreen() {
                       <Text
                         style={[
                           styles.commentAvatarText,
-                          { color: colors.primary },
+                          { color: colors.tint },
                         ]}
                       >
                         {(c.authorName ?? "?")[0].toUpperCase()}
@@ -3897,9 +3672,9 @@ export default function DocumentsScreen() {
                         style={{ padding: 4 }}
                       >
                         {deletingComment === c.id ? (
-                          <ActivityIndicator size="small" color="#ef4444" />
+                          <ActivityIndicator size="small" color={colors.danger} />
                         ) : (
-                          <Feather name="trash-2" size={14} color="#ef4444" />
+                          <Feather name="trash-2" size={14} color={colors.danger} />
                         )}
                       </TouchableOpacity>
                     ) : null}
@@ -3935,7 +3710,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   generateBtn: {
     width: 38,

@@ -1,9 +1,12 @@
+import { serverAuditLog } from "../lib/audit.js";
 import { Router } from "express";
 import { z } from "zod";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  auditLogsTable,
   productsTable,
+  syndicatesTable,
   cartItemsTable,
   ordersTable,
   reviewsTable,
@@ -14,10 +17,11 @@ import {
   usersTable,
   storageObjectsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, asc, ilike, or, inArray, count, ne } from "drizzle-orm";
+import { eq, and, desc, asc, ilike, or, inArray, count, ne, gte, lte } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
 import { sendEmail } from "../lib/notify.js";
 import { marketplaceModerationTemplate } from "../lib/email/templates.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -29,6 +33,46 @@ function parsePage(q: Record<string, string>) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
+/**
+ * Listing categories: the stored value is the French label; listings created
+ * before the catalogue was fixed used lower-case or older names. Filtering on
+ * a category matches all of them (the mobile catalogue shows them together).
+ */
+const CATEGORY_VARIANTS: Record<string, string[]> = {
+  Meubles: ["Meubles", "meubles", "mobilier", "literie"],
+  "Électroménager": ["Électroménager", "électroménager", "electromenager"],
+  "Électronique": ["Électronique", "électronique", "electronique"],
+  Sport: ["Sport", "sport", "loisirs"],
+  Livres: ["Livres", "livres"],
+  "Vêtements": ["Vêtements", "vêtements", "vetements"],
+  Enfants: ["Enfants", "enfants"],
+  Autre: ["Autre", "autre"],
+};
+export function categoryVariants(category: string): string[] {
+  return CATEGORY_VARIANTS[category] ?? [category];
+}
+
+/**
+ * Listing moderation (2026-10-24).
+ *  - Who: the platform (super_admin, every residence) and the syndic of the
+ *    residence (syndicate_admin, its own listings only).
+ *  - What: the transitions below, nothing else. A reserved or sold listing is
+ *    never put back on sale by a moderation action.
+ *  - Why: a refusal or a request for changes always carries a reason the
+ *    seller reads; every decision is kept in the audit trail.
+ *  - Promotion (feature / boost) stays a platform decision.
+ */
+const MODERATION_TRANSITIONS: Record<"approve" | "reject" | "request_modification", { from: string[]; to: string }> = {
+  approve: { from: ["pending_review"], to: "approved" },
+  request_modification: { from: ["pending_review"], to: "modification_requested" },
+  // A published listing can also be withdrawn (with a reason).
+  reject: { from: ["pending_review", "modification_requested", "approved"], to: "rejected" },
+};
+function canModerate(user: { role: string; syndicateId?: string | null }, product: { syndicateId: string | null }): boolean {
+  if (user.role === "super_admin") return true;
+  return user.role === "syndicate_admin" && !!user.syndicateId && product.syndicateId === user.syndicateId;
+}
+
 function isAdmin(role: string) {
   // Only the platform super_admin has marketplace admin privileges.
   // syndicate_admin has NO moderation rights — they see the public catalogue only.
@@ -36,6 +80,131 @@ function isAdmin(role: string) {
 }
 
 const PUBLIC_PRODUCT_STATUSES = new Set(["approved", "reserved", "sold", "sold_out"]);
+
+/**
+ * The marketplace is the residence's: listings are seen by the neighbours of
+ * the same condominium only. Shared platform-wide, a listing told strangers in
+ * other cities who sells what and in which building (law 09-08, safety), and
+ * "neighbour" trust meant nothing. The platform moderator sees everything.
+ */
+function residenceScope(user: { role: string; syndicateId?: string | null }) {
+  if (isAdmin(user.role)) return undefined;
+  return eq(productsTable.syndicateId, user.syndicateId ?? "__no_residence__");
+}
+
+/**
+ * Catalogue space (2026-10-31): « my residence » by default; « all
+ * residences » on request, limited to open condominiums, optionally to a city
+ * or a region. A listing from another residence is shown with its city only
+ * (no building, no flat, no direct contact): see forViewer.
+ */
+function catalogueScope(user: { role: string; syndicateId?: string | null }, q: Record<string, string>) {
+  if (isAdmin(user.role)) return undefined;
+  if (q.scope !== "all") return residenceScope(user);
+  const city = typeof q.city === "string" ? q.city.trim() : "";
+  const region = typeof q.region === "string" ? q.region.trim() : "";
+  return sql`${productsTable.syndicateId} IN (SELECT s.id FROM syndicates s WHERE s.status = 'active'
+    AND NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'suspended')
+    ${city ? sql`AND lower(s.city) = lower(${city})` : sql``}
+    ${region ? sql`AND lower(s.region) = lower(${region})` : sql``})` as unknown as ReturnType<typeof eq>;
+}
+
+/** May this user open this listing? Own residence, or any open condominium. */
+async function listingOpenTo(user: { role: string; userId: string; syndicateId?: string | null }, product: { sellerId: string | null; syndicateId: string | null }) {
+  if (isAdmin(user.role) || product.sellerId === user.userId) return true;
+  if (!product.syndicateId) return false;
+  if (product.syndicateId === user.syndicateId) return true;
+  const rows = (await db.execute(sql`SELECT 1 FROM syndicates s WHERE s.id = ${product.syndicateId} AND s.status = 'active'
+    AND NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'suspended')`)) as unknown as { rows?: unknown[] } & unknown[];
+  return ((rows.rows ?? rows) as unknown[]).length > 0;
+}
+
+/** City (and region) of each listing's residence, for listings from elsewhere. */
+async function residenceCities(syndicateIds: (string | null)[]): Promise<Map<string, { city: string | null; region: string | null; name: string | null }>> {
+  const ids = [...new Set(syndicateIds.filter((x): x is string => !!x))];
+  if (!ids.length) return new Map();
+  const rows = await db.select({ id: syndicatesTable.id, city: syndicatesTable.city, region: syndicatesTable.region, name: syndicatesTable.name }).from(syndicatesTable).where(inArray(syndicatesTable.id, ids));
+  return new Map(rows.map((r) => [r.id, { city: r.city, region: r.region, name: r.name }]));
+}
+
+/**
+ * Sellers who are current residents of the listing's condominium (active
+ * account attached to it): the fact behind the « Voisin vérifié » badge.
+ */
+async function verifiedResidents(products: { sellerId: string | null; syndicateId: string | null }[]): Promise<Set<string>> {
+  const pairs = products.filter((p) => p.sellerId && p.syndicateId);
+  if (!pairs.length) return new Set();
+  const sellerIds = [...new Set(pairs.map((p) => p.sellerId as string))];
+  const rows = (await db.execute(sql`
+    SELECT u.id AS seller_id, u.syndicate_id AS syndicate_id FROM users u
+    WHERE u.id IN (${sql.join(sellerIds.map((id) => sql`${id}`), sql`, `)}) AND u.status = 'active' AND u.syndicate_id IS NOT NULL
+    UNION
+    SELECT sm.user_id, sm.syndicate_id FROM syndicate_memberships sm
+    JOIN users u ON u.id = sm.user_id AND u.status = 'active'
+    WHERE sm.status = 'active' AND sm.user_id IN (${sql.join(sellerIds.map((id) => sql`${id}`), sql`, `)})
+  `)) as unknown as { rows?: { seller_id: string; syndicate_id: string }[] } & { seller_id: string; syndicate_id: string }[];
+  const list = (rows.rows ?? rows) as { seller_id: string; syndicate_id: string }[];
+  return new Set(list.map((r) => `${r.seller_id}:${r.syndicate_id}`));
+}
+
+/** Rows as a viewer may see them, with the verified-resident flag. */
+async function forViewerList(products: ProductRow[], viewer: { userId: string; role: string; syndicateId?: string | null }) {
+  const [verified, cities] = await Promise.all([verifiedResidents(products), residenceCities(products.map((p) => p.syndicateId))]);
+  return products.map((p) => ({
+    ...forViewer(p, viewer, cities.get(p.syndicateId ?? "")),
+    sellerVerifiedResident: verified.has(`${p.sellerId}:${p.syndicateId}`),
+  }));
+}
+
+type ProductRow = typeof productsTable.$inferSelect;
+
+/**
+ * What another user may see of a listing. The catalogue is shared across the
+ * platform: the seller's phone and e-mail are shown only when the seller
+ * chose that contact channel, and moderation internals (note, moderator,
+ * rejection reason) and the reserving user stay private. The seller and the
+ * platform moderator see everything (law 09-08: data minimisation).
+ */
+function forViewer(
+  product: ProductRow,
+  viewer: { userId: string; role: string; syndicateId?: string | null },
+  residence?: { city: string | null; region: string | null; name: string | null },
+) {
+  if (isAdmin(viewer.role) || product.sellerId === viewer.userId) return { ...product, otherResidence: false, residenceCity: residence?.city ?? null, residenceRegion: residence?.region ?? null };
+  const elsewhere = !!product.syndicateId && product.syndicateId !== viewer.syndicateId;
+  let prefs: string[] = ["chat"];
+  try {
+    const parsed = JSON.parse(product.contactPreferences ?? "[]");
+    if (Array.isArray(parsed)) prefs = parsed.map(String);
+  } catch {
+    /* malformed: chat only */
+  }
+  const { moderationNote: _n, moderatedBy: _m, moderatedAt: _a, rejectionReason: _r, reservedBy, ...rest } = product;
+  // Another residence: the city, never the building; first name and initial;
+  // no direct contact (questions go through the listing).
+  const shortName = (n: string | null) => {
+    if (!n) return n;
+    const [first, ...others] = n.trim().split(/\s+/);
+    return others.length ? `${first} ${others[others.length - 1][0]}.` : first;
+  };
+  return {
+    ...rest,
+    // The floor would point to the seller's flat: kept for the seller only.
+    floor: null,
+    building: elsewhere ? null : rest.building,
+    block: elsewhere ? null : (rest as { block?: string | null }).block ?? null,
+    location: elsewhere ? residence?.city ?? null : rest.location,
+    sellerName: elsewhere ? shortName(rest.sellerName) : rest.sellerName,
+    sellerPhone: !elsewhere && prefs.includes("phone") ? product.sellerPhone : null,
+    sellerEmail: !elsewhere && prefs.includes("email") ? product.sellerEmail : null,
+    otherResidence: elsewhere,
+    residenceCity: residence?.city ?? null,
+    residenceRegion: residence?.region ?? null,
+    // the reserving buyer knows it is them; others only see that it is reserved
+    reservedByName: reservedBy === viewer.userId ? product.reservedByName : null,
+    reservedByMe: reservedBy === viewer.userId,
+  };
+}
 const PRIVATE_OBJECT_PATH = /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
 
 async function areOwnedMediaPaths(
@@ -67,6 +236,7 @@ async function getVisibleProductForUser(productId: string, user: NonNullable<Exp
 
   if (!product) return null;
   if (isAdmin(user.role) || product.sellerId === user.userId) return product;
+  if (!(await listingOpenTo(user, product))) return null;
   return PUBLIC_PRODUCT_STATUSES.has(product.status ?? "") ? product : null;
 }
 
@@ -124,42 +294,81 @@ router.get("/products", requireAuth, async (req, res) => {
     if (isAdmin(user.role)) {
       if (q.status) conds.push(eq(productsTable.status, q.status));
     } else {
-      conds.push(eq(productsTable.status, "approved"));
+      // availability=all also lists what a neighbour has reserved (shown as
+      // « Réservé »); by default only what can still be reserved.
+      conds.push(q.availability === "all" ? inArray(productsTable.status, ["approved", "reserved"]) : eq(productsTable.status, "approved"));
+      conds.push(catalogueScope(user, q)!);
     }
 
-    if (q.category && q.category !== "Tous") conds.push(eq(productsTable.category, q.category));
+    if (q.category && q.category !== "Tous") conds.push(inArray(productsTable.category, categoryVariants(q.category)));
     if (q.condition) conds.push(eq(productsTable.condition, q.condition));
     if (q.featured === "true") conds.push(eq(productsTable.featured, true));
     if (q.sellerId === "me") conds.push(eq(productsTable.sellerId, user.userId));
     else if (q.sellerId) conds.push(eq(productsTable.sellerId, q.sellerId));
 
-    if (q.search) {
+    for (const [key, op] of [["minPrice", gte], ["maxPrice", lte]] as const) {
+      if (q[key] === undefined || q[key] === "") continue;
+      if (!/^\d+(\.\d{1,2})?$/.test(q[key])) {
+        res.status(400).json({ error: `${key} invalide`, code: "INVALID_PRICE_FILTER" });
+        return;
+      }
+      conds.push(op(productsTable.price, q[key]));
+    }
+
+    if (q.search?.trim()) {
+      // The user's text is matched literally: % and _ are not wildcards.
+      const needle = `%${q.search.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
       conds.push(
         or(
-          ilike(productsTable.name, `%${q.search}%`),
-          ilike(productsTable.description, `%${q.search}%`),
-          ilike(productsTable.sellerName, `%${q.search}%`),
-          ilike(productsTable.location, `%${q.search}%`),
+          ilike(productsTable.name, needle),
+          ilike(productsTable.description, needle),
+          ilike(productsTable.sellerName, needle),
+          ilike(productsTable.location, needle),
+          ilike(productsTable.brand, needle),
         ) as ReturnType<typeof eq>,
       );
     }
 
     const where = conds.length ? and(...conds) : undefined;
+    // The id breaks ties, so pages never repeat or skip a listing.
+    const order =
+      q.sort === "price_asc"
+        ? [asc(productsTable.price), desc(productsTable.createdAt), asc(productsTable.id)]
+        : q.sort === "price_desc"
+          ? [desc(productsTable.price), desc(productsTable.createdAt), asc(productsTable.id)]
+          : [desc(productsTable.boosted), desc(productsTable.featured), desc(productsTable.createdAt), asc(productsTable.id)];
 
     const [rows, [{ total }]] = await Promise.all([
       db
         .select()
         .from(productsTable)
         .where(where)
-        .orderBy(desc(productsTable.boosted), desc(productsTable.featured), desc(productsTable.createdAt))
+        .orderBy(...order)
         .limit(limit)
         .offset(offset),
       db.select({ total: count() }).from(productsTable).where(where),
     ]);
 
-    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    res.json({ data: await forViewerList(rows, req.user!), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /products/zones — cities with listings, for the « all residences » filter
+// Only open condominiums; counts approved listings. No addresses, no names.
+router.get("/products/zones", requireAuth, async (_req, res) => {
+  try {
+    const rows = (await db.execute(sql`
+      SELECT s.city AS city, s.region AS region, count(p.id)::int AS listings
+        FROM products p JOIN syndicates s ON s.id = p.syndicate_id
+       WHERE p.status = 'approved' AND s.status = 'active' AND s.city IS NOT NULL AND s.city <> ''
+         AND NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'suspended')
+       GROUP BY s.city, s.region
+       ORDER BY count(p.id) DESC, s.city`)) as unknown as { rows?: { city: string; region: string | null; listings: number }[] } & { city: string; region: string | null; listings: number }[];
+    res.json({ data: rows.rows ?? rows });
+  } catch (err) {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -171,10 +380,10 @@ router.get("/products/featured", requireAuth, async (req, res) => {
     const rows = await db
       .select()
       .from(productsTable)
-      .where(and(eq(productsTable.status, "approved"), eq(productsTable.featured, true)))
+      .where(and(eq(productsTable.status, "approved"), eq(productsTable.featured, true), residenceScope(req.user!)))
       .orderBy(desc(productsTable.boosted), desc(productsTable.createdAt))
       .limit(12);
-    res.json({ data: rows });
+    res.json({ data: await forViewerList(rows, req.user!) });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -182,6 +391,63 @@ router.get("/products/featured", requireAuth, async (req, res) => {
 });
 
 // ─── GET /products/pending — admin moderation queue ──────────────────────────
+
+// ─── GET /products/moderation-queue — listings awaiting a decision ──────────
+// The syndic sees their residence's, the platform every residence's. Oldest
+// first (first come, first served); the id keeps pages stable.
+router.get("/products/moderation-queue", requireAuth, async (req, res) => {
+  const user = req.user!;
+  if (user.role !== "super_admin" && user.role !== "syndicate_admin") {
+    res.status(403).json({ error: "Réservé au syndic et à la plateforme" });
+    return;
+  }
+  if (user.role === "syndicate_admin" && !user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  const q = req.query as Record<string, string>;
+  const { page, limit, offset } = parsePage(q);
+  const status = q.status ?? "pending_review";
+  if (!["pending_review", "modification_requested", "rejected"].includes(status)) {
+    res.status(400).json({ error: "Statut de file invalide" });
+    return;
+  }
+  try {
+    const where = and(
+      eq(productsTable.status, status),
+      user.role === "syndicate_admin" ? eq(productsTable.syndicateId, user.syndicateId!) : undefined,
+    );
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productsTable).where(where).orderBy(asc(productsTable.createdAt), asc(productsTable.id)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(productsTable).where(where),
+    ]);
+    res.json({ data: rows.map((p) => ({ ...forViewer(p, user), sellerName: p.sellerName, rejectionReason: p.rejectionReason })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /products/:id/moderation-history — decisions taken on a listing ────
+router.get("/products/:id/moderation-history", requireAuth, async (req, res) => {
+  try {
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, String(req.params.id)));
+    const user = req.user!;
+    if (!product || (!canModerate(user, product) && product.sellerId !== user.userId)) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+    const rows = await db
+      .select({ at: auditLogsTable.createdAt, action: auditLogsTable.action, details: auditLogsTable.details, byRole: auditLogsTable.actorRole })
+      .from(auditLogsTable)
+      .where(and(eq(auditLogsTable.entity, "product_moderation"), eq(auditLogsTable.entityId, product.id)))
+      .orderBy(desc(auditLogsTable.createdAt));
+    res.json({ data: rows });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 router.get(
   "/products/pending",
@@ -204,7 +470,7 @@ router.get(
           .from(productsTable)
           .where(eq(productsTable.status, "pending_review")),
       ]);
-      res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+      res.json({ data: rows.map((p) => forViewer(p, req.user!)), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -234,17 +500,17 @@ router.get("/products/my-favorites", requireAuth, async (req, res) => {
       db
         .select()
         .from(productsTable)
-        .where(and(inArray(productsTable.id, ids), eq(productsTable.status, "approved")))
+        .where(and(inArray(productsTable.id, ids), inArray(productsTable.status, ["approved", "reserved"]), catalogueScope(req.user!, { scope: "all" })))
         .orderBy(desc(productsTable.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ total: count() })
         .from(productsTable)
-        .where(and(inArray(productsTable.id, ids), eq(productsTable.status, "approved"))),
+        .where(and(inArray(productsTable.id, ids), inArray(productsTable.status, ["approved", "reserved"]), catalogueScope(req.user!, { scope: "all" }))),
     ]);
 
-    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    res.json({ data: await forViewerList(rows, req.user!), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -268,7 +534,7 @@ router.get("/products/my-listings", requireAuth, async (req, res) => {
         .offset(offset),
       db.select({ total: count() }).from(productsTable).where(eq(productsTable.sellerId, userId)),
     ]);
-    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    res.json({ data: rows.map((p) => forViewer(p, req.user!)), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -304,8 +570,17 @@ router.get("/products/:id", requireAuth, async (req, res) => {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
     if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
 
-    if (product.status !== "approved" && !isAdmin(user.role) && product.sellerId !== user.userId) {
-      res.status(403).json({ error: "Produit non disponible" }); return;
+    // Same residence only; a reserved or sold listing stays readable (the buyer
+    // must be able to open what they reserved). 404 rather than 403: another
+    // residence's listing does not exist for this viewer.
+    // Own residence or another open condominium; a reserved or sold listing
+    // stays readable (the buyer must open what they reserved).
+    const visible =
+      isAdmin(user.role) ||
+      product.sellerId === user.userId ||
+      (PUBLIC_PRODUCT_STATUSES.has(product.status ?? "") && (await listingOpenTo(user, product)));
+    if (!visible) {
+      res.status(404).json({ error: "Produit introuvable" }); return;
     }
 
     // fire-and-forget view count
@@ -338,9 +613,12 @@ router.get("/products/:id", requireAuth, async (req, res) => {
         : Promise.resolve([{ total: 0 }]),
     ]);
 
+    const verified = await verifiedResidents([product]);
     res.json({
       data: {
-        ...product,
+        ...forViewer(product, user, (await residenceCities([product.syndicateId])).get(product.syndicateId ?? "")),
+        sellerVerifiedResident: verified.has(`${product.sellerId}:${product.syndicateId}`),
+        canReview: product.status === "sold" && product.reservedBy === user.userId,
         isFavorited: fav.length > 0,
         avgRating: Number(avgRating).toFixed(1),
         ratingCount,
@@ -448,7 +726,7 @@ router.post("/products", requireAuth, async (req, res) => {
       data: product,
       message: adminUser
         ? "Produit publié avec succès"
-        : "Produit soumis — en attente de validation par l'administration",
+        : "Annonce soumise — elle sera publiée après validation par le syndic de la résidence",
     });
   } catch (err) {
     req.log.error(err);
@@ -564,7 +842,6 @@ router.delete("/products/:id", requireAuth, async (req, res) => {
 router.post(
   "/products/:id/moderate",
   requireAuth,
-  requireSuperAdmin,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({
@@ -593,6 +870,26 @@ router.post(
 
       const { action, reason, note, boostType, boostDays } = result.data;
       const user = req.user!;
+      // Another residence's listing does not exist for a syndic.
+      if (!canModerate(user, product)) {
+        res.status(user.role === "syndicate_admin" ? 404 : 403).json({ error: user.role === "syndicate_admin" ? "Produit introuvable" : "Accès refusé" });
+        return;
+      }
+      if (!(action in MODERATION_TRANSITIONS) && user.role !== "super_admin") {
+        res.status(403).json({ error: "La mise en avant est une décision de la plateforme", code: "PROMOTION_PLATFORM_ONLY" });
+        return;
+      }
+      if (action in MODERATION_TRANSITIONS) {
+        const rule = MODERATION_TRANSITIONS[action as keyof typeof MODERATION_TRANSITIONS];
+        if (!rule.from.includes(product.status ?? "")) {
+          res.status(409).json({ error: `Action impossible sur une annonce « ${product.status} »`, code: "INVALID_TRANSITION" });
+          return;
+        }
+        if (action !== "approve" && (reason ?? "").trim().length < 5) {
+          res.status(400).json({ error: "Un motif (5 caractères au moins) est obligatoire : le vendeur le lira.", code: "REASON_REQUIRED" });
+          return;
+        }
+      }
       const updates: Record<string, unknown> = {
         moderatedBy: user.userId,
         moderatedAt: new Date(),
@@ -606,11 +903,11 @@ router.post(
           break;
         case "reject":
           updates.status = "rejected";
-          updates.rejectionReason = reason ?? "Non conforme aux règles du marketplace";
+          updates.rejectionReason = reason!.trim();
           break;
         case "request_modification":
           updates.status = "modification_requested";
-          updates.rejectionReason = reason ?? "Des modifications sont requises avant publication";
+          updates.rejectionReason = reason!.trim();
           break;
         case "feature":
           updates.featured = true;
@@ -651,6 +948,13 @@ router.post(
         }
       }
 
+      await serverAuditLog(req, {
+        action: "UPDATE",
+        entity: "product_moderation",
+        entityId: product.id,
+        syndicateId: product.syndicateId ?? undefined,
+        details: `${action}: ${product.status} → ${updated.status}${reason ? ` — ${reason.trim().slice(0, 300)}` : ""}${note ? ` (note : ${note.slice(0, 200)})` : ""}`,
+      });
       res.json({ data: updated, message: `Action "${action}" effectuée avec succès` });
     } catch (err) {
       req.log.error(err);
@@ -802,6 +1106,9 @@ router.post("/products/:id/reserve", requireAuth, async (req, res) => {
     const user = req.user!;
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
     if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+    if (!(await listingOpenTo(user, product))) {
+      res.status(404).json({ error: "Produit introuvable" }); return;
+    }
     if (product.status !== "approved") {
       res.status(400).json({ error: "Ce produit n'est pas disponible à la réservation" }); return;
     }
@@ -903,11 +1210,9 @@ router.get("/sellers/:id/reputation", requireAuth, async (req, res) => {
     const totalSold = Number((salesData as any)?.totalSold ?? 0);
     const totalListingCount = Number(totalListings[0]?.total ?? 0);
 
-    // Community trust score: weighted from ratings + sold items + review count
-    const trustScore = Math.min(
-      100,
-      Math.round((avgRating / 5) * 50 + Math.min(totalSold * 5, 30) + Math.min(totalReviews * 2, 20)),
-    );
+    // Facts only. (The former "trust score" mixed ratings and sales into an
+    // invented figure, and "verified" meant three sales, not an identity.)
+    const verified = await verifiedResidents([{ sellerId, syndicateId: req.user!.syndicateId ?? null }]);
 
     res.json({
       data: {
@@ -916,8 +1221,7 @@ router.get("/sellers/:id/reputation", requireAuth, async (req, res) => {
         totalReviews,
         totalSold,
         totalListings: totalListingCount,
-        trustScore,
-        isVerified: totalSold >= 3 && avgRating >= 3.5,
+        verifiedResident: verified.has(`${sellerId}:${req.user!.syndicateId}`),
       },
     });
   } catch (err) {
@@ -1009,11 +1313,11 @@ router.post("/products/:id/report", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const [product] = await db
-      .select({ id: productsTable.id, status: productsTable.status })
+      .select({ id: productsTable.id, status: productsTable.status, syndicateId: productsTable.syndicateId })
       .from(productsTable)
       .where(eq(productsTable.id, productId))
       .limit(1);
-    if (!product || product.status !== "approved") {
+    if (!product || product.status !== "approved" || !(await listingOpenTo(req.user!, { sellerId: null, syndicateId: product.syndicateId }))) {
       res.status(404).json({ error: "Produit introuvable" });
       return;
     }
@@ -1412,7 +1716,7 @@ router.post("/cart", requireAuth, async (req, res) => {
       .select()
       .from(productsTable)
       .where(eq(productsTable.id, result.data.productId));
-    if (!product || product.status !== "approved") {
+    if (!product || product.status !== "approved" || !(await listingOpenTo(req.user!, product))) {
       res.status(404).json({ error: "Produit non disponible" });
       return;
     }
@@ -1580,7 +1884,7 @@ router.post("/orders", requireAuth, async (req, res) => {
             amount: String(Number(item.price) * (item.quantity ?? 1)),
             status: "pending",
             type: "purchase",
-            date: new Date().toISOString().split("T")[0],
+            date: localToday(),
           })
           .returning();
         orders.push(order);
@@ -1650,7 +1954,7 @@ router.get("/reviews", requireAuth, async (req, res) => {
       const publicProducts = await db
         .select({ id: productsTable.id })
         .from(productsTable)
-        .where(inArray(productsTable.status, [...PUBLIC_PRODUCT_STATUSES]));
+        .where(and(inArray(productsTable.status, [...PUBLIC_PRODUCT_STATUSES]), residenceScope(user)));
       cond = inArray(reviewsTable.productId, publicProducts.map((product) => product.id));
     }
 
@@ -1674,7 +1978,8 @@ router.get("/reviews", requireAuth, async (req, res) => {
 router.post("/reviews", requireAuth, async (req, res) => {
   const schema = z.object({
     productId: z.string(),
-    orderId: z.string().min(1),
+    // Legacy purchases carry an order; a hand-over between neighbours does not.
+    orderId: z.string().min(1).optional(),
     rating: z.number().int().min(1).max(5),
     comment: z.string().max(2000).default(""),
   });
@@ -1691,60 +1996,49 @@ router.post("/reviews", requireAuth, async (req, res) => {
       .where(eq(productsTable.id, result.data.productId));
     if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
 
-    // Reviews are reserved for verified buyers. The order must belong to the
-    // caller, match the product, and be delivered before the review can be
-    // created. Never trust a client-provided orderId on its own.
-    const [order] = await db
-      .select({
-        id: ordersTable.id,
-        productId: ordersTable.productId,
-        buyerId: ordersTable.buyerId,
-        status: ordersTable.status,
-      })
-      .from(ordersTable)
-      .where(
-        and(
-          eq(ordersTable.id, result.data.orderId),
-          eq(ordersTable.productId, result.data.productId),
-          eq(ordersTable.buyerId, user.userId),
-          eq(ordersTable.status, "delivered"),
-        ),
-      )
-      .limit(1);
-    if (!order) {
-      res.status(403).json({
-        error: "Un avis est disponible uniquement après la livraison de votre commande",
-        code: "REVIEW_REQUIRES_DELIVERED_ORDER",
-      });
+    // Reviews are reserved to real buyers: either the neighbour who reserved
+    // the item the seller then marked as sold, or (legacy) a delivered order.
+    let orderId: string | null = null;
+    if (result.data.orderId) {
+      const [order] = await db
+        .select({ id: ordersTable.id })
+        .from(ordersTable)
+        .where(
+          and(
+            eq(ordersTable.id, result.data.orderId),
+            eq(ordersTable.productId, result.data.productId),
+            eq(ordersTable.buyerId, user.userId),
+            eq(ordersTable.status, "delivered"),
+          ),
+        )
+        .limit(1);
+      if (!order) {
+        res.status(403).json({ error: "Un avis est disponible uniquement après la remise de l'objet", code: "REVIEW_NOT_ALLOWED" });
+        return;
+      }
+      orderId = order.id;
+    } else if (!(product.status === "sold" && product.reservedBy === user.userId)) {
+      res.status(403).json({ error: "Un avis est disponible uniquement après la remise de l'objet", code: "REVIEW_NOT_ALLOWED" });
       return;
     }
-
     const [existingReview] = await db
       .select({ id: reviewsTable.id })
       .from(reviewsTable)
-      .where(
-        and(
-          eq(reviewsTable.orderId, order.id),
-          eq(reviewsTable.reviewerId, user.userId),
-        ),
-      )
+      .where(and(eq(reviewsTable.productId, product.id), eq(reviewsTable.reviewerId, user.userId)))
       .limit(1);
     if (existingReview) {
-      res.status(409).json({
-        error: "Vous avez déjà évalué cette commande",
-        code: "REVIEW_ALREADY_EXISTS",
-      });
+      res.status(409).json({ error: "Vous avez déjà évalué cet échange", code: "REVIEW_ALREADY_EXISTS" });
       return;
     }
-
     const [review] = await db
       .insert(reviewsTable)
       .values({
         ...result.data,
+        orderId,
         productName: product.name,
         reviewerId: user.userId,
         reviewerName: user.name,
-        date: new Date().toISOString().split("T")[0],
+        date: localToday(),
       })
       .returning();
     res.status(201).json({ data: review });
@@ -1769,6 +2063,7 @@ router.get("/marketplace", requireAuth, async (req, res) => {
       if (q.status) conds.push(eq(productsTable.status, q.status));
     } else {
       conds.push(eq(productsTable.status, "approved"));
+      conds.push(residenceScope(user)!);
     }
     if (q.category && q.category !== "Tous") conds.push(eq(productsTable.category, q.category));
     if (q.search) {
@@ -1786,7 +2081,7 @@ router.get("/marketplace", requireAuth, async (req, res) => {
         .limit(limit).offset(offset),
       db.select({ total: count() }).from(productsTable).where(where),
     ]);
-    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    res.json({ data: await forViewerList(rows, req.user!), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

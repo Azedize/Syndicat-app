@@ -4,7 +4,7 @@
  * Syndicate admins submit requests for new document templates.
  * Displays their request history with real-time status badges.
  */
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -31,31 +31,31 @@ import { type ApiTemplateRequest, templateRequests as apiRequests } from "@/serv
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "meeting_minutes", labelKey: "tsCategoryMeeting", icon: "clipboard" as const, color: "#3b82f6" },
-  { key: "financial", labelKey: "tsCategoryFinancial", icon: "dollar-sign" as const, color: "#10b981" },
-  { key: "legal", labelKey: "tsCategoryLegal", icon: "shield" as const, color: "#ef4444" },
-  { key: "elections", labelKey: "tsCategoryElections", icon: "check-circle" as const, color: "#f59e0b" },
-  { key: "contracts", labelKey: "tsCategoryContracts", icon: "file-text" as const, color: "#0891b2" },
-  { key: "certificates", labelKey: "tsCategoryCertificates", icon: "award" as const, color: "#8b5cf6" },
-  { key: "regulations", labelKey: "tsCategoryRegulations", icon: "book" as const, color: "#06b6d4" },
-  { key: "administrative", labelKey: "tsCategoryAdministrative", icon: "briefcase" as const, color: "#16a34a" },
-  { key: "maintenance", labelKey: "tsCategoryMaintenance", icon: "tool" as const, color: "#f97316" },
-  { key: "insurance", labelKey: "tsCategoryInsurance", icon: "umbrella" as const, color: "#ec4899" },
+  { key: "meeting_minutes", labelKey: "tsCategoryMeeting", icon: "clipboard" as const, color: "#5A4AD6" },
+  { key: "financial", labelKey: "tsCategoryFinancial", icon: "dollar-sign" as const, color: "#13976C" },
+  { key: "legal", labelKey: "tsCategoryLegal", icon: "shield" as const, color: "#C8323C" },
+  { key: "elections", labelKey: "tsCategoryElections", icon: "check-circle" as const, color: "#C98511" },
+  { key: "contracts", labelKey: "tsCategoryContracts", icon: "file-text" as const, color: "#0F6E7D" },
+  { key: "certificates", labelKey: "tsCategoryCertificates", icon: "award" as const, color: "#1F8A9A" },
+  { key: "regulations", labelKey: "tsCategoryRegulations", icon: "book" as const, color: "#1F8A9A" },
+  { key: "administrative", labelKey: "tsCategoryAdministrative", icon: "briefcase" as const, color: "#0B7A57" },
+  { key: "maintenance", labelKey: "tsCategoryMaintenance", icon: "tool" as const, color: "#C8642A" },
+  { key: "insurance", labelKey: "tsCategoryInsurance", icon: "umbrella" as const, color: "#C2456E" },
 ];
 
 const PRIORITIES = [
-  { key: "low", labelKey: "trPriorityLow", color: "#64748b" },
-  { key: "normal", labelKey: "trPriorityNormal", color: "#3b82f6" },
-  { key: "high", labelKey: "trPriorityHigh", color: "#f59e0b" },
-  { key: "urgent", labelKey: "trPriorityUrgent", color: "#ef4444" },
+  { key: "low", labelKey: "trPriorityLow", color: "#6A6680" },
+  { key: "normal", labelKey: "trPriorityNormal", color: "#5A4AD6" },
+  { key: "high", labelKey: "trPriorityHigh", color: "#C98511" },
+  { key: "urgent", labelKey: "trPriorityUrgent", color: "#C8323C" },
 ];
 
 const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending: { labelKey: "tsPending", color: "#f59e0b", bg: "#fef3c720", icon: "clock" },
-  in_review: { labelKey: "tsInReview", color: "#3b82f6", bg: "#dbeafe20", icon: "eye" },
-  approved: { labelKey: "tsApproved", color: "#10b981", bg: "#d1fae520", icon: "check-circle" },
-  rejected: { labelKey: "tsRejected", color: "#ef4444", bg: "#fee2e220", icon: "x-circle" },
-  need_more_info: { labelKey: "tsNeedMoreInfo", color: "#8b5cf6", bg: "#ede9fe20", icon: "info" },
+  pending: { labelKey: "tsPending", color: "#C98511", bg: "#FBF1DD20", icon: "clock" },
+  in_review: { labelKey: "tsInReview", color: "#5A4AD6", bg: "#EEEBFC20", icon: "eye" },
+  approved: { labelKey: "tsApproved", color: "#13976C", bg: "#E5F4EC20", icon: "check-circle" },
+  rejected: { labelKey: "tsRejected", color: "#C8323C", bg: "#FBE9EA20", icon: "x-circle" },
+  need_more_info: { labelKey: "tsNeedMoreInfo", color: "#1F8A9A", bg: "#E4F2F420", icon: "info" },
 };
 
 // ─── Form State ───────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ function TemplateRequestContent() {
       {/* ── Header ── */}
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color="#e2e8f0" />
+          <Feather name="arrow-left" size={22} color="#E7E1D6" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>{t("tsRequests")}</Text>
@@ -165,7 +165,7 @@ function TemplateRequestContent() {
 
       {/* ── Info banner ── */}
       <View style={s.infoBanner}>
-        <Feather name="info" size={14} color="#a78bfa" />
+        <Feather name="info" size={14} color="#5CC6D4" />
         <Text style={s.infoBannerText}>
           {t("trInfo")}
         </Text>
@@ -174,18 +174,18 @@ function TemplateRequestContent() {
       {/* ── List ── */}
       <ScrollView
         style={{ flex: 1 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A4AD6" />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
       >
         {loading ? (
-          <LoadingState title={t("trLoading")} description={t("tsLoadingDescription")} accentColor="#2563EB" />
+          <LoadingState title={t("trLoading")} description={t("tsLoadingDescription")} accentColor="#5A4AD6" />
         ) : loadError ? (
-          <ErrorState title={t("trLoadError")} description={t("tsActionError")} retryLabel={t("tsRetry")} onRetry={load} accentColor="#ef4444" />
+          <ErrorState title={t("trLoadError")} description={t("tsActionError")} retryLabel={t("tsRetry")} onRetry={load} accentColor="#C8323C" />
         ) : requests.length === 0 ? (
           <View style={s.emptyWrap}>
             <View style={s.emptyIcon}>
-              <Feather name="inbox" size={34} color="#2563EB" />
+              <Feather name="inbox" size={34} color="#5A4AD6" />
             </View>
             <Text style={s.emptyTitle}>{t("trEmpty")}</Text>
             <Text style={s.emptyDesc}>{t("trEmptyDescription")}</Text>
@@ -207,17 +207,17 @@ function TemplateRequestContent() {
                 <View style={s.cardInner}>
                   {/* Header */}
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <View style={[s.catPill, { backgroundColor: (cat?.color ?? "#2563EB") + "20" }]}>
-                      <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#2563EB"} />
-                      <Text style={[s.catPillText, { color: cat?.color ?? "#2563EB" }]}>{cat ? t(cat.labelKey) : req.category}</Text>
+                    <View style={[s.catPill, { backgroundColor: (cat?.color ?? "#5A4AD6") + "20" }]}>
+                      <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#5A4AD6"} />
+                      <Text style={[s.catPillText, { color: cat?.color ?? "#5A4AD6" }]}>{cat ? t(cat.labelKey) : req.category}</Text>
                     </View>
                     <View style={[s.statusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
                       <Feather name={sc.icon} size={10} color={sc.color} />
                       <Text style={[s.statusBadgeText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                     </View>
                     {req.priority !== "normal" && (
-                      <View style={[s.priBadge, { backgroundColor: (pri?.color ?? "#64748b") + "20" }]}>
-                        <Text style={[s.priBadgeText, { color: pri?.color ?? "#64748b" }]}>{pri ? t(pri.labelKey) : req.priority}</Text>
+                      <View style={[s.priBadge, { backgroundColor: (pri?.color ?? "#6A6680") + "20" }]}>
+                        <Text style={[s.priBadgeText, { color: pri?.color ?? "#6A6680" }]}>{pri ? t(pri.labelKey) : req.priority}</Text>
                       </View>
                     )}
                   </View>
@@ -230,14 +230,14 @@ function TemplateRequestContent() {
                   {/* Review notes */}
                   {req.reviewNotes ? (
                     <View style={s.reviewNote}>
-                      <Feather name="message-square" size={11} color="#a78bfa" />
+                      <Feather name="message-square" size={11} color="#5CC6D4" />
                       <Text style={s.reviewNoteText} numberOfLines={2}>{req.reviewNotes}</Text>
                     </View>
                   ) : null}
                   {req.rejectionReason ? (
-                    <View style={[s.reviewNote, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-                      <Feather name="alert-circle" size={11} color="#ef4444" />
-                      <Text style={[s.reviewNoteText, { color: "#ef4444" }]} numberOfLines={2}>{req.rejectionReason}</Text>
+                    <View style={[s.reviewNote, { backgroundColor: "#C8323C15", borderColor: "#C8323C30" }]}>
+                      <Feather name="alert-circle" size={11} color="#C8323C" />
+                      <Text style={[s.reviewNoteText, { color: "#C8323C" }]} numberOfLines={2}>{req.rejectionReason}</Text>
                     </View>
                   ) : null}
 
@@ -259,26 +259,26 @@ function TemplateRequestContent() {
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
               <Text style={s.modalTitle}>{t("trNewRequest")}</Text>
               <TouchableOpacity onPress={() => setShowForm(false)} style={{ marginLeft: "auto" }}>
-                <Feather name="x" size={20} color="#64748b" />
+                <Feather name="x" size={20} color="#6A6680" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
               {/* Title */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>{t("trTitle")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trTitle")} <Text style={{ color: "#C8323C" }}>*</Text></Text>
                 <TextInput
                   style={s.input}
                   value={form.title}
                   onChangeText={(t) => setForm({ ...form, title: t })}
                   placeholder={t("trTitlePlaceholder")}
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#4D4964"
                 />
               </View>
 
               {/* Category */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>{t("trCategoryRequired")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trCategoryRequired")} <Text style={{ color: "#C8323C" }}>*</Text></Text>
                 <View style={s.chipRow}>
                   {CATEGORIES.map((cat) => (
                     <TouchableOpacity
@@ -286,7 +286,7 @@ function TemplateRequestContent() {
                       style={[s.chip, form.category === cat.key && { backgroundColor: cat.color + "22", borderColor: cat.color }]}
                       onPress={() => setForm({ ...form, category: cat.key })}
                     >
-                      <Feather name={cat.icon} size={11} color={form.category === cat.key ? cat.color : "#64748b"} />
+                      <Feather name={cat.icon} size={11} color={form.category === cat.key ? cat.color : "#6A6680"} />
                       <Text style={[s.chipText, form.category === cat.key && { color: cat.color }]}>{t(cat.labelKey)}</Text>
                     </TouchableOpacity>
                   ))}
@@ -295,13 +295,13 @@ function TemplateRequestContent() {
 
               {/* Description */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>{t("trDescriptionRequired")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trDescriptionRequired")} <Text style={{ color: "#C8323C" }}>*</Text></Text>
                 <TextInput
                   style={[s.input, s.inputMulti]}
                   value={form.description}
                   onChangeText={(t) => setForm({ ...form, description: t })}
                   placeholder={t("trDescriptionPlaceholder")}
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#4D4964"
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -316,7 +316,7 @@ function TemplateRequestContent() {
                   value={form.businessPurpose}
                   onChangeText={(t) => setForm({ ...form, businessPurpose: t })}
                   placeholder={t("trBusinessPurposePlaceholder")}
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#4D4964"
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -331,7 +331,7 @@ function TemplateRequestContent() {
                   value={form.requiredFields}
                   onChangeText={(t) => setForm({ ...form, requiredFields: t })}
                   placeholder={t("trRequiredFieldsPlaceholder")}
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#4D4964"
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -346,7 +346,7 @@ function TemplateRequestContent() {
                   value={form.legalNotes}
                   onChangeText={(t) => setForm({ ...form, legalNotes: t })}
                   placeholder={t("trLegalNotesPlaceholder")}
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#4D4964"
                 />
               </View>
 
@@ -399,7 +399,7 @@ function TemplateRequestContent() {
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
                     <Text style={s.modalTitle} numberOfLines={2}>{selectedRequest.title}</Text>
                     <TouchableOpacity onPress={() => setSelectedRequest(null)} style={{ marginLeft: "auto" }}>
-                      <Feather name="x" size={20} color="#64748b" />
+                      <Feather name="x" size={20} color="#6A6680" />
                     </TouchableOpacity>
                   </View>
 
@@ -436,15 +436,15 @@ function TemplateRequestContent() {
                     ) : null}
 
                     {selectedRequest.reviewNotes ? (
-                      <View style={[s.detailSection, { backgroundColor: "#2563EB15", borderColor: "#2563EB30" }]}>
-                        <Text style={[s.detailSectionTitle, { color: "#a78bfa" }]}>{t("trReviewerNotes")}</Text>
-                        <Text style={[s.detailSectionBody, { color: "#c4b5fd" }]}>{selectedRequest.reviewNotes}</Text>
+                      <View style={[s.detailSection, { backgroundColor: "#5A4AD615", borderColor: "#5A4AD630" }]}>
+                        <Text style={[s.detailSectionTitle, { color: "#5CC6D4" }]}>{t("trReviewerNotes")}</Text>
+                        <Text style={[s.detailSectionBody, { color: "#9BDDE6" }]}>{selectedRequest.reviewNotes}</Text>
                       </View>
                     ) : null}
 
                     {selectedRequest.rejectionReason ? (
-                      <View style={[s.detailSection, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-                        <Text style={[s.detailSectionTitle, { color: "#ef4444" }]}>{t("trRejectionReason")}</Text>
+                      <View style={[s.detailSection, { backgroundColor: "#C8323C15", borderColor: "#C8323C30" }]}>
+                        <Text style={[s.detailSectionTitle, { color: "#C8323C" }]}>{t("trRejectionReason")}</Text>
                         <Text style={[s.detailSectionBody, { color: "#fca5a5" }]}>{selectedRequest.rejectionReason}</Text>
                       </View>
                     ) : null}
@@ -472,27 +472,27 @@ export default function TemplateRequestScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root:             { flex: 1, backgroundColor: "#0f172a" },
+  root:             { flex: 1, backgroundColor: "#0E0C1C" },
   header:           { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16,
-                      borderBottomWidth: 1, borderBottomColor: "#1e293b", gap: 12 },
-  backBtn:          { width: 38, height: 38, borderRadius: 19, backgroundColor: "#1e293b",
+                      borderBottomWidth: 1, borderBottomColor: "#17142B", gap: 12 },
+  backBtn:          { width: 38, height: 38, borderRadius: 19, backgroundColor: "#17142B",
                       alignItems: "center", justifyContent: "center" },
-  headerTitle:      { fontSize: 17, fontWeight: "700", color: "#f1f5f9" },
-  headerSub:        { fontSize: 11, color: "#64748b", marginTop: 1 },
-  newBtn:           { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#2563EB",
+  headerTitle:      { fontSize: 17, fontWeight: "700", color: "#F0ECE4" },
+  headerSub:        { fontSize: 11, color: "#6A6680", marginTop: 1 },
+  newBtn:           { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#5A4AD6",
                       paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
   newBtnText:       { fontSize: 13, fontWeight: "700", color: "#fff" },
   infoBanner:       { flexDirection: "row", alignItems: "flex-start", gap: 10, margin: 16,
-                      backgroundColor: "#2563EB15", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#2563EB30" },
-  infoBannerText:   { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
-  loadingText:      { color: "#64748b", marginTop: 12, fontSize: 14 },
+                      backgroundColor: "#5A4AD615", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#5A4AD630" },
+  infoBannerText:   { flex: 1, fontSize: 12, color: "#5CC6D4", lineHeight: 18 },
+  loadingText:      { color: "#6A6680", marginTop: 12, fontSize: 14 },
   emptyWrap:        { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40 },
-  emptyIcon:        { width: 80, height: 80, borderRadius: 24, backgroundColor: "#2563EB11",
-                      alignItems: "center", justifyContent: "center", marginBottom: 20, borderWidth: 1, borderColor: "#2563EB33" },
-  emptyTitle:       { fontSize: 18, fontWeight: "700", color: "#f1f5f9", marginBottom: 8 },
-  emptyDesc:        { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
-  card:             { backgroundColor: "#1e293b", borderRadius: 16, overflow: "hidden",
-                      borderWidth: 1, borderColor: "#334155", flexDirection: "row" },
+  emptyIcon:        { width: 80, height: 80, borderRadius: 24, backgroundColor: "#5A4AD611",
+                      alignItems: "center", justifyContent: "center", marginBottom: 20, borderWidth: 1, borderColor: "#5A4AD633" },
+  emptyTitle:       { fontSize: 18, fontWeight: "700", color: "#F0ECE4", marginBottom: 8 },
+  emptyDesc:        { fontSize: 13, color: "#6A6680", textAlign: "center", lineHeight: 20 },
+  card:             { backgroundColor: "#17142B", borderRadius: 16, overflow: "hidden",
+                      borderWidth: 1, borderColor: "#3A3652", flexDirection: "row" },
   statusBar:        { width: 4 },
   cardInner:        { flex: 1, padding: 14 },
   catPill:          { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8,
@@ -503,45 +503,45 @@ const s = StyleSheet.create({
   statusBadgeText:  { fontSize: 10, fontWeight: "700" },
   priBadge:         { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
   priBadgeText:     { fontSize: 10, fontWeight: "600" },
-  cardTitle:        { fontSize: 14, fontWeight: "700", color: "#f1f5f9", marginTop: 8, marginBottom: 4, lineHeight: 20 },
-  cardDesc:         { fontSize: 12, color: "#64748b", lineHeight: 17, marginBottom: 6 },
-  reviewNote:       { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#2563EB10",
-                      borderRadius: 8, padding: 8, marginVertical: 4, borderWidth: 1, borderColor: "#2563EB25" },
-  reviewNoteText:   { flex: 1, fontSize: 11, color: "#a78bfa", lineHeight: 16 },
-  cardDate:         { fontSize: 10, color: "#475569", marginTop: 8 },
+  cardTitle:        { fontSize: 14, fontWeight: "700", color: "#F0ECE4", marginTop: 8, marginBottom: 4, lineHeight: 20 },
+  cardDesc:         { fontSize: 12, color: "#6A6680", lineHeight: 17, marginBottom: 6 },
+  reviewNote:       { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#5A4AD610",
+                      borderRadius: 8, padding: 8, marginVertical: 4, borderWidth: 1, borderColor: "#5A4AD625" },
+  reviewNoteText:   { flex: 1, fontSize: 11, color: "#5CC6D4", lineHeight: 16 },
+  cardDate:         { fontSize: 10, color: "#A6A1BE", marginTop: 8 },
   // Modal
   modalOverlay:     { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalSheet:       { backgroundColor: "#1e293b", borderTopLeftRadius: 28, borderTopRightRadius: 28,
+  modalSheet:       { backgroundColor: "#17142B", borderTopLeftRadius: 28, borderTopRightRadius: 28,
                       paddingHorizontal: 20, paddingTop: 12, maxHeight: "92%", flex: 0 },
-  modalHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: "#334155",
+  modalHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: "#3A3652",
                       alignSelf: "center", marginBottom: 16 },
-  modalTitle:       { fontSize: 17, fontWeight: "700", color: "#f1f5f9", flex: 1 },
+  modalTitle:       { fontSize: 17, fontWeight: "700", color: "#F0ECE4", flex: 1 },
   formField:        { marginBottom: 18 },
-  formLabel:        { fontSize: 12, fontWeight: "600", color: "#94a3b8", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
-  input:            { backgroundColor: "#0f172a", borderWidth: 1, borderColor: "#334155", borderRadius: 12,
-                      paddingHorizontal: 14, paddingVertical: 12, color: "#f1f5f9", fontSize: 14 },
+  formLabel:        { fontSize: 12, fontWeight: "600", color: "#A6A1BE", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  input:            { backgroundColor: "#0E0C1C", borderWidth: 1, borderColor: "#3A3652", borderRadius: 12,
+                      paddingHorizontal: 14, paddingVertical: 12, color: "#F0ECE4", fontSize: 14 },
   inputMulti:       { minHeight: 80, textAlignVertical: "top" },
   chipRow:          { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip:             { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 7,
-                      borderRadius: 100, borderWidth: 1.5, borderColor: "#334155", backgroundColor: "#0f172a" },
-  chipText:         { fontSize: 11, fontWeight: "600", color: "#64748b" },
-  modalFooter:      { flexDirection: "row", gap: 10, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#334155" },
-  cancelBtn:        { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: "#334155",
+                      borderRadius: 100, borderWidth: 1.5, borderColor: "#3A3652", backgroundColor: "#0E0C1C" },
+  chipText:         { fontSize: 11, fontWeight: "600", color: "#6A6680" },
+  modalFooter:      { flexDirection: "row", gap: 10, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#3A3652" },
+  cancelBtn:        { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: "#3A3652",
                       alignItems: "center", justifyContent: "center" },
-  cancelBtnText:    { fontSize: 14, fontWeight: "600", color: "#94a3b8" },
+  cancelBtnText:    { fontSize: 14, fontWeight: "600", color: "#A6A1BE" },
   submitBtn:        { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      gap: 8, backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 14 },
+                      gap: 8, backgroundColor: "#5A4AD6", paddingVertical: 14, borderRadius: 14 },
   submitBtnText:    { fontSize: 14, fontWeight: "700", color: "#fff" },
   // Detail
   detailStatusBadge:{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14,
                       paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
   detailStatusText: { fontSize: 13, fontWeight: "700" },
   detailRow:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-                      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#1e293b" },
-  detailKey:        { fontSize: 12, color: "#64748b", fontWeight: "500" },
-  detailVal:        { fontSize: 12, color: "#f1f5f9", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  detailSection:    { backgroundColor: "#0f172a", borderRadius: 12, padding: 14, marginTop: 14,
-                      borderWidth: 1, borderColor: "#334155" },
-  detailSectionTitle: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
-  detailSectionBody:  { fontSize: 13, color: "#94a3b8", lineHeight: 20 },
+                      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#17142B" },
+  detailKey:        { fontSize: 12, color: "#6A6680", fontWeight: "500" },
+  detailVal:        { fontSize: 12, color: "#F0ECE4", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
+  detailSection:    { backgroundColor: "#0E0C1C", borderRadius: 12, padding: 14, marginTop: 14,
+                      borderWidth: 1, borderColor: "#3A3652" },
+  detailSectionTitle: { fontSize: 11, fontWeight: "700", color: "#6A6680", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
+  detailSectionBody:  { fontSize: 13, color: "#A6A1BE", lineHeight: 20 },
 });

@@ -23,6 +23,8 @@ import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
+import { IconButton } from "@/components/ui";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 type TabType = "vue_ensemble" | "recettes" | "depenses" | "comparatif";
@@ -98,7 +100,7 @@ function BudgetPrevisionnelScreenInner() {
             prevu: Number(ex.revenue.planned) || 0,
             realise: Number(ex.revenue.collected) || 0,
             icon: "trending-up" as any,
-            color: "#3b82f6",
+            color: colors.info,
           },
         ]);
         const expenseLines: LigneBudget[] = (ex.lines || []).map((l: any) => ({
@@ -108,7 +110,7 @@ function BudgetPrevisionnelScreenInner() {
           prevu: Number(l.planned) || 0,
           realise: Number(l.actual) || 0,
           icon: "file-text" as any,
-          color: "#2563EB",
+          color: colors.tint,
         }));
         if (Number(ex.outsideBudget?.actual) > 0) {
           expenseLines.push({
@@ -118,7 +120,7 @@ function BudgetPrevisionnelScreenInner() {
             prevu: 0,
             realise: Number(ex.outsideBudget.actual) || 0,
             icon: "alert-triangle" as any,
-            color: "#ef4444",
+            color: colors.danger,
           });
         }
         setDepenses(expenseLines);
@@ -151,7 +153,7 @@ function BudgetPrevisionnelScreenInner() {
     return (
       <View style={styles.barWrap}>
         <View style={[styles.barBg, { backgroundColor: colors.border }]}>
-          <View style={[styles.barFill, { width: `${p}%` as any, backgroundColor: p >= 90 ? "#10b981" : p >= 60 ? color : "#f59e0b" }]} />
+          <View style={[styles.barFill, { width: `${p}%` as any, backgroundColor: p >= 90 ? colors.success : p >= 60 ? color : colors.warning }]} />
         </View>
         <Text style={[styles.barPct, { color: colors.mutedForeground }]}>{p}%</Text>
       </View>
@@ -222,7 +224,7 @@ function BudgetPrevisionnelScreenInner() {
             onPress={() => router.back()}
             accessibilityRole="button"
           >
-            <Text style={[styles.emptyBackBtnText, { color: colors.primary }]}>{t("back")}</Text>
+            <Text style={[styles.emptyBackBtnText, { color: colors.tint }]}>{t("back")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -231,55 +233,47 @@ function BudgetPrevisionnelScreenInner() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("budgetTitle")}</Text>
-           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t("budgetExercise")} {ANNEE}</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: colors.primary }]}
-          disabled={downloading || !budgetId}
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (!budgetId) return;
-            try {
-              setDownloading(true);
-              await Linking.openURL(await ticketedUrl(`/pdf/budget/${budgetId}`));
-            } catch {
-               showToast({ type: "error", title: t("budgetPdfError") });
-            } finally {
-              setDownloading(false);
-            }
-          }}
-        >
-          {downloading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Feather name="download" size={15} color="#fff" />
-          )}
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t("budgetTitle")}
+        subtitle={`${t("budgetExercise")} ${ANNEE}`}
+        rightContent={
+          <IconButton
+            icon={downloading ? "loader" : "download"}
+            variant="onDark"
+            accessibilityLabel="PDF"
+            disabled={downloading || !budgetId}
+            onPress={async () => {
+              if (!budgetId) return;
+              try {
+                setDownloading(true);
+                await Linking.openURL(await ticketedUrl(`/pdf/budget/${budgetId}`));
+              } catch {
+                showToast({ type: "error", title: t("budgetPdfError") });
+              } finally {
+                setDownloading(false);
+              }
+            }}
+          />
+        }
+      />
 
       {/* KPI strip */}
       <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.kpiItem}>
           <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("allocated")}</Text>
-          <Text style={[styles.kpiVal, { color: "#10b981" }]}>{fmt(totalRecettesRealise)}</Text>
+          <Text style={[styles.kpiVal, { color: colors.success }]}>{fmt(totalRecettesRealise)}</Text>
           <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>/ {fmt(totalRecettesPrevu)}</Text>
         </View>
         <View style={[styles.kpiDiv, { backgroundColor: colors.border }]} />
         <View style={styles.kpiItem}>
           <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("spent")}</Text>
-          <Text style={[styles.kpiVal, { color: "#ef4444" }]}>{fmt(totalDepensesRealise)}</Text>
+          <Text style={[styles.kpiVal, { color: colors.danger }]}>{fmt(totalDepensesRealise)}</Text>
           <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>/ {fmt(totalDepensesPrevu)}</Text>
         </View>
         <View style={[styles.kpiDiv, { backgroundColor: colors.border }]} />
         <View style={styles.kpiItem}>
           <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("remaining")}</Text>
-          <Text style={[styles.kpiVal, { color: soldeRealise >= 0 ? "#10b981" : "#ef4444" }]}>{fmt(soldeRealise)}</Text>
+          <Text style={[styles.kpiVal, { color: soldeRealise >= 0 ? colors.success : colors.danger }]}>{fmt(soldeRealise)}</Text>
           <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>{fmt(soldePrevu)}</Text>
         </View>
       </View>
@@ -316,23 +310,23 @@ function BudgetPrevisionnelScreenInner() {
               <View style={styles.execBars}>
                 <View style={styles.execBarRow}>
                   <View style={[styles.execLabel2, {}]}>
-                    <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
+                    <View style={[styles.dot, { backgroundColor: colors.success }]} />
                     <Text style={[styles.execText, { color: colors.foreground }]}>{t("allocated")}</Text>
                   </View>
                   <View style={[styles.execBar, { backgroundColor: colors.border }]}>
-                    <View style={[styles.execBarFill, { width: `${pct(totalRecettesRealise, totalRecettesPrevu)}%` as any, backgroundColor: "#10b981" }]} />
+                    <View style={[styles.execBarFill, { width: `${pct(totalRecettesRealise, totalRecettesPrevu)}%` as any, backgroundColor: colors.success }]} />
                   </View>
-                  <Text style={[styles.execPct, { color: "#10b981" }]}>{pct(totalRecettesRealise, totalRecettesPrevu)}%</Text>
+                  <Text style={[styles.execPct, { color: colors.success }]}>{pct(totalRecettesRealise, totalRecettesPrevu)}%</Text>
                 </View>
                 <View style={styles.execBarRow}>
                   <View style={styles.execLabel2}>
-                    <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
+                    <View style={[styles.dot, { backgroundColor: colors.danger }]} />
                     <Text style={[styles.execText, { color: colors.foreground }]}>{t("spent")}</Text>
                   </View>
                   <View style={[styles.execBar, { backgroundColor: colors.border }]}>
-                    <View style={[styles.execBarFill, { width: `${pct(totalDepensesRealise, totalDepensesPrevu)}%` as any, backgroundColor: "#ef4444" }]} />
+                    <View style={[styles.execBarFill, { width: `${pct(totalDepensesRealise, totalDepensesPrevu)}%` as any, backgroundColor: colors.danger }]} />
                   </View>
-                  <Text style={[styles.execPct, { color: "#ef4444" }]}>{pct(totalDepensesRealise, totalDepensesPrevu)}%</Text>
+                  <Text style={[styles.execPct, { color: colors.danger }]}>{pct(totalDepensesRealise, totalDepensesPrevu)}%</Text>
                 </View>
               </View>
              <Text style={[styles.execNote, { color: colors.mutedForeground }]}>{t("budgetExecutionNote")} {ANNEE}</Text>
@@ -340,8 +334,8 @@ function BudgetPrevisionnelScreenInner() {
 
             {/* Category summary */}
             {[
-              { titre: t("allocated"), items: RECETTES.slice(0, 3), color: "#10b981" },
-              { titre: t("spent"), items: DEPENSES.slice(0, 4), color: "#ef4444" },
+              { titre: t("allocated"), items: RECETTES.slice(0, 3), color: colors.success },
+              { titre: t("spent"), items: DEPENSES.slice(0, 4), color: colors.danger },
             ].map((section) => (
               <View key={section.titre} style={[styles.summarySection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.summarySectionTitle, { color: colors.foreground }]}>{section.titre}</Text>
@@ -359,9 +353,9 @@ function BudgetPrevisionnelScreenInner() {
 
         {tab === "recettes" && (
           <>
-            <View style={[styles.totalBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
-              <Feather name="trending-up" size={16} color="#10b981" />
-              <Text style={[styles.totalBannerText, { color: "#10b981" }]}>{t("allocated")} : {fmt(totalRecettesRealise)} / {fmt(totalRecettesPrevu)} ({pct(totalRecettesRealise, totalRecettesPrevu)}%)</Text>
+            <View style={[styles.totalBanner, { backgroundColor: colors.success + "10", borderColor: colors.success + "30" }]}>
+              <Feather name="trending-up" size={16} color={colors.success} />
+              <Text style={[styles.totalBannerText, { color: colors.success }]}>{t("allocated")} : {fmt(totalRecettesRealise)} / {fmt(totalRecettesPrevu)} ({pct(totalRecettesRealise, totalRecettesPrevu)}%)</Text>
             </View>
             {categories(RECETTES).map((cat) => (
               <View key={cat} style={{ gap: 8 }}>
@@ -374,9 +368,9 @@ function BudgetPrevisionnelScreenInner() {
 
         {tab === "depenses" && (
           <>
-            <View style={[styles.totalBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-              <Feather name="trending-down" size={16} color="#ef4444" />
-              <Text style={[styles.totalBannerText, { color: "#ef4444" }]}>{t("spent")} : {fmt(totalDepensesRealise)} / {fmt(totalDepensesPrevu)} ({pct(totalDepensesRealise, totalDepensesPrevu)}%)</Text>
+            <View style={[styles.totalBanner, { backgroundColor: colors.danger + "10", borderColor: colors.danger + "30" }]}>
+              <Feather name="trending-down" size={16} color={colors.danger} />
+              <Text style={[styles.totalBannerText, { color: colors.danger }]}>{t("spent")} : {fmt(totalDepensesRealise)} / {fmt(totalDepensesPrevu)} ({pct(totalDepensesRealise, totalDepensesPrevu)}%)</Text>
             </View>
             {categories(DEPENSES).map((cat) => (
               <View key={cat} style={{ gap: 8 }}>
@@ -390,9 +384,9 @@ function BudgetPrevisionnelScreenInner() {
         {tab === "comparatif" && (
           <>
             {[
-              { label: t("allocated"), prevu: totalRecettesPrevu, realise: totalRecettesRealise, color: "#10b981" },
-              { label: t("spent"), prevu: totalDepensesPrevu, realise: totalDepensesRealise, color: "#ef4444" },
-              { label: t("remaining"), prevu: soldePrevu, realise: soldeRealise, color: soldeRealise >= 0 ? "#10b981" : "#ef4444" },
+              { label: t("allocated"), prevu: totalRecettesPrevu, realise: totalRecettesRealise, color: colors.success },
+              { label: t("spent"), prevu: totalDepensesPrevu, realise: totalDepensesRealise, color: colors.danger },
+              { label: t("remaining"), prevu: soldePrevu, realise: soldeRealise, color: soldeRealise >= 0 ? colors.success : colors.danger },
             ].map((row) => (
               <View key={row.label} style={[styles.comparatifCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.comparatifLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
@@ -412,7 +406,7 @@ function BudgetPrevisionnelScreenInner() {
                     <Text style={[styles.comparatifBarVal, { color: row.color }]}>{fmt(row.realise)}</Text>
                   </View>
                 </View>
-                <Text style={[styles.comparatifEcart, { color: row.realise >= row.prevu ? "#10b981" : "#f59e0b" }]}>
+                <Text style={[styles.comparatifEcart, { color: row.realise >= row.prevu ? colors.success : colors.warning }]}>
                   {fmt(Math.abs(row.realise - row.prevu))} ({row.realise < row.prevu ? "-" : "+"}{Math.abs(pct(row.realise, row.prevu) - 100)}%)
                 </Text>
               </View>
@@ -458,7 +452,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, gap: 12 },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   exportBtn: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   kpiStrip: { flexDirection: "row", borderBottomWidth: 1 },

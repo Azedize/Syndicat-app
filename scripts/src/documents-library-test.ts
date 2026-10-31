@@ -146,16 +146,19 @@ async function purge() {
   for (const o of objects) await fs.unlink(path.join(UPLOADS, path.basename(o.p))).catch(() => {});
 }
 
+// Its own port: 5056 is the permanent API of the isolated test base.
+const BROKEN_PORT = process.env.BROKEN_STORAGE_PORT ?? "5059";
+
 /** A second API instance whose storage directory cannot be created (a file is in the way). */
 async function startBrokenStorageApi(): Promise<{ proc: ChildProcess; base: string } | null> {
   const blocker = path.join(UPLOADS, `..`, `dl-blocker-${RUN}`);
   await fs.writeFile(blocker, "not a directory");
   const proc = spawn(process.execPath, ["--env-file=../../.env", "./dist/index.mjs"], {
     cwd: API_DIR,
-    env: { ...process.env, PORT: "5056", SMTP_HOST: "", LOCAL_UPLOADS_DIR: path.join(blocker, "uploads") },
+    env: { ...process.env, PORT: BROKEN_PORT, SMTP_HOST: "", LOCAL_UPLOADS_DIR: path.join(blocker, "uploads") },
     stdio: "ignore",
   });
-  const base = "http://localhost:5056/api";
+  const base = `http://localhost:${BROKEN_PORT}/api`;
   for (let i = 0; i < 40; i++) {
     try {
       if ((await fetch(`${base}/healthz`)).ok) return { proc, base };

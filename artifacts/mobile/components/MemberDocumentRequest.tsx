@@ -12,7 +12,7 @@
  * data that already exists.
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -38,7 +38,7 @@ const ALL_TEMPLATES = [
     id: "attestation_residence",
     labelKey: "mdrTemplateResidence",
     icon: "home" as const,
-    color: "#0891b2",
+    color: "#0F6E7D",
     category: "attestation",
     descKey: "mdrTemplateResidenceDesc",
     autoFilledKey: "mdrTemplateResidenceAuto",
@@ -49,7 +49,7 @@ const ALL_TEMPLATES = [
     id: "attestation_propriete",
     labelKey: "mdrTemplateOwnership",
     icon: "key" as const,
-    color: "#2563EB",
+    color: "#5A4AD6",
     category: "attestation",
     descKey: "mdrTemplateOwnershipDesc",
     autoFilledKey: "mdrTemplateOwnershipAuto",
@@ -60,29 +60,21 @@ const ALL_TEMPLATES = [
     id: "attestation_paiement",
     labelKey: "mdrTemplatePayment",
     icon: "check-circle" as const,
-    color: "#16a34a",
+    color: "#0B7A57",
     category: "attestation",
     descKey: "mdrTemplatePaymentDesc",
     autoFilledKey: "mdrTemplatePaymentAuto",
     allowedRoles: ["member"],
     requiresBalance: true,
   },
-  {
-    id: "attestation",
-    labelKey: "mdrTemplateMembership",
-    icon: "award" as const,
-    color: "#8b5cf6",
-    category: "attestation",
-    descKey: "mdrTemplateMembershipDesc",
-    autoFilledKey: "mdrTemplateMembershipAuto",
-    allowedRoles: ["member"],
-    requiresBalance: false,
-  },
+  // "attestation" (membership certificate) removed from the catalog: it is a
+  // trade-union document ("membre actif", membership number, dues) with no
+  // meaning in a co-ownership. Existing documents of that template still open.
   {
     id: "rapport_financier",
     labelKey: "mdrTemplateFinancialReport",
     icon: "dollar-sign" as const,
-    color: "#f59e0b",
+    color: "#C98511",
     category: "finances",
     descKey: "mdrTemplateFinancialReportDesc",
     autoFilledKey: "mdrTemplateFinancialReportAuto",
@@ -104,7 +96,7 @@ const ALL_TEMPLATES = [
     id: "decompte_charges",
     labelKey: "mdrTemplateCharges",
     icon: "bar-chart-2" as const,
-    color: "#f59e0b",
+    color: "#C98511",
     category: "finances",
     descKey: "mdrTemplateChargesDesc",
     autoFilledKey: "mdrTemplateChargesAuto",
@@ -274,7 +266,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
           {[t("mdrStepTemplate"), t("mdrStepConfirm"), t("mdrStepSent")].map((label, i) => (
             <View key={i} style={s.stepItem}>
               <View style={[s.stepDot, {
-                backgroundColor: step > i + 1 ? "#10b981" : step === i + 1 ? colors.primary : colors.border,
+                backgroundColor: step > i + 1 ? "#13976C" : step === i + 1 ? colors.primary : colors.border,
               }]}>
                 {step > i + 1
                   ? <Feather name="check" size={10} color="#fff" />
@@ -298,18 +290,18 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                   : t("mdrMemberDescription")}
               </Text>
 
-              <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
-                <Feather name="zap" size={14} color="#10b981" />
-                <Text style={{ fontSize: 12, color: "#10b981", flex: 1, lineHeight: 18 }}>
+              <View style={[s.autofillBanner, { backgroundColor: "#13976C10", borderColor: "#13976C30" }]}>
+                <Feather name="zap" size={14} color="#13976C" />
+                <Text style={{ fontSize: 12, color: "#13976C", flex: 1, lineHeight: 18 }}>
                   <Text style={{ fontWeight: "700" }}>{t("mdrAutofillEnabled")}</Text>
                   {" "}{t("mdrAutofillDescription")}
                 </Text>
               </View>
 
               {MEMBER_TEMPLATES.length === 0 ? (
-                <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
-                  <Feather name="info" size={14} color="#f59e0b" />
-                  <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1, lineHeight: 18 }}>
+                <View style={[s.autofillBanner, { backgroundColor: "#C9851110", borderColor: "#C9851130" }]}>
+                  <Feather name="info" size={14} color="#C98511" />
+                  <Text style={{ fontSize: 12, color: "#C98511", flex: 1, lineHeight: 18 }}>
                     {t("mdrNoTemplates")}
                   </Text>
                 </View>
@@ -328,8 +320,8 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                         <Text style={[s.tplName, { color: colors.foreground }]}>{templateText(tpl.labelKey)}</Text>
                         {tpl.requiresBalance && (
-                          <View style={{ backgroundColor: "#f59e0b18", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }}>
-                            <Text style={{ fontSize: 9, fontWeight: "700", color: "#f59e0b" }}>{t("mdrBalanceCheck")}</Text>
+                          <View style={{ backgroundColor: "#C9851118", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 9, fontWeight: "700", color: "#C98511" }}>{t("mdrBalanceCheck")}</Text>
                           </View>
                         )}
                       </View>
@@ -363,9 +355,9 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               {/* Auto-filled data card */}
               <View style={[s.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[s.dataCardHeader, { borderBottomColor: colors.border }]}>
-                  <Feather name="database" size={14} color="#10b981" />
+                  <Feather name="database" size={14} color="#13976C" />
                   <Text style={[s.dataCardTitle, { color: colors.foreground }]}>{t("mdrAutofillTitle")}</Text>
-                  {autofillLoading && <ActivityIndicator size="small" color="#10b981" />}
+                  {autofillLoading && <ActivityIndicator size="small" color="#13976C" />}
                 </View>
 
                 {autofillLoading ? (
@@ -381,16 +373,16 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                        { icon: "shield" as const, label: t("mdrSyndicate"), value: autofill?.syndicateName ?? "—" },
                     ].map((row) => (
                       <View key={row.label} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                        <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: "#10b98115", alignItems: "center", justifyContent: "center" }}>
-                          <Feather name={row.icon} size={13} color="#10b981" />
+                        <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: "#13976C15", alignItems: "center", justifyContent: "center" }}>
+                          <Feather name={row.icon} size={13} color="#13976C" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 10, color: colors.mutedForeground, letterSpacing: 0.3, textTransform: "uppercase" }}>{row.label}</Text>
                           <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "600" }}>{row.value}</Text>
                         </View>
-                        <View style={[s.autoChip, { backgroundColor: "#10b98110" }]}>
-                          <Feather name="check" size={9} color="#10b981" />
-                          <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("mdrAuto")}</Text>
+                        <View style={[s.autoChip, { backgroundColor: "#13976C10" }]}>
+                          <Feather name="check" size={9} color="#13976C" />
+                          <Text style={[s.autoChipText, { color: "#13976C" }]}>{t("mdrAuto")}</Text>
                         </View>
                       </View>
                     ))}
@@ -401,32 +393,32 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               {/* ── Payment cert eligibility status ── */}
               {selectedTpl?.requiresBalance && (
                 paymentCheckLoading ? (
-                  <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
-                    <ActivityIndicator size="small" color="#f59e0b" />
-                    <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1 }}>{t("mdrBalanceChecking")}</Text>
+                  <View style={[s.autofillBanner, { backgroundColor: "#C9851110", borderColor: "#C9851130" }]}>
+                    <ActivityIndicator size="small" color="#C98511" />
+                    <Text style={{ fontSize: 12, color: "#C98511", flex: 1 }}>{t("mdrBalanceChecking")}</Text>
                   </View>
                 ) : paymentCheck ? (
                   paymentCheck.eligible ? (
-                    <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
-                      <Feather name="check-circle" size={14} color="#10b981" />
+                    <View style={[s.autofillBanner, { backgroundColor: "#13976C10", borderColor: "#13976C30" }]}>
+                      <Feather name="check-circle" size={14} color="#13976C" />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: "#10b981", fontWeight: "700" }}>{t("mdrBalanceCurrent")} ✓</Text>
-                        <Text style={{ fontSize: 11, color: "#10b981", marginTop: 2 }}>
+                        <Text style={{ fontSize: 12, color: "#13976C", fontWeight: "700" }}>{t("mdrBalanceCurrent")} ✓</Text>
+                        <Text style={{ fontSize: 11, color: "#13976C", marginTop: 2 }}>
                           {t("mdrTotalPaid")}: {formatMad(paymentCheck.totalPaid)}
                           {paymentCheck.lastPaymentDate ? `  •  ${t("mdrLastPayment")}: ${paymentCheck.lastPaymentDate}` : ""}
                         </Text>
                       </View>
                     </View>
                   ) : (
-                    <View style={[s.autofillBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-                      <Feather name="alert-octagon" size={14} color="#ef4444" />
+                    <View style={[s.autofillBanner, { backgroundColor: "#C8323C10", borderColor: "#C8323C30" }]}>
+                      <Feather name="alert-octagon" size={14} color="#C8323C" />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "700" }}>{t("mdrCertificateBlocked")}</Text>
-                        <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 16 }}>
+                        <Text style={{ fontSize: 12, color: "#C8323C", fontWeight: "700" }}>{t("mdrCertificateBlocked")}</Text>
+                        <Text style={{ fontSize: 11, color: "#C8323C", marginTop: 2, lineHeight: 16 }}>
                           {paymentCheck.blockedReason}
                         </Text>
                         {paymentCheck.overdueCount > 0 && (
-                          <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>
+                          <Text style={{ fontSize: 11, color: "#C8323C", marginTop: 4 }}>
                             {paymentCheck.overdueCount} {t("mdrUnpaidCalls")}  •  {t("mdrBalanceDue")}: {formatMad(paymentCheck.remainingBalance)}
                           </Text>
                         )}
@@ -452,7 +444,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
 
               {needsObjet && (
                 <View>
-                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("mdrRequestSubject")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("mdrRequestSubject")} <Text style={{ color: "#C8323C" }}>*</Text></Text>
                   <TextInput
                     style={[s.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
                      placeholder={t("mdrRequestSubjectPlaceholder")}
@@ -478,17 +470,17 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               </View>
 
               {/* Info about review */}
-              <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
-                <Feather name="info" size={14} color="#f59e0b" />
-                <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1, lineHeight: 18 }}>
+              <View style={[s.autofillBanner, { backgroundColor: "#C9851110", borderColor: "#C9851130" }]}>
+                <Feather name="info" size={14} color="#C98511" />
+                <Text style={{ fontSize: 12, color: "#C98511", flex: 1, lineHeight: 18 }}>
                   {t("mdrReviewNotice")}
                 </Text>
               </View>
 
               {error && (
-                <View style={[s.autofillBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-                  <Feather name="alert-circle" size={14} color="#ef4444" />
-                  <Text style={{ fontSize: 12, color: "#ef4444", flex: 1 }}>{error}</Text>
+                <View style={[s.autofillBanner, { backgroundColor: "#C8323C10", borderColor: "#C8323C30" }]}>
+                  <Feather name="alert-circle" size={14} color="#C8323C" />
+                  <Text style={{ fontSize: 12, color: "#C8323C", flex: 1 }}>{error}</Text>
                 </View>
               )}
             </ScrollView>
@@ -497,8 +489,8 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
           {/* ── Step 3: Success ─────────────────────────────────────────── */}
           {step === 3 && (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 20 }}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#10b98120", alignItems: "center", justifyContent: "center" }}>
-                <Feather name="check-circle" size={44} color="#10b981" />
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#13976C20", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="check-circle" size={44} color="#13976C" />
               </View>
               <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>{t("mdrSubmittedTitle")}</Text>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center", lineHeight: 22 }]}>
@@ -508,9 +500,9 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 <View style={{ padding: 14, gap: 6 }}>
                    <Text style={{ fontSize: 11, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.5 }}>{t("mdrRequestedDocument")}</Text>
                    <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>{selectedLabel}</Text>
-                  <View style={[s.autoChip, { backgroundColor: "#f59e0b10" }]}>
-                    <Feather name="clock" size={10} color="#f59e0b" />
-                     <Text style={[s.autoChipText, { color: "#f59e0b" }]}>{t("mdrPendingValidation")}</Text>
+                  <View style={[s.autoChip, { backgroundColor: "#C9851110" }]}>
+                    <Feather name="clock" size={10} color="#C98511" />
+                     <Text style={[s.autoChipText, { color: "#C98511" }]}>{t("mdrPendingValidation")}</Text>
                   </View>
                 </View>
               </View>
@@ -533,9 +525,9 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
             </TouchableOpacity>
             {/* Block submit if payment cert is NOT eligible */}
             {selectedTpl?.requiresBalance && paymentCheck && !paymentCheck.eligible ? (
-              <View style={[s.submitBtn, { flex: 1, backgroundColor: "#ef444425", borderWidth: 1, borderColor: "#ef4444" }]}>
-                <Feather name="lock" size={14} color="#ef4444" />
-                <Text style={[s.submitBtnText, { color: "#ef4444" }]}>{t("mdrSettleBalance")}</Text>
+              <View style={[s.submitBtn, { flex: 1, backgroundColor: "#C8323C25", borderWidth: 1, borderColor: "#C8323C" }]}>
+                <Feather name="lock" size={14} color="#C8323C" />
+                <Text style={[s.submitBtnText, { color: "#C8323C" }]}>{t("mdrSettleBalance")}</Text>
               </View>
             ) : (
               <TouchableOpacity

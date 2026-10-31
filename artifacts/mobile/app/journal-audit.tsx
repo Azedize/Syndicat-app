@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -33,20 +33,20 @@ interface AuditLog {
 }
 
 const ACTION_CONFIG: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
-  vote: { color: "#f59e0b", icon: "check-square" },
-  pay_cotisation: { color: "#10b981", icon: "credit-card" },
-  approve_member: { color: "#10b981", icon: "user-check" },
-  reject_member: { color: "#ef4444", icon: "user-x" },
-  create_election: { color: "#2563EB", icon: "layers" },
-  add_member: { color: "#3b82f6", icon: "user-plus" },
-  add_transaction: { color: "#10b981", icon: "dollar-sign" },
-  validate_product: { color: "#10b981", icon: "package" },
-  resolve_ticket: { color: "#1F5EFF", icon: "check-circle" },
-  login: { color: "#3b82f6", icon: "log-in" },
+  vote: { color: "#C98511", icon: "check-square" },
+  pay_cotisation: { color: "#13976C", icon: "credit-card" },
+  approve_member: { color: "#13976C", icon: "user-check" },
+  reject_member: { color: "#C8323C", icon: "user-x" },
+  create_election: { color: "#5A4AD6", icon: "layers" },
+  add_member: { color: "#5A4AD6", icon: "user-plus" },
+  add_transaction: { color: "#13976C", icon: "dollar-sign" },
+  validate_product: { color: "#13976C", icon: "package" },
+  resolve_ticket: { color: "#5A4AD6", icon: "check-circle" },
+  login: { color: "#5A4AD6", icon: "log-in" },
 };
 
 function getActionConfig(action: string) {
-  return ACTION_CONFIG[action] ?? { color: "#6b7280", icon: "activity" as const };
+  return ACTION_CONFIG[action] ?? { color: "#6A6680", icon: "activity" as const };
 }
 
 const ACTION_LABELS: Record<string, Record<LangCode, string>> = {
@@ -151,7 +151,7 @@ function JournalAuditScreenInner() {
   if (!isSuperAdmin && !isSyndicateAdmin) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
           <TouchableOpacity onPress={() => router.back()}><Feather name="arrow-left" size={22} color="#fff" /></TouchableOpacity>
            <Text style={styles.headerTitle}>{t("journalAudit")}</Text>
           <View style={{ width: 22 }} />
@@ -167,7 +167,7 @@ function JournalAuditScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>

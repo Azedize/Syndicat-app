@@ -86,8 +86,8 @@ export async function checkClosingSoonElections(): Promise<void> {
       }
 
       await createAlert({
-        title: "⏰ Vote clôture bientôt",
-        message: `Le vote pour "${election.title}" se termine dans ${threshold} jour${threshold > 1 ? "s" : ""} (${pendingIds.length}/${eligibleIds.length} n'ont pas encore voté).`,
+        key: "election.closingSoon",
+        params: { title: election.title, days: threshold, pending: pendingIds.length, eligible: eligibleIds.length },
         type: "info",
         syndicateId: election.syndicateId,
         target: "admin",

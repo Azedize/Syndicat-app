@@ -114,6 +114,9 @@ function handleNotificationTap(
       router.push("/charges" as any);
     } else if (data.screen === "documents") {
       router.push("/documents" as any);
+    } else if (typeof data.link === "string" && data.link.startsWith("/")) {
+      // Notification templates: the screen it is about (only sent to roles allowed there).
+      router.push(data.link as any);
     } else if (data.url) {
       router.push(data.url as any);
     }

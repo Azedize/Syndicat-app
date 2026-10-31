@@ -703,3 +703,945 @@ confirmer par le syndic ou un juriste :
   paiement.
 - Pas d'import des tantièmes depuis un tableau ; saisie lot par lot.
 - Pas de test sur appareil.
+
+## 2026-10-19 — Appels de fonds (émission, compte résident, retards, corrections, rapprochement)
+
+### Modèle
+- Un **appel de fonds** = l'en-tête de répartition (`allocations`, réf. ALC-…),
+  statuts `draft | finalized | corrected | reversed`, avec date d'émission,
+  échéance, date et auteur de publication (migration `0011_funds_calls`).
+- Une **obligation** = une ligne `appels_de_fonds` par lot, liée à l'appel
+  (`allocation_id`) : montant émis (`original_amount`), montant dû, payé,
+  date d'émission, échéance, statut.
+- `appel_adjustments` (ajustement motivé, ancien et nouveau montant) et
+  `appel_reminders` (rappels ; un seul rappel automatique par obligation,
+  index unique partiel) — références `restrict` : rien n'est supprimé.
+
+### Circuit
+- **A. Création** : prévisualisation (montant total, par lot, base de calcul,
+  clé et version), dates d'émission / d'échéance. Erreurs : clé manquante,
+  quote-part invalide, échéance déjà passée (`DUE_DATE_PASSED`), échéance
+  avant émission (`INVALID_DATES`), source déjà répartie. Avertissement
+  `INACTIVE_UNIT` pour un lot archivé (aucune obligation).
+- **B. Brouillon et publication** : un brouillon n'émet rien et ne réserve
+  pas ses sources ; il se modifie (`PUT /allocations/:id`) ou se supprime
+  (`DELETE`). La publication (`POST /allocations/:id/publish`) recalcule le
+  brouillon sur les données du jour, le renvoie pour revue (`changed` si les
+  données ont bougé), puis publie la version revue dans une transaction.
+  Doublons empêchés par : clé d'idempotence, verrou sur le brouillon, index
+  uniques (source active, lot + période + type).
+- **C. Compte résident** (`GET /appels-de-fonds/:id/account`, débiteurs et
+  équipe seulement) : montants émis / dû / payé / reste, dates, retard,
+  paiements de tous statuts (déclaré, validé, refusé, extourné) avec reçus,
+  ajustements, rappels, moyens de paiement (virement avec RIB du compte par
+  défaut, chèque, espèces ; pas de paiement en ligne). Un paiement déclaré
+  reste « en validation » et ne réduit pas le reste dû.
+- **D. Retards et rappels** : échéance = jour local (`APP_TIMEZONE`, défaut
+  Africa/Casablanca), en retard à partir du lendemain. Tâche horaire
+  `funds-calls` : passage en `overdue`, puis un rappel automatique par
+  obligation échue. Rappel manuel (`POST …/remind`, syndic / trésorier) au
+  plus une fois par 24 h. Jamais de rappel après règlement, annulation, ou
+  pendant la validation d'un paiement. **Aucune pénalité, intérêt ni étape
+  contentieuse n'est appliquée automatiquement.**
+- **E. Corrections** : brouillon → modifier / supprimer ; appel publié
+  erroné → corriger ou annuler la répartition (obligations annulées et
+  conservées, impossible s'il y a des paiements : `ALLOCATION_HAS_PAYMENTS`) ;
+  obligation partiellement payée → ajustement motivé par le syndic, jamais
+  sous le payé (`BELOW_PAID`), ou extourne du paiement d'abord ; lot devenu
+  inactif → ses obligations restent dues, les nouveaux appels l'excluent ;
+  annulation d'un paiement → extourne de trésorerie (reçu et écriture
+  conservés).
+- **F. Rapprochement** (`GET /allocations/:id/reconciliation`) : lignes =
+  total, obligations émises = total, montant courant + annulé = émis +
+  ajustements, payé = paiements validés, journal net = paiements validés, un
+  reçu par paiement.
+
+### Mobile
+- `app/repartition.tsx` : dates d'émission / d'échéance, « Brouillon » ou
+  « Publier les obligations », historique avec « Vérifier et publier »,
+  « Supprimer » (brouillon) et « Rapprochement ».
+- `components/ObligationAccount.tsx` (depuis « Compte » sur chaque appel de
+  `app/charges.tsx`) : compte de l'obligation, comment payer, rappels ;
+  « Relancer » (syndic, trésorier) et « Ajuster le montant » (syndic).
+
+### Tests (exécutés le 2026-10-19, API de test 5055)
+- `funds-calls:test` : **48/48**. Paiement partiel, règlement complet,
+  paiement refusé, publication en double (concurrente et avec la même clé),
+  appel annulé, extourne, bornes d'échéance (jour même / veille, fuseau
+  local), lot inactif, requêtes concurrentes, accès entre résidents et entre
+  copropriétés, rappels, ajustements, brouillons, rapprochement.
+- Non-régression : `allocation:test` 59/59, `finance-workflow:test` 89/89,
+  `finance-integrity:test` 35/35, `units:test` 65/65,
+  `scenario-e2e:test` 48/48. Typecheck mobile sans erreur, export Android et
+  iOS réussi.
+- Aucune donnée de test restante (vérifié en base).
+
+### À faire valider
+1. Délai par défaut de l'échéance : 30 jours après l'émission (choix
+   technique, à confirmer selon le règlement / les décisions d'AG).
+2. Délai entre deux rappels manuels : 24 h.
+3. L'outil d'escalade manuelle (`/escalation`, `escalate-debts`) garde des
+   seuils inventés (3 / 6 / 12 mois, mise en demeure, action juridique) et
+   vise le propriétaire actuel du lot plutôt que les débiteurs à l'émission.
+   Il n'est plus planifié ; ses seuils et sa cible sont à revoir avant usage.
+
+### Non fait / limites
+- Pas de paiement en ligne (aucun prestataire configuré) : déclaration avec
+  justificatif, puis validation.
+- Écran `repartition.tsx` encore en français uniquement (le compte de
+  l'obligation est traduit FR / EN / AR / ES).
+- Pas de test sur appareil.
+
+## 2026-10-19 — Bibliothèque documentaire résident et documents officiels
+
+Détail complet : `DOCUMENT_LIBRARY_DESIGN_PROGRESS.md`.
+
+- Mobile : bibliothèque refaite (`app/bibliotheque.tsx`, `components/DocumentRow.tsx`),
+  lecteur dédié `app/document-viewer.tsx` (PDF natif iOS, pdf.js paresseux
+  Android, images, texte, formats non prévisualisables), fichiers en cache
+  privé supprimés à la fermeture et purgés à chaque changement de contexte
+  (`lib/documentFiles.ts`). Partage de `pdf-viewer.tsx` réparé.
+- Backend : 404 indistinct sur `GET /documents/:id`, numéro de lot dans les
+  réponses, noms de fichiers UTF-8 corrigés.
+- Documents officiels : 10 modèles « en reconstruction » remplacés par une mise
+  en page commune n'utilisant que des données réelles ; TVA et faits par
+  défaut inventés retirés ; « Document certifié » remplacé ; police arabe
+  trouvée en production ; reçu de paiement complété.
+- Tests : `document-library-resident:test` 27/27, `official-documents:test`
+  13/13, `documents-library:test` 75/75, `documents-security:test` 29/29,
+  `finance-workflow:test` 89/89 ; export Android / iOS OK. Pas de test sur
+  appareil.
+- À décider : prétraitement bidi pour l'arabe dans les PDF ; miniatures
+  protégées.
+
+## 2026-10-20 — Générateur de données de test (`seedgen`)
+
+Détail : `DATABASE_TABLES_INVENTORY.md`, `DATABASE_SEEDING_PLAN.md`,
+`DATABASE_SEEDING_GUIDE.md`, `DATABASE_SEEDING_REPORT.md`.
+
+- Inventaire des 127 tables lu dans le schéma réel (colonnes, clés, index,
+  déclencheurs, volumes) ; ordre d’insertion par dépendances.
+- Génération reproductible (graine, échelle) : 60 copropriétés, ≈ 1 050
+  utilisateurs de tous les rôles, 4 676 lots, 22 055 appels de fonds émis par
+  le moteur de répartition réel, paiements validés / rejetés / en attente
+  avec écritures au journal et reçus, ≈ 4 500 fichiers PDF / PNG réels.
+  32 s. Tout le lancement est annulé en cas d’erreur ; graine déjà générée
+  refusée ; nettoyage limité au lancement.
+- Contrôles : 278 / 279 contrôles d’intégrité (le seul échec vient des budgets
+  de démonstration `budget_atlas_2026` / `budget_agdal_2026`, dont les lignes
+  dépassent le total ; laissés tels quels) ; 25 / 25 contrôles à travers
+  l’API (rôles, isolation, pagination, temps max 58 ms).
+- Migration `0012_fix_appel_issue_dates.sql` : corrige les dates d’émission
+  postérieures à l’échéance introduites par le rattrapage de la migration 0011.
+- `finance-integrity-test` : recherche de l’écriture par numéro de reçu
+  limitée à la copropriété du test (les numéros sont propres à chaque
+  copropriété) — 35 / 35. `scenario-e2e` : attend désormais 404 (et non 403)
+  pour un document caché, comportement voulu depuis la bibliothèque — 48 / 48.
+
+## 2026-10-20 — Refonte des écrans, lot 1
+
+Écrans passés au kit UI (`components/ui`), traduits FR / EN / AR / ES, RTL :
+`settings`, `profile`, `mon-lot`, `annonces`, `sinistres`, `travaux`,
+`support`, `reclamations` (retouches ciblées, logique du tableau inchangée).
+
+Corrections trouvées pendant la refonte :
+- Réglages : statut serveur « opérationnel » fixe remplacé par un vrai appel
+  `/healthz` ; version lue dans la configuration Expo ; choix clair / sombre /
+  système.
+- Profil : « Dernière modification il y a 30 jours » (inventé) retiré ;
+  actions en double supprimées ; compteurs d’appels affichés seulement aux
+  copropriétaires (0 trompeur sinon).
+- Mon lot : libellés affichés en clés brutes (« lotNumber », « floor »…) ;
+  « /1000 » ajouté aux tantièmes sans connaître la base ; totaux sans les
+  paiements partiels (désormais `amountPaid` / `remaining` du serveur) ;
+  onglet documents vide → bibliothèque.
+- Sinistres et travaux : la création envoyait `buildingId: ""` et échouait
+  toujours (400) → choix de l’immeuble (pré-rempli depuis le lot du résident).
+  Écrans ouverts aux résidents, que l’API sert déjà (ils ne voient que leurs
+  propres déclarations) et que « Mon lot » leur proposait. Travaux :
+  prestataire choisi dans la liste réelle au lieu d’un identifiant à saisir ;
+  annulation d’un sélecteur de fichier n’affiche plus d’erreur.
+- Sinistres : statistiques affichées en clés brutes ; montants en « k » et
+  locale `fr-MA` fixe.
+- Annonces : public par défaut « Tous les membres » en français dans toutes
+  les langues ; boutons alignés sur les droits de l’API.
+- Support : promesse « réponse sous 24 à 48 h » retirée (aucun engagement
+  vérifié) ; auteur « équipe » déduit du demandeur et non d’un nom contenant
+  « admin ».
+- Réclamations : dates en `fr-FR` fixe et mots français restants traduits.
+
+Vérifications : `tsc` mobile OK ; `expo export` Android et iOS OK ; données
+vérifiées contre l’API locale avec des comptes générés (lot, appels, immeubles,
+prestataires). Pas de test sur appareil.
+
+## 2026-10-20 — Refonte des écrans, lot 2
+
+Écrans passés au kit UI : `parking`, `prestataires`, `ideas`, `publications`.
+
+Corrections trouvées pendant la refonte :
+- Parking : réservation envoyée sans fuseau (« 2026-10-20T09:00:00 », lue
+  dans le fuseau du serveur) → instant absolu calculé sur le téléphone ;
+  date, format des heures et fin > début vérifiés avant l’envoi.
+- Prestataires : total mensuel calculé en concaténant des chaînes
+  (« 001250.004800.00… MAD/mois ») et incluant les contrats expirés → somme
+  numérique des seuls contrats actifs ; types `securite` / `menuiserie`
+  reconnus.
+- Idées : l’API renvoie `hasVoted`, l’écran lisait `userVoted` (toujours
+  « Voter », un second appui retirait le vote sans le dire) ; examen affiché
+  au président alors que l’API exige le syndic ; les idées créées par l’API
+  (`submitted`) n’étaient jamais examinables depuis l’app.
+- Publications : modifier, supprimer et épingler affichaient un succès sans
+  rien enregistrer (aucune route API) → retirés ; commentaires gardés en
+  mémoire seulement → commentaires réels de l’API ; publication réservée aux
+  rôles acceptés par l’API ; « j’aime » et compteur lus depuis l’API
+  (`userLiked`, `likes`) au lieu d’un état local.
+
+Générateur de données :
+- Valeurs inconnues de l’application corrigées dans le générateur et dans les
+  lignes déjà générées (périmètre `creation_key LIKE 'seedgen:%'` uniquement) :
+  statuts et catégories d’idées, contrats terminés avec une fin future,
+  procurations `validated`, type / mode d’élection, travaux privatifs, bons de
+  livraison, factures SaaS, catégories de support, de publications et de
+  produits, produits `active` (invisibles sur la marketplace), sinistres,
+  actes, public des annonces.
+- `verify` : 16 contrôles de valeurs autorisées ajoutés (données générées) →
+  294 / 295 (seul échec : budgets de démonstration, inchangé).
+- Constat sans correction : les données de démonstration contiennent aussi
+  des valeurs hors de l’application (ex. priorités d’annonce
+  `high` / `low` / `normal`) ; non modifiées.
+
+Vérifications lot 2 : `tsc` mobile et scripts OK ; `expo export` Android et
+iOS OK ; données vérifiées contre l’API locale (prestataires et contrats,
+idées et `hasVoted`, places de parking, « j’aime » aller-retour remis à
+l’état initial). Pas de test sur appareil.
+
+## 2026-10-20 — Réinitialisation et jeu de données de test avec vrais documents
+
+Détail : `DATABASE_SEEDING_GUIDE.md` (procédure), `DATABASE_SEEDING_REPORT.md`
+(résultats).
+
+- Procédure complète `seedgen run` (+ `--dry-run`) : environnement →
+  migrations en attente → sauvegarde (`pg_dump` + copie des fichiers) →
+  suppression de tous les lancements du générateur → génération → documents →
+  contrôles → rapport. Nouvelles commandes : `backup`, `reset [--dry-run]`,
+  `files-check`.
+- Exécution réelle : 171 646 lignes et 4 381 fichiers supprimés (sauvegarde
+  10,9 Mo dans `scripts/.seedgen/backups/`), 0 ligne du générateur restante ;
+  1 049 utilisateurs générés, 60 copropriétés, 89 tables alimentées sur 127
+  (raisons des 38 autres dans le rapport) ; 292 s.
+- Documents réels produits à partir des données (pdfmake, comme les documents
+  officiels de l'API ; Amiri pour les noms arabes) : règlements, budgets,
+  convocations, procès-verbaux, avis d'appel de fonds par lot, reçus, ordres
+  de virement, factures et devis, contrats, rapports d'intervention ; photos
+  PNG des travaux, sinistres, réclamations et annonces. 12 359 fichiers
+  (10 782 PDF, 1 577 PNG) reliés à leurs objets métier, « DOCUMENT FICTIF —
+  TEST » sur chaque PDF.
+- Contrôles : `verify` 302 / 303 (seul échec : budgets de démonstration,
+  inchangés) ; `files-check` OK (0 absent, 0 taille différente, toutes les
+  références résolues) ; relecture indépendante pypdf (mode strict) et Pillow
+  de tous les fichiers : 0 invalide ; `seedgen:api` 37 / 37 (téléchargements
+  identiques au fichier, refus pour un autre lot / une autre personne / une
+  autre copropriété, recherche, filtres, page 2, max 108 ms) ;
+  `finance-integrity` 35/35, `scenario-e2e` 48/48,
+  `document-library-resident` 27/27, `official-documents` 13/13.
+- Données hors générateur : comptées table par table avant / après ; seules
+  ont changé les tables des résidus prouvés (et +1 connexion / +1 message
+  d'un utilisateur de l'application pendant l'exécution).
+
+Corrections faites en route :
+- L'ancienne image 1×1 du générateur était un PNG corrompu (illisible par
+  Pillow) : 576 images concernées, remplacées par de vraies images.
+- Nettoyage : les références sans clé étrangère (commandes, préférences de
+  notification, journal d'audit…) pouvaient être évaluées après la
+  suppression de leur parent → résidus. Ensemble figé avant la première
+  suppression ; résidus des anciens lancements supprimés uniquement sur
+  preuve (identifiant produit par une graine connue, ou texte propre au
+  générateur) : 6 711 lignes ; les lignes orphelines d'origine non prouvée
+  (journal d'audit, journaux d'e-mails, propriétés, comptes de trésorerie,
+  organisations créés par les suites de tests) sont conservées et listées.
+- Identifiants : deux graines pouvaient produire les mêmes UUID (flux 32 bits
+  partagé) → UUID = SHA-256(graine, compteur).
+- Résolutions d'AG : majorités `absolue` / `double` inconnues de l'API et
+  votes sans rapport avec les tantièmes → votes calculés sur les tantièmes
+  réels, résultat selon la règle de l'API.
+- PDF : rendu arabe contrôlé visuellement (lettres liées, ordre des mots,
+  texte mixte français / arabe).
+
+## 2026-10-21 — Audit technique complet
+
+Rapport : `AUDIT_2026-10-21.md` ; paiements : `PAYMENT_PROVIDERS.md`.
+État initial sauvegardé dans `../zip-repl-snapshots/` (code et base).
+
+- Sécurité / isolation : scan IDOR dynamique ajouté (`idor:test`, 113 / 113
+  refus) ; fuite des coordonnées des vendeurs et des données de modération
+  de la marketplace corrigée.
+- Interfaces : écritures du `DataContext` attendues avant tout message de
+  succès ; double création de copropriété supprimée ; nomination à un mandat
+  vacant, accusé « lu et compris » (migration 0013) et numérotation serveur
+  des bons de livraison ajoutés ; droits des écrans alignés sur l'API.
+- Finance : sommes en centimes (24 calculs), date locale Africa/Casablanca
+  (20 endroits API, 16 mobile), année des séquences au fuseau local.
+- Paiements : Stripe Checkout fiabilisé (idempotence, concurrence, échec,
+  expiration) et enfin appelé par l'application ; PayPal et passerelle
+  marocaine désactivés faute d'intégration ; comparaison CMI / acquéreurs /
+  Stripe documentée (Stripe indisponible pour une entité marocaine).
+- Textes juridiques : allégations de conformité non vérifiées retirées
+  (SOC 2, AES-256, 2FA, horodatage qualifié, suppression de compte…).
+- Tests : 18 suites exécutées, toutes réussies sauf une vérification
+  `election-audit` qui signale une fonction absente (voir rapport).
+
+## 2026-10-21 — Identité « Riad au crépuscule » et refonte transversale
+
+Détail et justifications : `DESIGN_SYSTEM.md`.
+
+- **Marque :** MIZAN conservé après évaluation de 5 autres noms (Jiran et Sakina sont pris, Wasti, Riadly et Darna écartés). Nouveau symbole : une arche de riad et un fléau en laiton, généré depuis une source unique (`assets/brand/_build.mjs`). Icône iOS, icône adaptative Android, splash, icône de notification et favicon branchés dans `app.json` ; ils ne prennent effet qu'après une compilation native.
+- **Tokens :**
+  - **Palette :** Majorelle, Nuit, Tadelakt, Laiton, Zellige, Safran, Grenade et Cèdre.
+  - **Titres :** Fraunces, et Noto Kufi Arabic en arabe.
+  - **Mouvement :** tokens `constants/motion.ts`, et `hooks/useMotion` qui gère la réduction des animations et les appareils de moins de 3 Go de RAM.
+- **Remplacements en masse :**
+  - 1 849 couleurs de l'ancienne palette remappées dans 87 fichiers ;
+  - 90 grands titres passés en Fraunces ;
+  - 139 textes colorés passés sur `tint`, lisible en sombre.
+- **Signature :** `components/signature/ResidenceScene` est une résidence isométrique en SVG et Reanimated, construite depuis `/buildings` et `/lots/my-lot`. L'étage du résident s'allume ; le syndic voit ses immeubles, ses lots et ses chantiers en cours. Elle est placée dans l'en-tête de l'accueil.
+- **Écrans refaits :** l'accueil public (`welcome`) et la connexion (formulaire visible sans défilement). La barre d'onglets a une pastille animée, et l'onglet « Accueil » remplace « Tableau de bord », qui était tronqué.
+- **25 écrans secondaires** sont passés de leur en-tête clair maison à `ScreenHeader`, avec retour avec repli et flèche RTL. Dans `documents`, les outils d'administration ont été déplacés sous l'en-tête.
+
+Corrections trouvées pendant la refonte :
+- **Traductions :**
+  - 20 clés affichaient littéralement « fr », « en », « ar », « es ». L'une d'elles, le public par défaut d'une annonce, était envoyée au serveur ; la base ne contient aucune annonce touchée.
+  - 66 clés utilisées n'étaient définies nulle part et s'affichaient brutes, notamment dans le répertoire juridique, les élections et les procurations.
+- **Écrans qui plantaient :**
+  - `equipe-syndic` attendait une liste alors que `/team` renvoie `{ syndicate, admins, committee }` ;
+  - `invoices` plantait sur un statut inconnu : 176 factures `pending` des données générées, un statut que l'API ne connaît pas. L'écran gère maintenant tous les statuts de l'API, avec un repli neutre ;
+  - `utilisateurs` ne connaissait pas les rôles président, trésorier, secrétaire et membre du conseil.
+- **Faux contenus retirés :**
+  - un témoignage client inventé et nominatif (`get-started`) ;
+  - la case « Se souvenir de moi », jamais transmise à la connexion ;
+  - les badges « Données chiffrées » et apparentés de la connexion, non vérifiés.
+- **Requêtes et logique :**
+  - `/subscriptions`, réservé au super-administrateur, était appelé au démarrage pour tous les rôles : un 403 à chaque ouverture ;
+  - le mode sombre de `alerts` était détecté par comparaison de couleur ; il passe désormais par le thème.
+- **Contraste et mise en page :**
+  - le bouton destructif en sombre n'atteignait que 3,65:1, corrigé ;
+  - les boutons des cartes d'appel de fonds se chevauchaient, corrigé.
+
+Vérifications :
+- `tsc` mobile et scripts OK.
+- `expo export` Android et iOS OK (9,7 Mo de bytecode Hermes par plateforme).
+- Nouveau test `design-tokens:test` : 44/44.
+- Captures de 106 routes (syndic, en clair) et de 16 routes (copropriétaire, en sombre), plus l'arabe en RTL, sur la version web, contre l'API locale et des comptes générés.
+- Fluidité mesurée sur la version web uniquement (voir `DESIGN_SYSTEM.md`, § 5).
+
+Non fait :
+- tests sur appareil ;
+- vidéo ;
+- `assets/brand/_render.mjs` n'a pas été exécuté depuis le dépôt (les PNG ont été produits par le même code dans un répertoire temporaire) ;
+- le script `test:login-transport` pointe vers un fichier absent (défaut antérieur).
+
+## 2026-10-21 (suite) — Parcours d'entrée et garde-fous des jeux de test
+
+- **Composant :** nouveau `components/brand/AuthHero`, une bande « Nuit » commune aux écrans d'entrée (retour, marque, icône de l'étape, titre en Fraunces ou en coufique). Il est appliqué à :
+  - `forgot-password` et `reset-password`, où le formulaire chevauche la bande ;
+  - `sms-verify` et `email-verify` ;
+  - `register`.
+- **Corrections sur ces écrans :**
+  - le bouton « Réinitialiser » était vert ; il passe en Majorelle, la seule couleur d'action ;
+  - `sms-verify` gardait des accents de l'ancien violet et une couleur codée en dur.
+- **`get-started` réécrit :**
+  - il était entièrement en français codé en dur ; il est maintenant traduit en FR, EN, AR et ES ;
+  - le doublon « Créer une organisation », qui menait vers la même page, est retiré ;
+  - « Conditions d'utilisation » et « Politique de confidentialité » deviennent de vrais liens (texte non cliquable auparavant) ;
+  - les contacts ventes et démo pointaient vers `sales@mizan.ma` et `demo@mizan.ma` (domaine sans DNS public). Ils ne s'affichent plus que si `EXPO_PUBLIC_CONTACT_EMAIL` est configurée ;
+  - l'essai de 30 jours affiché est vérifié dans `assignTrial` (API).
+- **`intro` réécrit :**
+  - il était en français codé en dur ; son contenu est maintenant dans les 4 langues ;
+  - les mini tableaux de bord factices, remplis du mot « Aperçu » sans donnée, sont remplacés par les trois fonctions réelles de chaque module ;
+  - il reçoit la bande « Nuit » de l'accueil public.
+- **`IconButton`** accepte un `testID`, ce qui préserve `intro-theme-toggle`.
+- **Sécurité des jeux de test :** `election-audit-seed.ts` et `seed.ts` créent des comptes au mot de passe `password123`, et le premier supprime le lancement précédent. Les deux appellent désormais `assertDevDatabase()` (`seedgen/guard.ts`) avant toute écriture : hôte local obligatoire, aucune base marquée « prod », pas de `NODE_ENV=production`.
+  - Vérifié : la base locale est acceptée, un hôte distant est refusé.
+  - Les deux scripts n'ont pas été relancés.
+
+Vérifications :
+- `tsc` mobile et scripts OK ;
+- `expo export` Android et iOS OK ;
+- `design-tokens:test` 44/44 ;
+- captures web en FR, EN et AR, en clair et en sombre, des écrans modifiés.
+
+## 2026-10-21 (suite) — Analyse complète, puis étapes 1 à 5 validées
+
+L'analyse a été présentée puis validée (« d'accord, commence étape par étape »). Pour les questions restées sans réponse, l'option la plus prudente a été retenue ; elle est indiquée à chaque fois.
+
+### Étape 1 — Juridique : documents et textes du produit syndical
+- **Certificat d'adhésion et badge retirés :**
+  - **Certificat** (`/pdf/membership`) : il affirmait que le copropriétaire était « membre en règle du syndicat… conformément au Dahir 1-57-119 relatif aux syndicats professionnels », c'est-à-dire la loi sur les syndicats de salariés et non la loi 18-00.
+  - **Badge à QR** (`/pdf/badge`, `/badge/me`) : son QR pointait vers une page qui n'existe pas.
+  - **Vérification publique** (`/verify/badge/:id`) : accessible sans authentification, elle révélait le nom, le rôle et la résidence de n'importe quel compte.
+
+  Ces routes répondent maintenant 410 `DOCUMENT_RETIRED`, et le code devenu inutile est supprimé.
+- **Profil :** « Demander une attestation » ouvre le circuit officiel existant (résidence, propriété, situation des paiements). Le serveur calcule l'attestation, le syndic la signe, et elle se vérifie via `/documents/verify/:token`. L'attestation d'adhésion est retirée du catalogue de demande, mais le modèle reste pour les documents déjà émis. Le compteur « Cotisations » devient « Appels réglés », alimenté par des données réelles.
+- **CGU :**
+  - **Réécriture :** les sections 1 à 3 (syndicats professionnels, Dahir 1-57-119, Code du travail) s'appuient désormais sur la loi 18-00 modifiée par la loi 106-12, et les finalités prévues par la loi 09-08 sont corrigées. Le texte reste une version de travail, à faire valider par un juriste.
+  - **Acceptation enregistrée :** l'écran affichait « Acceptation enregistrée » sans rien conserver. Elle est maintenant stockée (migration 0014 `terms_acceptances`, avec version, date, adresse IP et navigateur ; routes `GET/POST /me/terms-acceptances`).
+- **Création d'un syndicat :** seules les formes juridiques marocaines sont proposées (loi 18-00, coopérative au sens de la loi 112-12, association au sens du dahir de 1958) ; l'ASL et l'ASA, qui relèvent du droit français, sont retirées. Les références au Dahir de 1957 et les exemples syndicaux disparaissent.
+- **Données personnelles :** l'acceptation des CGU, l'export de ses données et le changement d'e-mail restent possibles quel que soit le statut de la copropriété, car ce sont des droits personnels au titre de la loi 09-08.
+
+### Étape 2 — « Compléter mon profil »
+- **Avant :** l'écran demandait l'employeur, le secteur et l'ancienneté, n'enregistrait rien et annonçait « Profil complété ».
+- **Maintenant :** trois étapes, chacune enregistrée sur le serveur (`PUT /profile`, puis `/me/terms-acceptances`). Le parcours a été vérifié de bout en bout dans le navigateur et en base, puis les données de test restaurées.
+- **Navigation :** l'écran n'est relié à aucun menu. Il n'a pas été supprimé, en attente d'une décision.
+- **Libellés :** `TextField` affichait « * * » lorsque le libellé contenait déjà un astérisque ; c'est corrigé.
+
+### Étape 3 — Adresses e-mail non distribuables
+- **Constat :**
+  - aucune adresse n'est mal formée ;
+  - les 1 049 comptes générés utilisent `*.seedgen.mizan.test`, un domaine réservé qui ne reçoit jamais de courrier ;
+  - `andalous.ma` est un vrai domaine, et deux e-mails de test y ont réellement été envoyés.
+- **Migration 0015 :** ajout de la colonne `users.email_status` (`unverified`, `verified`, `undeliverable`). Les domaines réservés sont marqués non distribuables, sans suppression et sans effet sur la connexion. 41 comptes de démonstration sur des domaines réels ou enregistrables ont aussi été marqués à la main ; c'est réversible. La table `users` a été sauvegardée avant l'opération.
+- **Envoi :** aucun envoi n'est tenté vers une adresse non distribuable ; il est journalisé « skipped ». Aucun code n'est envoyé à un domaine réservé : la réponse est une erreur 400 `EMAIL_UNDELIVERABLE`.
+- **Changement d'adresse :** l'utilisateur confirme sa nouvelle adresse par un code envoyé à celle-ci (`/me/email-change/request` puis `/me/email-change/confirm`). Dans la même transaction, les fiches de copropriétaire, de locataire et du conseil suivent, puis la session est renouvelée.
+  - **Écran :** `email-change`.
+  - **Accueil :** une priorité invite l'utilisateur à confirmer son adresse.
+  - **Profil :** la ligne e-mail est cliquable.
+- **Cause corrigée :** chaque création de compte enregistre le bon statut d'e-mail, et la production refuse les domaines réservés. Le générateur marque ses comptes, et `seed.ts` n'utilise plus que des domaines en `.test`.
+
+### Étape 4 — Virement guidé
+- **Référence de paiement :** migration 0016, nouvelle colonne `appels_de_fonds.payment_reference`, unique, au format LOT-PÉRIODE-TYPE-CONTRÔLE (par exemple `A203-2026Q4-CC-07A9E5`).
+  - Elle est remplie pour les 23 285 appels existants et générée à la création de chaque nouvel appel, avec la même formule en SQL et dans le code.
+  - La table a été sauvegardée avant la migration.
+- **Côté copropriétaire :** la fenêtre de paiement affiche le RIB du syndicat, le motif à indiquer et le montant restant, avec un bouton de partage.
+- **Côté trésorier :** au rapprochement, le paiement dont la référence figure dans le motif du relevé arrive en tête, même si le montant ou la date diffèrent.
+- **Libellé :** « Justificatif de paiement (optionnel) * » est corrigé, car le justificatif est obligatoire.
+
+### Étape 5 — Finances de la copropriété en lecture seule
+- **Nouvelle route `GET /transparency/finances`,** ouverte aux copropriétaires actifs et à l'équipe, mais pas aux locataires. Elle renvoie :
+  - les budgets votés ;
+  - le solde des comptes, sans RIB ;
+  - le recouvrement global ;
+  - les 40 dernières dépenses ;
+  - les salaires, en total uniquement.
+
+  Aucune donnée de paiement nominative n'est exposée.
+- **Exécution budgétaire :** `GET /budgets/:id/execution` est lisible par un copropriétaire pour un budget voté ; un brouillon répond 404.
+- **Écrans :** nouvel écran « Finances de la copropriété ». L'écran des justificatifs (`/transparency`) est désormais visible des copropriétaires dans le menu.
+- **Choix par défaut :** le copropriétaire **voit** chaque dépense ; il ne **vote** pas chaque dépense. La question reste posée.
+
+### Bogue transverse — écrans bloqués en chargement
+`ContextScope` vidait le cache des requêtes après que les écrans remontés avaient lancé leurs propres requêtes. Un écran rechargé, ou affiché juste après un changement de copropriété, restait donc en chargement indéfiniment. Désormais, chaque contexte dispose de son propre cache de requêtes.
+
+### Tests
+- **Nouveaux :** `legal-step` 12/12, `email-step` 14/14, `payment-reference` 9/9, `finance-transparency` 9/9.
+- **Non-régression :**
+  - **Sécurité et accès :** IDOR 113/113 ; RBAC 35/35 ; sécurité des documents 29/29 ; auth 44/44.
+  - **Parcours :** parcours 135/135 ; scénario 48/48.
+  - **Données de base :** documents officiels 13/13 ; copropriétés 62/62 ; lots 65/65.
+  - **Finances :** allocation 59/59 ; appels de fonds 48/48 ; flux financiers 89/89 ; intégrité 35/35 ; réclamations 65/65.
+- **Échecs passagers :** ceux observés en cours de route venaient de la limite de connexions (429). Ils ont disparu après redémarrage de l'API.
+- **Test IDOR :** il prend désormais une annonce approuvée, au lieu d'un produit au hasard.
+
+### Non fait
+- Tests sur appareil.
+- Étape 6 : multilingue et RTL partout.
+- Étape 7 : règles légales (délai de convocation, procurations, conciliation, tantièmes réels en AG).
+- Étape 8 : marketplace.
+- `DataContext` déclenche 6 requêtes refusées (403) à chaque ouverture pour un copropriétaire.
+
+## 2026-10-22 — Étape 8 : marché de la résidence (scénario + design)
+
+### Scénario (API `routes/marketplace.ts`)
+- **Cloisonnement par résidence :**
+  - un copropriétaire ne voit que les annonces de sa copropriété (liste, à la une, favoris, panier, avis) ;
+  - l'annonce d'une autre résidence répond 404 en consultation, réservation, favori et signalement ;
+  - le super-admin garde la vue globale pour la modération.
+- **Vie privée :** l'étage du vendeur n'est jamais envoyé aux autres ; le nom de la personne qui a réservé n'est visible que du vendeur.
+- **« Voisin vérifié » :** affiché quand le vendeur a un compte actif rattaché à la copropriété. C'est un fait, pas une note : le « trustScore » calculé est supprimé de la réputation.
+- **Parcours :** réserver → l'acheteur garde accès à l'annonce (avant : 403) → le vendeur marque « remis » → l'acheteur, et lui seul, laisse un avis, une seule fois.
+- **Paiement :** aucun paiement ne passe par MIZAN, et l'écran le dit (« paiement à la remise, jamais à l'avance »).
+- **Favoris :** une annonce réservée reste dans « Enregistrés ».
+- **Images :** `Cross-Origin-Resource-Policy: cross-origin` sur `/storage/*-objects/*`, car Helmet bloquait les photos sur le web.
+
+### Design (mobile)
+- **Marché (`components/marketplace/ResidenceMarket.tsx`) :**
+  - en-tête nuit avec recherche ;
+  - segments « Entre voisins / Prestataires » ;
+  - bandeau de confiance ;
+  - catégories traduites, carrousel « À la une », grille de 2 à 4 colonnes ;
+  - filtre « Enregistrés » : le cœur ouvrait auparavant les favoris de navigation, qui n'affichaient aucun produit ;
+  - bouton « Vendre ».
+- **Prestataires :** ceux de la résidence (note, « sous contrat », appeler, écrire).
+- **Fiche produit :**
+  - galerie paginée et carte vendeur ;
+  - section « Comment se passe l'échange » ;
+  - barre d'actions selon le rôle (contacter, réserver, annuler, remis, libérer, évaluer) ;
+  - fenêtre d'avis.
+- **Ma boutique :** en-tête nuit, photo de chaque annonce, prix en Fraunces, flèche retour inversée en arabe.
+- **Carte produit :** un prix long n'est plus tronqué par « à débattre ».
+
+### Tests
+- **Nouveau :** `marketplace-scenario` 19/19.
+- **Non-régression :** IDOR 113/113 (le contrôle « catalogue partagé » accepte désormais le 404 d'une autre résidence) ; RBAC 35/35 ; parcours 135/135 ; scénario 48/48.
+- **Mobile :** `tsc` OK ; export Android/iOS OK.
+- **Captures (web) :** FR clair et AR sombre (marché, fiche, boutique, enregistrés).
+
+### Non fait
+- Tests sur appareil.
+- Le formulaire de création d'annonce garde son ancien style.
+- La modération par le syndic n'est pas faite : seul le super-admin modère.
+
+## 2026-10-23 — Base de test, catalogue du marché, défauts de logique
+
+### Environnement et sécurité
+- **Base :** PostgreSQL 18.6 local (`localhost`), base `syndycat_global_cps`, la seule base du serveur avec `postgres` ; 17 migrations appliquées.
+- **Ce n'est pas une base de test isolée.** Elle contient 1 049 comptes et 60 copropriétés générés (`s20261019`), plus 43 comptes et 4 copropriétés hors générateur (démonstration, audit, une adresse `@gmail.com`). Le nettoyage n'a donc **pas** été relancé.
+- **Jeu existant conservé et complété de façon additive**, après sauvegarde : `scripts/.seedgen/backups/2026-10-23T20-40-19-452Z/` (dump 12,9 Mo, 130 tables lisibles par `pg_restore --list`, 12 359 fichiers copiés).
+- **Nouvelles commandes `seedgen` :**
+  - `inspect` : lecture seule ;
+  - `marketplace` : ajout additif et idempotent.
+
+  Correspondance avec les opérations demandées : voir `DATABASE_SEEDING_GUIDE.md`.
+
+### Catalogue du marché
+- **Défaut de départ :** aucune résidence n'avait plus de 4 annonces visibles. La pagination et les filtres étaient donc impossibles à tester.
+- **Ajout** à « Résidence Bab Al Bahr Bir Rami 48 » :
+  - 200 annonces (150 visibles, 14 réservées, les autres vendues, en attente ou refusées) ;
+  - 475 images PNG valides, en 5 formats ;
+  - 30 favoris et 16 questions publiques.
+- **Idempotence :** un second lancement n'ajoute rien.
+
+### Défauts corrigés
+1. **Budgets — `POST /budgets` :**
+   - un budget créé sans total était enregistré avec un **total à 0 MAD** (cas du test `journeys`) ;
+   - un montant non numérique provoquait une erreur 500 ;
+   - les lignes pouvaient contredire les charges.
+
+   **Règle appliquée :** celle déjà utilisée par l'exécution budgétaire, les appels de fonds et la répartition, à savoir *lignes = charges, total = charges + fonds de réserve*. Le calcul se fait en centimes. Un montant absent est déduit ; des montants contradictoires sont refusés (`BUDGET_TOTALS_MISMATCH`). Même contrôle sur `PUT` d'un brouillon.
+2. **Budgets de démonstration :** dans `seed.ts`, le fonds de réserve était compté deux fois, en ligne « réserve » et en `fonds_reserve`. La source est corrigée ; les lignes déjà en base n'ont pas été modifiées (hors générateur). Elles restent la seule anomalie de `seedgen verify`, à 306/307.
+3. **Marché — API :**
+   - le filtre de catégorie ignorait les anciennes graphies (« mobilier », « literie », « loisirs »…) ;
+   - `%` et `_` saisis dans la recherche agissaient comme jokers ;
+   - l'ordre des pages n'était pas stable (pas de clé de départage) ;
+   - il manquait le tri par prix, les tranches de prix et l'option « inclure les réservés » ;
+   - la recherche porte maintenant aussi sur la marque.
+4. **Marché — mobile :**
+   - l'écran demandait 60 annonces, le serveur en renvoyait au plus 50, sans aucune page suivante. Il y a maintenant une vraie pagination serveur (24 par page) : chargement au défilement, bouton de secours, dédoublonnage, retour à la page 1 à chaque changement de filtre ;
+   - la recherche part 350 ms après la frappe, au lieu d'une requête par touche ;
+   - un échec de chargement de la page suivante remplaçait toutes les annonces déjà chargées par un écran d'erreur (comportement de TanStack v5). L'erreur est désormais affichée dans le pied de liste.
+
+### Multilingue / RTL
+- **Icônes directionnelles :** `components/ui/Feather.tsx` inverse les flèches et chevrons en arabe. 46 écrans l'utilisent. Les deux listes déroulantes de `syndicate-setup` qui pointaient à gauche en arabe sont corrigées.
+- **Écrans traduits :**
+  - répartition des charges, support plateforme, règlements ;
+  - assistant de documents (affichage), gouvernance, alertes réglementaires ;
+  - création de copropriété, écran d'erreur, bandeau d'abonnement, page introuvable ;
+  - visionneuse PDF, PV, abonnements.
+- **Dictionnaire arabe :** les 3 valeurs restées en espagnol sont corrigées.
+- **Textes juridiques :** ils restent en français. Un avertissement le dit dans les autres langues, sans traduction automatique d'un contrat. Les liens « Conditions » de l'inscription mènent désormais aux CGU à jour (`/cgu`, rendue publique).
+- **Gouvernance :** la liste « Statuts » affichait 5 documents inventés ; elle affiche maintenant les vrais documents « règlements » de la copropriété.
+
+### Non fait / à décider
+- **`documents.tsx` :** le chemin de génération par modèle est du code mort (`handleGenerate` n'est jamais appelé) ; non supprimé.
+- **Budgets de démonstration :** `budget_atlas_2026` et `budget_agdal_2026` restent incohérents en base.
+- **Tests :** aucun test sur appareil réel.
+
+### Tests du 2026-10-23 (API de test reconstruite, port 5055)
+- **Nouveaux :** `budget-totals` 12/12, `marketplace-catalogue` 20/20.
+- **Non-régression :**
+  - **Marché et sécurité :** scénario marché 19/19 ; IDOR 113/113 ; RBAC 35/35 ; documents-security 29/29 ; auth-security 44/44.
+  - **Parcours :** parcours 135/135 ; scénario 48/48.
+  - **Finances :** flux financiers 89/89 ; allocation 59/59 ; appels de fonds 48/48 ; intégrité 35/35 ; transparence 9/9 ; référence de paiement 9/9.
+  - **Étapes et données :** légal 12/12 ; e-mails 14/14 ; documents officiels 13/13 ; réclamations 65/65 ; lots 65/65 ; copropriétés 62/62.
+- **Échecs passagers :** lancées d'affilée dans un même processus, `auth-security`, `claims` et `condominiums` ont échoué sur des réponses 429 (limites de connexion en mémoire). Après redémarrage de l'API, elles passent : 44/44, 65/65, 62/62.
+- **`seedgen` :**
+  - `verify` 306/307 (seul échec : les 2 budgets de démonstration) ;
+  - `files-check` : 12 834 fichiers, 10 782 PDF et 2 052 PNG, tous valides, aucun absent.
+- **Mobile :** `tsc` OK ; export Android et iOS OK.
+- **Navigateur :** marché en FR clair et AR sombre, défilement jusqu'à la fin. Les pages 1 à 7 se chargent l'une après l'autre ; 150 annonces affichées et « toutes les annonces sont affichées » ; aucune erreur JS.
+- **Correction de carte :** le nom d'immeuble ne répète plus le nom de la résidence (il était tronqué en arabe).
+
+
+## 2026-10-24 — Base de test isolée, e-mails, budgets, dépenses, modération, 403, code mort
+
+### 1. Base de test isolée `syndycat_test`
+- **Outil :** `scripts/src/testdb.ts` (`info`, `create`, `migrate`, `reference`, `generate`, `exec`, `drop --yes`). La cible est imposée : `syndycat_test` en local ; seul le nom de base de `DATABASE_URL` change. Rien n'est copié depuis la base de travail : tout est généré.
+- **Volumes :**
+  - 1 071 comptes, dont 1 057 générés ;
+  - 61 copropriétés générées, plus 2 de démonstration ;
+  - 12 683 fichiers valides (10 714 PDF, 1 969 PNG), rangés dans `uploads-test` ;
+  - catalogue du marché et scénarios limites.
+- **Contrôles :** `seedgen verify` 307/307 ; `files-check` : 0 fichier absent ou invalide.
+- **Incident pendant la création :**
+  - la première génération écrivait dans le dossier de fichiers de la base de travail (même graine, donc mêmes noms) ; 740 fichiers référencés ont été écrasés ;
+  - restauration : 12 359 fichiers contrôlés octet par octet contre la sauvegarde ; 4 967 fichiers étrangers mis en quarantaine, pas supprimés ;
+  - garde-fou ajouté : un marqueur `.mizan-database` par dossier, et le générateur refuse d'écrire dans le dossier d'une autre base. Voir `SECURITY_LOG.md`.
+- **Défauts de `seed.ts` sur une base neuve :**
+  - appels payés avec un montant payé à 0, et un appel « en validation » sans paiement déclaré ;
+  - journaux d'e-mails « envoyés » vers des adresses `.test` ;
+  - propriétés de lots, références de paiement et dates d'émission corrigées absentes, car calculées par les migrations sur une base existante.
+
+  Tout est désormais rejoué de façon idempotente à la fin du seed.
+- **Scénarios ajoutés (`seedgen -- scenarios`) :** une résidence sans aucun document, et deux syndics sans résidence.
+- **Annonces générées :**
+  - l'espagnol est ajouté ;
+  - l'état fictif `tres_bon` est retiré ; 41 annonces générées corrigées dans chaque base.
+
+### 2. E-mails des comptes de test
+- **Configuration :** le domaine `TEST_EMAIL_ROOT` est centralisé dans `scripts/src/test-domain.ts` ; un domaine non réservé est refusé.
+- **Interrupteur `OUTBOUND_DELIVERY=off` :** il coupe les e-mails, les SMS et les notifications push, et s'applique aussi au renvoi.
+- **Journal des e-mails :** les messages qui contiennent un secret n'y sont plus conservés et ne peuvent plus être renvoyés.
+- **Rapport sur la base de test :** 1 071 comptes, dont 1 070 en domaine réservé, tous non délivrables ; 0 syntaxe invalide ; 0 doublon ; un seul compte non vérifié, `superadmin@mizan.ma`.
+- **Rapport sur la base de travail (lecture seule) :** 1 092 comptes ; 0 syntaxe invalide ; 0 doublon. À signaler, **non modifiés** :
+  - 3 comptes `@gmail.com` et `superadmin@mizan.ma` en domaine réel ;
+  - 5 journaux « envoyés » vers des adresses `.test`.
+
+### 3. Budgets
+- **Budgets de démonstration `budget_atlas_2026` et `budget_agdal_2026` :**
+  - provenance vérifiée, montants recalculés au centime ;
+  - retrait des lignes `bl_4` et `bl_7`, qui comptaient le fonds de réserve en double ; aucune référence ne pointait vers elles ;
+  - sauvegarde `scripts/.seedgen/backups/2026-10-24T00-33-00-219Z/`, avec une copie des deux lignes ;
+  - script `scripts/src/fixes/2026-10-24-demo-budget-reserve-lines.ts` : transactionnel, en simulation par défaut ;
+  - résultat : `seedgen verify` sur la base de travail passe à 307/307.
+- **Tests :** `budget-totals` 19/19, avec de nouveaux cas : valeur nulle, valeur négative, plus de 2 décimales, ligne négative, budget approuvé verrouillé.
+
+### 4. Dépenses et gouvernance
+- **Consultation par les copropriétaires :**
+  - `GET /transparency/expenses/:id` : libellé, montant, devise, catégorie, fournisseur, facture, immeuble, ligne de budget, étapes ;
+  - jamais d'informations bancaires, ni les noms des personnes qui ont traité la dépense ;
+  - `…/proof` ouvre la facture.
+- **Accès :** seules les dépenses approuvées ou payées de la copropriété du lecteur. Les autres répondent 404 ; un locataire reçoit 403.
+- **Mobile :** fiche dépense (`ExpenseDetailSheet`), ouverte depuis « Finances de la copropriété ».
+- **Vote existant sur les justificatifs :**
+  - c'est un **avis consultatif** (une voix par compte, sans tantièmes ni quorum), désormais présenté comme tel ; aucun vote formel ni quorum n'a été inventé ;
+  - corrigé : pas de doublon en cas de double clic, chaque avis et chaque changement tracés dans l'audit, clôture définitive (409), montant validé ;
+  - sens de « pour » aligné sur ce que l'application affichait : « dépense justifiée ».
+- **Tests :** `expense-governance` 22/22.
+
+### 5. Modération du marché par le syndic
+- **Qui modère :** le syndic, pour les annonces de sa résidence ; la plateforme garde toutes les résidences et la mise en avant.
+- **Transitions réelles :**
+  - approuver ou demander des modifications depuis « en attente » ;
+  - retirer une annonce publiée ;
+  - jamais toucher une annonce réservée ou vendue (409) ;
+  - motif obligatoire pour un refus ou une demande de modification.
+- **Historique :** chaque décision est tracée, lisible par le vendeur et le modérateur.
+- **API :** `GET /products/moderation-queue` (paginée, cloisonnée) et `GET /products/:id/moderation-history`.
+- **Mobile :** écran `moderation-annonces`, bannière « N annonces à valider » dans le marché, entrée dans le menu « Plus ».
+- **Tests :** `marketplace-moderation` 22/22.
+
+### 6. Requêtes refusées au démarrage
+- **Copropriétaire :** 6 refus passent à 0 (`/members`, `/finance/transactions`, `/finance/salaries`, `/finance/caisse`, `/invoices`, `/bons-livraison`). Le client ne les demande plus qu'aux rôles que le serveur autorise.
+- **Autres rôles :** `/payslips` (président, secrétaire, conseil, locataire) et `/meetings` (locataire) ne sont plus demandés. Désormais 0 refus pour chaque rôle de copropriété (mesure faite dans le navigateur).
+- **Super-administrateur :** `/publications` répondait 500 au lieu d'un refus ; corrigé (voir `SECURITY_LOG.md`).
+
+### 7. Statut des appels de fonds
+- **Contradiction :** `settlementStatus` (paiements) classait un appel échu et partiellement payé « partially_paid », mais la tâche horaire `markOverdueCalls` et `/budgets/…/refresh` le passaient « overdue ».
+- **Correction :** la tâche suit désormais la règle des paiements, et les relances couvrent aussi les appels partiellement payés et échus.
+- **Données :** 1 629 lignes normalisées dans la base de test. Dans la base de travail, **1 489 lignes sont concernées et n'ont pas été modifiées : validation nécessaire.** Le contrôle `seedgen verify` est renforcé et les signale.
+
+### 8. Langues
+- **Langues conservées :** français, arabe, espagnol (et anglais).
+- **`i18n` 9/9 :**
+  - 4 745 clés complètes ;
+  - arabe réellement en arabe ;
+  - espagnol jamais resté en français ;
+  - 4 413 usages de `t()` tous définis ;
+  - variables cohérentes ;
+  - icônes directionnelles inversées en arabe.
+- **Textes juridiques :** restés en français, avec un avertissement dans les autres langues.
+
+### 9. Coordonnées
+- **Centralisées :** `constants/contact.ts` (mobile, variables `EXPO_PUBLIC_*`) et `lib/contact.ts` (API, `SUPPORT_EMAIL`).
+- **Retirées du code :** `privacy@mizan.ma`, `support@mizan.ma` et la raison sociale « MIZAN Community OS SARL », jamais vérifiées.
+- **Sans configuration :** l'écran indique « à compléter » et ne crée aucun lien.
+
+### 10. Code mort
+- **Supprimé :** `simulateur.tsx`, `terms.tsx` (anciennes CGU), `sms-verify.tsx`, `marketplace-moderation.tsx`, `components/BadgeCard.tsx`, et le générateur mort de `documents.tsx`.
+- **Relié :** « Compléter mon profil » (`/onboarding`), depuis l'accueil et le profil.
+- **Conservés mais inaccessibles (décision produit nécessaire) :** `agenda`, `documents-dashboard`, `repertoire-juridique`, `workflow`. Le panier n'est atteignable que depuis l'écran de la plateforme.
+
+### 11. Limites de connexion pendant les tests
+- **Profil `RATE_LIMIT_PROFILE=test` :** pris en compte uniquement sur la base locale `syndycat_test` et hors production. La production garde ses seuils : 60 / 10 / 500.
+- **Tests :** `rate-limit-profile` 9/9, y compris les seuils annoncés par les deux API en marche.
+
+### Tests exécutés le 2026-10-24
+- **Base de test (API 5056, profil test) :**
+  - **Accès et sécurité :** authentification 44/44, droits d'accès 35/35, IDOR 108/108, sécurité des documents 29/29, e-mails des comptes 24/24.
+  - **Parcours :** parcours 135/135, scénario 48/48.
+  - **Données et documents :** lots 65/65, copropriétés 62/62, réclamations 65/65, documents officiels 13/13, étape légale 12/12, étape e-mails 14/14.
+  - **Finances :** allocation 59/59, appels de fonds 48/48, flux financiers 89/89, intégrité 35/35, transparence 9/9, référence de paiement 9/9, budgets 19/19, gouvernance des dépenses 22/22.
+  - **Marché :** scénario 19/19, catalogue 20/20, modération 22/22.
+  - **Transversal :** i18n 9/9, aucune erreur 500 (1 143/1 143 lectures), profil de limites 9/9.
+- **Premier passage sur la base de test :** quatre suites (droits d'accès, lots, référence de paiement, scénario du marché) ont échoué à cause des données de cette base neuve :
+  - copropriété suspendue ou abonnement expiré ;
+  - ancienne adresse `.ma` ;
+  - données dérivées absentes de `seed.ts`.
+
+  Après correction des fixtures et du seed, elles passent à 35/35, 65/65, 9/9 et 19/19 sur les **deux** bases.
+- **Base de travail (API 5055) :**
+  - droits d'accès, lots, référence de paiement et scénario du marché : tous verts ;
+  - `seedgen verify` 306/307 : le seul échec est la règle renforcée sur les 1 489 appels, qui attend votre décision ;
+  - `files-check` : 12 834 fichiers intacts.
+- **Mobile :** `tsc` OK ; export Android et iOS OK ; captures web (français clair, arabe sombre) de l'écran de modération et de la bannière du syndic.
+- **Non vérifié :** appareils réels, fournisseurs externes (SMTP, SMS, push, paiement), stockage distant.
+
+### Validations attendues
+1. Repasser en « partially_paid » les 1 489 appels de la base de travail.
+2. Effacer les 14 secrets anciens du journal des e-mails de la base de travail.
+3. Décider du sort des 3 comptes `@gmail.com` et de `superadmin@mizan.ma`.
+4. Corriger les 5 journaux « envoyés » fictifs de la base de travail.
+5. Raccorder ou supprimer les écrans inaccessibles et le panier.
+6. Fournir les coordonnées officielles (`EXPO_PUBLIC_*`, `SUPPORT_EMAIL`).
+
+### Prochaine tâche
+Appliquer les validations ci-dessus, puis tester sur un appareil réel.
+
+
+## 2026-10-25 — Audit final des six points restants
+
+### Inspection
+- **Bases :**
+  - `syndycat_global_cps` : base de travail, jamais nettoyée ni régénérée ;
+  - `syndycat_test` : base isolée ;
+  - `syndycat_restore_check` : base jetable, créée puis supprimée pour éprouver la sauvegarde.
+- **Garde-fous vérifiés :**
+  - marqueurs `.mizan-database` sur `uploads/` et `uploads-test/` ;
+  - les deux API de test démarrent avec `OUTBOUND_DELIVERY=off` ;
+  - seule l'API 5056 (base de test) a le profil de limites de test.
+- **Journaux :** `PROJECT_BUGS_LOG.md` et `PROJECT_TEST_LOG.md` n'existent pas. Le suivi reste dans ce fichier, `SECURITY_LOG.md` et `LOCAL_RUN_COMMANDS.md`.
+
+### Point 1 — Appels « en retard » partiellement payés : analysés, en attente de validation
+- **Audit en lecture seule** (`scripts/src/audits/overdue-partial-audit.ts`, transaction `READ ONLY`) : **1 489 cas confirmés**.
+- **Origine :** tous issus du générateur de données de test.
+- **Contrôles, vrais pour chacun :**
+  - montant payé = somme des paiements **validés** ;
+  - écritures comptables conformes et non contrepassées ;
+  - aucun ajustement contradictoire ;
+  - échéance passée ;
+  - aucun paiement en attente.
+- **Paiements refusés :** 91 appels en ont aussi, sans effet sur le calcul.
+- **Statut cible :** `partially_paid`, selon la règle de `settlementStatus`.
+- **Plan :** `scripts/.seedgen/plans/2026-10-25-overdue-partial.json` (identifiants, avant/après, montants en centimes, empreinte `5834f59c…`, aucune donnée personnelle).
+
+### Point 2 — 14 secrets anciens du journal des e-mails : analysés, en attente de validation
+- **Contenu :** 3 codes de vérification (2 vers une adresse `@gmail.com`, réellement envoyés le 2026-09-02), 10 invitations d'équipe (mot de passe temporaire) et 1 e-mail de bienvenue, adressés à `example.invalid`.
+- **Validité, vérifiée sans afficher aucun secret :**
+  - codes expirés ou consommés : aucune ligne restante dans `otp_tokens` ;
+  - comptes des invitations et du bienvenue supprimés : mot de passe temporaire inutilisable ;
+  - **aucune révocation nécessaire.**
+- **Copies :**
+  - aucune dans `audit_logs`, qui ne garde que l'objet des e-mails ;
+  - présentes dans les sauvegardes locales `scripts/.seedgen/backups/*/syndycat_global_cps.dump`, hors Git.
+- **Prévention :** déjà en place (corps non conservé pour ces modèles) et testée (`email-accounts`, `email-delivery-status`).
+
+### Point 3 — Quatre comptes sensibles : analysés, aucune modification
+- **`superadmin@mizan.ma` :** compte de démonstration du `seed.ts`, réellement utilisé pour l'administration en développement (24 jetons de session). À conserver.
+- **`user_tenant_1` et `user_tenant_2` (`@gmail.com`) :** démonstration confirmée ; ces adresses figuraient dans `seed.ts` (Git HEAD), qui utilise aujourd'hui `sara.bouzid@demo.test` et `omar.zaki@demo.test`. Comptes marqués non délivrables.
+- **`9598787d-…` (`@gmail.com`, syndic) :** inscription par l'application le 2026-09-02, absent de tous les scripts. **Origine inconnue : aucune modification.**
+
+### Point 4 — Journaux d'envoi : corrigé dans le code, données en attente de validation
+- **Correction de mon rapport du 24 :** les 5 lignes « envoyées » vers `@example.invalid` (modèle `syndicate_created`, 26 septembre) ont été **réellement acceptées par le serveur SMTP** (1,2 s d'échange) : le statut est exact.
+- **Les vrais journaux fictifs :** `email_1` à `email_7`, écrits par l'ancien seed :
+  - `sent_at` strictement égal à `created_at` ;
+  - domaines réels (`residence-atlas.ma`, `gmail.com`, `andalous.ma`) ;
+  - `email_6` en « échec » et `email_7` en « en attente » permanent.
+- **Code :**
+  - migration additive 0017 `email_logs.provider_message_id` ;
+  - la réponse du fournisseur (« 250 … queued as … ») y est enregistrée comme preuve d'acceptation ;
+  - sens de chaque statut documenté dans `emailService.ts` ;
+  - test `email-delivery-status` 7/7 avec un faux serveur SMTP local (simulation, adresse réservée, mise en attente, acceptation, refus, secret non conservé).
+- **Migration 0017 :** appliquée à la base de test, puis à la base de travail après sauvegarde. Additive : 59 journaux avant comme après, aucune ligne modifiée.
+
+### Point 5 — Écrans inaccessibles
+- **Agenda : raccordé.**
+  - les échéances viennent désormais des vrais appels de fonds du copropriétaire, avec le reste dû, et non plus des « cotisations » de l'ancien module syndical ;
+  - bouton « Voir mes charges » ;
+  - titre « Agenda de la copropriété » ;
+  - entrée dans le menu « Plus » pour tous les rôles de copropriétaire.
+- **Tableau de bord des documents : raccordé** (« Suivi des documents », syndic).
+  - compteurs calculés par le serveur (`/documents/summary?source=generated|upload`, sans plafond de 200 lignes) ;
+  - fichiers de la bibliothèque comptés à part, avec un lien ;
+  - le filtre de statut des tuiles est réellement appliqué dans « Documents » (il était ignoré).
+- **Workflows : faille de cloisonnement corrigée.**
+  - la table n'a pas de colonne de copropriété, mais ses lignes décrivent les affaires d'une copropriété, et tout utilisateur connecté pouvait les lire ;
+  - lecture réservée à la plateforme ;
+  - écran conservé hors navigation, décision attendue.
+- **Répertoire juridique :** contient du **droit du travail et syndical** (licenciement, représentants syndicaux…), hors sujet pour la copropriété. Rien n'a été modifié ; décision attendue.
+- **Panier :** module hérité, sans paiement, redondant avec la réservation entre voisins. Données : 2 lignes de panier, 30 commandes, 19 avis rattachés aux commandes (à conserver). Suppression préparée, non effectuée.
+- **Tests :** `screens-access` 14/14. Captures de l'agenda (arabe sombre, français clair) et du tableau de bord (français), sans erreur JavaScript.
+
+### Point 6 — Coordonnées : laissées incomplètes, vérifiées
+- Aucune valeur inventée ne subsiste.
+- Un exemple de numéro réaliste a été remplacé par `+212 6XX XX XX XX`.
+- L'identifiant d'événement de l'agenda passe sur un domaine réservé (`@mizan.invalid`).
+- **Test :** `contacts-config` 6/6.
+
+### Sauvegarde et retour arrière éprouvés
+- **Sauvegarde :** `scripts/.seedgen/backups/2026-10-24T10-20-05-545Z/` (12,9 Mo, 130 tables).
+- **Restauration :** dans `syndycat_restore_check` (`scripts/src/restore-check.ts`) ; contenu identique table par table, sauf 8 jetons de session créés depuis.
+- **Corrections éprouvées sur cette copie :**
+  - les trois opérations (`scripts/src/fixes/2026-10-25-pending-decisions.ts`) ont été exécutées réellement : 1 489, 14 et 7 lignes, exactement le plan ;
+  - intégrité ensuite à 307/307 ;
+  - retours arrière : 1 489 et 7 lignes restaurées ;
+  - l'expurgation refuse tout retour arrière depuis son fichier, qui ne contient aucun secret ; seule la sauvegarde permet de la défaire.
+- **Base copie :** supprimée.
+- **Base de travail :** simulations seulement, état vérifié inchangé.
+
+### Dépendances
+Une installation automatique de `pnpm` a mis à jour `pnpm-lock.yaml` (notamment `expo` 54.0.37 → 54.0.38). Compilation et export Android/iOS vérifiés avec cette version.
+
+### Tests du 2026-10-25 (base de test, API 5056)
+- **Accès et sécurité :** auth 44/44 · RBAC 35/35 · IDOR 108/108 · sécurité des documents 29/29 · e-mails des comptes 24/24 · statuts d'envoi 7/7.
+- **Parcours :** parcours 135/135 · scénario 48/48 · écrans 14/14.
+- **Données de base :** lots 65/65 · copropriétés 62/62 · réclamations 65/65 · documents officiels 13/13 · étape légale 12/12 · étape e-mails 14/14.
+- **Finances :** allocation 59/59 · appels de fonds 48/48 · flux financiers 89/89 · intégrité 35/35 · transparence 9/9 · référence de paiement 9/9 · budgets 19/19 · gouvernance des dépenses 22/22.
+- **Marché :** scénario 19/19 · catalogue 20/20 · modération 22/22.
+- **Transversal :** i18n 9/9 · coordonnées 6/6 · aucune erreur 500 (1 143/1 143) · profil de limites 9/9 · `seedgen verify` 307/307.
+- **Base de travail (lecture seule) :** `verify` 306/307 (les 1 489 appels en attente de décision) ; `files-check` : 12 834 fichiers intacts.
+- **Mobile :** `tsc` OK ; export Android et iOS OK.
+- **Non vérifié :** appareils réels, fournisseurs externes réels, stockage distant.
+
+### Décisions attendues
+Voir le rapport du 2026-10-25.
+
+### Prochaine tâche
+Exécuter les opérations autorisées sur la base de travail, puis lancer `verify` et `files-check`.
+
+## 2026-10-25 — Audit des pages : profil, coordonnées bancaires, abonnements, navigation, langue, mode sombre
+
+Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envois externes coupés). La base de travail n'a reçu aucune écriture.
+
+### Profil (`PUT /profile`, `app/profile.tsx`)
+- **Serveur :**
+  - nom nettoyé (espaces) et contrôlé : 2 à 100 caractères, aucun caractère de contrôle ;
+  - téléphone validé et normalisé en E.164 (`06…` ou `07…` devient `+212…`) ; un champ vide l'efface ;
+  - erreur précise renvoyée (`PHONE_INVALID`, champ fautif) ;
+  - le rôle, la copropriété, le statut et l'e-mail ne sont jamais modifiables par cette route.
+- **App :**
+  - le formulaire est relu depuis le profil serveur à l'ouverture ;
+  - il reste ouvert jusqu'à la confirmation du serveur ; double envoi bloqué ;
+  - erreurs affichées sous le champ concerné ; confirmation demandée avant d'abandonner des modifications ;
+  - profession modifiable ;
+  - téléphone qui s'affichait en double supprimé ; les lignes « Téléphone » et « Profession » ouvrent le formulaire, plus l'onboarding.
+- **Test `profile-update` :** 15/15.
+- **Navigateur (arabe, mode sombre) :**
+  - un numéro invalide est arrêté avant l'envoi ;
+  - un numéro valide est enregistré en base (`+212611223344`) puis réaffiché ; la valeur d'origine a été restaurée.
+
+### Coordonnées bancaires
+- **Deux sources pour une même copropriété :**
+  - les champs libres `syndicates.bank_*`, imprimés sur les PDF ;
+  - les comptes de trésorerie (`treasury_accounts`), au RIB contrôlé, affichés pour le virement guidé.
+- **Saisie (`lib/bank-details.ts`) :**
+  - RIB marocain : 24 chiffres et clé modulo 97 ;
+  - IBAN : modulo 97 ; un IBAN `MA` doit contenir un RIB valide ;
+  - BIC : 8 ou 11 caractères.
+  - Validation appliquée à `PUT /team/syndicate` (désormais typé et borné), `PUT /syndicates/:id` et `POST /syndicates`.
+- **Audit :** chaque changement crée une entrée `BANK_DETAILS_UPDATED` (auteur, date, champs), RIB masqué aux 4 derniers chiffres.
+- **PDF :**
+  - ils impriment le compte bancaire de trésorerie par défaut, le même que l'app ; les champs de la copropriété ne servent qu'à défaut ;
+  - le libellé indique « RIB » ou « IBAN » selon le cas.
+- **Trésorerie (app) :** actions « Compte par défaut » et « Clôturer », avec confirmation. L'API les prévoyait, mais sans elles un changement de RIB restait invisible pour les copropriétaires.
+- **Test `bank-details` :** 22/22. Il couvre la validation, la normalisation, l'audit masqué, les refus (copropriétaire, trésorier, autre copropriété, sans session) et l'absence de RIB complet dans les listes de trésorerie.
+
+### Abonnements
+- **Factures :** `GET /subscriptions/invoices` était lisible par tout résident ; il est désormais réservé au syndic, comme les paiements.
+- **App :** l'écran `abonnements` est protégé par un `RoleGuard` (syndic, super-admin).
+- **Test `subscriptions-access` :** 31/31.
+  - Lecture du statut par tous ; paiements et factures réservés au syndic.
+  - Écritures : refusées au résident et au trésorier ; opérations de plateforme refusées au syndic.
+  - Isolation entre copropriétés ; supervision explicite pour le super-admin.
+  - Abonnement expiré : écritures refusées (402), lectures et régularisation possibles.
+  - Aucune écriture pendant le test.
+
+### Navigation
+- **Test `routes-resolve` :** 371/371 destinations mènent à un écran.
+- **Liens morts supprimés :**
+  - barre latérale : `/negociations`, `/ressources-humaines` ;
+  - recherche : `/formations`, `/sondages`, `/annuaire`.
+  Ces écrans n'ont jamais existé dans ce dépôt.
+- **Recherche :** les entrées viennent du menu partagé (`constants/menu.ts`), traduites et filtrées par rôle, au lieu de 32 entrées figées en français.
+
+### Langue avant connexion
+- Sélecteur `LanguageSwitcher` sur l'accueil, la connexion et tous les écrans `AuthHero` ; il passe par le `setLang` existant (enregistré, redémarrage pour l'arabe).
+- **Web :** `lang`, `dir` et le titre de page suivent la langue.
+- Message de redémarrage dans la langue choisie ; slogan du logo traduit.
+- Numéros (loi `18-00`, dates, références) isolés en arabe : ils ne s'inversent plus.
+- **Navigateur :** accueil → langue → connexion → tableau de bord vérifié en anglais et en arabe (droite à gauche).
+
+### Mode sombre
+- **Thème de navigation :** il suit le thème de l'app ; avant, un fond `#F2F2F2` apparaissait sous chaque écran en mode sombre.
+- **Fonds et textes fixes remplacés par les jetons :** organigramme, escalades, documents, fiches de paie, transparence, réunions, partenaires, statistiques, réclamations, utilisateurs, alertes.
+- **Contraste :** texte rendu lisible sur l'éditeur, le studio et la demande de modèles.
+- **Scan automatique :** 69 écrans en mode sombre, aucune erreur de page ; les signalements restants sont voulus.
+
+### Autres corrections
+- **Finance :** les montants de la carte de trésorerie passent à la ligne au lieu d'être tronqués.
+- **Expo Go en mode tunnel :** l'hôte du tunnel n'est plus pris pour l'adresse de l'API, avec un avertissement explicatif. Le test `test:login-transport` passe à 7/7 ; son fichier manquait.
+- **Tests préexistants corrigés :**
+  - `audit-fixes` : voisin de la même résidence ;
+  - `documents-library` : port de l'instance « stockage en panne » ;
+  - `rate-limit-profile` : API de la base de travail ;
+  - fixtures `election-audit` passées sur des domaines `.test`.
+
+### Non fait / à décider
+- Tests sur appareil réel.
+- Éditeur, studio et demande de modèles : fond sombre fixe, ils ne suivent pas le thème clair.
+- Textes juridiques : en français seulement ; une traduction validée par un juriste est nécessaire.
+- Organisation suspendue : `/subscriptions` reste bloqué en 423, donc le syndic ne peut pas renouveler depuis l'app.
+- Élection de remplacement automatique en cas de démission : règle métier absente.
+- `syndicates.bank_*` et le compte de trésorerie par défaut restent deux champs distincts : faut-il les fusionner ?
+
+## 2026-10-31 — Notifications multilingues avec lien, marché toutes résidences
+
+### Notifications
+- **Migration `0018_alert_i18n_links` (additive) :**
+  - `alerts.key`, `alerts.params`, `alerts.link` ;
+  - `users.language`, avec un contrôle `fr | ar | en | es`.
+  - Appliquée à la base de travail et à `syndycat_test` ; aucune ligne existante modifiée.
+- **Modèles (`lib/notification-texts.ts`) :**
+  - 38 modèles en fr, en, ar et es : appels de fonds, paiements, dépenses, tickets, documents, élections, mandats, membres, parking, sinistres, travaux, contrats, recouvrement, abonnement ;
+  - chacun avec sa page de destination et les rôles autorisés à l'ouvrir ;
+  - en arabe, les valeurs (montants, périodes) sont isolées.
+- **Création :** les 36 points de création utilisent les modèles. La copie française reste stockée pour les anciens clients. Seule l'expiration de document garde un texte libre, avec un lien vers Documents.
+- **`GET /alerts` :**
+  - rendu dans la langue demandée (`?lang`, sinon `Accept-Language`) ;
+  - lien fourni seulement si le rôle peut ouvrir l'écran ;
+  - les anciennes notifications restent inchangées.
+- **Push :** chaque destinataire reçoit le texte dans sa langue (`users.language`, enregistrée par l'app), avec un lien adapté à son rôle.
+- **App :**
+  - le clic sur une notification la marque comme lue et ouvre l'écran concerné (centre de notifications, alertes, push) ;
+  - les notifications sont rechargées quand la langue change ;
+  - `tresorerie?tab=expenses` ouvre l'onglet des dépenses.
+- **Sécurité :** l'alerte d'expiration de contrat était créée sans copropriété. Son push partait vers les gestionnaires de toutes les copropriétés (titre du contrat, nom du prestataire). Elle est maintenant rattachée à la copropriété de l'immeuble du contrat.
+- **Test `notifications-i18n` :** 16/16 (vrai ticket, 4 langues, `Accept-Language`, liens par rôle, anciennes alertes, langue du push).
+- **Navigateur :** un ticket est créé, la notification s'affiche en anglais, le clic ouvre `/support`.
+
+### Marché : toutes les résidences
+- **API :**
+  - `?scope=all` (option `city` / `region`) liste les copropriétés ouvertes ; par défaut, toujours « ma résidence » ;
+  - `GET /products/zones` donne les villes et le nombre d'annonces ;
+  - fiche, réservation, favoris, signalement et panier sont ouverts aux annonces des copropriétés ouvertes ; une copropriété fermée ou suspendue reste en 404.
+- **Masquage pour une autre résidence :**
+  - immeuble, bloc et étage cachés ;
+  - emplacement remplacé par la ville ;
+  - prénom et initiale seulement ;
+  - pas de téléphone ni d'e-mail (questions sur l'annonce).
+- **Fichiers :** les photos et la vidéo d'une annonce publique d'une copropriété ouverte sont lisibles par tout utilisateur connecté ; les autres fichiers restent limités à leur copropriété.
+- **App :**
+  - sélecteur « Ma résidence / Toutes les résidences » ;
+  - villes avec compteurs, titre et recherche adaptés au mode ;
+  - pastille de ville sur les cartes ;
+  - note dans la fiche ;
+  - tri, prix et disponibilité regroupés derrière « Filtres », avec compteur et bouton « Effacer ».
+- **Tests :**
+  - `marketplace-scenario` 24/24 ;
+  - `audit-fixes` 21/21, `idor` 108/108 et `documents-security` 29/29, mis à jour pour la nouvelle règle.
+
+### Vérifications
+- Régression sur `syndycat_test` : 39/40 suites vertes ; `election-audit` 29/30 (règle métier non décidée).
+- Mobile : `tsc` 0 erreur, export Android/iOS OK. Captures du marché (FR clair, AR sombre).
+
+### Non fait / à décider
+- Réservation entre résidences : autorisée comme dans sa propre résidence (remise en main propre). À confirmer.
+- Chat direct entre résidences : non ouvert ; les questions passent par l'annonce.
+- Tests sur appareil réel, dont les notifications push.

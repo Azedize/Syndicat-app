@@ -24,3 +24,8 @@ dist/
 *.zip
 *.tsbuildinfo
 uploads/
+# Files of the isolated test database (syndycat_test)
+uploads-test/
+
+# Test data generator state (run manifests, database backups)
+scripts/.seedgen/

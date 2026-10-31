@@ -208,8 +208,11 @@ async function main() {
     step("a resident's list is limited to their own lots", ids(await api(khadija, "/lots")).every((id: string) => id !== p1.json?.id));
 
     // ═══ 9. Import ═══════════════════════════════════════════════════════
+    // The owner is identified by the e-mail on file (the demo domain changed
+    // from .ma to .test on 2026-10-22; read it rather than hard-code it).
+    const [khadijaMember] = (await pool.unsafe(`SELECT email FROM members WHERE id = 'member_2'`)) as unknown as { email: string }[];
     const rows = [
-      { number: "UT-I1", type: "appartement", floor: 1, tantiemes: 50, ownerEmail: "khadija.tahiri@residence-atlas.ma" },
+      { number: "UT-I1", type: "appartement", floor: 1, tantiemes: 50, ownerEmail: khadijaMember.email },
       { number: "UT-P1", type: "parking", tantiemes: 1 },
       { number: "UT-I1", type: "appartement", floor: 1, tantiemes: 50 },
       { number: "UT-I2", type: "appartement", floor: 1, tantiemes: 50, ownerEmail: "inconnu@example.invalid" },

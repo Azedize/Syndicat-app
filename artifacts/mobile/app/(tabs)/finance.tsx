@@ -1,270 +1,215 @@
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Platform,
-} from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BalanceLine, Button, Card, ListItem, PageHeader, SectionHeader, Skeleton, type StatusTone } from "@/components/ui";
+import { SPACING } from "@/constants/spacing";
+import { TYPE } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { crossPlatformShadow } from "@/lib/shadow";
+import { useFormat } from "@/hooks/useFormat";
+import { apiRequest } from "@/lib/api";
+
+type Money = { currency: string; amount: string };
+type TreasurySummary = {
+  accountsConfigured: boolean;
+  pendingPayments: { count: number; total: string };
+  expenses: { toApprove: number; toPay: number; toPayTotal: string };
+  statementLinesToReview: number;
+  overview: {
+    period: { from: string; to: string };
+    currency: string;
+    cashBalance: Money[];
+    receivables: { amount: string; currency: string; calls: number };
+    overdueReceivables: { amount: string; currency: string };
+    collectionRate: number | null;
+  };
+};
+
+// Roles allowed by the API on /treasury/summary (finance tab roles minus super admin).
+const SUMMARY_ROLES = new Set(["syndicate_admin", "treasurer", "president"]);
 
 export default function FinanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const router = useRouter();
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
+  const { money, date } = useFormat();
 
-  // FIX [M1]: treasurer must see the management view — they are the primary
-  // finance operator. Previously only super_admin and syndicate_admin triggered
-  // the admin layout, leaving treasurer on the member view.
-  // President has full financial visibility (co-signs budgets and appel-de-fonds).
-  // Treasurer is the primary finance manager.
+  // Treasurer: primary finance operator; president: full financial visibility.
   const isAdmin =
     user?.role === "super_admin" ||
     user?.role === "syndicate_admin" ||
     user?.role === "treasurer" ||
     user?.role === "president";
+  const canSeeSummary = !!user?.syndicateId && SUMMARY_ROLES.has(user?.role ?? "");
 
-  const MENU_ITEMS_ADMIN = [
-    {
-      label: t("financeBoardTitle"),
-      sub: t("chargesAppelsSub"),
-      icon: "bar-chart-2" as const,
-      route: "/tableau-bord-financier",
-      color: "#3B82F6",
-      bg: "#EFF6FF",
-    },
-    {
-      label: t("chargesAppels"),
-      sub: t("chargesAppelsSub"),
-      icon: "credit-card" as const,
-      route: "/charges",
-      color: "#10B981",
-      bg: "#ECFDF5",
-    },
-    {
-      label: t("budgetPrevisionnel"),
-      sub: t("budgetPrevSub"),
-      icon: "pie-chart" as const,
-      route: "/budget-previsionnel",
-      color: "#8B5CF6",
-      bg: "#F5F3FF",
-    },
-    {
-      label: t("travauxChantiersLabel"),
-      sub: t("travauxChantiersSub"),
-      icon: "tool" as const,
-      route: "/travaux",
-      color: "#F97316",
-      bg: "#FFF7ED",
-    },
-    {
-      label: t("prestatairesContrats"),
-      sub: t("prestatairesContratsSub"),
-      icon: "briefcase" as const,
-      route: "/prestataires",
-      color: "#1F5EFF",
-      bg: "#EEF2FF",
-    },
-    {
-      label: t("documentsFinanciers"),
-      sub: t("documentsFinanciersSub"),
-      icon: "folder" as const,
-      route: "/documents",
-      color: "#0891B2",
-      bg: "#ECFEFF",
-    },
+  // Same figures as the treasury and the reports (server definitions).
+  const summary = useQuery({
+    queryKey: ["treasury-summary"],
+    enabled: canSeeSummary,
+    staleTime: 30_000,
+    queryFn: async () => (await apiRequest<{ data: TreasurySummary }>("/treasury/summary")).data,
+  });
+
+  const ADMIN_ITEMS: { label: string; sub: string; icon: keyof typeof Feather.glyphMap; route: string; tone: StatusTone }[] = [
+    { label: t("financeBoardTitle"), sub: t("financeBoardSub"), icon: "bar-chart-2", route: "/tableau-bord-financier", tone: "primary" },
+    { label: t("chargesAppels"), sub: t("chargesAppelsSub"), icon: "credit-card", route: "/charges", tone: "success" },
+    { label: t("budgetPrevisionnel"), sub: t("budgetPrevSub"), icon: "pie-chart", route: "/budget-previsionnel", tone: "info" },
+    { label: t("travauxChantiersLabel"), sub: t("travauxChantiersSub"), icon: "tool", route: "/travaux", tone: "warning" },
+    { label: t("prestatairesContrats"), sub: t("prestatairesContratsSub"), icon: "briefcase", route: "/prestataires", tone: "primary" },
+    { label: t("documentsFinanciers"), sub: t("documentsFinanciersSub"), icon: "folder", route: "/documents", tone: "neutral" },
   ];
-
-  const MENU_ITEMS_MEMBER = [
-    {
-      label: t("mesChargesLabel"),
-      sub: t("mesChargesSub"),
-      icon: "credit-card" as const,
-      route: "/charges",
-      color: "#10B981",
-      bg: "#ECFDF5",
-    },
-    {
-      label: t("monAppartement"),
-      sub: t("monAppartementSub"),
-      icon: "home" as const,
-      route: "/mon-lot",
-      color: "#2563EB",
-      bg: "#EFF6FF",
-    },
-    {
-      label: t("documents"),
-      sub: t("documentsMemberSub"),
-      icon: "folder" as const,
-      route: "/documents",
-      color: "#0891B2",
-      bg: "#ECFEFF",
-    },
-    {
-      label: t("travauxEnCours"),
-      sub: t("travauxEnCoursSub"),
-      icon: "tool" as const,
-      route: "/travaux",
-      color: "#F97316",
-      bg: "#FFF7ED",
-    },
+  const MEMBER_ITEMS: typeof ADMIN_ITEMS = [
+    { label: t("mesChargesLabel"), sub: t("mesChargesSub"), icon: "credit-card", route: "/charges", tone: "success" },
+    { label: t("monAppartement"), sub: t("monAppartementSub"), icon: "home", route: "/mon-lot", tone: "primary" },
+    { label: t("documents"), sub: t("documentsMemberSub"), icon: "folder", route: "/documents", tone: "neutral" },
+    { label: t("travauxEnCours"), sub: t("travauxEnCoursSub"), icon: "tool", route: "/travaux", tone: "warning" },
   ];
+  const items = isAdmin ? ADMIN_ITEMS : MEMBER_ITEMS;
 
-  const items = isAdmin ? MENU_ITEMS_ADMIN : MENU_ITEMS_MEMBER;
+  const s = summary.data;
+  const ov = s?.overview;
+  const cash = ov?.cashBalance.find((m) => m.currency === ov.currency) ?? ov?.cashBalance[0];
+  const n = (key: string, v: number) => t(key).replace("{n}", String(v));
+  const todo = s
+    ? [
+        s.pendingPayments.count > 0 && { key: "pay", icon: "check-square" as const, tone: "info" as StatusTone, title: n("uiPaymentsToValidate", s.pendingPayments.count), subtitle: money(s.pendingPayments.total), route: "/charges" },
+        s.expenses.toApprove > 0 && { key: "exp", icon: "file-text" as const, tone: "warning" as StatusTone, title: n("uiExpensesToApprove", s.expenses.toApprove), route: "/tresorerie" },
+        s.expenses.toPay > 0 && { key: "topay", icon: "send" as const, tone: "warning" as StatusTone, title: n("uiExpensesToPay", s.expenses.toPay), subtitle: money(s.expenses.toPayTotal), route: "/tresorerie" },
+        s.statementLinesToReview > 0 && { key: "lines", icon: "git-pull-request" as const, tone: "neutral" as StatusTone, title: n("uiLinesToReview", s.statementLinesToReview), route: "/tresorerie" },
+      ].filter(Boolean) as { key: string; icon: keyof typeof Feather.glyphMap; tone: StatusTone; title: string; subtitle?: string; route: string }[]
+    : [];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("finance")}</Text>
-          <Text style={[styles.headerSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
-            {isAdmin ? t("financeAdminSub") : t("financeMemberSub")}
-          </Text>
-        </View>
-        <View style={[styles.headerIcon, { backgroundColor: colors.primary + "18" }]}>
-          <Feather name="dollar-sign" size={24} color={colors.primary} />
-        </View>
-      </View>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <PageHeader title={t("finance")} subtitle={isAdmin ? t("financeAdminSub") : t("financeMemberSub")} />
 
       <ScrollView
-        style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-        bounces
+        contentContainerStyle={[styles.scroll, { paddingBottom: isWide ? 32 : insets.bottom + 104 }]}
+        refreshControl={
+          canSeeSummary ? (
+            <RefreshControl refreshing={summary.isRefetching} onRefresh={() => { void summary.refetch(); }} tintColor={colors.primary} colors={[colors.primary]} />
+          ) : undefined
+        }
       >
-        {/* Admin highlight card */}
-        {isAdmin && (
-          <TouchableOpacity
-            style={[styles.highlightCard, { backgroundColor: colors.primary, flexDirection: isRTL ? "row-reverse" : "row" }]}
-            onPress={() => router.push("/tableau-bord-financier" as any)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.highlightLeft}>
-              <Ionicons name="bar-chart" size={28} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.highlightTitle, { textAlign: isRTL ? "right" : "left" }]}>{t("financeBoardTitle")}</Text>
-              <Text style={[styles.highlightSub, { textAlign: isRTL ? "right" : "left" }]}>
-                {t("financeBoardSub")}
-              </Text>
-            </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-        )}
+        {canSeeSummary ? (
+          <View style={styles.section}>
+            {summary.isLoading ? (
+              <Card padding="lg" elevation="raised" style={{ gap: 12 }}>
+                <Skeleton width="40%" height={12} />
+                <Skeleton width="65%" height={32} />
+                <Skeleton height={8} />
+                <View style={styles.row}>
+                  <Skeleton height={40} style={{ flex: 1 }} />
+                  <Skeleton height={40} style={{ flex: 1 }} />
+                </View>
+              </Card>
+            ) : summary.isError || !s || !ov ? (
+              <Card padding="md" style={[styles.errorCard, { backgroundColor: colors.dangerSoft, borderColor: colors.danger + "40" }]}>
+                <Feather name="wifi-off" size={18} color={colors.danger} />
+                <Text style={[TYPE.bodyStrong, { color: colors.dangerText, flex: 1 }]}>{t("uiLoadError")}</Text>
+                <Button label={t("uiRetry")} size="sm" variant="secondary" onPress={() => summary.refetch()} />
+              </Card>
+            ) : (
+              <Card padding="lg" elevation="raised" onPress={() => router.push("/tresorerie" as any)} accessibilityLabel={`${t("uiCashBalance")}: ${cash ? money(cash.amount, { currency: cash.currency }) : "—"}`}>
+                <Text style={[TYPE.overline, { color: colors.textMuted }]}>{t("uiCashBalance").toLocaleUpperCase()}</Text>
+                <Text style={[TYPE.display, { color: colors.foreground, fontVariant: ["tabular-nums"], marginTop: 4 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                  {cash ? money(cash.amount, { currency: cash.currency }) : "—"}
+                </Text>
+                <Text style={[TYPE.caption, { color: colors.textMuted }]}>
+                  {t("uiPeriodRange").replace("{from}", date(ov.period.from)).replace("{to}", date(ov.period.to))}
+                </Text>
+                {!s.accountsConfigured ? (
+                  <View style={[styles.note, { backgroundColor: colors.warningSoft }]}>
+                    <Feather name="alert-triangle" size={14} color={colors.warning} />
+                    <Text style={[TYPE.caption, { color: colors.warningText, flex: 1 }]}>{t("uiNoAccounts")}</Text>
+                  </View>
+                ) : null}
+                <BalanceLine style={{ marginVertical: SPACING.MD }} />
+                <View style={styles.row}>
+                  <Figure label={t("uiReceivables")} value={money(ov.receivables.amount, { currency: ov.receivables.currency })} sub={n("uiCalls", ov.receivables.calls)} />
+                  <Figure
+                    label={t("uiOverdueShare")}
+                    value={money(ov.overdueReceivables.amount, { currency: ov.overdueReceivables.currency })}
+                    tone={Number(ov.overdueReceivables.amount) > 0 ? "danger" : undefined}
+                  />
+                  {ov.collectionRate != null ? <Figure label={t("collectionRate")} value={`${ov.collectionRate} %`} /> : null}
+                </View>
+                <Text style={[TYPE.caption, { color: colors.textMuted, marginTop: SPACING.MD }]}>{t("uiNotDuePending")}</Text>
+              </Card>
+            )}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{t("financeModules")}</Text>
+            {todo.length > 0 ? (
+              <>
+                <SectionHeader title={t("uiToProcess")} />
+                <Card padding="none">
+                  {todo.map((x, i) => (
+                    <ListItem key={x.key} icon={x.icon} iconTone={x.tone} title={x.title} subtitle={x.subtitle} onPress={() => router.push(x.route as any)} chevron divider={i < todo.length - 1} />
+                  ))}
+                </Card>
+              </>
+            ) : null}
+          </View>
+        ) : null}
 
-        {items.map((item) => (
-          <TouchableOpacity
-            key={item.route}
-            style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}
-            onPress={() => router.push(item.route as any)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
-              <Feather name={item.icon} size={20} color={item.color} />
-            </View>
-            <View style={styles.menuText}>
-              <Text style={[styles.menuLabel, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{item.label}</Text>
-              <Text style={[styles.menuSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{item.sub}</Text>
-            </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        ))}
+        <View style={styles.section}>
+          <SectionHeader title={t("financeModules")} />
+          <Card padding="none">
+            {items.map((item, i) => (
+              <ListItem
+                key={item.route}
+                icon={item.icon}
+                iconTone={item.tone}
+                title={item.label}
+                subtitle={item.sub}
+                onPress={() => router.push(item.route as any)}
+                chevron
+                divider={i < items.length - 1}
+              />
+            ))}
+          </Card>
+        </View>
       </ScrollView>
+    </View>
+  );
+}
+
+/** One figure of the summary card: label, amount (tabular), optional note. */
+function Figure({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: StatusTone }) {
+  const colors = useColors();
+  return (
+    <View style={styles.figure} accessible accessibilityLabel={`${label}: ${value}${sub ? `, ${sub}` : ""}`}>
+      <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text style={[TYPE.amount, { color: tone === "danger" ? colors.dangerText : colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {value}
+      </Text>
+      {sub ? (
+        <Text style={[TYPE.caption, { color: colors.textMuted }]} numberOfLines={1}>
+          {sub}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
-  header: {
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerTitle: { fontSize: 22, fontFamily: "Inter_800ExtraBold" },
-  headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  scrollFlex: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 16 },
-
-  highlightCard: {
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
-    ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.15, radius: 10, elevation: 4 }),
-  },
-  highlightLeft: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  highlightTitle: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  highlightSub: {
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 3,
-  },
-
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginTop: 4,
-  },
-
-  menuItem: {
-    alignItems: "center",
-    gap: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
-  },
-  menuIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  menuText: { flex: 1 },
-  menuLabel: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  menuSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  scroll: { paddingHorizontal: 16, paddingTop: 4, gap: SPACING.XL },
+  section: { gap: SPACING.MD },
+  // Amounts are never cut: on a narrow phone the figures wrap to a second row
+  // (font shrinking is not available on the web and partial on Android).
+  row: { flexDirection: "row", flexWrap: "wrap", rowGap: SPACING.MD, columnGap: SPACING.MD },
+  figure: { flexGrow: 1, flexBasis: 140, minWidth: 0, gap: 2 },
+  note: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, marginTop: SPACING.SM },
+  errorCard: { flexDirection: "row", alignItems: "center", gap: 10 },
 });

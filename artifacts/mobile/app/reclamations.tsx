@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -18,6 +18,7 @@ import {
   useWindowDimensions,
   type GestureResponderEvent,
 } from "react-native";
+import type { ViewInstance, ScrollViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -28,6 +29,10 @@ import { claims, ticketedUrl, type ClaimCard, type ClaimDetail, type ClaimStatus
 import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
+import EmptyState from "@/components/EmptyState";
+import { SearchField, Skeleton, StatusBadge, type StatusTone } from "@/components/ui";
+import { localeOf } from "@/hooks/useFormat";
+import { RADIUS } from "@/constants/spacing";
 
 /**
  * Claims & incidents. Residents report a problem and follow it; the team
@@ -95,20 +100,34 @@ const S = {
   due: { fr: "Échéance", en: "Due", ar: "الأجل", es: "Vence" },
   scheduled: { fr: "Intervention prévue", en: "Scheduled", ar: "تدخل مبرمج", es: "Programada" },
   dragHint: { fr: "Appui long sur une carte, puis glissez-la vers une colonne.", en: "Long-press a card, then drag it to a column.", ar: "اضغط مطولا على بطاقة ثم اسحبها.", es: "Mantenga pulsada una tarjeta y arrástrela." },
+  file: { fr: "Fichier", en: "File", ar: "ملف", es: "Archivo" },
+  internalShort: { fr: "interne", en: "internal", ar: "داخلي", es: "interno" },
+  emptyHint: { fr: "Signalez un problème des parties communes ou de votre lot : vous suivrez ici chaque étape.", en: "Report a problem in the common areas or your unit: you will follow every step here.", ar: "أبلغ عن مشكل في الأجزاء المشتركة أو في وحدتك: ستتابع هنا كل مرحلة.", es: "Informe de un problema en zonas comunes o en su unidad: seguirá aquí cada etapa." },
   invalidMove: { fr: "Ce passage n'est pas possible pour cette réclamation.", en: "This move is not allowed for this claim.", ar: "هذا الانتقال غير ممكن.", es: "Movimiento no permitido." },
 } as const;
 type T = (k: keyof typeof S) => string;
 
 const STATUS: Record<ClaimStatus, L4 & { color: string }> = {
-  received: { fr: "Reçue", en: "Received", ar: "مستلمة", es: "Recibida", color: "#64748b" },
-  qualified: { fr: "Qualifiée", en: "Qualified", ar: "مؤهلة", es: "Calificada", color: "#6366f1" },
-  assigned: { fr: "Assignée", en: "Assigned", ar: "مكلف بها", es: "Asignada", color: "#0ea5e9" },
-  in_progress: { fr: "En cours", en: "In progress", ar: "قيد المعالجة", es: "En curso", color: "#f59e0b" },
-  awaiting_info: { fr: "En attente d'info", en: "Awaiting info", ar: "في انتظار معلومات", es: "Esperando info", color: "#a855f7" },
-  resolved: { fr: "Résolue", en: "Resolved", ar: "محلولة", es: "Resuelta", color: "#10b981" },
-  closed: { fr: "Clôturée", en: "Closed", ar: "مغلقة", es: "Cerrada", color: "#334155" },
-  rejected: { fr: "Non retenue", en: "Rejected", ar: "مرفوضة", es: "Rechazada", color: "#ef4444" },
+  received: { fr: "Reçue", en: "Received", ar: "مستلمة", es: "Recibida", color: "#6A6680" },
+  qualified: { fr: "Qualifiée", en: "Qualified", ar: "مؤهلة", es: "Calificada", color: "#5A4AD6" },
+  assigned: { fr: "Assignée", en: "Assigned", ar: "مكلف بها", es: "Asignada", color: "#1F8A9A" },
+  in_progress: { fr: "En cours", en: "In progress", ar: "قيد المعالجة", es: "En curso", color: "#C98511" },
+  awaiting_info: { fr: "En attente d'info", en: "Awaiting info", ar: "في انتظار معلومات", es: "Esperando info", color: "#1F8A9A" },
+  resolved: { fr: "Résolue", en: "Resolved", ar: "محلولة", es: "Resuelta", color: "#13976C" },
+  closed: { fr: "Clôturée", en: "Closed", ar: "مغلقة", es: "Cerrada", color: "#6A6680" },
+  rejected: { fr: "Non retenue", en: "Rejected", ar: "مرفوضة", es: "Rechazada", color: "#C8323C" },
 };
+const STATUS_TONE: Record<ClaimStatus, StatusTone> = {
+  received: "neutral",
+  qualified: "primary",
+  assigned: "info",
+  in_progress: "warning",
+  awaiting_info: "primary",
+  resolved: "success",
+  closed: "neutral",
+  rejected: "danger",
+};
+const PRIORITY_TONE: Record<string, StatusTone> = { urgent: "danger", high: "warning", normal: "neutral", low: "neutral" };
 const CATEGORY: Record<string, L4> = {
   fuite_eau: { fr: "Fuite d'eau", en: "Water leak", ar: "تسرب مياه", es: "Fuga de agua" },
   ascenseur: { fr: "Ascenseur", en: "Lift", ar: "المصعد", es: "Ascensor" },
@@ -122,10 +141,10 @@ const CATEGORY: Record<string, L4> = {
   autre: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
 };
 const PRIORITY: Record<string, L4 & { color: string }> = {
-  urgent: { fr: "Urgente", en: "Urgent", ar: "عاجلة", es: "Urgente", color: "#ef4444" },
-  high: { fr: "Haute", en: "High", ar: "مرتفعة", es: "Alta", color: "#f97316" },
-  normal: { fr: "Normale", en: "Normal", ar: "عادية", es: "Normal", color: "#64748b" },
-  low: { fr: "Basse", en: "Low", ar: "منخفضة", es: "Baja", color: "#94a3b8" },
+  urgent: { fr: "Urgente", en: "Urgent", ar: "عاجلة", es: "Urgente", color: "#C8323C" },
+  high: { fr: "Haute", en: "High", ar: "مرتفعة", es: "Alta", color: "#C8642A" },
+  normal: { fr: "Normale", en: "Normal", ar: "عادية", es: "Normal", color: "#6A6680" },
+  low: { fr: "Basse", en: "Low", ar: "منخفضة", es: "Baja", color: "#A6A1BE" },
 };
 const EVENT: Record<string, L4> = {
   created: { fr: "Réclamation déposée", en: "Submitted", ar: "تم الإيداع", es: "Enviada" },
@@ -147,7 +166,7 @@ const EVENT: Record<string, L4> = {
 const TEAM = ["syndicate_admin", "president", "secretary", "treasurer", "committee_member"];
 const MANAGERS = ["syndicate_admin", "president", "secretary"];
 const NEEDS_TEXT: Partial<Record<ClaimStatus, keyof typeof S>> = { awaiting_info: "question", resolved: "resolution", rejected: "reason" };
-const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+const fmtDate = (s: string | null | undefined, lang: string) => (s ? new Date(s).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 
 /** Turns a server error into the right reaction on the screen. */
 function explain(e: any, tr: T): string {
@@ -165,12 +184,8 @@ async function openFile(objectPath: string, tr: T) {
   }
 }
 
-function Badge({ label, color }: { label: string; color: string }) {
-  return (
-    <View style={[styles.badge, { backgroundColor: color + "1a" }]}>
-      <Text style={{ color, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{label}</Text>
-    </View>
-  );
+function Badge({ label, tone }: { label: string; tone: StatusTone }) {
+  return <StatusBadge label={label} tone={tone} icon={null} />;
 }
 
 function Card({ c, lang, tr, onPress, onMove, onLongPress, busy, faded }: { c: ClaimCard; lang: Lang; tr: T; onPress: () => void; onMove?: () => void; onLongPress?: (e: GestureResponderEvent) => void; busy?: boolean; faded?: boolean }) {
@@ -181,25 +196,25 @@ function Card({ c, lang, tr, onPress, onMove, onLongPress, busy, faded }: { c: C
       onLongPress={onLongPress}
       delayLongPress={300}
       disabled={busy}
-      style={[styles.card, { backgroundColor: colors.card, borderColor: c.overdue ? "#ef4444" : colors.border, opacity: busy ? 0.55 : faded ? 0.3 : 1 }]}
+      style={[styles.card, { backgroundColor: colors.card, borderColor: c.overdue ? colors.danger : colors.border, opacity: busy ? 0.55 : faded ? 0.3 : 1 }]}
       accessibilityRole="button"
     >
       <View style={styles.row}>
         <Text style={[styles.ref, { color: colors.mutedForeground }]}>{c.reference}</Text>
-        <Badge label={PRIORITY[c.priority]?.[lang] ?? c.priority} color={PRIORITY[c.priority]?.color ?? "#64748b"} />
-        {c.overdue ? <Badge label={tr("overdue")} color="#ef4444" /> : null}
+        <Badge label={PRIORITY[c.priority]?.[lang] ?? c.priority} tone={PRIORITY_TONE[c.priority] ?? "neutral"} />
+        {c.overdue ? <Badge label={tr("overdue")} tone="danger" /> : null}
       </View>
       <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={2}>{c.title}</Text>
       <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>
         {CATEGORY[c.category]?.[lang] ?? c.category} · {c.location}{c.lotNumber ? ` · ${c.lotNumber}` : ""}
       </Text>
       <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-        {fmtDate(c.createdAt)}{c.assigneeName || c.providerName ? ` · ${c.assigneeName ?? c.providerName}` : ""}
+        {fmtDate(c.createdAt, lang)}{c.assigneeName || c.providerName ? ` · ${c.assigneeName ?? c.providerName}` : ""}
       </Text>
       {onMove && c.allowedTransitions.length > 0 && (
         <TouchableOpacity onPress={onMove} disabled={busy} style={styles.moveBtn} accessibilityRole="button">
           {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="corner-down-right" size={14} color={colors.primary} />}
-          <Text style={{ color: colors.primary, fontSize: 12 }}>{busy ? tr("moving") : tr("move")}</Text>
+          <Text style={{ color: colors.tint, fontSize: 12 }}>{busy ? tr("moving") : tr("move")}</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -276,13 +291,13 @@ function NewClaimSheet({ visible, onClose, onCreated, tr, lang }: { visible: boo
       <TextInput value={f.description} onChangeText={(v) => setF((p) => ({ ...p, description: v }))} style={[...input, { minHeight: 90 }]} multiline maxLength={5000} />
       <FieldLabel label={`${tr("photos")} (${photos.length}/6)`} />
       <View style={styles.row}>
-        <ActionButton label={tr("takePhoto")} icon="camera" color="#64748b" onPress={() => addPhoto(true)} disabled={photos.length >= 6} />
-        <ActionButton label={tr("pickPhoto")} icon="image" color="#64748b" onPress={() => addPhoto(false)} disabled={photos.length >= 6} />
+        <ActionButton label={tr("takePhoto")} icon="camera" color="#6A6680" onPress={() => addPhoto(true)} disabled={photos.length >= 6} />
+        <ActionButton label={tr("pickPhoto")} icon="image" color="#6A6680" onPress={() => addPhoto(false)} disabled={photos.length >= 6} />
       </View>
       {photos.map((p) => (
         <Text key={p.objectPath} style={[styles.meta, { color: colors.foreground }]}>📎 {p.fileName}</Text>
       ))}
-      {err ? <Text style={{ color: "#ef4444" }}>{err}</Text> : null}
+      {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
       <ActionButton label={tr("send")} icon="send" busy={busy} onPress={submit} />
     </FormSheet>
   );
@@ -353,18 +368,18 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
       ) : (
         <>
           <View style={styles.row}>
-            <Badge label={STATUS[c.status][lang]} color={STATUS[c.status].color} />
-            <Badge label={PRIORITY[c.priority]?.[lang] ?? c.priority} color={PRIORITY[c.priority]?.color ?? "#64748b"} />
-            {c.overdue ? <Badge label={tr("overdue")} color="#ef4444" /> : null}
+            <Badge label={STATUS[c.status][lang]} tone={STATUS_TONE[c.status]} />
+            <Badge label={PRIORITY[c.priority]?.[lang] ?? c.priority} tone={PRIORITY_TONE[c.priority] ?? "neutral"} />
+            {c.overdue ? <Badge label={tr("overdue")} tone="danger" /> : null}
           </View>
           <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-            {CATEGORY[c.category]?.[lang]} · {c.location}{c.lotNumber ? ` · ${c.lotNumber}` : ""} · {c.reporterName} · {fmtDate(c.createdAt)}
+            {CATEGORY[c.category]?.[lang]} · {c.location}{c.lotNumber ? ` · ${c.lotNumber}` : ""} · {c.reporterName} · {fmtDate(c.createdAt, lang)}
           </Text>
           <Text style={{ color: colors.foreground }}>{c.description}</Text>
           {c.assigneeName || c.providerName ? <Text style={[styles.meta, { color: colors.foreground }]}>{tr("responsible")} : {[c.assigneeName, c.providerName].filter(Boolean).join(" · ")}</Text> : null}
-          {c.scheduledFor ? <Text style={[styles.meta, { color: colors.foreground }]}>{tr("scheduled")} : {fmtDate(c.scheduledFor)}</Text> : null}
-          {isTeam ? <Text style={[styles.meta, { color: c.overdue ? "#ef4444" : colors.mutedForeground }]}>{tr("due")} : {fmtDate(c.dueAt)}</Text> : null}
-          {c.resolution ? <Text style={{ color: "#10b981" }}>✓ {c.resolution}</Text> : null}
+          {c.scheduledFor ? <Text style={[styles.meta, { color: colors.foreground }]}>{tr("scheduled")} : {fmtDate(c.scheduledFor, lang)}</Text> : null}
+          {isTeam ? <Text style={[styles.meta, { color: c.overdue ? colors.danger : colors.mutedForeground }]}>{tr("due")} : {fmtDate(c.dueAt, lang)}</Text> : null}
+          {c.resolution ? <Text style={{ color: colors.success }}>✓ {c.resolution}</Text> : null}
 
           {c.attachments.length > 0 && (
             <>
@@ -372,7 +387,7 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
               {c.attachments.map((a) => (
                 <TouchableOpacity key={a.id} onPress={() => openFile(a.objectPath, tr)} style={styles.row}>
                   <Feather name={a.mimeType?.startsWith("image/") ? "image" : "file"} size={14} color={colors.primary} />
-                  <Text style={{ color: colors.primary, fontSize: 13 }}>{a.fileName ?? "fichier"}{a.internal ? " (interne)" : ""}</Text>
+                  <Text style={{ color: colors.tint, fontSize: 13 }}>{a.fileName ?? tr("file")}{a.internal ? ` (${tr("internalShort")})` : ""}</Text>
                 </TouchableOpacity>
               ))}
             </>
@@ -381,14 +396,14 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
           {/* Resident: answer, confirm, reopen */}
           {mine && !isTeam && c.status === "resolved" && (
             <View style={styles.row}>
-              <ActionButton label={tr("fixed")} icon="check" color="#10b981" busy={busy} onPress={() => act("confirm", () => claims.confirm(c.id))} />
+              <ActionButton label={tr("fixed")} icon="check" color={colors.success} busy={busy} onPress={() => act("confirm", () => claims.confirm(c.id))} />
             </View>
           )}
           {mine && (c.status === "resolved" || c.status === "closed") && (
             <>
               <FieldLabel label={tr("reopenReason")} />
               <TextInput value={form.targetText} onChangeText={(v) => setForm((p) => ({ ...p, targetText: v }))} style={[...input, { minHeight: 60 }]} multiline />
-              <ActionButton label={tr("persists")} icon="rotate-ccw" color="#f97316" busy={busy} disabled={form.targetText.trim().length < 10} onPress={() => act("reopen", (k) => claims.reopen(c.id, form.targetText.trim(), k))} />
+              <ActionButton label={tr("persists")} icon="rotate-ccw" color={colors.warning} busy={busy} disabled={form.targetText.trim().length < 10} onPress={() => act("reopen", (k) => claims.reopen(c.id, form.targetText.trim(), k))} />
             </>
           )}
 
@@ -400,7 +415,7 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
               {isTeam && (
                 <TouchableOpacity onPress={() => setInternal((v) => !v)} style={styles.row} accessibilityRole="checkbox" accessibilityState={{ checked: internal }}>
                   <Feather name={internal ? "check-square" : "square"} size={15} color={colors.primary} />
-                  <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("internal")}</Text>
+                  <Text style={{ color: colors.tint, fontSize: 12 }}>{tr("internal")}</Text>
                 </TouchableOpacity>
               )}
               <ActionButton label={tr("send")} icon="send" busy={busy} disabled={!text.trim()} onPress={() => act("comment", (k) => claims.comment(c.id, { text: text.trim(), internal }, k))} />
@@ -454,7 +469,7 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
               {c.prestataireId ? (
                 <TouchableOpacity onPress={() => setForm((p) => ({ ...p, workOrder: !p.workOrder }))} style={styles.row}>
                   <Feather name={form.workOrder ? "check-square" : "square"} size={15} color={colors.primary} />
-                  <Text style={{ color: colors.primary, fontSize: 12 }}>{tr("workOrder")}</Text>
+                  <Text style={{ color: colors.tint, fontSize: 12 }}>{tr("workOrder")}</Text>
                 </TouchableOpacity>
               ) : null}
               <ActionButton
@@ -476,11 +491,11 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
 
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("history")}</Text>
           {c.events.map((e) => (
-            <View key={e.id} style={[styles.event, { borderLeftColor: e.internal ? "#a855f7" : colors.border }]}>
+            <View key={e.id} style={[styles.event, { borderLeftColor: e.internal ? "#1F8A9A" : colors.border }]}>
               <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                {fmtDate(e.createdAt)} · {e.authorName ?? ""} · {EVENT[e.type]?.[lang] ?? e.type}
+                {fmtDate(e.createdAt, lang)} · {e.authorName ?? ""} · {EVENT[e.type]?.[lang] ?? e.type}
                 {e.toStatus ? ` → ${STATUS[e.toStatus as ClaimStatus]?.[lang] ?? e.toStatus}` : ""}
-                {e.internal ? " · interne" : ""}
+                {e.internal ? ` · ${tr("internalShort")}` : ""}
               </Text>
               {e.body ? <Text style={{ color: colors.foreground, fontSize: 13 }}>{e.body}</Text> : null}
             </View>
@@ -529,8 +544,8 @@ export default function ReclamationsScreen() {
   const [hover, setHover] = useState<ClaimStatus | null>(null);
   const dragRef = useRef<ClaimCard | null>(null);
   const pan = useRef(new Animated.ValueXY()).current;
-  const boardRef = useRef<View>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const boardRef = useRef<ViewInstance>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const boardLeft = useRef(0);
   const scrollX = useRef(0);
   const columnBox = useRef<Partial<Record<ClaimStatus, { x: number; width: number }>>>({});
@@ -648,22 +663,23 @@ export default function ReclamationsScreen() {
       <ScreenHeader title={tr("title")} action={{ icon: "plus", onPress: () => setCreating(true), label: tr("report") }} />
       <View style={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}>
         {isTeam && <ChoiceChips value={mode} onChange={(v) => { setMode(v as "board" | "list"); setLoading(true); }} options={[{ key: "board", label: tr("board") }, { key: "list", label: tr("list") }]} />}
-        <View style={[styles.search, { borderColor: colors.border, backgroundColor: colors.card }]}>
-          <Feather name="search" size={15} color={colors.mutedForeground} />
-          <TextInput value={q} onChangeText={setQ} placeholder={tr("search")} placeholderTextColor={colors.mutedForeground} style={{ flex: 1, color: colors.foreground }} />
-        </View>
+        <SearchField value={q} onChangeText={setQ} placeholder={tr("search")} />
         {isTeam && mode === "board" && metrics && (
           <View style={styles.row}>
-            <Badge label={`${tr("open")} ${metrics.open}`} color="#0ea5e9" />
-            <Badge label={`${tr("overdue")} ${metrics.overdue}`} color="#ef4444" />
-            <Badge label={`${tr("unassigned")} ${metrics.unassigned}`} color="#f59e0b" />
-            {metrics.avg_resolution_hours !== null ? <Badge label={`${tr("avg")} ${metrics.avg_resolution_hours} h`} color="#10b981" /> : null}
+            <Badge label={`${tr("open")} ${metrics.open}`} tone="info" />
+            <Badge label={`${tr("overdue")} ${metrics.overdue}`} tone="danger" />
+            <Badge label={`${tr("unassigned")} ${metrics.unassigned}`} tone="warning" />
+            {metrics.avg_resolution_hours !== null ? <Badge label={`${tr("avg")} ${metrics.avg_resolution_hours} h`} tone="success" /> : null}
           </View>
         )}
         {isTeam && mode === "board" ? <Text style={[styles.meta, { color: colors.mutedForeground }]}>{tr("dragHint")}</Text> : null}
       </View>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+        <View style={{ padding: 16, gap: 10 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={96} radius={RADIUS.MD} />
+          ))}
+        </View>
       ) : error ? (
         <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setLoading(true); load(); }} accentColor={colors.primary} />
       ) : isTeam && mode === "board" ? (
@@ -694,7 +710,7 @@ export default function ReclamationsScreen() {
                 <View style={[styles.dot, { backgroundColor: STATUS[col.status].color }]} />
                 <Text style={[styles.colTitle, { color: colors.foreground }]}>{STATUS[col.status][L]}</Text>
                 <Text style={{ color: colors.mutedForeground }}>{col.total}</Text>
-                {col.overdue ? <Badge label={`${col.overdue} ${tr("overdue").toLowerCase()}`} color="#ef4444" /> : null}
+                {col.overdue ? <Badge label={`${col.overdue} ${tr("overdue").toLowerCase()}`} tone="danger" /> : null}
               </View>
               <ScrollView style={{ maxHeight: 520 }} scrollEnabled={!drag} contentContainerStyle={{ gap: 8, paddingTop: 8 }}>
                 {col.cards.map((c) => (
@@ -724,14 +740,14 @@ export default function ReclamationsScreen() {
         <FlatList
           data={rows}
           keyExtractor={(c) => c.id}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
-          ListEmptyComponent={<Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 20 }}>{tr("empty")}</Text>}
+          ListEmptyComponent={<EmptyState icon="inbox" title={tr("empty")} description={tr("emptyHint")} actionLabel={tr("report")} onAction={() => setCreating(true)} />}
           renderItem={({ item }) => (
             <View>
               <Card c={item} lang={L} tr={tr} onPress={() => setOpenId(item.id)} />
               <View style={[styles.statusLine]}>
-                <Badge label={STATUS[item.status][L]} color={STATUS[item.status].color} />
+                <Badge label={STATUS[item.status][L]} tone={STATUS_TONE[item.status]} />
               </View>
             </View>
           )}
@@ -778,7 +794,7 @@ export default function ReclamationsScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  card: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 3 },
+  card: { borderWidth: 1, borderRadius: RADIUS.LG, padding: 14, gap: 4 },
   ref: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   name: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   meta: { fontSize: 12, fontFamily: "Inter_400Regular" },
@@ -790,6 +806,6 @@ const styles = StyleSheet.create({
   section: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", marginTop: 10 },
   event: { borderLeftWidth: 3, paddingLeft: 8, paddingVertical: 2, gap: 2 },
   search: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
-  statusLine: { position: "absolute", right: 10, bottom: 10 },
+  statusLine: { position: "absolute", end: 12, bottom: 12 },
   ghost: { position: "absolute", left: 0, top: 0, elevation: 12, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
 });

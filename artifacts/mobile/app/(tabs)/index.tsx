@@ -3,19 +3,36 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
+  Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import StatCard from "@/components/StatCard";
+import {
+  BalanceLine,
+  BalanceMeter,
+  Button,
+  Card,
+  IconButton,
+  ListItem,
+  SectionHeader,
+  Skeleton,
+  ZelligePattern,
+  toneColors,
+  type StatusTone,
+} from "@/components/ui";
+import { RADIUS, SPACING } from "@/constants/spacing";
+import { displayFace, FONT, TYPE } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
 import {
   SIDEBAR_COMPACT,
   SIDEBAR_FULL,
@@ -23,9 +40,11 @@ import {
 } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useMyCharges } from "@/hooks/useMyCharges";
-import { crossPlatformShadow } from "@/lib/shadow";
-import { LinearGradient } from "expo-linear-gradient";
 import { audit as auditApi } from "@/services/api";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import ResidenceScene from "@/components/signature/ResidenceScene";
+import { DURATION, STAGGER } from "@/constants/motion";
+import { useResidence } from "@/hooks/useResidence";
 
 // Keeping the original quick actions arrays mapping for the different roles.
 // To save space and maintain exact logic, these are preserved exactly.
@@ -104,7 +123,7 @@ const QUICK_ACTIONS_ADMIN = [
     labelKey: "prestataires",
     icon: "briefcase",
     route: "/prestataires",
-    color: "#f97316",
+    color: "#f59e0b",
   },
   {
     labelKey: "documents",
@@ -214,7 +233,7 @@ const QUICK_ACTIONS_SECRETARY = [
     labelKey: "publicationsActualites",
     icon: "rss",
     route: "/publications",
-    color: "#f97316",
+    color: "#f59e0b",
   },
   {
     labelKey: "actesAdministratifs",
@@ -271,14 +290,14 @@ const QUICK_ACTIONS_MEMBER = [
   {
     labelKey: "documentsCopro",
     icon: "folder",
-    route: "/documents",
+    route: "/bibliotheque",
     color: "#1F5EFF",
   },
   {
     labelKey: "reclamationsLabel",
     icon: "inbox",
     route: "/reclamations",
-    color: "#f97316",
+    color: "#f59e0b",
   },
   {
     labelKey: "reunionsConvocations",
@@ -303,7 +322,7 @@ const QUICK_ACTIONS_TENANT = [
   {
     labelKey: "documentsCopro",
     icon: "folder",
-    route: "/documents",
+    route: "/bibliotheque",
     color: "#1F5EFF",
   },
   {
@@ -333,6 +352,7 @@ const QUICK_ACTIONS_TENANT = [
 ];
 
 const ACTION_GAP = 12;
+const SCENE_H = 132;
 
 interface DashboardActivity {
   id: string;
@@ -391,6 +411,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const myCharges = useMyCharges(user?.role === "member");
+  const residence = useResidence(user?.role);
   const {
     dataLoading,
     dataLoadError,
@@ -416,6 +437,7 @@ export default function DashboardScreen() {
   const [activityLoadError, setActivityLoadError] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const { isWide, isDesktop, isTablet, width: screenWidth } = useBreakpoints();
+  const { isDark: isDarkHero } = useTheme();
 
   useEffect(() => {
     const role = user?.role;
@@ -506,9 +528,9 @@ export default function DashboardScreen() {
             : ("bell" as const),
       color:
         alert.type === "error"
-          ? "#ef4444"
+          ? colors.danger
           : alert.type === "warning"
-            ? "#f59e0b"
+            ? colors.warning
             : "#3b82f6",
     })),
     ...cotisations.slice(0, 2).map((cotisation) => ({
@@ -525,10 +547,10 @@ export default function DashboardScreen() {
       icon: "credit-card" as const,
       color:
         cotisation.status === "paid"
-          ? "#10b981"
+          ? colors.success
           : cotisation.status === "overdue"
-            ? "#ef4444"
-            : "#f59e0b",
+            ? colors.danger
+            : colors.warning,
     })),
   ];
   const dashboardActivities =
@@ -552,26 +574,19 @@ export default function DashboardScreen() {
                 ? QUICK_ACTIONS_TENANT
                 : QUICK_ACTIONS_MEMBER;
 
-  const resolveActionColor = (value: string) => {
+  // The action arrays keep their historical hex colors; they map to semantic tones.
+  const toneOfAction = (value: string): StatusTone => {
     const normalized = value.toLowerCase();
-    if (normalized.includes("10b981") || normalized.includes("06b6d4")) {
-      return colors.success;
-    }
-    if (normalized.includes("f59e0b") || normalized.includes("f97316")) {
-      return colors.warning;
-    }
-    if (normalized.includes("ef4444") || normalized.includes("ec4899")) {
-      return colors.destructive;
-    }
-    if (normalized.includes("8b5cf6") || normalized.includes("6366f1")) {
-      return colors.info;
-    }
-    return colors.primary;
+    if (normalized.includes("10b981") || normalized.includes("06b6d4")) return "success";
+    if (normalized.includes("f59e0b") || normalized.includes("f97316")) return "warning";
+    if (normalized.includes("ef4444") || normalized.includes("ec4899")) return "danger";
+    if (normalized.includes("8b5cf6") || normalized.includes("6366f1")) return "info";
+    return "primary";
   };
 
   const quickActions = quickActionsRaw.map((a) => ({
     ...a,
-    color: resolveActionColor(a.color),
+    tone: toneOfAction(a.color),
     label: t(a.labelKey) || a.labelKey,
   }));
 
@@ -598,6 +613,22 @@ export default function DashboardScreen() {
                 ? t("roleTenant")
                 : t("roleMember");
 
+  const roleIcon: keyof typeof Feather.glyphMap = isSuperAdmin
+    ? "shield"
+    : isSyndicateAdmin
+      ? "briefcase"
+      : isPresident
+        ? "award"
+        : isTreasurer
+          ? "bar-chart-2"
+          : isSecretary
+            ? "file-text"
+            : isCommitteeMember
+              ? "users"
+              : isTenant
+                ? "key"
+                : "home";
+
   const topPadding = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const topAlert = unreadAlerts[0];
   const locale =
@@ -608,11 +639,11 @@ export default function DashboardScreen() {
         : lang === "es"
           ? "es-ES"
           : "fr-FR";
-  const formatMad = (amount: number) => {
+  const formatMad = (amount: number, decimals = 0) => {
     try {
-      return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(amount))} MAD`;
+      return `${new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(decimals === 0 ? Math.round(amount) : amount)} MAD`;
     } catch {
-      return `${Math.round(amount)} MAD`;
+      return `${decimals === 0 ? Math.round(amount) : amount.toFixed(decimals)} MAD`;
     }
   };
   const formatDate = (
@@ -627,16 +658,66 @@ export default function DashboardScreen() {
       return value;
     }
   };
+  const count = (key: string, n: number) => t(key).replace("{n}", String(n));
+  const go = (route: string) => {
+    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    router.push(route as any);
+  };
 
   const sidebarW = isWide ? (isDesktop ? SIDEBAR_FULL : SIDEBAR_COMPACT) : 0;
-  const hPad = isWide ? 32 : 20;
+  const hPad = isWide ? 32 : 16;
   const contentWidth = screenWidth - sidebarW - hPad * 2;
-  // Two comfortable touch columns on phones; the old three-column grid
-  // made labels wrap and hid the action hierarchy on compact Android screens.
-  const numCols = isDesktop ? 6 : isTablet ? 4 : 2;
+  // Two comfortable touch columns on phones (labels stay on two lines at most).
+  const numCols = isDesktop ? 4 : isTablet ? 3 : 2;
   const actionItemWidth = Math.floor(
     (contentWidth - ACTION_GAP * (numCols - 1)) / numCols,
   );
+
+  // ── Priorities: only real, actionable items, most urgent first ──────────
+  const charges = myCharges.data;
+  type Priority = {
+    key: string;
+    icon: keyof typeof Feather.glyphMap;
+    tone: StatusTone;
+    title: string;
+    subtitle?: string;
+    route: string;
+    dismiss?: () => void;
+  };
+  const priorities: Priority[] = [];
+  // The account works, but no notice, receipt or reset link can reach it.
+  if (user.emailStatus === "undeliverable") {
+    priorities.push({ key: "email", icon: "mail", tone: "warning", title: t("emcBannerTitle"), subtitle: t("emcBannerAction"), route: "/email-change" });
+  }
+  // A profile without a phone number cannot be reached by the syndic.
+  if (!user.phone) {
+    priorities.push({ key: "profile", icon: "user", tone: "info", title: t("onbPriorityTitle"), subtitle: t("onbPrioritySubtitle"), route: "/onboarding" });
+  }
+  if (isMember && charges && charges.overdueCount > 0) {
+    priorities.push({ key: "overdue", icon: "alert-circle", tone: "danger", title: count("uiOverdueCalls", charges.overdueCount), subtitle: t("uiOverdueCallsDesc"), route: "/charges" });
+  } else if (isMember && charges && charges.underReviewCount > 0) {
+    priorities.push({ key: "review", icon: "clock", tone: "info", title: t("uiUnderReview"), subtitle: t("uiUnderReviewDesc"), route: "/charges" });
+  }
+  if (topAlert && !dismissedAlerts.has(topAlert.id)) {
+    priorities.push({
+      key: `alert-${topAlert.id}`,
+      icon: topAlert.type === "error" ? "alert-circle" : topAlert.type === "warning" ? "alert-triangle" : topAlert.type === "success" ? "check-circle" : "bell",
+      tone: topAlert.type === "error" ? "danger" : topAlert.type === "warning" ? "warning" : topAlert.type === "success" ? "success" : "info",
+      title: topAlert.title,
+      subtitle: topAlert.message,
+      route: "/notifications",
+      dismiss: () => setDismissedAlerts((p) => new Set(p).add(topAlert.id)),
+    });
+  }
+  if (canViewElections && openElections > 0) {
+    priorities.push({ key: "votes", icon: "check-square", tone: "warning", title: count("uiOpenVotes", openElections), subtitle: t("uiOpenVotesDesc"), route: "/elections" });
+  }
+  const openTickets = supportTickets.filter((tk) => tk.status === "open" || tk.status === "in_progress").length;
+  if ((isSuperAdmin || isSyndicateAdmin) && openTickets > 0) {
+    priorities.push({ key: "tickets", icon: "headphones", tone: "info", title: count("uiOpenTickets", openTickets), route: "/support" });
+  }
+
+  const showMeetings = !isTenant && !isSuperAdmin && upcomingMeetings.length > 0;
 
   return (
     <View
@@ -648,822 +729,385 @@ export default function DashboardScreen() {
         },
       ]}
     >
-      {/* Premium Header */}
-      <LinearGradient
-        colors={[colors.primary, "#1D4ED8"]}
-        style={[
-          styles.header,
-          {
-            paddingTop: topPadding + 20,
-            paddingHorizontal: hPad,
-            paddingBottom: 24,
-          },
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerContent}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.greeting}>{greetingTime()},</Text>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user.name}
-            </Text>
-            {user.syndicate && (
-              <View style={styles.syndicateWrapper}>
-                <Feather
-                  name="map-pin"
-                  size={12}
-                  color="rgba(255,255,255,0.7)"
-                />
-                <Text style={styles.syndicate}>{user.syndicate}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.headerBtns}>
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/search" as any);
-              }}
-            >
-              <Feather
-                name="search"
-                size={22}
-                color={colors.primaryForeground}
-              />
-            </TouchableOpacity>
-            {totalUnread > 0 && (
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => router.push("/chat" as any)}
-              >
-                <Feather
-                  name="message-circle"
-                  size={22}
-                  color={colors.primaryForeground}
-                />
-                <View
-                  style={[
-                    styles.headerBadge,
-                    { backgroundColor: colors.warning },
-                  ]}
-                >
-                  <Text style={styles.headerBadgeText}>{totalUnread}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => router.push("/notifications" as any)}
-            >
-              <Feather name="bell" size={22} color={colors.primaryForeground} />
-              {unreadAlerts.length > 0 && (
-                <View
-                  style={[
-                    styles.headerBadge,
-                    { backgroundColor: colors.destructive },
-                  ]}
-                >
-                  <Text style={styles.headerBadgeText}>
-                    {unreadAlerts.length}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View style={styles.roleBadgeWrapper}>
-          <View style={styles.roleBadge}>
-            <Feather
-              name={
-                isSuperAdmin
-                  ? "shield"
-                  : isSyndicateAdmin
-                    ? "briefcase"
-                    : isPresident
-                      ? "award"
-                      : isTreasurer
-                        ? "bar-chart-2"
-                        : isSecretary
-                          ? "file-text"
-                          : isCommitteeMember
-                            ? "users"
-                            : isTenant
-                              ? "key"
-                              : "home"
-              }
-              size={12}
-              color={colors.primary}
-            />
-            <Text style={[styles.roleBadgeText, { color: colors.primary }]}>
-              {roleLabel}
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
-
       <ScrollView
-        style={{ flex: 1, marginTop: -20 }}
-        contentContainerStyle={[
-          styles.body,
-          {
-            paddingHorizontal: hPad,
-            paddingBottom: isWide ? 40 : insets.bottom + 100,
-          },
-        ]}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: isWide ? 40 : insets.bottom + 104 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={() => { refreshData(); setActivityRefreshKey((k) => k + 1); }} tintColor={colors.primary} colors={[colors.primary]} />
+        }
       >
-        {/* Data Status */}
-        <View
-          style={[
-            styles.dataStatusCard,
-            {
-              backgroundColor: dataLoadError
-                ? colors.destructive + "10"
-                : colors.card,
-              borderColor: dataLoadError
-                ? colors.destructive + "30"
-                : colors.border,
-              ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8, elevation: 4 }),
-            },
-          ]}
+        {/* ── Hero: navy, zellige texture, greeting, the balance ── */}
+        <LinearGradient
+          colors={[colors.navy, isDarkHero ? "#1A1640" : "#2B2475"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, { paddingTop: topPadding + 12, paddingHorizontal: hPad }]}
         >
-          {dataLoading ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <View
-              style={[
-                styles.dataStatusIcon,
-                {
-                  backgroundColor: dataLoadError
-                    ? colors.destructive + "20"
-                    : colors.success + "20",
-                },
-              ]}
-            >
-              <Feather
-                name={dataLoadError ? "wifi-off" : "check"}
-                size={16}
-                color={dataLoadError ? colors.destructive : colors.success}
-              />
-            </View>
-          )}
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text
-              style={[styles.dataStatusTitle, { color: colors.foreground }]}
-            >
-              {dataLoading
-                ? t("dashboardLoading")
-                : dataLoadError
-                  ? t("dashboardLoadError")
-                  : t("dashboardUpdated")}
-            </Text>
-            {!dataLoading && dataLoadError && (
-              <Text
-                style={[
-                  styles.dataStatusMessage,
-                  { color: colors.mutedForeground },
-                ]}
-              >
-                {t("dashboardRetryHint")}
+          <ZelligePattern color="#FFFFFF" opacity={0.035} />
+          <View style={styles.heroTop}>
+            <View style={styles.heroIdentity}>
+              <Text style={[styles.greeting, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={1}>
+                {greetingTime()}
               </Text>
-            )}
-          </View>
-          {!dataLoading && dataLoadError && (
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: colors.primary }]}
-              onPress={refreshData}
-            >
-              <Text style={styles.retryButtonText}>{t("dashboardRetry")}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Alerts Banner */}
-        {topAlert && !dismissedAlerts.has(topAlert.id) && (
-          <View
-            style={[
-              styles.alertBanner,
-              {
-                backgroundColor:
-                  topAlert.type === "error"
-                    ? colors.destructive + "12"
-                    : topAlert.type === "warning"
-                      ? colors.warning + "16"
-                      : topAlert.type === "success"
-                        ? colors.success + "14"
-                        : colors.primary + "10",
-                borderColor:
-                  topAlert.type === "error"
-                    ? colors.destructive + "45"
-                    : topAlert.type === "warning"
-                      ? colors.warning + "45"
-                      : topAlert.type === "success"
-                        ? colors.success + "45"
-                        : colors.primary + "30",
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.alertBannerMain}
-              onPress={() => router.push("/notifications" as any)}
-              accessibilityRole="button"
-              accessibilityLabel={topAlert.title}
-            >
-              <View
-                style={[
-                  styles.alertIconWrap,
-                  {
-                    backgroundColor:
-                      topAlert.type === "error"
-                        ? colors.destructive + "20"
-                        : topAlert.type === "warning"
-                          ? colors.warning + "22"
-                          : topAlert.type === "success"
-                            ? colors.success + "20"
-                            : colors.primary + "20",
-                  },
-                ]}
-              >
-                <Feather
-                  name={
-                    topAlert.type === "error"
-                      ? "alert-circle"
-                      : topAlert.type === "warning"
-                        ? "alert-triangle"
-                        : topAlert.type === "success"
-                          ? "check-circle"
-                          : "info"
-                  }
-                  size={18}
-                  color={
-                    topAlert.type === "error"
-                      ? colors.destructive
-                      : topAlert.type === "warning"
-                        ? colors.warning
-                        : topAlert.type === "success"
-                          ? colors.success
-                          : colors.primary
-                  }
-                />
-              </View>
-              <View style={styles.alertBannerCopy}>
-                <Text
-                  style={[
-                    styles.alertBannerTitle,
-                    { color: colors.foreground },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {topAlert.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.alertBannerMsg,
-                    { color: colors.mutedForeground },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {topAlert.message}
-                </Text>
-              </View>
-              <Feather
-                name={isRTL ? "chevron-left" : "chevron-right"}
-                size={18}
-                color={colors.mutedForeground}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.alertDismiss}
-              onPress={() =>
-                setDismissedAlerts((p) => new Set(p).add(topAlert.id))
-              }
-              accessibilityRole="button"
-              accessibilityLabel={t("close")}
-            >
-              <Feather name="x" size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Quick Actions Grid */}
-        {!dataLoading && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>
-                  {t("quickAccess")}
-                </Text>
-                <Text
-                  style={[styles.sectionTitle, { color: colors.foreground }]}
-                >
-                  {t("overviewLabel")}
-                </Text>
-              </View>
-              <Feather
-                name={isRTL ? "arrow-up-left" : "arrow-up-right"}
-                size={18}
-                color={colors.mutedForeground}
-              />
-            </View>
-            <View style={styles.actionsGrid}>
-              {quickActions.map((a) => (
-                <TouchableOpacity
-                  key={a.labelKey}
-                  style={[
-                    styles.actionBtn,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                      width: actionItemWidth,
-                      ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.05, radius: 10, elevation: 2 }),
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(a.route as any);
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.actionIcon,
-                      { backgroundColor: a.color + "15" },
-                    ]}
-                  >
-                    <Feather name={a.icon as any} size={24} color={a.color} />
-                  </View>
-                  <Text
-                    style={[styles.actionLabel, { color: colors.foreground }]}
-                    numberOfLines={1}
-                  >
-                    {a.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Upcoming Meetings Horizontal Scroll */}
-        {!dataLoading &&
-          !isTenant &&
-          !isSuperAdmin &&
-          upcomingMeetings.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text
-                  style={[styles.sectionTitle, { color: colors.foreground }]}
-                >
-                  {t("nextMeetings")}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/meetings" as any)}
-                >
-                  <Text style={[styles.seeAll, { color: colors.primary }]}>
-                    {t("seeAll")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 16, paddingEnd: 10 }}
-              >
-                {upcomingMeetings.slice(0, 3).map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[
-                      styles.meetingCard,
-                      {
-                        backgroundColor: colors.card,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    onPress={() => router.push("/meetings" as any)}
-                  >
-                    <View
-                      style={[
-                        styles.meetingDateBox,
-                        { backgroundColor: colors.primary + "15" },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.meetingDay, { color: colors.primary }]}
-                      >
-                        {m.date ? (m.date.split("-")[2] ?? "?") : "?"}
-                      </Text>
-                      <Text
-                        style={[styles.meetingMonth, { color: colors.primary }]}
-                      >
-                        {m.date
-                          ? formatDate(m.date, { month: "short" })
-                              .slice(0, 3)
-                              .toUpperCase()
-                          : "—"}
-                      </Text>
-                    </View>
-                    <View style={styles.meetingInfo}>
-                      <Text
-                        style={[
-                          styles.meetingTitle,
-                          { color: colors.foreground },
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {m.title}
-                      </Text>
-                      <View style={styles.meetingMeta}>
-                        <Feather
-                          name="clock"
-                          size={12}
-                          color={colors.mutedForeground}
-                        />
-                        <Text
-                          style={[
-                            styles.meetingTime,
-                            { color: colors.mutedForeground },
-                          ]}
-                        >
-                          {m.time}
-                        </Text>
-                        <Text style={{ color: colors.border }}>|</Text>
-                        <Feather
-                          name="map-pin"
-                          size={12}
-                          color={colors.mutedForeground}
-                        />
-                        <Text
-                          style={[
-                            styles.meetingTime,
-                            { color: colors.mutedForeground },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {(m.location ?? "").split(",")[0]}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-        {/* Ongoing Election Banner */}
-        {!dataLoading && canViewElections && openElections > 0 && (
-          <TouchableOpacity
-            style={[styles.electionBanner, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/elections" as any)}
-          >
-            <View style={styles.electionBannerIcon}>
-              <Feather name="check-square" size={24} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.electionBannerLabel}>
-                {t("ongoingElection")}
-              </Text>
-              <Text style={styles.electionBannerTitle}>
-                {openElections} {t("electionVoteNow")}
+              <Text style={[styles.userName, { textAlign: isRTL ? "right" : "left" }, lang === "ar" && { fontFamily: displayFace(lang), lineHeight: 40 }]} numberOfLines={1} accessibilityRole="header">
+                {user.name}
               </Text>
             </View>
-            <Feather
-              name={isRTL ? "chevron-left" : "chevron-right"}
-              size={20}
-              color={colors.primaryForeground}
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Key Metrics Dashboard */}
-        {!dataLoading && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>
-                  {t("overviewLabel")}
-                </Text>
-                <Text
-                  style={[styles.sectionTitle, { color: colors.foreground }]}
-                >
-                  {roleLabel}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.livePill,
-                  { backgroundColor: colors.success + "14" },
-                ]}
-              >
-                <View
-                  style={[styles.liveDot, { backgroundColor: colors.success }]}
-                />
-                <Text style={[styles.livePillText, { color: colors.success }]}>
-                  {t("dashboardUpdated")}
-                </Text>
-              </View>
+            <View style={styles.heroActions}>
+              <IconButton icon="search" variant="onDark" accessibilityLabel={t("uiSearch")} onPress={() => go("/search")} />
+              {totalUnread > 0 ? (
+                <IconButton icon="message-circle" variant="onDark" accessibilityLabel={t("uiMessages")} badge={totalUnread} onPress={() => go("/chat")} />
+              ) : null}
+              <IconButton icon="bell" variant="onDark" accessibilityLabel={t("notifications")} badge={unreadAlerts.length} onPress={() => go("/notifications")} />
             </View>
-            {isSuperAdmin ? (
-              <>
-                <View style={styles.statsRow}>
-                  <StatCard
-                    label={t("syndicates")}
-                    value={syndicates.length}
-                    icon="briefcase"
-                  />
-                  <StatCard
-                    label={t("totalMembers")}
-                    value={syndicates.reduce((s, sy) => s + sy.members, 0)}
-                    icon="users"
-                  />
-                </View>
-                <View style={styles.statsRow}>
-                  <StatCard
-                    label={t("activeCount")}
-                    value={
-                      syndicates.filter((s) => s.status === "active").length
-                    }
-                    icon="activity"
-                    iconColor={colors.success}
-                  />
-                  <StatCard
-                    label={t("openTickets")}
-                    value={
-                      supportTickets.filter((t) => t.status === "open").length
-                    }
-                    icon="headphones"
-                    iconColor={colors.destructive}
-                    subtitle={t("support")}
-                  />
-                </View>
-              </>
-            ) : isSyndicateTeam ? (
-              <>
-                <View style={styles.statsRow}>
-                  <StatCard
-                    label={t("activeMembers")}
-                    value={activeMembers}
-                    icon="users"
-                  />
-                  {isTreasurer || isSyndicateAdmin ? (
-                    <StatCard
-                      label={t("revenue")}
-                      value={formatMad(totalRevenue)}
-                      icon="trending-up"
-                      iconColor={colors.success}
-                    />
-                  ) : (
-                    <StatCard
-                      label={t("scheduledMeetings")}
-                      value={upcomingMeetings.length}
-                      icon="calendar"
-                      iconColor={colors.info}
-                    />
-                  )}
-                </View>
-                <View style={styles.statsRow}>
-                  {isTreasurer || isSyndicateAdmin ? (
-                    <StatCard
-                      label={t("dueCotisations")}
-                      value={pendingCotisations}
-                      icon="alert-circle"
-                      iconColor={colors.warning}
-                      subtitle={t("pendingLabel")}
-                    />
-                  ) : (
-                    <StatCard
-                      label={t("elections")}
-                      value={openElections}
-                      icon="check-square"
-                      iconColor={colors.warning}
-                    />
-                  )}
-                  <StatCard
-                    label={t("scheduledMeetings")}
-                    value={upcomingMeetings.length}
-                    icon="calendar"
-                    iconColor={colors.info}
-                  />
-                </View>
-              </>
-            ) : (
+          </View>
+
+          <View style={styles.heroMeta}>
+            <View style={styles.heroChip}>
+              <Feather name={roleIcon} size={12} color={colors.gold} />
+              <Text style={styles.heroChipText} numberOfLines={1}>
+                {roleLabel}
+              </Text>
+            </View>
+            {user.syndicate ? (
+              <View style={[styles.heroChip, styles.heroChipShrink]}>
+                <Feather name="map-pin" size={12} color="rgba(255,255,255,0.75)" />
+                <Text style={styles.heroChipText} numberOfLines={1}>
+                  {user.syndicate}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {residence.isLoading ? (
+            <Skeleton height={SCENE_H} radius={RADIUS.LG} style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
+          ) : residence.data ? (
+            residence.data.buildings.length > 0 ? (
               (() => {
-                // Real calls for funds of this co-owner (not the legacy
-                // "cotisations" table, which new co-owners never have).
-                const charges = myCharges.data;
-                const cotLabel = myCharges.isLoading
-                  ? "…"
-                  : myCharges.isError
-                    ? t("unavailable")
-                    : charges?.status === "paid"
-                      ? t("paid")
-                      : charges?.status === "overdue"
-                        ? t("overdue")
-                        : charges?.status === "under_review"
-                          ? t("inValidation")
-                          : charges?.status === "none"
-                            ? t("noChargesFound")
-                            : t("pendingLabel");
-                const cotColor =
-                  charges?.status === "paid" || charges?.status === "none"
-                    ? colors.success
-                    : charges?.status === "overdue"
-                      ? colors.destructive
-                      : colors.warning;
-                const myMember = members.find((m) => m.email === user.email);
-                const memberStatus =
-                  myMember?.status === "active"
-                    ? t("active")
-                    : myMember?.status === "inactive"
-                      ? t("inactive")
-                      : t("pendingLabel");
-                const memberColor =
-                  myMember?.status === "active"
-                    ? colors.success
-                    : myMember?.status === "inactive"
-                      ? colors.destructive
-                      : colors.warning;
+                const r = residence.data;
+                const lot = r.myLot;
+                const floorText =
+                  lot?.floor === null || lot?.floor === undefined
+                    ? null
+                    : lot.floor < 0
+                      ? t("sceneBasement")
+                      : lot.floor === 0
+                        ? t("sceneGroundFloor")
+                        : t("sceneFloorN").replace("{n}", String(lot.floor));
+                const sceneBuildings = lot
+                  ? [...r.buildings].sort((a, b) => (a.id === lot.buildingId ? -1 : b.id === lot.buildingId ? 1 : 0))
+                  : r.buildings;
+                const totalLots = r.buildings.reduce((n, b) => n + b.lotCount, 0);
+                const openWorks = r.buildings.reduce((n, b) => n + b.openTravaux, 0);
+                const buildingsText = t("sceneBuildings").replace("{n}", String(r.buildings.length));
+                const lotsText = t("sceneLots").replace("{n}", String(totalLots));
+                const title = lot ? lot.buildingName : user.syndicate || (r.buildings.length === 1 ? r.buildings[0].name : null);
+                const meta = lot
+                  ? [t("sceneLotN").replace("{n}", lot.number), floorText].filter(Boolean).join(" · ")
+                  : [buildingsText, lotsText, openWorks > 0 ? t("sceneOpenWorks").replace("{n}", String(openWorks)) : null].filter(Boolean).join(" · ");
+                const a11y = lot
+                  ? t("sceneA11yResident").replace("{building}", lot.buildingName).replace("{lot}", lot.number).replace("{floor}", floorText ?? "")
+                  : t("sceneA11yTeam").replace("{buildings}", buildingsText).replace("{lots}", lotsText);
                 return (
+                  <View style={styles.sceneWrap}>
+                    <ResidenceScene
+                      buildings={sceneBuildings}
+                      highlight={lot ? { buildingId: lot.buildingId, floor: lot.floor } : null}
+                      width={contentWidth}
+                      height={SCENE_H}
+                      accessibilityLabel={a11y}
+                      onPress={() => go(lot ? "/mon-lot" : isSyndicateTeam ? "/buildings" : "/mon-lot")}
+                    />
+                    <View style={styles.sceneCaption}>
+                      {title ? <Text style={[styles.sceneTitle, lang === "ar" && { fontFamily: displayFace(lang), lineHeight: 28 }]} numberOfLines={1}>{title}</Text> : null}
+                      <Text style={styles.sceneMeta} numberOfLines={1}>{meta}</Text>
+                      {r.buildings.length > 4 ? (
+                        <Text style={styles.sceneMeta}>{t("sceneMoreBuildings").replace("{n}", String(r.buildings.length - 4))}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })()
+            ) : isSyndicateTeam ? (
+              <Text style={styles.balanceNote}>{t("sceneNoBuilding")}</Text>
+            ) : null
+          ) : null}
+
+          {isMember ? (
+            <Pressable
+              onPress={() => go("/charges")}
+              accessibilityRole="button"
+              accessibilityLabel={`${t("uiMyBalance")} — ${t("uiSeeMyCharges")}`}
+              style={({ pressed }) => [styles.balanceCard, pressed && { backgroundColor: "rgba(255,255,255,0.12)" }]}
+            >
+              <View style={styles.balanceHead}>
+                <Text style={styles.balanceTitle}>{t("uiMyBalance")}</Text>
+                <View style={styles.balanceLink}>
+                  <Text style={styles.balanceLinkText}>{t("uiSeeMyCharges")}</Text>
+                  <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={14} color="#FFFFFF" />
+                </View>
+              </View>
+              {myCharges.isLoading ? (
+                <View style={{ gap: 10 }}>
+                  <Skeleton height={10} radius={5} style={{ backgroundColor: "rgba(255,255,255,0.14)" }} />
+                  <Skeleton width="60%" height={18} style={{ backgroundColor: "rgba(255,255,255,0.14)" }} />
+                </View>
+              ) : myCharges.isError ? (
+                <Text style={styles.balanceNote}>{t("unavailable")}</Text>
+              ) : !charges || charges.status === "none" ? (
+                <Text style={styles.balanceNote}>{t("uiNoChargesYet")}</Text>
+              ) : (
+                <BalanceMeter
+                  variant="onDark"
+                  paid={charges.paid}
+                  total={charges.total}
+                  paidLabel={t("uiSettled")}
+                  remainingLabel={t("uiRemaining")}
+                  paidText={formatMad(charges.paid, 2)}
+                  remainingText={formatMad(charges.due, 2)}
+                  overdue={charges.overdueCount > 0}
+                />
+              )}
+            </Pressable>
+          ) : null}
+
+          <BalanceLine variant="onDark" style={{ marginTop: SPACING.LG }} />
+        </LinearGradient>
+
+        <View style={[styles.body, { paddingHorizontal: hPad }]}>
+          {/* ── Load error (data from the API) ── */}
+          {!dataLoading && dataLoadError ? (
+            <View style={[styles.errorBanner, { backgroundColor: colors.dangerSoft, borderColor: colors.danger + "40" }]} accessibilityLiveRegion="polite">
+              <Feather name="wifi-off" size={18} color={colors.danger} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[TYPE.bodyStrong, { color: colors.dangerText }]}>{t("uiLoadError")}</Text>
+                <Text style={[TYPE.secondary, { color: colors.dangerText }]}>{t("dashboardRetryHint")}</Text>
+              </View>
+              <Button label={t("uiRetry")} size="sm" variant="secondary" onPress={refreshData} />
+            </View>
+          ) : null}
+
+          {dataLoading ? (
+            <View style={styles.section} accessibilityLabel={t("dashboardLoading")}>
+              <Skeleton width="40%" height={16} />
+              <Skeleton height={72} radius={16} />
+              <View style={styles.statsRow}>
+                <Skeleton height={120} radius={16} style={{ flex: 1 }} />
+                <Skeleton height={120} radius={16} style={{ flex: 1 }} />
+              </View>
+              <Skeleton height={56} radius={12} />
+              <Skeleton height={56} radius={12} />
+            </View>
+          ) : (
+            <>
+              {/* ── To do ── */}
+              <Animated.View entering={FadeInDown.duration(DURATION.base).delay(0*STAGGER)} style={styles.section}>
+                <SectionHeader eyebrow={t("uiPriorities")} title={t("uiToDo")} />
+                <Card padding="none" elevation="raised">
+                  {priorities.length === 0 ? (
+                    <ListItem icon="check" iconTone="success" title={t("uiAllClear")} subtitle={t("uiAllClearDesc")} />
+                  ) : (
+                    priorities.map((p, i) => (
+                      <View key={p.key} style={styles.priorityRow}>
+                        <View style={{ flex: 1 }}>
+                          <ListItem
+                            icon={p.icon}
+                            iconTone={p.tone}
+                            title={p.title}
+                            subtitle={p.subtitle}
+                            onPress={() => go(p.route)}
+                            chevron={!p.dismiss}
+                            divider={i < priorities.length - 1}
+                          />
+                        </View>
+                        {p.dismiss ? (
+                          <IconButton icon="x" variant="ghost" accessibilityLabel={t("close")} onPress={p.dismiss} style={styles.dismiss} />
+                        ) : null}
+                      </View>
+                    ))
+                  )}
+                </Card>
+              </Animated.View>
+
+              {/* ── Key figures (same sources as before) ── */}
+              <Animated.View entering={FadeInDown.duration(DURATION.base).delay(1*STAGGER)} style={styles.section}>
+                <SectionHeader eyebrow={roleLabel} title={t("uiKeyFigures")} />
+                {isSuperAdmin ? (
                   <>
                     <View style={styles.statsRow}>
-                      <StatCard
-                        label={t("myStatus")}
-                        value={memberStatus}
-                        icon="check-circle"
-                        iconColor={memberColor}
-                      />
-                      <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push("/charges" as any)} activeOpacity={0.8}>
-                        <StatCard
-                          label={t("myChargesLabel")}
-                          value={cotLabel}
-                          icon="credit-card"
-                          iconColor={cotColor}
-                        />
-                      </TouchableOpacity>
+                      <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" onPress={() => go("/members")} />
+                      <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" />
                     </View>
                     <View style={styles.statsRow}>
+                      <StatCard label={t("activeCount")} value={syndicates.filter((s) => s.status === "active").length} icon="activity" tone="success" />
                       <StatCard
-                        label={t("elections")}
-                        value={openElections}
-                        icon="check-square"
-                        iconColor={colors.warning}
-                      />
-                      <StatCard
-                        label={t("amountDue")}
-                        value={myCharges.isLoading ? "…" : formatMad(charges?.due ?? 0)}
-                        icon="dollar-sign"
-                        iconColor={(charges?.due ?? 0) > 0 ? colors.destructive : colors.success}
+                        label={t("openTickets")}
+                        value={supportTickets.filter((tk) => tk.status === "open").length}
+                        icon="headphones"
+                        tone="danger"
+                        subtitle={t("support")}
+                        onPress={() => go("/support")}
                       />
                     </View>
                   </>
-                );
-              })()
-            )}
-          </View>
-        )}
+                ) : isSyndicateTeam ? (
+                  <>
+                    <View style={styles.statsRow}>
+                      <StatCard label={t("activeMembers")} value={activeMembers} icon="users" />
+                      {isTreasurer || isSyndicateAdmin ? (
+                        <StatCard label={t("revenue")} value={formatMad(totalRevenue)} icon="trending-up" tone="success" />
+                      ) : (
+                        <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" tone="info" onPress={() => go("/meetings")} />
+                      )}
+                    </View>
+                    <View style={styles.statsRow}>
+                      {isTreasurer || isSyndicateAdmin ? (
+                        <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" tone="warning" subtitle={t("pendingLabel")} />
+                      ) : (
+                        <StatCard label={t("elections")} value={openElections} icon="check-square" tone="warning" onPress={() => go("/elections")} />
+                      )}
+                      <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" tone="info" onPress={() => go("/meetings")} />
+                    </View>
+                  </>
+                ) : (
+                  (() => {
+                    const myMember = members.find((m) => m.email === user.email);
+                    const memberStatus = myMember?.status === "active" ? t("active") : myMember?.status === "inactive" ? t("inactive") : t("pendingLabel");
+                    const memberTone: StatusTone = myMember?.status === "active" ? "success" : myMember?.status === "inactive" ? "danger" : "warning";
+                    return (
+                      <View style={styles.statsRow}>
+                        <StatCard label={t("myStatus")} value={memberStatus} icon="check-circle" tone={memberTone} />
+                        {isTenant ? (
+                          <StatCard label={t("notifications")} value={unreadAlerts.length} icon="bell" tone="info" onPress={() => go("/notifications")} />
+                        ) : (
+                          <StatCard label={t("elections")} value={openElections} icon="check-square" tone="warning" onPress={() => go("/elections")} />
+                        )}
+                      </View>
+                    );
+                  })()
+                )}
+              </Animated.View>
 
-        {/* Recent Activity */}
-        {!dataLoading && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                {t("recentActivity")}
-              </Text>
-              <TouchableOpacity onPress={() => router.push("/activity" as any)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>
-                  {t("seeAll")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View
-              style={[
-                styles.activityList,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              {activityLoading ? (
-                <View style={styles.activityEmpty}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text
-                    style={[
-                      styles.activityEmptyText,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    {t("dashboardActivityLoading")}
-                  </Text>
+              {/* ── Next meetings ── */}
+              {showMeetings ? (
+                <Animated.View entering={FadeInDown.duration(DURATION.base).delay(2*STAGGER)} style={styles.section}>
+                  <SectionHeader title={t("nextMeetings")} actionLabel={t("seeAll")} onAction={() => go("/meetings")} />
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingEnd: 4 }}>
+                    {upcomingMeetings.slice(0, 3).map((m) => (
+                      <Pressable
+                        key={m.id}
+                        onPress={() => go("/meetings")}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${m.title}, ${m.date ? formatDate(m.date, { day: "numeric", month: "long" }) : ""} ${m.time ?? ""}`}
+                        style={({ pressed }) => [styles.meetingCard, { backgroundColor: pressed ? colors.surfaceMuted : colors.card, borderColor: colors.border }]}
+                      >
+                        <View style={[styles.meetingDateBox, { backgroundColor: colors.primarySoft }]}>
+                          <Text style={[styles.meetingDay, { color: colors.tint }]}>{m.date ? (m.date.split("-")[2] ?? "?") : "?"}</Text>
+                          <Text style={[styles.meetingMonth, { color: colors.tint }]}>{m.date ? formatDate(m.date, { month: "short" }) : "—"}</Text>
+                        </View>
+                        <View style={styles.meetingInfo}>
+                          <Text style={[TYPE.bodyStrong, { color: colors.foreground }]} numberOfLines={2}>
+                            {m.title}
+                          </Text>
+                          <View style={styles.meetingMeta}>
+                            <Feather name="clock" size={12} color={colors.textMuted} />
+                            <Text style={[TYPE.caption, { color: colors.textMuted }]}>{m.time}</Text>
+                          </View>
+                          {m.location ? (
+                            <View style={styles.meetingMeta}>
+                              <Feather name="map-pin" size={12} color={colors.textMuted} />
+                              <Text style={[TYPE.caption, { color: colors.textMuted, flexShrink: 1 }]} numberOfLines={1}>
+                                {(m.location ?? "").split(",")[0]}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </Animated.View>
+              ) : null}
+
+              {/* ── Quick access ── */}
+              <Animated.View entering={FadeInDown.duration(DURATION.base).delay(3*STAGGER)} style={styles.section}>
+                <SectionHeader title={t("uiQuickActions")} />
+                <View style={styles.actionsGrid}>
+                  {quickActions.map((a) => {
+                    const tc = toneColors(colors, a.tone);
+                    return (
+                      <Pressable
+                        key={a.labelKey}
+                        onPress={() => go(a.route)}
+                        accessibilityRole="button"
+                        accessibilityLabel={a.label}
+                        style={({ pressed }) => [
+                          styles.actionBtn,
+                          { width: actionItemWidth, backgroundColor: pressed ? colors.surfaceMuted : colors.card, borderColor: colors.border },
+                        ]}
+                      >
+                        <View style={[styles.actionIcon, { backgroundColor: tc.bg }]}>
+                          <Feather name={a.icon as any} size={18} color={tc.fg} />
+                        </View>
+                        <Text style={[styles.actionLabel, { color: colors.foreground }]} numberOfLines={2}>
+                          {a.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-              ) : activityLoadError ? (
-                <View style={styles.activityEmpty}>
-                  <Feather
-                    name="wifi-off"
-                    size={24}
-                    color={colors.mutedForeground}
-                  />
-                  <Text
-                    style={[
-                      styles.activityEmptyText,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    {t("dashboardActivityUnavailable")}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setActivityRefreshKey((key) => key + 1)}
-                  >
-                    <Text style={[styles.seeAll, { color: colors.primary }]}>
-                      {t("dashboardRetry")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : dashboardActivities.length > 0 ? (
-                dashboardActivities.map((act, i) => (
-                  <View
-                    key={act.id}
-                    style={[
-                      styles.activityItem,
-                      i < dashboardActivities.length - 1 && {
-                        borderBottomWidth: 1,
-                        borderBottomColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.activityIconWrap,
-                        { backgroundColor: act.color + "15" },
-                      ]}
-                    >
-                      <Feather
-                        name={act.icon as any}
-                        size={16}
-                        color={act.color}
+              </Animated.View>
+
+              {/* ── Recent activity ── */}
+              <Animated.View entering={FadeInDown.duration(DURATION.base).delay(4*STAGGER)} style={styles.section}>
+                <SectionHeader title={t("uiRecentActivity")} actionLabel={t("seeAll")} onAction={() => go("/activity")} />
+                <Card padding="none">
+                  {activityLoading ? (
+                    <View style={styles.activityLoading} accessibilityLabel={t("dashboardActivityLoading")}>
+                      {[0, 1, 2].map((i) => (
+                        <View key={i} style={styles.skeletonRow}>
+                          <Skeleton width={40} height={40} radius={12} />
+                          <View style={{ flex: 1, gap: 6 }}>
+                            <Skeleton width="70%" height={12} />
+                            <Skeleton width="45%" height={10} />
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : activityLoadError ? (
+                    <View style={styles.activityEmpty}>
+                      <Feather name="wifi-off" size={22} color={colors.textMuted} />
+                      <Text style={[TYPE.secondary, { color: colors.textMuted, textAlign: "center" }]}>{t("dashboardActivityUnavailable")}</Text>
+                      <Button label={t("dashboardRetry")} size="sm" variant="ghost" onPress={() => setActivityRefreshKey((key) => key + 1)} />
+                    </View>
+                  ) : dashboardActivities.length > 0 ? (
+                    dashboardActivities.map((act, i) => (
+                      <ListItem
+                        key={act.id}
+                        icon={act.icon}
+                        iconTone={toneOfAction(act.color)}
+                        title={act.action}
+                        subtitle={act.target}
+                        trailing={
+                          act.timestamp ? (
+                            <Text style={[TYPE.caption, { color: colors.textMuted }]}>{formatDate(act.timestamp, { day: "2-digit", month: "short" })}</Text>
+                          ) : undefined
+                        }
+                        divider={i < dashboardActivities.length - 1}
                       />
+                    ))
+                  ) : (
+                    <View style={styles.activityEmpty}>
+                      <Feather name="clock" size={22} color={colors.textMuted} />
+                      <Text style={[TYPE.bodyStrong, { color: colors.foreground }]}>{t("noRecentActivity")}</Text>
+                      <Text style={[TYPE.secondary, { color: colors.textMuted, textAlign: "center" }]}>{t("noRecentActivityDesc")}</Text>
                     </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={[
-                          styles.activityLabel,
-                          { color: colors.foreground },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {act.action}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.activityTarget,
-                          { color: colors.mutedForeground },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {act.target}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.activityTime,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      {act.timestamp
-                        ? formatDate(act.timestamp, {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                        : ""}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.activityEmpty}>
-                  <Feather
-                    name="clock"
-                    size={24}
-                    color={colors.mutedForeground}
-                    style={{ marginBottom: 12 }}
-                  />
-                  <Text
-                    style={[
-                      styles.activityEmptyText,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    {t("noRecentActivity")}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.activityEmptyDescription,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    {t("noRecentActivityDesc")}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
+                  )}
+                </Card>
+              </Animated.View>
+            </>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -1471,290 +1115,72 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 8 }),
+  hero: {
+    paddingBottom: SPACING.LG,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: "hidden",
+    gap: SPACING.MD,
   },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
-  },
-  greeting: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.85)",
-  },
-  userName: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 24,
-    color: "#FFF",
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  syndicateWrapper: {
+  heroTop: { flexDirection: "row", alignItems: "center", gap: SPACING.MD },
+  heroIdentity: { flex: 1, minWidth: 0, gap: 2 },
+  greeting: { fontFamily: FONT.medium, fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.75)" },
+  userName: { fontFamily: FONT.display, fontSize: 27, lineHeight: 34, color: "#FFFFFF" },
+  sceneWrap: { gap: SPACING.SM },
+  sceneCaption: { alignItems: "center", gap: 2 },
+  sceneTitle: { fontFamily: FONT.display, fontSize: 17, lineHeight: 23, color: "#FFFFFF", textAlign: "center" },
+  sceneMeta: { fontFamily: FONT.medium, fontSize: 12, lineHeight: 16, color: "rgba(255,255,255,0.72)", textAlign: "center" },
+  heroActions: { flexDirection: "row", gap: SPACING.SM },
+  heroMeta: { flexDirection: "row", gap: SPACING.SM, flexWrap: "wrap" },
+  heroChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.FULL,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.18)",
   },
-  syndicate: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
+  heroChipShrink: { flexShrink: 1, maxWidth: "70%" },
+  heroChipText: { fontFamily: FONT.semibold, fontSize: 12, lineHeight: 16, color: "#FFFFFF", flexShrink: 1 },
+  balanceCard: {
+    marginTop: SPACING.XS,
+    padding: SPACING.LG,
+    borderRadius: RADIUS.LG,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.18)",
+    gap: SPACING.MD,
   },
+  balanceHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACING.SM },
+  balanceTitle: { fontFamily: FONT.semibold, fontSize: 14, lineHeight: 20, color: "#FFFFFF", flexShrink: 1 },
+  balanceLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  balanceLinkText: { fontFamily: FONT.medium, fontSize: 12, color: "rgba(255,255,255,0.85)" },
+  balanceNote: { fontFamily: FONT.regular, fontSize: 13, lineHeight: 19, color: "rgba(255,255,255,0.8)" },
 
-  headerBtns: { flexDirection: "row", gap: 12 },
-  headerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerBadge: {
-    position: "absolute",
-    top: -2,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#1D4ED8",
-  },
-  headerBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#FFF" },
+  body: { gap: SPACING.XL, paddingTop: SPACING.XL },
+  section: { gap: SPACING.MD },
+  statsRow: { flexDirection: "row", gap: SPACING.MD },
 
-  roleBadgeWrapper: { alignSelf: "flex-start" },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FFF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.1, radius: 4, elevation: 2 }),
-  },
-  roleBadgeText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    color: "#2563EB",
-  },
+  errorBanner: { flexDirection: "row", alignItems: "center", gap: SPACING.MD, padding: SPACING.MD, borderRadius: RADIUS.LG, borderWidth: 1 },
+  priorityRow: { flexDirection: "row", alignItems: "center" },
+  dismiss: { marginEnd: SPACING.SM },
 
-  body: { gap: 24, paddingTop: 32 },
-
-  dataStatusCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8 }),
-  },
-  dataStatusIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dataStatusTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  dataStatusMessage: { fontFamily: "Inter_400Regular", fontSize: 12 },
-  retryButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  retryButtonText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    color: "#FFF",
-  },
-
-  alertBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    padding: 10,
-    borderRadius: 22,
-    borderWidth: 1,
-  },
-  alertBannerMain: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-    padding: 6,
-  },
-  alertBannerCopy: { flex: 1, minWidth: 0, gap: 3 },
-  alertDismiss: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  alertIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  alertBannerTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
-  alertBannerMsg: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-
-  section: { gap: 14 },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sectionTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    letterSpacing: -0.3,
-  },
-  eyebrow: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 11,
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    marginBottom: 3,
-  },
-  seeAll: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  meetingCard: { width: 248, flexDirection: "row", gap: SPACING.MD, padding: SPACING.MD, borderRadius: RADIUS.LG, borderWidth: 1 },
+  meetingDateBox: { width: 52, height: 56, borderRadius: RADIUS.MD, alignItems: "center", justifyContent: "center" },
+  meetingDay: { fontFamily: FONT.bold, fontSize: 20, lineHeight: 24 },
+  meetingMonth: { fontFamily: FONT.semibold, fontSize: 11, lineHeight: 14 },
+  meetingInfo: { flex: 1, minWidth: 0, gap: 4 },
+  meetingMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
 
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: ACTION_GAP },
-  actionBtn: {
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.05, radius: 10 }),
-  },
-  actionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    flex: 1,
-    textAlign: "left",
-  },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: SPACING.SM + 2, padding: SPACING.MD, minHeight: 60, borderRadius: RADIUS.LG, borderWidth: 1 },
+  actionIcon: { width: 36, height: 36, borderRadius: RADIUS.MD, alignItems: "center", justifyContent: "center" },
+  actionLabel: { flex: 1, fontFamily: FONT.semibold, fontSize: 13, lineHeight: 17 },
 
-  meetingCard: {
-    width: 260,
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: "row",
-    overflow: "hidden",
-    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8, elevation: 2 }),
-  },
-  meetingDateBox: {
-    width: 68,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-  },
-  meetingDay: { fontFamily: "Inter_700Bold", fontSize: 24, lineHeight: 28 },
-  meetingMonth: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  meetingInfo: { flex: 1, padding: 16, justifyContent: "center", gap: 8 },
-  meetingTitle: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  meetingMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
-  meetingTime: { fontFamily: "Inter_500Medium", fontSize: 12 },
-
-  electionBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 20,
-    borderRadius: 24,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 6, opacity: 0.3, radius: 12, elevation: 6 }),
-  },
-  electionBannerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#FFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  electionBannerLabel: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  electionBannerTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    color: "#FFF",
-  },
-
-  statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
-  livePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  liveDot: { width: 6, height: 6, borderRadius: 3 },
-  livePillText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
-
-  activityList: {
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: "hidden",
-    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.03, radius: 8, elevation: 2 }),
-  },
-  activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-  },
-  activityEmpty: { alignItems: "center", gap: 8, padding: 24 },
-  activityEmptyText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    textAlign: "center",
-  },
-  activityEmptyDescription: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  activityIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  activityTarget: { fontFamily: "Inter_400Regular", fontSize: 13 },
-  activityTime: { fontFamily: "Inter_500Medium", fontSize: 12 },
+  activityLoading: { padding: SPACING.LG, gap: SPACING.LG },
+  skeletonRow: { flexDirection: "row", alignItems: "center", gap: SPACING.MD },
+  activityEmpty: { alignItems: "center", justifyContent: "center", gap: SPACING.SM, paddingVertical: SPACING.XL, paddingHorizontal: SPACING.LG },
 });

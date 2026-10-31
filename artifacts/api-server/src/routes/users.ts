@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { initialEmailStatus, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../lib/email/deliverability.js";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -145,6 +146,7 @@ router.post(
     try {
       const { name, phone, role, password, syndicateId } = result.data;
       const normalizedEmail = result.data.email.trim().toLowerCase();
+      if (reservedEmailRefused(normalizedEmail)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
 
       if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
         res.status(403).json({ error: "Syndicat non défini dans le token" });
@@ -240,6 +242,7 @@ router.post(
             passwordHash,
             mustChangePassword: true,
             syndicateId: createdSyndicateId,
+            emailStatus: initialEmailStatus(normalizedEmail),
           } as any)
           .returning({
             id: usersTable.id,

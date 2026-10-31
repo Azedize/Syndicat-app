@@ -10,7 +10,9 @@
 
 import bcrypt from "bcryptjs";
 import { db, pool } from "@workspace/db";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
+  appelPaymentsTable,
   syndicatesTable,
   treasuryAccountsTable,
   refreshTokensTable,
@@ -114,6 +116,10 @@ import {
   templateRequestsTable,
   otpTokensTable,
 } from "@workspace/db/schema";
+import { assertDevDatabase } from "./seedgen/guard";
+
+// Demo accounts share a weak password: local development databases only.
+assertDevDatabase();
 
 const PASSWORD_HASH = await bcrypt.hash("password123", 10);
 
@@ -136,7 +142,7 @@ async function main() {
       country: "Maroc",
       status: "active",
       membersCount: 5,
-      email: "contact@residence-atlas.ma",
+      email: "contact@residence-atlas.test",
       phone: "+212522000001",
       address: "12 Bd Anfa, Casablanca",
       city: "Casablanca",
@@ -159,7 +165,7 @@ async function main() {
       country: "Maroc",
       status: "active",
       membersCount: 4,
-      email: "contact@jardins-agdal.ma",
+      email: "contact@jardins-agdal.test",
       phone: "+212537000002",
       address: "45 Av. Ibn Sina, Agdal, Rabat",
       city: "Rabat",
@@ -182,35 +188,35 @@ async function main() {
     // ── Super-admin ──────────────────────────────────────────────────────
     { id: "user_super_admin",   name: "Karim Bensouda",        email: "superadmin@mizan.ma",                      phone: "+212600000001", cin: "BE123456", passwordHash: PASSWORD_HASH, role: "super_admin",       status: "active",                                  profession: "Administrateur plateforme", createdAt: daysAgo(1500) },
     // ── Syndic admins ────────────────────────────────────────────────────
-    { id: "user_admin_atlas",   name: "Nadia Ouahbi",          email: "syndic@andalous.ma",                        phone: "+212600000002", cin: "A123456",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_residence_atlas",  profession: "Syndic bénévole",           createdAt: daysAgo(1400) },
-    { id: "user_admin_agdal",   name: "Youssef Idrissi",       email: "syndic@jardins-agdal.ma",                   phone: "+212600000003", cin: "R778899",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_jardins_agdal",    profession: "Syndic professionnel",      createdAt: daysAgo(880) },
+    { id: "user_admin_atlas",   name: "Nadia Ouahbi",          email: "syndic@andalous.test",                        phone: "+212600000002", cin: "A123456",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_residence_atlas",  profession: "Syndic bénévole",           createdAt: daysAgo(1400) },
+    { id: "user_admin_agdal",   name: "Youssef Idrissi",       email: "syndic@jardins-agdal.test",                   phone: "+212600000003", cin: "R778899",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_jardins_agdal",    profession: "Syndic professionnel",      createdAt: daysAgo(880) },
     // ── Management team — Résidence Atlas ────────────────────────────────
-    { id: "user_president_atlas",  name: "Abdelhak Essaidi",   email: "president@andalous.ma",                     phone: "+212600000012", cin: "BE567890", passwordHash: PASSWORD_HASH, role: "president",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Chef de projet",            createdAt: daysAgo(1350) },
-    { id: "user_treasurer_atlas",  name: "Fatima Zahra Amghar",email: "tresorier@andalous.ma",                     phone: "+212600000013", cin: "BE678901", passwordHash: PASSWORD_HASH, role: "treasurer",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Expert-comptable",          createdAt: daysAgo(1350) },
-    { id: "user_secretary_atlas",  name: "Samir Hamdouch",     email: "secretaire@andalous.ma",                    phone: "+212600000014", cin: "BE789012", passwordHash: PASSWORD_HASH, role: "secretary",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Juriste",                   createdAt: daysAgo(1350) },
-    { id: "user_committee_atlas",  name: "Naima Beldjoudi",    email: "conseil@andalous.ma",                       phone: "+212600000015", cin: "BE890123", passwordHash: PASSWORD_HASH, role: "committee_member",  status: "active", syndicateId: "syn_residence_atlas",  profession: "Retraitée",                 createdAt: daysAgo(1350) },
+    { id: "user_president_atlas",  name: "Abdelhak Essaidi",   email: "president@andalous.test",                     phone: "+212600000012", cin: "BE567890", passwordHash: PASSWORD_HASH, role: "president",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Chef de projet",            createdAt: daysAgo(1350) },
+    { id: "user_treasurer_atlas",  name: "Fatima Zahra Amghar",email: "tresorier@andalous.test",                     phone: "+212600000013", cin: "BE678901", passwordHash: PASSWORD_HASH, role: "treasurer",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Expert-comptable",          createdAt: daysAgo(1350) },
+    { id: "user_secretary_atlas",  name: "Samir Hamdouch",     email: "secretaire@andalous.test",                    phone: "+212600000014", cin: "BE789012", passwordHash: PASSWORD_HASH, role: "secretary",         status: "active", syndicateId: "syn_residence_atlas",  profession: "Juriste",                   createdAt: daysAgo(1350) },
+    { id: "user_committee_atlas",  name: "Naima Beldjoudi",    email: "conseil@andalous.test",                       phone: "+212600000015", cin: "BE890123", passwordHash: PASSWORD_HASH, role: "committee_member",  status: "active", syndicateId: "syn_residence_atlas",  profession: "Retraitée",                 createdAt: daysAgo(1350) },
     // ── Members — Atlas ──────────────────────────────────────────────────
-    { id: "user_member_1",      name: "Mohammed Alaoui",       email: "mohammed.alaoui@residence-atlas.ma",        phone: "+212600000004", cin: "BE234567", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Ingénieur",                 createdAt: daysAgo(1300) },
-    { id: "user_member_2",      name: "Khadija Tahiri",        email: "khadija.tahiri@residence-atlas.ma",         phone: "+212600000005", cin: "BE345678", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Médecin",                   createdAt: daysAgo(1250) },
-    { id: "user_member_5",      name: "Hassan Cherkaoui",      email: "hassan.cherkaoui@residence-atlas.ma",       phone: "+212600000009", cin: "BE456780", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Retraité",                  createdAt: daysAgo(1600) },
+    { id: "user_member_1",      name: "Mohammed Alaoui",       email: "mohammed.alaoui@residence-atlas.test",        phone: "+212600000004", cin: "BE234567", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Ingénieur",                 createdAt: daysAgo(1300) },
+    { id: "user_member_2",      name: "Khadija Tahiri",        email: "khadija.tahiri@residence-atlas.test",         phone: "+212600000005", cin: "BE345678", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Médecin",                   createdAt: daysAgo(1250) },
+    { id: "user_member_5",      name: "Hassan Cherkaoui",      email: "hassan.cherkaoui@residence-atlas.test",       phone: "+212600000009", cin: "BE456780", passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Retraité",                  createdAt: daysAgo(1600) },
     // ── Members — Agdal ──────────────────────────────────────────────────
-    { id: "user_member_3",      name: "Rachid El Amrani",      email: "rachid.elamrani@jardins-agdal.ma",          phone: "+212600000006", cin: "R889900",  passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Avocat",                    createdAt: daysAgo(850) },
-    { id: "user_member_4",      name: "Amina Rachidi",         email: "amina.rachidi@jardins-agdal.ma",            phone: "+212600000010", cin: "R990022",  passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Architecte",                createdAt: daysAgo(700) },
+    { id: "user_member_3",      name: "Rachid El Amrani",      email: "rachid.elamrani@jardins-agdal.test",          phone: "+212600000006", cin: "R889900",  passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Avocat",                    createdAt: daysAgo(850) },
+    { id: "user_member_4",      name: "Amina Rachidi",         email: "amina.rachidi@jardins-agdal.test",            phone: "+212600000010", cin: "R990022",  passwordHash: PASSWORD_HASH, role: "member",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Architecte",                createdAt: daysAgo(700) },
     // ── Tenants ──────────────────────────────────────────────────────────
-    { id: "user_tenant_1",      name: "Sara Bouzid",           email: "sara.bouzid@gmail.com",                     phone: "+212600000007", cin: "BE456789", passwordHash: PASSWORD_HASH, role: "tenant",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Comptable",                 createdAt: daysAgo(400) },
-    { id: "user_tenant_2",      name: "Omar Zaki",             email: "omar.zaki@gmail.com",                       phone: "+212600000008", cin: "R990011",  passwordHash: PASSWORD_HASH, role: "tenant",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Designer",                  createdAt: daysAgo(200) },
+    { id: "user_tenant_1",      name: "Sara Bouzid",           email: "sara.bouzid@demo.test",                     phone: "+212600000007", cin: "BE456789", passwordHash: PASSWORD_HASH, role: "tenant",            status: "active", syndicateId: "syn_residence_atlas",  profession: "Comptable",                 createdAt: daysAgo(400) },
+    { id: "user_tenant_2",      name: "Omar Zaki",             email: "omar.zaki@demo.test",                       phone: "+212600000008", cin: "R990011",  passwordHash: PASSWORD_HASH, role: "tenant",            status: "active", syndicateId: "syn_jardins_agdal",    profession: "Designer",                  createdAt: daysAgo(200) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
   // 3. MEMBERS  (property owners linked by email to their usersTable row)
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(membersTable).values([
-    { id: "member_1", name: "Mohammed Alaoui",  email: "mohammed.alaoui@residence-atlas.ma",  phone: "+212600000004", profession: "Ingénieur",   syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "paid",    joinDate: "2021-01-15", createdAt: daysAgo(1300) },
-    { id: "member_2", name: "Khadija Tahiri",   email: "khadija.tahiri@residence-atlas.ma",   phone: "+212600000005", profession: "Médecin",     syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "paid",    joinDate: "2021-03-01", createdAt: daysAgo(1250) },
-    { id: "member_3", name: "Hassan Cherkaoui", email: "hassan.cherkaoui@residence-atlas.ma", phone: "+212600000009", profession: "Retraité",    syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "overdue", joinDate: "2019-06-01", createdAt: daysAgo(1600) },
-    { id: "member_4", name: "Rachid El Amrani", email: "rachid.elamrani@jardins-agdal.ma",    phone: "+212600000006", profession: "Avocat",      syndicateId: "syn_jardins_agdal",  status: "active",   cotisationStatus: "paid",    joinDate: "2019-09-15", createdAt: daysAgo(850) },
-    { id: "member_5", name: "Amina Rachidi",    email: "amina.rachidi@jardins-agdal.ma",      phone: "+212600000010", profession: "Architecte",  syndicateId: "syn_jardins_agdal",  status: "active",   cotisationStatus: "paid",    joinDate: "2020-11-01", createdAt: daysAgo(700) },
-    { id: "member_6", name: "Kaouthar Bennis",  email: "kaouthar.bennis@jardins-agdal.ma",    phone: "+212600000011", profession: "Professeure", syndicateId: "syn_jardins_agdal",  status: "inactive", cotisationStatus: "overdue", joinDate: "2020-03-10", createdAt: daysAgo(650) },
+    { id: "member_1", name: "Mohammed Alaoui",  email: "mohammed.alaoui@residence-atlas.test",  phone: "+212600000004", profession: "Ingénieur",   syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "paid",    joinDate: "2021-01-15", createdAt: daysAgo(1300) },
+    { id: "member_2", name: "Khadija Tahiri",   email: "khadija.tahiri@residence-atlas.test",   phone: "+212600000005", profession: "Médecin",     syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "paid",    joinDate: "2021-03-01", createdAt: daysAgo(1250) },
+    { id: "member_3", name: "Hassan Cherkaoui", email: "hassan.cherkaoui@residence-atlas.test", phone: "+212600000009", profession: "Retraité",    syndicateId: "syn_residence_atlas", status: "active",   cotisationStatus: "overdue", joinDate: "2019-06-01", createdAt: daysAgo(1600) },
+    { id: "member_4", name: "Rachid El Amrani", email: "rachid.elamrani@jardins-agdal.test",    phone: "+212600000006", profession: "Avocat",      syndicateId: "syn_jardins_agdal",  status: "active",   cotisationStatus: "paid",    joinDate: "2019-09-15", createdAt: daysAgo(850) },
+    { id: "member_5", name: "Amina Rachidi",    email: "amina.rachidi@jardins-agdal.test",      phone: "+212600000010", profession: "Architecte",  syndicateId: "syn_jardins_agdal",  status: "active",   cotisationStatus: "paid",    joinDate: "2020-11-01", createdAt: daysAgo(700) },
+    { id: "member_6", name: "Kaouthar Bennis",  email: "kaouthar.bennis@jardins-agdal.test",    phone: "+212600000011", profession: "Professeure", syndicateId: "syn_jardins_agdal",  status: "inactive", cotisationStatus: "overdue", joinDate: "2020-03-10", createdAt: daysAgo(650) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -240,8 +246,8 @@ async function main() {
   // 6. TENANTS
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(tenantsTable).values([
-    { id: "tenant_1", name: "Sara Bouzid", email: "sara.bouzid@gmail.com",  phone: "+212600000007", lotId: "lot_a205", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", leaseStart: "2024-01-01", leaseEnd: "2026-12-31", monthlyRent: "5500.00", depositAmount: "11000.00", status: "active", emergencyContact: "Fatima Bouzid", emergencyPhone: "+212661000000", createdAt: daysAgo(400) },
-    { id: "tenant_2", name: "Omar Zaki",   email: "omar.zaki@gmail.com",    phone: "+212600000008", lotId: "lot_ag01", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  leaseStart: "2025-01-01", leaseEnd: "2027-12-31", monthlyRent: "4800.00", depositAmount:  "9600.00", status: "active", emergencyContact: "Nadia Zaki",   emergencyPhone: "+212662000000", createdAt: daysAgo(200) },
+    { id: "tenant_1", name: "Sara Bouzid", email: "sara.bouzid@demo.test",  phone: "+212600000007", lotId: "lot_a205", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", leaseStart: "2024-01-01", leaseEnd: "2026-12-31", monthlyRent: "5500.00", depositAmount: "11000.00", status: "active", emergencyContact: "Fatima Bouzid", emergencyPhone: "+212661000000", createdAt: daysAgo(400) },
+    { id: "tenant_2", name: "Omar Zaki",   email: "omar.zaki@demo.test",    phone: "+212600000008", lotId: "lot_ag01", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  leaseStart: "2025-01-01", leaseEnd: "2027-12-31", monthlyRent: "4800.00", depositAmount:  "9600.00", status: "active", emergencyContact: "Nadia Zaki",   emergencyPhone: "+212662000000", createdAt: daysAgo(200) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -257,10 +263,9 @@ async function main() {
     { id: "bl_1",  budgetId: "budget_atlas_2026", category: "entretien",     label: "Nettoyage & entretien courant",   amountAnnual: "36000.00" },
     { id: "bl_2",  budgetId: "budget_atlas_2026", category: "gardiennage",   label: "Gardiennage & sécurité",          amountAnnual: "48000.00" },
     { id: "bl_3",  budgetId: "budget_atlas_2026", category: "ascenseur",     label: "Maintenance ascenseurs",          amountAnnual: "24000.00" },
-    { id: "bl_4",  budgetId: "budget_atlas_2026", category: "reserves",      label: "Fonds de réserve travaux",        amountAnnual: "21600.00" },
+    // The reserve fund is budgets.fonds_reserve, not a line (lines = charges).
     { id: "bl_5",  budgetId: "budget_agdal_2026", category: "entretien",     label: "Nettoyage & espaces verts",       amountAnnual: "30000.00" },
     { id: "bl_6",  budgetId: "budget_agdal_2026", category: "gardiennage",   label: "Gardiennage",                     amountAnnual: "42000.00" },
-    { id: "bl_7",  budgetId: "budget_agdal_2026", category: "reserves",      label: "Fonds de réserve",                amountAnnual: "14400.00" },
     { id: "bl_8",  budgetId: "budget_atlas_2025", category: "entretien",     label: "Nettoyage courant",               amountAnnual: "33000.00" },
     { id: "bl_9",  budgetId: "budget_atlas_2025", category: "gardiennage",   label: "Gardiennage",                     amountAnnual: "46000.00" },
     { id: "bl_10", budgetId: "budget_atlas_2025", category: "ascenseur",     label: "Maintenance ascenseurs",          amountAnnual: "20000.00" },
@@ -295,6 +300,15 @@ async function main() {
     { id: "adf_9",  buildingId: "building_agdal_1", budgetId: "budget_agdal_2026", lotId: "lot_ag01", ownerId: "member_4", period: "2026-06", type: "charges_courantes", amount: "600.00", dueDate: "2026-06-10", status: "overdue",            createdAt: daysAgo(59) },
     // Atlas juin paid
     { id: "adf_10", buildingId: "building_atlas_a", budgetId: "budget_atlas_2026", lotId: "lot_a101", ownerId: "member_1", period: "2026-06", type: "charges_courantes", amount: "450.00", dueDate: "2026-06-10", status: "paid",               paymentMethod: "virement", paidDate: "2026-06-07", receiptNumber: "REC-2026-0625", createdAt: daysAgo(60) },
+  ]).onConflictDoNothing();
+
+  // A call marked paid has its amount paid; one awaiting validation has a
+  // declared payment waiting for the syndic (fresh databases had neither).
+  await db.update(appelsDeFondsTable)
+    .set({ amountPaid: sql`${appelsDeFondsTable.amount}` })
+    .where(and(inArray(appelsDeFondsTable.id, ["adf_1", "adf_6", "adf_7", "adf_10"]), eq(appelsDeFondsTable.status, "paid"), eq(appelsDeFondsTable.amountPaid, "0")));
+  await db.insert(appelPaymentsTable).values([
+    { id: "apay_demo_adf_2", syndicateId: "syn_residence_atlas", appelId: "adf_2", amount: "450.00", method: "cheque", status: "pending", declaredBy: "user_member_2", notes: "Paiement déclaré (démonstration)", createdAt: daysAgo(10) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -356,11 +370,11 @@ async function main() {
   // 10. PRESTATAIRES + ÉVALUATIONS + CONTRATS
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(prestatairesTable).values([
-    { id: "prest_1", name: "Ascenseurs Maroc SARL",    type: "ascenseur",  contactName: "Ali Nasri",       phone: "+212522111111", email: "contact@ascenseursmaroc.ma",   ice: "001234567000045", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", status: "active",   rating: "4.50", evaluationsCount: 3, createdAt: daysAgo(1000) },
-    { id: "prest_2", name: "GreenClean Services",      type: "nettoyage",  contactName: "Samira Kabbaj",   phone: "+212537222222", email: "contact@greenclean.ma",        ice: "001234567000099", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  status: "active",   rating: "4.20", evaluationsCount: 2, createdAt: daysAgo(600) },
-    { id: "prest_3", name: "TechBâtiment Maroc",       type: "plomberie",  contactName: "Omar Lahlou",     phone: "+212661333333", email: "omar@techbatiment.ma",         ice: "001234567000123",                                  syndicateId: "syn_residence_atlas", status: "active",   rating: "3.80", evaluationsCount: 1, createdAt: daysAgo(300) },
-    { id: "prest_4", name: "Sécurité Atlas Protect",   type: "gardiennage", contactName: "Brahim Soussi",  phone: "+212522444444", email: "contact@atlas-protect.ma",     ice: "001234567000222", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", status: "active",   rating: "4.00", evaluationsCount: 2, createdAt: daysAgo(800) },
-    { id: "prest_5", name: "EcoPaysage",               type: "jardinage",  contactName: "Zineb Hammouti",  phone: "+212537555555", email: "contact@ecopaysage.ma",        ice: "001234567000333", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  status: "inactive", rating: "3.50", evaluationsCount: 1, createdAt: daysAgo(450) },
+    { id: "prest_1", name: "Ascenseurs Maroc SARL",    type: "ascenseur",  contactName: "Ali Nasri",       phone: "+212522111111", email: "contact@ascenseursmaroc.test",   ice: "001234567000045", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", status: "active",   rating: "4.50", evaluationsCount: 3, createdAt: daysAgo(1000) },
+    { id: "prest_2", name: "GreenClean Services",      type: "nettoyage",  contactName: "Samira Kabbaj",   phone: "+212537222222", email: "contact@greenclean.test",        ice: "001234567000099", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  status: "active",   rating: "4.20", evaluationsCount: 2, createdAt: daysAgo(600) },
+    { id: "prest_3", name: "TechBâtiment Maroc",       type: "plomberie",  contactName: "Omar Lahlou",     phone: "+212661333333", email: "omar@techbatiment.test",         ice: "001234567000123",                                  syndicateId: "syn_residence_atlas", status: "active",   rating: "3.80", evaluationsCount: 1, createdAt: daysAgo(300) },
+    { id: "prest_4", name: "Sécurité Atlas Protect",   type: "gardiennage", contactName: "Brahim Soussi",  phone: "+212522444444", email: "contact@atlas-protect.test",     ice: "001234567000222", buildingId: "building_atlas_a", syndicateId: "syn_residence_atlas", status: "active",   rating: "4.00", evaluationsCount: 2, createdAt: daysAgo(800) },
+    { id: "prest_5", name: "EcoPaysage",               type: "jardinage",  contactName: "Zineb Hammouti",  phone: "+212537555555", email: "contact@ecopaysage.test",        ice: "001234567000333", buildingId: "building_agdal_1", syndicateId: "syn_jardins_agdal",  status: "inactive", rating: "3.50", evaluationsCount: 1, createdAt: daysAgo(450) },
   ]).onConflictDoNothing();
 
   await db.insert(prestataireEvaluationsTable).values([
@@ -1043,12 +1057,12 @@ async function main() {
   // 35. CONSEIL SYNDICAL (elected oversight body members)
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(conseilSyndicalTable).values([
-    { id: "cs_1", syndicateId: "syn_residence_atlas", userId: "user_president_atlas",  memberId: "member_1", role: "president",        name: "Abdelhak Essaidi",    email: "president@andalous.ma",  phone: "+212600000012", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
-    { id: "cs_2", syndicateId: "syn_residence_atlas", userId: "user_treasurer_atlas",  memberId: "member_2", role: "treasurer",        name: "Fatima Zahra Amghar", email: "tresorier@andalous.ma",  phone: "+212600000013", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
-    { id: "cs_3", syndicateId: "syn_residence_atlas", userId: "user_secretary_atlas",  memberId: "member_3", role: "secretary",        name: "Samir Hamdouch",      email: "secretaire@andalous.ma", phone: "+212600000014", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
-    { id: "cs_4", syndicateId: "syn_residence_atlas", userId: "user_committee_atlas",  memberId: "member_1", role: "committee_member", name: "Naima Beldjoudi",     email: "conseil@andalous.ma",    phone: "+212600000015", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  createdAt: daysAgo(550) },
-    { id: "cs_5", syndicateId: "syn_jardins_agdal",   userId: "user_member_3",         memberId: "member_4", role: "president",        name: "Rachid El Amrani",    email: "rachid.elamrani@jardins-agdal.ma", mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(800) },
-    { id: "cs_6", syndicateId: "syn_jardins_agdal",   userId: "user_member_4",         memberId: "member_5", role: "treasurer",        name: "Amina Rachidi",       email: "amina.rachidi@jardins-agdal.ma",  mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(700) },
+    { id: "cs_1", syndicateId: "syn_residence_atlas", userId: "user_president_atlas",  memberId: "member_1", role: "president",        name: "Abdelhak Essaidi",    email: "president@andalous.test",  phone: "+212600000012", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_2", syndicateId: "syn_residence_atlas", userId: "user_treasurer_atlas",  memberId: "member_2", role: "treasurer",        name: "Fatima Zahra Amghar", email: "tresorier@andalous.test",  phone: "+212600000013", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_3", syndicateId: "syn_residence_atlas", userId: "user_secretary_atlas",  memberId: "member_3", role: "secretary",        name: "Samir Hamdouch",      email: "secretaire@andalous.test", phone: "+212600000014", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_4", syndicateId: "syn_residence_atlas", userId: "user_committee_atlas",  memberId: "member_1", role: "committee_member", name: "Naima Beldjoudi",     email: "conseil@andalous.test",    phone: "+212600000015", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  createdAt: daysAgo(550) },
+    { id: "cs_5", syndicateId: "syn_jardins_agdal",   userId: "user_member_3",         memberId: "member_4", role: "president",        name: "Rachid El Amrani",    email: "rachid.elamrani@jardins-agdal.test", mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(800) },
+    { id: "cs_6", syndicateId: "syn_jardins_agdal",   userId: "user_member_4",         memberId: "member_5", role: "treasurer",        name: "Amina Rachidi",       email: "amina.rachidi@jardins-agdal.test",  mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(700) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1141,14 +1155,23 @@ async function main() {
   // 40. EMAIL LOGS
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(emailLogsTable).values([
-    { id: "email_1", recipient: "mohammed.alaoui@residence-atlas.ma", subject: "Votre reçu de paiement — juillet 2026",             template: "payment_receipt",  status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(30), createdAt: daysAgo(30) },
-    { id: "email_2", recipient: "khadija.tahiri@residence-atlas.ma",  subject: "Rappel — Validation de votre paiement en attente", template: "payment_reminder", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(9),  createdAt: daysAgo(9) },
-    { id: "email_3", recipient: "hassan.cherkaoui@residence-atlas.ma",subject: "Mise en demeure — Charges impayées",                template: "debt_notice",      status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(14), createdAt: daysAgo(14) },
-    { id: "email_4", recipient: "sara.bouzid@gmail.com",              subject: "Votre bail a été mis à jour",                      template: "document_updated", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(5),  createdAt: daysAgo(5) },
-    { id: "email_5", recipient: "syndic@andalous.ma",                 subject: "Nouveau ticket support — #ticket_1",               template: "ticket_created",   status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(1),  createdAt: daysAgo(1) },
-    { id: "email_6", recipient: "omar.zaki@gmail.com",                subject: "Confirmation de votre réservation de parking",     template: "parking_confirm",  status: "failed", syndicateId: "syn_jardins_agdal",   errorMessage: "SMTP timeout", retryCount: 2, createdAt: daysAgo(3) },
+    { id: "email_1", recipient: "mohammed.alaoui@residence-atlas.test", subject: "Votre reçu de paiement — juillet 2026",             template: "payment_receipt",  status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(30), createdAt: daysAgo(30) },
+    { id: "email_2", recipient: "khadija.tahiri@residence-atlas.test",  subject: "Rappel — Validation de votre paiement en attente", template: "payment_reminder", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(9),  createdAt: daysAgo(9) },
+    { id: "email_3", recipient: "hassan.cherkaoui@residence-atlas.test",subject: "Mise en demeure — Charges impayées",                template: "debt_notice",      status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(14), createdAt: daysAgo(14) },
+    { id: "email_4", recipient: "sara.bouzid@demo.test",              subject: "Votre bail a été mis à jour",                      template: "document_updated", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(5),  createdAt: daysAgo(5) },
+    { id: "email_5", recipient: "syndic@andalous.test",                 subject: "Nouveau ticket support — #ticket_1",               template: "ticket_created",   status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(1),  createdAt: daysAgo(1) },
+    { id: "email_6", recipient: "omar.zaki@demo.test",                subject: "Confirmation de votre réservation de parking",     template: "parking_confirm",  status: "failed", syndicateId: "syn_jardins_agdal",   errorMessage: "SMTP timeout", retryCount: 2, createdAt: daysAgo(3) },
     { id: "email_7", recipient: "superadmin@mizan.ma",               subject: "Rapport mensuel — juillet 2026",                  template: "monthly_report",   status: "pending",                                  createdAt: daysAgo(0) },
   ]).onConflictDoNothing();
+  // The demonstration addresses use reserved domains: no message can reach
+  // them, so these logs say « skipped », never « sent ».
+  await db.update(emailLogsTable)
+    .set({ status: "skipped", errorMessage: "domaine réservé (démonstration) — non envoyé", sentAt: null })
+    .where(and(inArray(emailLogsTable.id, ["email_1", "email_2", "email_3", "email_4", "email_5", "email_6"]), sql`${emailLogsTable.recipient} ~* '\\.(test|invalid|example|localhost)$'`));
+  // Same for the demonstration accounts themselves.
+  await db.update(usersTable)
+    .set({ emailStatus: "undeliverable" } as any)
+    .where(and(sql`${usersTable.email} ~* '\\.(test|invalid|example|localhost)$'`, sql`${usersTable.emailStatus} <> 'undeliverable'`, sql`${usersTable.id} LIKE 'user\\_%'`));
 
   // ─────────────────────────────────────────────────────────────────────────
   // 41. AG PROXIES (pouvoir — Law 18-00 Art. 20)
@@ -1422,10 +1445,44 @@ async function main() {
   // 54. OTP TOKENS (email/phone verification test states)
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(otpTokensTable).values([
-    { id: "otp_1", email: "mohammed.alaoui@residence-atlas.ma", codeHash: await bcrypt.hash("123456", 10), purpose: "email_verification", expiresAt: daysAgo(-2), attempts: 0, createdAt: daysAgo(1) },
-    { id: "otp_2", email: "khadija.tahiri@residence-atlas.ma", codeHash: await bcrypt.hash("654321", 10), purpose: "email_verification", expiresAt: daysAgo(2), usedAt: daysAgo(1), attempts: 1, createdAt: daysAgo(5) },
-    { id: "otp_3", email: "sara.bouzid@gmail.com", codeHash: await bcrypt.hash("246810", 10), purpose: "phone_verification", expiresAt: daysAgo(-1), attempts: 2, createdAt: daysAgo(0) },
+    { id: "otp_1", email: "mohammed.alaoui@residence-atlas.test", codeHash: await bcrypt.hash("123456", 10), purpose: "email_verification", expiresAt: daysAgo(-2), attempts: 0, createdAt: daysAgo(1) },
+    { id: "otp_2", email: "khadija.tahiri@residence-atlas.test", codeHash: await bcrypt.hash("654321", 10), purpose: "email_verification", expiresAt: daysAgo(2), usedAt: daysAgo(1), attempts: 1, createdAt: daysAgo(5) },
+    { id: "otp_3", email: "sara.bouzid@demo.test", codeHash: await bcrypt.hash("246810", 10), purpose: "phone_verification", expiresAt: daysAgo(-1), attempts: 2, createdAt: daysAgo(0) },
   ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Data the migrations derive. On an existing base the migrations computed
+  // them from these demo rows; on a new base the migrations run first, on
+  // empty tables, so the same derivations are replayed here (each only where
+  // the value is still missing — running the seed again changes nothing).
+  // ─────────────────────────────────────────────────────────────────────────
+  // 0004: the owner of a lot is its first ownership period (100 %).
+  await db.execute(sql`
+    INSERT INTO lot_ownerships (syndicate_id, lot_id, member_id, share_percent, start_date, created_by)
+    SELECT b.syndicate_id, l.id, l.owner_id, 100, COALESCE(l.created_at::date, now()::date), 'seed-backfill-0004'
+    FROM lots l
+    JOIN buildings b ON b.id = l.building_id
+    JOIN members m ON m.id = l.owner_id AND m.syndicate_id = b.syndicate_id
+    WHERE l.owner_id IS NOT NULL AND b.syndicate_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM lot_ownerships o WHERE o.lot_id = l.id)`);
+  // 0005: the debtor of a call is the owner it was issued to.
+  await db.execute(sql`UPDATE appels_de_fonds SET debtor_member_ids = ARRAY[owner_id] WHERE owner_id IS NOT NULL AND cardinality(debtor_member_ids) = 0`);
+  // 0011: original amount and issue date.
+  await db.execute(sql`UPDATE appels_de_fonds SET original_amount = amount WHERE original_amount IS NULL`);
+  await db.execute(sql`UPDATE appels_de_fonds SET issue_date = to_char(created_at, 'YYYY-MM-DD') WHERE issue_date IS NULL`);
+  // 0012: never issued after its due date.
+  await db.execute(sql`UPDATE appels_de_fonds SET issue_date = due_date WHERE issue_date IS NOT NULL AND due_date IS NOT NULL AND due_date ~ '^\\d{4}-\\d{2}-\\d{2}$' AND issue_date > due_date`);
+  // 0016: the reference the co-owner writes in the transfer.
+  await db.execute(sql`
+    UPDATE appels_de_fonds a
+    SET payment_reference =
+      left(upper(regexp_replace(l.number, '[^A-Za-z0-9]', '', 'g')), 8) || '-' ||
+      replace(a.period, '-', '') || '-' ||
+      CASE a.type WHEN 'charges_courantes' THEN 'CC' WHEN 'fonds_travaux' THEN 'FT'
+           ELSE upper(left(regexp_replace(coalesce(a.type, 'XX'), '[^A-Za-z]', '', 'g'), 2)) END || '-' ||
+      upper(left(encode(sha256(convert_to(a.id, 'UTF8')), 'hex'), 6))
+    FROM lots l
+    WHERE l.id = a.lot_id AND a.payment_reference IS NULL`);
 
   // ─────────────────────────────────────────────────────────────────────────
   // DONE
@@ -1437,15 +1494,15 @@ async function main() {
   console.log("  Rôle              Email                                    Syndicat");
   console.log("  ─────────────     ─────────────────────────────────────    ─────────────────────────");
   console.log("  super_admin       superadmin@mizan.ma                     (Plateforme)");
-  console.log("  syndicate_admin   syndic@andalous.ma                       Résidence Atlas");
-  console.log("  syndicate_admin   syndic@jardins-agdal.ma                  Les Jardins d'Agdal");
-  console.log("  member            mohammed.alaoui@residence-atlas.ma       Résidence Atlas");
-  console.log("  member            khadija.tahiri@residence-atlas.ma        Résidence Atlas");
-  console.log("  member            hassan.cherkaoui@residence-atlas.ma      Résidence Atlas  ⚠ impayé ×6");
-  console.log("  member            rachid.elamrani@jardins-agdal.ma         Les Jardins d'Agdal");
-  console.log("  member            amina.rachidi@jardins-agdal.ma           Les Jardins d'Agdal");
-  console.log("  tenant            sara.bouzid@gmail.com                    Résidence Atlas (Lot A205)");
-  console.log("  tenant            omar.zaki@gmail.com                      Les Jardins d'Agdal (Lot Ag-01)");
+  console.log("  syndicate_admin   syndic@andalous.test                       Résidence Atlas");
+  console.log("  syndicate_admin   syndic@jardins-agdal.test                  Les Jardins d'Agdal");
+  console.log("  member            mohammed.alaoui@residence-atlas.test       Résidence Atlas");
+  console.log("  member            khadija.tahiri@residence-atlas.test        Résidence Atlas");
+  console.log("  member            hassan.cherkaoui@residence-atlas.test      Résidence Atlas  ⚠ impayé ×6");
+  console.log("  member            rachid.elamrani@jardins-agdal.test         Les Jardins d'Agdal");
+  console.log("  member            amina.rachidi@jardins-agdal.test           Les Jardins d'Agdal");
+  console.log("  tenant            sara.bouzid@demo.test                    Résidence Atlas (Lot A205)");
+  console.log("  tenant            omar.zaki@demo.test                      Les Jardins d'Agdal (Lot Ag-01)");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n  Tables renseignées:");
   const tables = [

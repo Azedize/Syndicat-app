@@ -1,46 +1,48 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator, Modal, Platform, RefreshControl,
-  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
-} from "react-native";
+import { Modal, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useFormat } from "@/hooks/useFormat";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
-import { ErrorState, LoadingState } from "@/components/DataState";
-import FilterChips from "@/components/FilterChips";
-import StatisticsHeader from "@/components/StatisticsHeader";
+import ScreenHeader from "@/components/ScreenHeader";
+import { ErrorState } from "@/components/DataState";
 import RoleGuard from "@/components/RoleGuard";
+import { Button, Card, Chip, SheetHeader, Skeleton, StatusBadge, TextField, toneColors, type StatusTone } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
+import { RADIUS } from "@/constants/spacing";
+import { localDate } from "@/lib/localDate";
 
-const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  degat_eau:        { label: "sinistreTypeWater",  icon: "droplet",       color: "#3b82f6" },
-  incendie:         { label: "sinistreTypeFire",   icon: "alert-octagon", color: "#ef4444" },
-  vol:              { label: "sinistreTypeTheft",  icon: "unlock",        color: "#f97316" },
-  ascenseur:        { label: "sinistreTypeElevator", icon: "chevrons-up",  color: "#2563EB" },
-  dommage_commun:   { label: "sinistreTypeCommon", icon: "tool",          color: "#f59e0b" },
-  autre:            { label: "sinistreTypeOther",  icon: "alert-triangle",color: "#6b7280" },
+type FeatherName = keyof typeof Feather.glyphMap;
+
+const TYPE_CONFIG: Record<string, { label: string; icon: FeatherName; tone: StatusTone }> = {
+  degat_eau: { label: "sinistreTypeWater", icon: "droplet", tone: "info" },
+  incendie: { label: "sinistreTypeFire", icon: "alert-octagon", tone: "danger" },
+  vol: { label: "sinistreTypeTheft", icon: "unlock", tone: "warning" },
+  ascenseur: { label: "sinistreTypeElevator", icon: "chevrons-up", tone: "primary" },
+  dommage_commun: { label: "sinistreTypeCommon", icon: "tool", tone: "warning" },
+  autre: { label: "sinistreTypeOther", icon: "alert-triangle", tone: "neutral" },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  declared:    { label: "sinistreStatusDeclared", color: "#f59e0b" },
-  in_progress: { label: "sinistreStatusProgress", color: "#3b82f6" },
-  expert:      { label: "sinistreStatusExpert", color: "#2563EB" },
-  repair:      { label: "sinistreStatusRepair", color: "#f97316" },
-  closed:      { label: "sinistreStatusClosed", color: "#10b981" },
+const STATUS_CONFIG: Record<string, { label: string; tone: StatusTone; icon: FeatherName }> = {
+  declared: { label: "sinistreStatusDeclared", tone: "warning", icon: "flag" },
+  in_progress: { label: "sinistreStatusProgress", tone: "info", icon: "loader" },
+  expert: { label: "sinistreStatusExpert", tone: "primary", icon: "search" },
+  repair: { label: "sinistreStatusRepair", tone: "warning", icon: "tool" },
+  closed: { label: "sinistreStatusClosed", tone: "success", icon: "check-circle" },
 };
 
-const URGENCY_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  low:      { label: "sinistreUrgencyLow", color: "#10b981", icon: "arrow-down-circle" },
-  medium:   { label: "sinistreUrgencyMedium", color: "#f59e0b", icon: "minus-circle" },
-  high:     { label: "sinistreUrgencyHigh", color: "#f97316", icon: "arrow-up-circle" },
-  critical: { label: "sinistreUrgencyCritical", color: "#ef4444", icon: "alert-octagon" },
+const URGENCY_CONFIG: Record<string, { label: string; tone: StatusTone; icon: FeatherName }> = {
+  low: { label: "sinistreUrgencyLow", tone: "success", icon: "arrow-down-circle" },
+  medium: { label: "sinistreUrgencyMedium", tone: "warning", icon: "minus-circle" },
+  high: { label: "sinistreUrgencyHigh", tone: "danger", icon: "arrow-up-circle" },
+  critical: { label: "sinistreUrgencyCritical", tone: "danger", icon: "alert-octagon" },
 };
 
 type Sinistre = {
@@ -52,16 +54,23 @@ type Sinistre = {
   urgency?: string | null;
   buildingId: string;
   lotId?: string;
-  estimatedAmount?: number;
-  indemnisedAmount?: number;
+  estimatedAmount?: number | string | null;
+  indemnisedAmount?: number | string | null;
   claimNumber?: string;
   reportedByName?: string;
   lot?: { number: string; floor: number } | null;
 };
 
+type Building = { id: string; name: string };
+
+const today = () => localDate();
+const emptyForm = () => ({ type: "degat_eau", urgency: "medium", description: "", date: today(), buildingId: "", estimatedAmount: "" });
+
+// The API scopes the list: the syndicate team sees every incident of the
+// syndicate, residents only the ones they reported themselves.
 export default function SinistresScreen() {
   return (
-    <RoleGuard allow={["syndicate_admin", "president", "committee_member"]}>
+    <RoleGuard allow={["syndicate_admin", "president", "treasurer", "secretary", "committee_member", "member", "tenant"]}>
       <SinistresScreenInner />
     </RoleGuard>
   );
@@ -71,174 +80,215 @@ function SinistresScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { money, date } = useFormat();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
-
   const { showToast } = useToast();
+  const isResident = user?.role === "member" || user?.role === "tenant";
 
   const [sinistres, setSinistres] = useState<Sinistre[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [myLot, setMyLot] = useState<{ id: string; buildingId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  // President chairs governance meetings on sinistres; committee_member votes on remediation.
-  // super_admin never manages individual syndicate incidents.
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "committee_member";
-  const [form, setForm] = useState({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
+  const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
 
-  const [filterType, setFilterType] = useState<string>("all");
-
-  const load = useCallback(async (silent = false) => {
-    try {
-      if (!silent) {
-        setLoading(true);
+  const load = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+          setLoadError(false);
+        }
+        const data = await apiRequest("/sinistres", "GET", undefined, token);
+        setSinistres(data.data ?? []);
         setLoadError(false);
+      } catch {
+        if (!silent) setLoadError(true);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-      const data = await apiRequest("/sinistres", "GET", undefined, token);
-      setSinistres(data.data ?? []);
-    } catch {
-      if (!silent) setLoadError(true);
-    }
-    finally { setLoading(false); setRefreshing(false); }
-  }, [token]);
+    },
+    [token],
+  );
 
-  useEffect(() => { load(); }, [load]);
-  const onRefresh = () => { setRefreshing(true); load(true); };
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Buildings the person may declare for (scoped by the API) and, for a resident, their own lot.
+  useEffect(() => {
+    apiRequest("/buildings", "GET", undefined, token)
+      .then((r) => setBuildings((r?.data ?? []).map((b: any) => ({ id: b.id, name: b.name }))))
+      .catch(() => setBuildings([]));
+    if (isResident) {
+      apiRequest("/lots/my-lot", "GET", undefined, token)
+        .then((r) => (r?.data?.id ? setMyLot({ id: r.data.id, buildingId: r.data.buildingId }) : null))
+        .catch(() => setMyLot(null));
+    }
+  }, [token, isResident]);
+
+  const openForm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setForm({ ...emptyForm(), buildingId: myLot?.buildingId ?? (buildings.length === 1 ? buildings[0].id : "") });
+    setShowModal(true);
+  };
+
+  const dateValid = /^\d{4}-\d{2}-\d{2}$/.test(form.date) && !Number.isNaN(new Date(form.date).getTime());
+  const amountValid = !form.estimatedAmount || (Number.isFinite(Number(form.estimatedAmount.replace(",", "."))) && Number(form.estimatedAmount.replace(",", ".")) >= 0);
 
   const handleSubmit = async () => {
     if (!form.description.trim()) {
       showToast({ type: "warning", title: t("requiredFields"), message: t("sinistreDescriptionRequired") });
       return;
     }
+    if (!form.buildingId || !dateValid || !amountValid) {
+      showToast({ type: "warning", title: t("requiredFields"), message: t("uiSinistreFormInvalid") });
+      return;
+    }
     try {
       setSubmitting(true);
-      await apiRequest("/sinistres", "POST", {
-        type: form.type,
-        urgency: form.urgency,
-        description: form.description,
-        date: form.date,
-        buildingId: form.buildingId,
-        estimatedAmount: form.estimatedAmount ? parseFloat(form.estimatedAmount) : undefined,
-      }, token);
+      await apiRequest(
+        "/sinistres",
+        "POST",
+        {
+          type: form.type,
+          urgency: form.urgency,
+          description: form.description.trim(),
+          date: form.date,
+          buildingId: form.buildingId,
+          lotId: myLot && myLot.buildingId === form.buildingId ? myLot.id : undefined,
+          estimatedAmount: form.estimatedAmount ? Number(form.estimatedAmount.replace(",", ".")) : undefined,
+        },
+        token,
+      );
       setShowModal(false);
-      setForm({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
+      setForm(emptyForm());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: t("sinistreDeclaredTitle"), message: t("sinistreDeclaredMessage") });
       load(true);
-    } catch (e: any) {
+    } catch {
       showToast({ type: "error", title: t("error"), message: t("sinistreCreateError") });
-    } finally { setSubmitting(false); }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const open = sinistres.filter((s) => s.status !== "closed").length;
-  const closed = sinistres.filter((s) => s.status === "closed").length;
+  const openCount = sinistres.filter((s) => s.status !== "closed").length;
+  const closedCount = sinistres.length - openCount;
   const totalEstimated = sinistres.reduce((s, si) => s + (Number(si.estimatedAmount) || 0), 0);
+  const visible = filter === "all" ? sinistres : sinistres.filter((s) => (filter === "closed" ? s.status === "closed" : s.status !== "closed"));
+
+  const header = (
+    <ScreenHeader
+      title={t("sinistresTitle")}
+      subtitle={!loading ? t("sinistreDeclaredCount").replace("{count}", String(sinistres.length)) : undefined}
+      action={{ icon: "plus", label: t("newSinistre"), onPress: openForm }}
+    />
+  );
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: "#ef4444", paddingTop: topPad + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{t("sinistresTitle")} &amp; {t("incidents")}</Text>
-          <Text style={styles.headerSub}>{t("sinistreDeclaredCount").replace("{count}", String(sinistres.length))}</Text>
-        </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); }}>
-          <Feather name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats */}
-      <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {[
-          { label: "total", value: sinistres.length, color: "#ef4444" },
-          { label: "sinistreOpen", value: open, color: "#f97316" },
-          { label: "sinistreClosed", value: closed, color: "#10b981" },
-          { label: "sinistreEstimated", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#2563EB" },
-        ].map((s, i, arr) => (
-          <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
-            <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-            <Text style={[styles.statLab, { color: colors.mutedForeground }]}>{s.label}</Text>
-          </View>
-        ))}
-      </View>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+      {header}
 
       {loading ? (
-        <LoadingState title={t("sinistresLoadingTitle")} description={t("sinistresLoadingDescription")} accentColor="#ef4444" />
+        <View style={{ padding: 16, gap: 12 }} accessibilityLabel={t("sinistresLoadingTitle")}>
+          <Skeleton height={86} radius={RADIUS.LG} />
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={130} radius={RADIUS.LG} />
+          ))}
+        </View>
       ) : loadError ? (
-        <ErrorState
-          title={t("sinistresUnavailableTitle")}
-          description={t("sinistresUnavailableDescription")}
-          retryLabel={t("retry")}
-          onRetry={() => void load()}
-          accentColor="#ef4444"
-        />
+        <ErrorState title={t("sinistresUnavailableTitle")} description={t("sinistresUnavailableDescription")} retryLabel={t("retry")} onRetry={() => void load()} />
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ef4444" />}
+          contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: isWide ? 32 : insets.bottom + 100, flexGrow: 1 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.primary} />}
           showsVerticalScrollIndicator={false}
         >
+          {sinistres.length > 0 ? (
+            <Card padding="md">
+              <View style={styles.stats}>
+                {[
+                  { label: t("sinistreOpen"), value: String(openCount), tone: "warning" as StatusTone },
+                  { label: t("sinistreClosed"), value: String(closedCount), tone: "success" as StatusTone },
+                  { label: t("sinistreEstimated"), value: money(totalEstimated, { decimals: 0 }), tone: "neutral" as StatusTone },
+                ].map((s) => (
+                  <View key={s.label} style={styles.stat}>
+                    <Text style={[TYPE.subtitle, { color: toneColors(colors, s.tone).text }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {s.value}
+                    </Text>
+                    <Text style={[TYPE.caption, { color: colors.textMuted, textAlign: "center" }]} numberOfLines={2}>
+                      {s.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          ) : null}
+
+          {sinistres.length > 0 ? (
+            <View style={styles.chips}>
+              {(
+                [
+                  ["all", `${t("filterToutes")} · ${sinistres.length}`],
+                  ["open", `${t("sinistreOpen")} · ${openCount}`],
+                  ["closed", `${t("sinistreClosed")} · ${closedCount}`],
+                ] as const
+              ).map(([k, label]) => (
+                <Chip key={k} label={label} selected={filter === k} onPress={() => setFilter(k)} />
+              ))}
+            </View>
+          ) : null}
+
           {sinistres.length === 0 ? (
-            <EmptyState
-              icon="shield"
-              title={t("noSinistres")}
-              description={t("sinistresEmptyDescription")}
-              actionLabel={t("newSinistre")}
-              onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); }}
-              accentColor="#10b981"
-            />
+            <EmptyState icon="shield" title={t("noSinistres")} description={t("sinistresEmptyDescription")} actionLabel={t("newSinistre")} onAction={openForm} />
           ) : (
-            sinistres.map((s) => {
+            visible.map((s) => {
               const tc = TYPE_CONFIG[s.type] ?? TYPE_CONFIG.autre;
               const sc = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.declared;
-
+              const uc = s.urgency ? URGENCY_CONFIG[s.urgency] : undefined;
+              const tone = toneColors(colors, tc.tone);
+              const meta = [date(s.date), s.lot ? `${t("lotLabel")} ${s.lot.number}` : null, !isResident ? s.reportedByName : null].filter(Boolean).join(" · ");
               return (
-                <View key={s.id} style={[styles.card, { backgroundColor: colors.card, borderColor: s.status === "closed" ? colors.border : tc.color + "40" }]}>
+                <Card key={s.id} padding="md" style={{ gap: 12 }}>
                   <View style={styles.cardTop}>
-                    <View style={[styles.typeIcon, { backgroundColor: tc.color + "18" }]}>
-                      <Feather name={tc.icon} size={22} color={tc.color} />
+                    <View style={[styles.typeIcon, { backgroundColor: tone.bg }]}>
+                      <Feather name={tc.icon} size={20} color={tone.fg} />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.cardType, { color: tc.color }]}>{t(tc.label)}</Text>
-                      <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>
-                        {s.date}{s.lot ? ` — ${t("lot")} ${s.lot.number}` : ""}{s.reportedByName ? ` — ${s.reportedByName}` : ""}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[TYPE.bodyStrong, { color: colors.foreground, textAlign: "auto" }]}>{t(tc.label)}</Text>
+                      <Text style={[TYPE.caption, { color: colors.textMuted, textAlign: "auto" }]} numberOfLines={1}>
+                        {meta}
                       </Text>
                     </View>
-                    <View style={{ alignItems: "flex-end", gap: 4 }}>
-                      <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
-                        <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.label)}</Text>
-                      </View>
-                      {s.urgency ? (() => {
-                        const uc = URGENCY_CONFIG[s.urgency] ?? URGENCY_CONFIG.medium;
-                        return (
-                          <View style={[styles.statusBadge, { backgroundColor: uc.color + "18" }]}>
-                            <Text style={[styles.statusText, { color: uc.color }]}>{t(uc.label)}</Text>
-                          </View>
-                        );
-                      })() : null}
+                    <StatusBadge label={t(sc.label)} tone={sc.tone} icon={sc.icon} />
+                  </View>
+                  <Text style={[TYPE.secondary, { color: colors.textSecondary, textAlign: "auto" }]} numberOfLines={3}>
+                    {s.description}
+                  </Text>
+                  {uc || s.claimNumber || s.estimatedAmount ? (
+                    <View style={[styles.footer, { borderTopColor: colors.border }]}>
+                      {uc ? <StatusBadge label={t(uc.label)} tone={uc.tone} icon={uc.icon} /> : null}
+                      {s.claimNumber ? (
+                        <Text style={[TYPE.caption, { color: colors.textMuted }]}>
+                          {t("sinistreDossier")} {s.claimNumber}
+                        </Text>
+                      ) : null}
+                      {s.estimatedAmount ? (
+                        <Text style={[TYPE.caption, { color: colors.textSecondary }]}>
+                          {t("sinistreEstimated")} {money(s.estimatedAmount)}
+                          {s.indemnisedAmount ? ` · ${t("sinistreIndemnised")} ${money(s.indemnisedAmount)}` : ""}
+                        </Text>
+                      ) : null}
                     </View>
-                  </View>
-
-                  <Text style={[styles.cardDesc, { color: colors.foreground }]} numberOfLines={3}>{s.description}</Text>
-
-                  <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                    {s.claimNumber ? (
-                      <View style={styles.footerItem}>
-                        <Feather name="hash" size={12} color={colors.mutedForeground} />
-                        <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t("sinistreDossier")}: {s.claimNumber}</Text>
-                      </View>
-                    ) : null}
-                    {s.estimatedAmount ? (
-                      <Text style={[styles.footerAmt, { color: colors.mutedForeground }]}>
-                        ~{(Number(s.estimatedAmount) || 0).toLocaleString("fr-MA")} MAD
-                        {s.indemnisedAmount ? ` / ${t("sinistreIndemnised")}: ${(Number(s.indemnisedAmount) || 0).toLocaleString("fr-MA")} MAD` : ""}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
+                  ) : null}
+                </Card>
               );
             })
           )}
@@ -246,70 +296,76 @@ function SinistresScreenInner() {
       )}
 
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("sinistreDeclareTitle")}</Text>
-            <TouchableOpacity onPress={() => setShowModal(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreType")}</Text>
-            <View style={styles.typeGrid}>
-              {Object.entries(TYPE_CONFIG).map(([k, v]) => (
-                <TouchableOpacity key={k}
-                  style={[styles.typeBtn, { backgroundColor: form.type === k ? v.color : colors.secondary, borderColor: form.type === k ? v.color : colors.border }]}
-                  onPress={() => setForm((p) => ({ ...p, type: k }))}>
-                  <Feather name={v.icon} size={16} color={form.type === k ? "#fff" : v.color} />
-                   <Text style={[styles.typeBtnText, { color: form.type === k ? "#fff" : colors.foreground }]}>{t(v.label)}</Text>
-                </TouchableOpacity>
-              ))}
+        <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+          <SheetHeader title={t("sinistreDeclareTitle")} onClose={() => setShowModal(false)} />
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+            <View style={styles.field}>
+              <Text style={[TYPE.label, { color: colors.foreground }]}>
+                {t("building")} <Text style={{ color: colors.danger }}>*</Text>
+              </Text>
+              {buildings.length === 0 ? (
+                <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{t("uiSinistreNoBuilding")}</Text>
+              ) : (
+                <View style={styles.chips}>
+                  {buildings.map((b) => (
+                    <Chip key={b.id} label={b.name} icon="home" selected={form.buildingId === b.id} onPress={() => setForm((p) => ({ ...p, buildingId: b.id }))} />
+                  ))}
+                </View>
+              )}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreUrgency")}</Text>
-            <View style={styles.typeGrid}>
-              {Object.entries(URGENCY_CONFIG).map(([k, v]) => (
-                <TouchableOpacity key={k}
-                  style={[styles.typeBtn, { backgroundColor: form.urgency === k ? v.color : colors.secondary, borderColor: form.urgency === k ? v.color : colors.border }]}
-                  onPress={() => setForm((p) => ({ ...p, urgency: k }))}>
-                  <Feather name={v.icon} size={14} color={form.urgency === k ? "#fff" : v.color} />
-                   <Text style={[styles.typeBtnText, { color: form.urgency === k ? "#fff" : colors.foreground }]}>{t(v.label)}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.field}>
+              <Text style={[TYPE.label, { color: colors.foreground }]}>{t("sinistreType")}</Text>
+              <View style={styles.chips}>
+                {Object.entries(TYPE_CONFIG).map(([k, v]) => (
+                  <Chip key={k} label={t(v.label)} icon={v.icon} selected={form.type === k} onPress={() => setForm((p) => ({ ...p, type: k }))} />
+                ))}
+              </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("description")} *</Text>
-            <TextInput
-              style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+            <View style={styles.field}>
+              <Text style={[TYPE.label, { color: colors.foreground }]}>{t("sinistreUrgency")}</Text>
+              <View style={styles.chips}>
+                {Object.entries(URGENCY_CONFIG).map(([k, v]) => (
+                  <Chip key={k} label={t(v.label)} icon={v.icon} selected={form.urgency === k} onPress={() => setForm((p) => ({ ...p, urgency: k }))} />
+                ))}
+              </View>
+            </View>
+
+            <TextField
+              label={t("uiDescription")}
+              required
               placeholder={t("sinistreDescriptionPlaceholder")}
-              placeholderTextColor={colors.mutedForeground}
               value={form.description}
               onChangeText={(v) => setForm((p) => ({ ...p, description: v }))}
-              multiline numberOfLines={4} textAlignVertical="top"
+              multiline
             />
-
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreDate")}</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.mutedForeground}
+            <TextField
+              label={t("sinistreDate")}
+              placeholder={today()}
               value={form.date}
               onChangeText={(v) => setForm((p) => ({ ...p, date: v }))}
+              error={form.date && !dateValid ? t("uiDateFormat") : undefined}
+              keyboardType="numbers-and-punctuation"
             />
-
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreEstimatedDamage")}</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+            <TextField
+              label={`${t("sinistreEstimatedDamage")} (MAD)`}
               placeholder={t("sinistreEstimatedPlaceholder")}
-              placeholderTextColor={colors.mutedForeground}
               value={form.estimatedAmount}
               onChangeText={(v) => setForm((p) => ({ ...p, estimatedAmount: v }))}
-              keyboardType="numeric"
+              error={!amountValid ? t("uiAmountInvalid") : undefined}
+              keyboardType="decimal-pad"
             />
 
-            <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#ef4444", opacity: submitting ? 0.7 : 1 }]}
-              onPress={handleSubmit} disabled={submitting}>
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("sinistreDeclareAction")}</Text>}
-            </TouchableOpacity>
+            <Button
+              label={t("sinistreDeclareAction")}
+              icon="send"
+              size="lg"
+              fullWidth
+              loading={submitting}
+              disabled={!form.description.trim() || !form.buildingId || !dateValid || !amountValid}
+              onPress={handleSubmit}
+            />
           </ScrollView>
         </View>
       </Modal>
@@ -319,43 +375,11 @@ function SinistresScreenInner() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 20, flexDirection: "row", alignItems: "center", gap: 14 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
-  addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  statsRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },
-  statCell: { flex: 1, alignItems: "center", paddingVertical: 10 },
-  statVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  statLab: { fontSize: 9, fontFamily: "Inter_400Regular", marginTop: 2 },
-  list: { padding: 16, gap: 12 },
-  card: { borderRadius: 18, borderWidth: 1, overflow: "hidden", padding: 14, gap: 10 },
+  stats: { flexDirection: "row", gap: 8 },
+  stat: { flex: 1, alignItems: "center", gap: 2 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 12 },
-  typeIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  cardType: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  cardDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  statusText: { fontSize: 11, fontFamily: "Inter_700Bold" },
-  cardDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  cardFooter: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, flexWrap: "wrap" },
-  footerItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  footerText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  footerAmt: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { alignItems: "center", gap: 12, paddingVertical: 60, paddingHorizontal: 32 },
-  emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
-  modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  modalBody: { padding: 20, gap: 8, paddingBottom: 40 },
-  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 8 },
-  typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  typeBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
-  typeBtnText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  input: { borderRadius: 12, borderWidth: 1, padding: 14, fontSize: 14, fontFamily: "Inter_400Regular" },
-  textarea: { height: 100, textAlignVertical: "top" },
-  submitBtn: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 16 },
-  submitText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  typeIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  footer: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  field: { gap: 8 },
 });

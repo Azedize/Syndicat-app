@@ -6,6 +6,8 @@ import {
   appelsDeFondsTable,
   lotsTable,
 } from "@workspace/db/schema";
+import { randomUUID } from "node:crypto";
+import { paymentReferenceFor } from "./payment-reference.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { nextSequenceNumber } from "./sequences.js";
 import { currentOwnersOf } from "./units.js";
@@ -135,14 +137,20 @@ export async function finalizeAllocation(
   const budgetIds = [...new Set(c.results.map((r) => r.source.budgetId).filter(Boolean))];
   const lotsToCall = c.perLot.filter((l) => l.amountCents > 0n);
   const owners = await currentOwnersOf(lotsToCall.map((l) => l.lotId));
-  const lotRows = lotsToCall.length ? await tx.select({ id: lotsTable.id, ownerId: lotsTable.ownerId }).from(lotsTable).where(inArray(lotsTable.id, lotsToCall.map((l) => l.lotId))) : [];
+  const lotRows = lotsToCall.length ? await tx.select({ id: lotsTable.id, ownerId: lotsTable.ownerId, number: lotsTable.number }).from(lotsTable).where(inArray(lotsTable.id, lotsToCall.map((l) => l.lotId))) : [];
   let appels: (typeof appelsDeFondsTable.$inferSelect)[] = [];
   if (lotsToCall.length) {
     try {
       appels = await tx
         .insert(appelsDeFondsTable)
         .values(
-          lotsToCall.map((l) => ({
+          lotsToCall.map((l) => {
+            // The id is chosen here so the payment reference can be derived from it.
+            const id = randomUUID();
+            const lotNumber = lotRows.find((r) => r.id === l.lotId)?.number ?? "LOT";
+            return {
+            id,
+            paymentReference: paymentReferenceFor(id, lotNumber, input.period, input.chargeType),
             buildingId: input.buildingId,
             budgetId: budgetIds.length === 1 ? (budgetIds[0] as string) : null,
             lotId: l.lotId,
@@ -156,7 +164,8 @@ export async function finalizeAllocation(
             dueDate,
             status: "pending",
             allocationId: allocation.id,
-          })),
+            };
+          }),
         )
         .returning();
     } catch (err) {

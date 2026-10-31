@@ -137,7 +137,17 @@ export async function checkSessionAccess(p: JwtPayload): Promise<Decision> {
 }
 
 /** Paths that manage condominiums themselves and do their own authorization. */
-const LIFECYCLE_EXEMPT = [/^\/api\/auth\//, /^\/api\/organizations(\/|$)/, /^\/api\/condominiums(\/|$)/, /^\/api\/me\/contexts$/];
+// Personal-data rights (Loi 09-08: access to one's own data, proof of consent)
+// apply whatever the lifecycle of the condominium.
+const LIFECYCLE_EXEMPT = [
+  /^\/api\/auth\//,
+  /^\/api\/organizations(\/|$)/,
+  /^\/api\/condominiums(\/|$)/,
+  /^\/api\/me\/contexts$/,
+  /^\/api\/me\/terms-acceptances$/,
+  /^\/api\/me\/data-export$/,
+  /^\/api\/me\/email-change\/(request|confirm)$/,
+];
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**

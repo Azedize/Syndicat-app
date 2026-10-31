@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -25,6 +26,7 @@ import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import EmptyState from "@/components/EmptyState";
+import { localDate } from "@/lib/localDate";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
@@ -86,7 +88,9 @@ function GovernanceScreenInner() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   // FIX [Governance Bug]: Previously `role !== "member"` accidentally granted
   // admin UI to tenants. Must explicitly list management roles.
-  const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
+  // Council changes (add, remove, name a holder) are requireAdmin on the API.
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  const [naming, setNaming] = useState(false);
 
   const loadGovernance = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -122,7 +126,7 @@ function GovernanceScreenInner() {
       await apiRequest("/governance/conseil", "POST", {
         name: newName.trim(),
         role: newRole.trim(),
-        mandateStart: new Date().toISOString().slice(0, 10),
+        mandateStart: localDate(),
       });
       await loadGovernance(true);
       setShowAddMember(false);
@@ -168,25 +172,11 @@ function GovernanceScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("governanceTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {t("governanceMandatePeriod")}
-          </Text>
-        </View>
-        {isAdmin && tab === "organigramme" ? (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => { setShowAddMember(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-          >
-            <Feather name="user-plus" size={16} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={t("governanceTitle")}
+        subtitle={t("governanceMandatePeriod")}
+        action={isAdmin && tab === "organigramme" ? { icon: "user-plus", label: t("newItem"), onPress: () => { setShowAddMember(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       {/* Tabs — scrollable horizontally for 5 tabs */}
       <ScrollView
@@ -232,7 +222,7 @@ function GovernanceScreenInner() {
           {/* Mandate badge */}
           <View style={[styles.mandatBadge, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
             <Feather name="calendar" size={13} color={colors.primary} />
-            <Text style={[styles.mandatText, { color: colors.primary }]}>
+            <Text style={[styles.mandatText, { color: colors.tint }]}>
               {t("governanceCurrentMandate")}: 2023–2026 • {bureau.length} {t("governanceBoardMembers")}
             </Text>
           </View>
@@ -269,7 +259,7 @@ function GovernanceScreenInner() {
               activeOpacity={0.85}
             >
               <View style={[styles.vpAvatar, { backgroundColor: colors.primary + "15" }]}>
-                <Text style={[styles.vpInitials, { color: colors.primary }]}>
+                <Text style={[styles.vpInitials, { color: colors.tint }]}>
                   {vp.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                 </Text>
               </View>
@@ -310,7 +300,7 @@ function GovernanceScreenInner() {
           ListHeaderComponent={
             <View style={[styles.commHeader, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="layers" size={14} color={colors.primary} />
-              <Text style={[styles.commHeaderText, { color: colors.primary }]}>
+              <Text style={[styles.commHeaderText, { color: colors.tint }]}>
                 {commissions.filter((c) => c.status === "active").length} {t("governanceActiveCommissions")}
               </Text>
             </View>
@@ -365,9 +355,9 @@ function GovernanceScreenInner() {
           ListHeaderComponent={
             <View style={styles.mandatsHeader}>
               {[
-                { label: t("governanceActive"), count: mandats.filter((m) => m.status === "actif").length, color: "#10b981" },
-                { label: t("governanceExpired"), count: mandats.filter((m) => m.status === "expire").length, color: "#f59e0b" },
-                { label: t("governanceVacant"), count: mandats.filter((m) => m.status === "vacant").length, color: "#ef4444" },
+                { label: t("governanceActive"), count: mandats.filter((m) => m.status === "actif").length, color: colors.success },
+                { label: t("governanceExpired"), count: mandats.filter((m) => m.status === "expire").length, color: colors.warning },
+                { label: t("governanceVacant"), count: mandats.filter((m) => m.status === "vacant").length, color: colors.danger },
               ].map((s, i, arr) => (
                 <View key={s.label} style={[styles.mandatStatCell, { borderColor: colors.border }, i < arr.length - 1 && { borderRightWidth: 1 }]}>
                   <Text style={[styles.mandatStatVal, { color: s.color }]}>{s.count}</Text>
@@ -378,13 +368,13 @@ function GovernanceScreenInner() {
           }
           renderItem={({ item: m }) => {
             const statusConfig = {
-              actif: { label: t("statusActive"), color: "#10b981", bg: "#10b98118" },
-              expire: { label: t("governanceExpiredSingular"), color: "#f59e0b", bg: "#f59e0b18" },
-              vacant: { label: t("governanceVacantSingular"), color: "#ef4444", bg: "#ef444418" },
+              actif: { label: t("statusActive"), color: colors.success, bg: colors.success + "18" },
+              expire: { label: t("governanceExpiredSingular"), color: colors.warning, bg: colors.warning + "18" },
+              vacant: { label: t("governanceVacantSingular"), color: colors.danger, bg: colors.danger + "18" },
             }[m.status];
             return (
               <TouchableOpacity
-                style={[styles.mandatCard, { backgroundColor: colors.card, borderColor: m.status === "vacant" ? "#ef444440" : colors.border }]}
+                style={[styles.mandatCard, { backgroundColor: colors.card, borderColor: m.status === "vacant" ? colors.danger + "40" : colors.border }]}
                 onPress={() => { setSelectedMandat(m); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 activeOpacity={0.8}
               >
@@ -436,16 +426,16 @@ function GovernanceScreenInner() {
           ListHeaderComponent={
             <View style={[styles.delegInfoBanner, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="info" size={13} color={colors.primary} />
-              <Text style={[styles.delegInfoText, { color: colors.primary }]}>
+              <Text style={[styles.delegInfoText, { color: colors.tint }]}>
                 {delegations.filter((d) => d.status === "active").length} {t("governanceDelegationsActive")}
               </Text>
             </View>
           }
           renderItem={({ item: d }) => {
             const dStatusConfig = {
-              active: { label: t("governanceActiveStatus"), color: "#10b981", bg: "#10b98118" },
-              expired: { label: t("governanceExpiredSingular"), color: "#f59e0b", bg: "#f59e0b18" },
-              revoked: { label: t("governanceRevoke"), color: "#ef4444", bg: "#ef444418" },
+              active: { label: t("governanceActiveStatus"), color: colors.success, bg: colors.success + "18" },
+              expired: { label: t("governanceExpiredSingular"), color: colors.warning, bg: colors.warning + "18" },
+              revoked: { label: t("governanceRevoke"), color: colors.danger, bg: colors.danger + "18" },
             }[d.status];
             return (
               <TouchableOpacity
@@ -460,7 +450,7 @@ function GovernanceScreenInner() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.delegDomaine, { color: colors.foreground }]} numberOfLines={1}>{d.domaine}</Text>
                     <View style={styles.delegPeopleRow}>
-                      <Text style={[styles.delegPerson, { color: colors.primary }]} numberOfLines={1}>{d.delegant}</Text>
+                      <Text style={[styles.delegPerson, { color: colors.tint }]} numberOfLines={1}>{d.delegant}</Text>
                       <Feather name="arrow-right" size={10} color={colors.mutedForeground} />
                       <Text style={[styles.delegPerson, { color: colors.mutedForeground }]} numberOfLines={1}>{d.delegataire}</Text>
                     </View>
@@ -492,44 +482,11 @@ function GovernanceScreenInner() {
         <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: insets.bottom + 40 }}>
           <View style={[styles.statNote, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "20" }]}>
             <Feather name="info" size={14} color={colors.primary} />
-            <Text style={[styles.statNoteText, { color: colors.primary }]}>
+            <Text style={[styles.statNoteText, { color: colors.tint }]}>
                {t("governanceDocumentsNote")}
             </Text>
           </View>
-          {[
-            { title: "Statuts du syndicat", date: "Jan 2026", version: "v4.2", icon: "book-open" as const },
-            { title: "Règlement intérieur", date: "Jan 2026", version: "v3.1", icon: "book" as const },
-            { title: "Charte éthique", date: "Sep 2025", version: "v1.0", icon: "heart" as const },
-            { title: "Procédures électorales", date: "Oct 2025", version: "v2.0", icon: "check-square" as const },
-            { title: "Convention financière", date: "Mar 2026", version: "v1.3", icon: "dollar-sign" as const },
-          ].map((doc) => (
-            <TouchableOpacity
-              key={doc.title}
-              style={[styles.docRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              activeOpacity={0.8}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/documents");
-              }}
-            >
-              <View style={[styles.docIcon, { backgroundColor: colors.primary + "15" }]}>
-                <Feather name={doc.icon} size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.docTitle, { color: colors.foreground }]}>{doc.title}</Text>
-                <Text style={[styles.docMeta, { color: colors.mutedForeground }]}>{doc.date} • {doc.version}</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.docDownload, { backgroundColor: colors.primary + "15" }]}
-                onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  shareContent(`${doc.title} — ${doc.version} (${doc.date})`, doc.title);
-                }}
-              >
-                <Feather name="download" size={15} color={colors.primary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
+          <StatutesList />
         </ScrollView>
       )}
 
@@ -631,10 +588,10 @@ function GovernanceScreenInner() {
               </View>
               <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Président(e)", value: selectedCommission.chair },
+                  { label: t("govChair"), value: selectedCommission.chair },
                   { label: "Membres", value: `${selectedCommission.members} personnes` },
                   { label: "Statut", value: selectedCommission.status === "active" ? "Active" : "Inactive" },
-                  { label: "Prochaine réunion", value: selectedCommission.nextMeeting },
+                  { label: t("govNextMeeting"), value: selectedCommission.nextMeeting },
                 ].map((item, i) => (
                   <View key={item.label}>
                     {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -666,7 +623,7 @@ function GovernanceScreenInner() {
                   }}
                 >
                   <Feather name="file-text" size={15} color={colors.primary} />
-                  <Text style={[styles.memberActionText, { color: colors.primary }]}>{t("governanceViewMinutes")}</Text>
+                  <Text style={[styles.memberActionText, { color: colors.tint }]}>{t("governanceViewMinutes")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -687,7 +644,7 @@ function GovernanceScreenInner() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
-                const sc = { actif: { label: "Actif", color: "#10b981", bg: "#10b98118" }, expire: { label: "Expiré", color: "#f59e0b", bg: "#f59e0b18" }, vacant: { label: "Vacant", color: "#ef4444", bg: "#ef444418" } }[selectedMandat.status];
+                const sc = { actif: { label: t("govMandateActive"), color: colors.success, bg: colors.success + "18" }, expire: { label: t("govMandateExpired"), color: colors.warning, bg: colors.warning + "18" }, vacant: { label: t("govMandateVacant"), color: colors.danger, bg: colors.danger + "18" } }[selectedMandat.status];
                 return (
                   <>
                     <View style={[styles.mandatDetailHero, { backgroundColor: sc.bg, borderColor: sc.color + "40" }]}>
@@ -729,21 +686,27 @@ function GovernanceScreenInner() {
                         </View>
                         <TouchableOpacity
                           style={[styles.saveBtn, { backgroundColor: nomineeInput.trim() ? colors.primary : colors.border }]}
-                          disabled={!nomineeInput.trim()}
-                          onPress={() => {
-                            if (!nomineeInput.trim()) return;
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            setMandats((prev) => prev.map((m) => m.id === selectedMandat.id ? { ...m, holder: nomineeInput.trim(), status: "actif" as const, startDate: new Date().toISOString().slice(0, 10) } : m));
+                          disabled={!nomineeInput.trim() || naming}
+                          onPress={async () => {
                             const nomme = nomineeInput.trim();
-                            setNomineeInput("");
-                            setSelectedMandat(null);
-                             showToast({
-                               type: "success",
-                               title: t("governanceNominationConfirmed"),
-                               message: t("governanceNominationMessage")
-                                 .replace("{name}", nomme)
-                                 .replace("{post}", selectedMandat.poste),
-                             });
+                            if (!nomme || naming) return;
+                            setNaming(true);
+                            try {
+                              const res = await apiRequest<{ data: Mandat }>(`/governance/conseil/${selectedMandat.id}/holder`, "PUT", { name: nomme });
+                              setMandats((prev) => prev.map((m) => (m.id === selectedMandat.id ? { ...m, ...res.data } : m)));
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                              setNomineeInput("");
+                              setSelectedMandat(null);
+                              showToast({
+                                type: "success",
+                                title: t("governanceNominationConfirmed"),
+                                message: t("governanceNominationMessage").replace("{name}", nomme).replace("{post}", selectedMandat.poste),
+                              });
+                            } catch (e: any) {
+                              showToast({ type: "error", title: t("error"), message: e?.message ?? t("uiActionFailed") });
+                            } finally {
+                              setNaming(false);
+                            }
                           }}
                         >
                           <Text style={[styles.saveBtnText, { color: "#fff" }]}>{t("governanceConfirmNomination")}</Text>
@@ -772,13 +735,13 @@ function GovernanceScreenInner() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
-                const dc = { active: { label: "Active", color: "#10b981", bg: "#10b98118" }, expired: { label: "Expirée", color: "#f59e0b", bg: "#f59e0b18" }, revoked: { label: "Révoquée", color: "#ef4444", bg: "#ef444418" } }[selectedDelegation.status];
+                const dc = { active: { label: t("govDelegActive"), color: colors.success, bg: colors.success + "18" }, expired: { label: t("govDelegExpired"), color: colors.warning, bg: colors.warning + "18" }, revoked: { label: t("govDelegRevoked"), color: colors.danger, bg: colors.danger + "18" } }[selectedDelegation.status];
                 return (
                   <>
                     <View style={[styles.delegDetailFlow, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <View style={{ alignItems: "center", flex: 1 }}>
                         <View style={[styles.delegPersonCircle, { backgroundColor: colors.primary + "15" }]}>
-                          <Text style={[styles.delegPersonInitials, { color: colors.primary }]}>
+                          <Text style={[styles.delegPersonInitials, { color: colors.tint }]}>
                             {selectedDelegation.delegant.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                           </Text>
                         </View>
@@ -792,8 +755,8 @@ function GovernanceScreenInner() {
                         </View>
                       </View>
                       <View style={{ alignItems: "center", flex: 1 }}>
-                        <View style={[styles.delegPersonCircle, { backgroundColor: "#1F5EFF15" }]}>
-                          <Text style={[styles.delegPersonInitials, { color: "#1F5EFF" }]}>
+                        <View style={[styles.delegPersonCircle, { backgroundColor: "#5A4AD615" }]}>
+                          <Text style={[styles.delegPersonInitials, { color: "#5A4AD6" }]}>
                             {selectedDelegation.delegataire.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                           </Text>
                         </View>
@@ -868,11 +831,82 @@ function GovernanceScreenInner() {
   );
 }
 
+/**
+ * The condominium's statutes and by-laws, as recorded in its document library
+ * (category « reglements »). Nothing is listed that has not been uploaded.
+ */
+function StatutesList() {
+  const colors = useColors();
+  const { t, lang } = useLanguage();
+  const [docs, setDocs] = useState<{ id: string; title: string; version: string; updatedAt: string }[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => {
+    setFailed(false);
+    apiRequest<any>("/documents?category=reglements")
+      .then((resp) => {
+        const raw: any[] = Array.isArray(resp) ? resp : Array.isArray(resp?.data) ? resp.data : [];
+        setDocs(
+          raw
+            .filter((d) => d?.id)
+            .map((d) => ({
+              id: String(d.id),
+              title: String(d.title ?? d.name ?? ""),
+              version: d.version ? `v${d.version}` : "",
+              updatedAt: String(d.updatedAt ?? d.createdAt ?? ""),
+            })),
+        );
+      })
+      .catch(() => setFailed(true));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (failed) return <ErrorState title={t("uiLoadErrorTitle")} description={t("uiLoadErrorHint")} retryLabel={t("retry")} onRetry={load} />;
+  if (!docs) return <LoadingState title={t("loading")} />;
+  if (docs.length === 0) {
+    return (
+      <EmptyState
+        icon="book-open"
+        title={t("govNoStatutes")}
+        description={t("govNoStatutesHint")}
+        actionLabel={t("govOpenRules")}
+        onAction={() => router.push("/reglements" as any)}
+      />
+    );
+  }
+  return (
+    <>
+      {docs.map((doc) => (
+        <TouchableOpacity
+          key={doc.id}
+          style={[styles.docRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/reglements" as any);
+          }}
+        >
+          <View style={[styles.docIcon, { backgroundColor: colors.primary + "15" }]}>
+            <Feather name="book-open" size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.docTitle, { color: colors.foreground }]}>{doc.title}</Text>
+            <Text style={[styles.docMeta, { color: colors.mutedForeground }]}>
+              {[doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString(lang === "ar" ? "ar-MA" : lang === "en" ? "en-GB" : lang === "es" ? "es-ES" : "fr-FR") : "", doc.version].filter(Boolean).join(" • ")}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        </TouchableOpacity>
+      ))}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   addBtn: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   tabsScroll: { flexShrink: 0, borderBottomWidth: 1 },
@@ -881,7 +915,7 @@ const styles = StyleSheet.create({
   /* Mandats tab */
   mandatsHeader: { flexDirection: "row", backgroundColor: "transparent", borderRadius: 14, overflow: "hidden", marginBottom: 8 },
   mandatStatCell: { flex: 1, alignItems: "center", paddingVertical: 12, gap: 2 },
-  mandatStatVal: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  mandatStatVal: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   mandatStatLab: { fontSize: 11, fontFamily: "Inter_400Regular" },
   mandatCard: { flexDirection: "row", alignItems: "flex-start", padding: 14, borderRadius: 16, borderWidth: 1, gap: 12 },
   mandatIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -919,7 +953,7 @@ const styles = StyleSheet.create({
   levelCenter: { alignItems: "center" },
   presidentCard: { width: 200, borderRadius: 20, borderWidth: 2, padding: 20, alignItems: "center", gap: 6 },
   presAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  presInitials: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
+  presInitials: { fontSize: 22, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   presName: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center" },
   presRole: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 15 },
   presSince: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginTop: 4 },
@@ -959,7 +993,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
   memberProfile: { borderRadius: 20, padding: 24, alignItems: "center", gap: 6 },
   memberProfileAvatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  memberProfileInitials: { fontSize: 24, fontFamily: "Inter_700Bold", color: "#fff" },
+  memberProfileInitials: { fontSize: 24, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   memberProfileName: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center" },
   memberProfileRole: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", textAlign: "center" },
   memberProfileSince: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },

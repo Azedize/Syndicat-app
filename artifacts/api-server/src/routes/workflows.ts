@@ -6,6 +6,7 @@ import { eq, asc, desc, count, inArray } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -26,9 +27,12 @@ async function withSteps(rows: any[]) {
 }
 
 // ─── GET /workflows ───────────────────────────────────────────────────────────
-// Platform-wide governance processes — every authenticated user can read them,
-// only admins can create workflows or act on approval steps.
-router.get("/workflows", requireAuth, async (req, res) => {
+// Platform-wide governance processes. The table has no condominium column,
+// yet its rows describe one condominium's affairs (a budget to validate, a
+// formal notice for unpaid charges…): readable by everyone, they leaked from
+// one condominium to all the others. Until the model is scoped to a
+// condominium, only the platform reads them (it alone creates and decides).
+router.get("/workflows", requireAuth, requireSuperAdmin, async (req, res) => {
   const { status } = req.query as Record<string, string>;
   const pagination = getPagination(req, 50);
   try {
@@ -52,7 +56,7 @@ router.get("/workflows", requireAuth, async (req, res) => {
 });
 
 // ─── GET /workflows/:id ───────────────────────────────────────────────────────
-router.get("/workflows/:id", requireAuth, async (req, res) => {
+router.get("/workflows/:id", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const [row] = await db
       .select()
@@ -91,7 +95,7 @@ router.post("/workflows", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const { title, category, description, priority, deadline, document } =
       result.data;
-    const startDate = new Date().toISOString().split("T")[0];
+    const startDate = localToday();
 
     const [wf] = await db
       .insert(workflowsTable)
@@ -197,7 +201,7 @@ router.post(
       }
 
       const isApprove = result.data.action === "approve";
-      const today = new Date().toISOString().split("T")[0];
+      const today = localToday();
 
       await db
         .update(workflowStepsTable)

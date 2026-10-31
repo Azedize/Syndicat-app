@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import { uploadFileUri } from "@/lib/upload";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
@@ -27,6 +28,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { syndicates as syndicatesApi } from "@/services/api";
 import { apiRequest } from "@/lib/api";
+import { localDate } from "@/lib/localDate";
 
 const TOTAL_STEPS = 4;
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
@@ -73,14 +75,13 @@ const REGIONS = [
   "Dakhla-Oued Ed Dahab",
 ];
 
+// Moroccan legal forms only. The former list mixed French forms (ASL, ASA)
+// and a "Dahir 1957" label (the trade-union Dahir 1-57-119). Values already
+// stored on existing syndicates are kept as they are.
 const LEGAL_FORMS = [
-  "Syndicat de copropriété (Dahir 1957)",
-  "Association syndicale libre (ASL)",
-  "Association syndicale autorisée (ASA)",
-  "Société civile immobilière (SCI)",
-  "Coopérative immobilière (Al Omrane)",
-  "Groupement de copropriétaires (GCP)",
-  "Association de quartier (Loi 1958)",
+  "Syndicat des copropriétaires (loi 18-00)",
+  "Coopérative d'habitation (loi 112-12)",
+  "Association (dahir 1-58-376 de 1958)",
   "Autre forme juridique",
 ];
 
@@ -91,24 +92,24 @@ const COTISATION_CYCLES = [
 ] as const;
 
 const LOGO_COLORS = [
-  "#2563EB", "#2563eb", "#0891b2", "#059669",
-  "#16a34a", "#ca8a04", "#dc2626", "#db2777",
-  "#9333ea", "#0f172a",
+  "#5A4AD6", "#5A4AD6", "#0F6E7D", "#0B7A57",
+  "#0B7A57", "#ca8a04", "#B42530", "#db2777",
+  "#1F8A9A", "#0E0C1C",
 ];
 
-const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; label: string }[] = [
-  { icon: "home",        color: "#2563EB", label: "Résidence"     },
-  { icon: "grid",        color: "#2563eb", label: "Immeuble"      },
-  { icon: "shield",      color: "#059669", label: "Sécurité"      },
-  { icon: "users",       color: "#0891b2", label: "Communauté"    },
-  { icon: "star",        color: "#ca8a04", label: "Premium"       },
-  { icon: "award",       color: "#dc2626", label: "Excellence"    },
-  { icon: "globe",       color: "#9333ea", label: "National"      },
-  { icon: "layers",      color: "#16a34a", label: "Copropriété"   },
-  { icon: "key",         color: "#db2777", label: "Accès"         },
-  { icon: "map-pin",     color: "#0f172a", label: "Quartier"      },
-  { icon: "briefcase",   color: "#f97316", label: "Professionnel" },
-  { icon: "trending-up", color: "#1F5EFF", label: "Croissance"    },
+const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; labelKey: string }[] = [
+  { icon: "home",        color: "#5A4AD6", labelKey: "setupPresetResidence" },
+  { icon: "grid",        color: "#5A4AD6", labelKey: "setupPresetBuilding" },
+  { icon: "shield",      color: "#0B7A57", labelKey: "setupPresetSecurity" },
+  { icon: "users",       color: "#0F6E7D", labelKey: "setupPresetCommunity" },
+  { icon: "star",        color: "#ca8a04", labelKey: "setupPresetPremium" },
+  { icon: "award",       color: "#B42530", labelKey: "setupPresetExcellence" },
+  { icon: "globe",       color: "#1F8A9A", labelKey: "setupPresetNational" },
+  { icon: "layers",      color: "#0B7A57", labelKey: "setupPresetCondo" },
+  { icon: "key",         color: "#db2777", labelKey: "setupPresetAccess" },
+  { icon: "map-pin",     color: "#0E0C1C", labelKey: "setupPresetNeighbourhood" },
+  { icon: "briefcase",   color: "#C8642A", labelKey: "setupPresetProfessional" },
+  { icon: "trending-up", color: "#5A4AD6", labelKey: "setupPresetGrowth" },
 ];
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
@@ -281,7 +282,7 @@ function CityPicker({
         >
             {value || t("setupSelect")}
         </Text>
-        <Feather name={isRTL ? "chevron-left" : "chevron-down"} size={16} color={colors.mutedForeground} />
+        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
       </TouchableOpacity>
       {error ? (
         <View style={styles.errorRow}>
@@ -334,7 +335,7 @@ function CityPicker({
                 <Text
                   style={[
                     styles.pickerItemText,
-                    { color: item === value ? colors.primary : colors.foreground, textAlign: isRTL ? "right" : "left" },
+                    { color: item === value ? colors.primary : colors.foreground, textAlign: "auto" },
                   ]}
                 >
                   {item}
@@ -391,7 +392,7 @@ function SimplePicker({
         <Text style={[styles.input, { color: value ? colors.foreground : colors.mutedForeground }]}>
            {value || t("setupSelect")}
         </Text>
-        <Feather name={isRTL ? "chevron-left" : "chevron-down"} size={16} color={colors.mutedForeground} />
+        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
       </TouchableOpacity>
       {error ? (
         <View style={styles.errorRow}>
@@ -441,7 +442,7 @@ function SimplePicker({
                   Haptics.selectionAsync();
                 }}
               >
-                 <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground, textAlign: isRTL ? "right" : "left" }]}>
+                 <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground, textAlign: "auto" }]}>
                   {item}
                 </Text>
                 {item === value ? <Feather name="check" size={16} color={colors.primary} /> : null}
@@ -484,8 +485,8 @@ function SuccessScreen({
     >
       {/* Hero */}
       <View style={[styles.successHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={[styles.successIconWrap, { backgroundColor: "#10b98120" }]}>
-          <Feather name="check-circle" size={40} color="#10b981" />
+        <View style={[styles.successIconWrap, { backgroundColor: "#13976C20" }]}>
+          <Feather name="check-circle" size={40} color="#13976C" />
         </View>
         <Text style={[styles.successTitle, { color: colors.foreground }]}>{t("setupCreatedSuccess")}</Text>
         <Text style={[styles.successSubtitle, { color: colors.mutedForeground }]}>
@@ -496,7 +497,7 @@ function SuccessScreen({
       {/* Details card */}
       <View style={[styles.successDetails, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.successDetailHeader}>
-          <View style={[styles.successLogo, { backgroundColor: created.logoColor ?? "#2563EB" }]}>
+          <View style={[styles.successLogo, { backgroundColor: created.logoColor ?? "#5A4AD6" }]}>
             {created.logoUrl ? (
               <Image source={{ uri: created.logoUrl }} style={styles.successLogoImg} />
             ) : (
@@ -510,7 +511,7 @@ function SuccessScreen({
               {created.name}
             </Text>
             {created.legalForm ? (
-              <Text style={[styles.successMeta, { color: colors.primary }]}>{created.legalForm}</Text>
+              <Text style={[styles.successMeta, { color: colors.tint }]}>{created.legalForm}</Text>
             ) : null}
             {created.city || created.region ? (
               <Text style={[styles.successMeta, { color: colors.mutedForeground }]}>
@@ -552,7 +553,7 @@ function SuccessScreen({
             }}
             activeOpacity={0.85}
           >
-            <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color="#fff" />
+            <Feather name="arrow-right" size={18} color="#fff" />
             <Text style={styles.successActionPrimaryText}>{t("setupContinuePayment")}</Text>
           </TouchableOpacity>
         ) : (
@@ -579,7 +580,7 @@ function SuccessScreen({
             activeOpacity={0.8}
           >
             <Feather name="user-plus" size={16} color={colors.primary} />
-            <Text style={[styles.successActionSecondaryText, { color: colors.primary }]}>
+            <Text style={[styles.successActionSecondaryText, { color: colors.tint }]}>
               {t("setupAddMembers")}
             </Text>
           </TouchableOpacity>
@@ -592,8 +593,8 @@ function SuccessScreen({
             }}
             activeOpacity={0.8}
           >
-            <Feather name="home" size={16} color="#3b82f6" />
-            <Text style={[styles.successActionSecondaryText, { color: "#3b82f6" }]}>
+            <Feather name="home" size={16} color="#5A4AD6" />
+            <Text style={[styles.successActionSecondaryText, { color: "#5A4AD6" }]}>
               {t("setupAddBuilding")}
             </Text>
           </TouchableOpacity>
@@ -656,7 +657,7 @@ function SyndicateSetupScreenInner() {
   const [smsError, setSmsError]               = useState<string | null>(null);
   const [smsResendCooldown, setSmsResendCooldown] = useState(0);
   const [smsTimeLeft, setSmsTimeLeft]         = useState(600);
-  const smsInputs = useRef<(TextInput | null)[]>([]);
+  const smsInputs = useRef<(TextInputInstance | null)[]>([]);
 
   // Countdown when modal is open
   useEffect(() => {
@@ -743,7 +744,7 @@ function SyndicateSetupScreenInner() {
     abbreviation: "",
     sector: "Copropriété résidentielle",
     region: "Casablanca-Settat",
-    legalForm: "Syndicat de copropriété (Dahir 1957)",
+    legalForm: "Syndicat des copropriétaires (loi 18-00)",
     email: "",
     phone: "",
     website: "",
@@ -757,7 +758,7 @@ function SyndicateSetupScreenInner() {
     memberCount: "",
     cotisationAmount: "150",
     cotisationCycle: "monthly",
-    logoColor: "#2563EB",
+    logoColor: "#5A4AD6",
     logoUri: "",
     logoUrl: "",
     logoPreset: "home",
@@ -962,7 +963,7 @@ function SyndicateSetupScreenInner() {
           members: createdData.membersCount ?? 0,
           admin: user?.name ?? "Admin",
           status: "active" as const,
-          createdAt: createdData.createdAt ?? new Date().toISOString().slice(0, 10),
+          createdAt: createdData.createdAt ?? localDate(),
           region: createdData.region ?? "",
         });
       }
@@ -1046,7 +1047,7 @@ function SyndicateSetupScreenInner() {
             <Field label={t("setupAbbreviationLabel")} colors={colors} error={errors.abbreviation}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: SCA"
+                placeholder={t("setupAcronymPh")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.abbreviation}
                 onChangeText={(v) => up("abbreviation", v.toUpperCase())}
@@ -1125,7 +1126,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupAddressLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground, minHeight: 60 }]}
-                placeholder="Numéro, rue..."
+                placeholder={t("setupAddressPh")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.address}
                 onChangeText={(v) => up("address", v)}
@@ -1211,7 +1212,7 @@ function SyndicateSetupScreenInner() {
                             <Feather name={p.icon} size={20} color="#fff" />
                           </View>
                           <Text style={[styles.logoPresetLabel, { color: colors.mutedForeground }]} numberOfLines={1}>
-                            {p.label}
+                            {t(p.labelKey)}
                           </Text>
                           {selected ? (
                             <View style={[styles.logoPresetCheck, { backgroundColor: p.color }]}>
@@ -1246,7 +1247,7 @@ function SyndicateSetupScreenInner() {
                   activeOpacity={0.8}
                 >
                   <Feather name="upload" size={15} color={colors.primary} />
-                  <Text style={[styles.logoBtnText, { color: colors.primary }]}>
+                  <Text style={[styles.logoBtnText, { color: colors.tint }]}>
                      {form.logoUri ? t("setupChangeImage") : t("setupUploadLogo")}
                   </Text>
                 </TouchableOpacity>
@@ -1273,7 +1274,7 @@ function SyndicateSetupScreenInner() {
             <Field label={t("setupRegistrationLabel")} colors={colors} error={errors.registrationNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: 2024-SYN-001234"
+                placeholder={t("setupRegistrationPh")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.registrationNumber}
                 onChangeText={(v) => up("registrationNumber", v)}
@@ -1330,9 +1331,9 @@ function SyndicateSetupScreenInner() {
               colors={colors}
                title={t("setupLegalFormLabel")}
             />
-            <View style={[styles.legalNote, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
-              <Feather name="info" size={14} color="#3b82f6" />
-              <Text style={[styles.legalNoteText, { color: "#3b82f6" }]}>
+            <View style={[styles.legalNote, { backgroundColor: "#5A4AD618", borderColor: "#5A4AD630" }]}>
+              <Feather name="info" size={14} color="#5A4AD6" />
+              <Text style={[styles.legalNoteText, { color: "#5A4AD6" }]}>
                  {t("setupLegalNote")}
               </Text>
             </View>
@@ -1362,7 +1363,7 @@ function SyndicateSetupScreenInner() {
                   <Text style={[styles.previewName, { color: colors.foreground }]}>
                     {form.name || "Nom du syndicat"}
                   </Text>
-                  <Text style={[styles.previewMeta, { color: colors.primary }]}>{form.legalForm}</Text>
+                  <Text style={[styles.previewMeta, { color: colors.tint }]}>{form.legalForm}</Text>
                   <Text style={[styles.previewMeta, { color: colors.mutedForeground }]}>
                     {form.city} · {form.region}
                   </Text>
@@ -1428,7 +1429,7 @@ function SyndicateSetupScreenInner() {
             <View style={[styles.summaryBox, { backgroundColor: colors.muted }]}>
               <Text style={[styles.summaryLine, { color: colors.foreground }]}>
                  {t("setupCotisationAmount")}{" "}
-                <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>
+                <Text style={{ color: colors.tint, fontFamily: "Inter_700Bold" }}>
                   {form.cotisationAmount} MAD
                 </Text>{" "}
                  {t(COTISATION_CYCLES.find((c) => c.key === form.cotisationCycle)?.labelKey ?? "setupMonthly").toLowerCase()} {t("setupPerMember")}
@@ -1439,7 +1440,7 @@ function SyndicateSetupScreenInner() {
                   {(
                     parseInt(form.cotisationAmount || "0") * parseInt(form.memberCount || "0")
                   ).toLocaleString()}{" "}
-                  MAD /{" "}
+                  {t("setupCurrencyPer")}{" "}
                    {t(form.cotisationCycle === "monthly" ? "setupMonth" : form.cotisationCycle === "quarterly" ? "setupQuarter" : "setupYear")}
                 </Text>
               ) : null}
@@ -1487,9 +1488,9 @@ function SyndicateSetupScreenInner() {
             </TouchableOpacity>
           )}
           <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Créer un syndicat</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("setupCreateTitle")}</Text>
             <Text style={[styles.stepIndicator, { color: colors.mutedForeground }]}>
-              Étape {step} / {TOTAL_STEPS}
+              {t("setupStepOf").replace("{step}", String(step)).replace("{total}", String(TOTAL_STEPS))}
             </Text>
           </View>
           <View style={{ width: 36 }} />
@@ -1577,8 +1578,8 @@ function SyndicateSetupScreenInner() {
       >
         {/* Phone verified badge visible at step 2 */}
         {step === 2 && phoneVerified && (
-          <View style={[styles.verifiedBadge, { backgroundColor: "#10B98115", borderColor: "#10B981" }]}>
-            <Feather name="check-circle" size={14} color="#10B981" />
+          <View style={[styles.verifiedBadge, { backgroundColor: "#13976C15", borderColor: "#13976C" }]}>
+            <Feather name="check-circle" size={14} color="#13976C" />
             <Text style={styles.verifiedBadgeText}>{t("setupPhoneVerified")}</Text>
           </View>
         )}
@@ -1647,21 +1648,21 @@ function SyndicateSetupScreenInner() {
             {smsSendStatus !== "idle" && (
               <View style={[styles.smsBanner, {
                 backgroundColor:
-                  smsSendStatus === "success" ? "#10B98112" :
-                  smsSendStatus === "error"   ? "#EF444412" :
+                  smsSendStatus === "success" ? "#13976C12" :
+                  smsSendStatus === "error"   ? "#C8323C12" :
                   colors.primary + "10",
                 borderColor:
-                  smsSendStatus === "success" ? "#10B981" :
-                  smsSendStatus === "error"   ? "#EF4444" :
+                  smsSendStatus === "success" ? "#13976C" :
+                  smsSendStatus === "error"   ? "#C8323C" :
                   colors.primary,
               }]}>
                 {smsSendStatus === "sending" && <ActivityIndicator size="small" color={colors.primary} />}
-                {smsSendStatus === "success" && <Feather name="check-circle" size={16} color="#10B981" />}
-                {smsSendStatus === "error"   && <Feather name="x-circle"     size={16} color="#EF4444" />}
+                {smsSendStatus === "success" && <Feather name="check-circle" size={16} color="#13976C" />}
+                {smsSendStatus === "error"   && <Feather name="x-circle"     size={16} color="#C8323C" />}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.smsBannerTitle, {
-                    color: smsSendStatus === "success" ? "#10B981" :
-                           smsSendStatus === "error"   ? "#EF4444" : colors.primary,
+                    color: smsSendStatus === "success" ? "#13976C" :
+                           smsSendStatus === "error"   ? "#C8323C" : colors.primary,
                   }]}>
                     {smsSendStatus === "sending" && t("setupSmsSending")}
                     {smsSendStatus === "success" && t("setupSmsSent")}
@@ -1669,7 +1670,7 @@ function SyndicateSetupScreenInner() {
                   </Text>
                   {smsSendMsg && (
                     <Text style={[styles.smsBannerSub, {
-                      color: smsSendStatus === "error" ? "#EF4444" : colors.mutedForeground,
+                      color: smsSendStatus === "error" ? "#C8323C" : colors.mutedForeground,
                     }]}>{smsSendMsg}</Text>
                   )}
                 </View>
@@ -1679,15 +1680,15 @@ function SyndicateSetupScreenInner() {
             {/* Timer */}
             {smsTimeLeft > 0 ? (
               <View style={styles.smsTimerRow}>
-                <Feather name="clock" size={12} color={smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground} />
-                <Text style={[styles.smsTimerText, { color: smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground }]}>
+                <Feather name="clock" size={12} color={smsTimeLeft <= 60 ? "#C8323C" : colors.mutedForeground} />
+                <Text style={[styles.smsTimerText, { color: smsTimeLeft <= 60 ? "#C8323C" : colors.mutedForeground }]}>
                   {t("smsCodeValidFor")} {fmtTime(smsTimeLeft)}
                 </Text>
               </View>
             ) : (
-              <View style={[styles.smsBanner, { backgroundColor: "#EF444412", borderColor: "#EF444430" }]}>
-                <Feather name="alert-circle" size={14} color="#EF4444" />
-                <Text style={[styles.smsBannerTitle, { color: "#EF4444" }]}>
+              <View style={[styles.smsBanner, { backgroundColor: "#C8323C12", borderColor: "#C8323C30" }]}>
+                <Feather name="alert-circle" size={14} color="#C8323C" />
+                <Text style={[styles.smsBannerTitle, { color: "#C8323C" }]}>
                   {t("smsCodeExpired")}
                 </Text>
               </View>
@@ -1702,7 +1703,7 @@ function SyndicateSetupScreenInner() {
                   style={[styles.smsOtpBox, {
                     backgroundColor: colors.card,
                     borderColor: smsError
-                      ? "#EF4444"
+                      ? "#C8323C"
                       : digit ? colors.primary
                       : colors.border,
                     color: colors.foreground,
@@ -1720,9 +1721,9 @@ function SyndicateSetupScreenInner() {
 
             {/* Error */}
             {smsError && (
-              <View style={[styles.smsBanner, { backgroundColor: "#EF444412", borderColor: "#EF444430" }]}>
-                <Feather name="alert-circle" size={14} color="#EF4444" />
-                <Text style={[styles.smsBannerTitle, { color: "#EF4444" }]}>{smsError}</Text>
+              <View style={[styles.smsBanner, { backgroundColor: "#C8323C12", borderColor: "#C8323C30" }]}>
+                <Feather name="alert-circle" size={14} color="#C8323C" />
+                <Text style={[styles.smsBannerTitle, { color: "#C8323C" }]}>{smsError}</Text>
               </View>
             )}
 
@@ -1733,7 +1734,7 @@ function SyndicateSetupScreenInner() {
                 borderColor: colors.primary + "30",
               }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.smsBannerTitle, { color: colors.primary }]}>
+                <Text style={[styles.smsBannerTitle, { color: colors.tint }]}>
                   {t("smsVerifyLoading")}
                 </Text>
               </View>
@@ -1819,7 +1820,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepTabText: { fontSize: 9, fontFamily: "Inter_500Medium", textAlign: "center" },
-  stepTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 16 },
+  stepTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", marginBottom: 16 },
   stepContent: { gap: 16 },
   stepDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 4 },
   fieldLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
@@ -1907,7 +1908,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 8, borderWidth: 1, marginBottom: 8,
   },
-  verifiedBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#10B981" },
+  verifiedBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#13976C" },
 
   smsModal: { flex: 1 },
   smsModalHeader: {
@@ -1932,7 +1933,7 @@ const styles = StyleSheet.create({
   smsOtpRow: { flexDirection: "row", justifyContent: "center", gap: 10 },
   smsOtpBox: {
     width: 48, height: 60, borderRadius: 14, borderWidth: 2,
-    textAlign: "center", fontSize: 24, fontFamily: "Inter_700Bold",
+    textAlign: "center", fontSize: 24, fontFamily: "Fraunces_600SemiBold",
   },
 
   smsVerifyBtn: {
@@ -2077,7 +2078,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  successTitle: { fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center" },
+  successTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", textAlign: "center" },
   successSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   successDetails: {
     borderRadius: 18,

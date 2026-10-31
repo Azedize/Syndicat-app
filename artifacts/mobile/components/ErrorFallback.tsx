@@ -11,6 +11,16 @@ import {
   View,
 } from "react-native";
 import { crossPlatformShadow } from "@/lib/shadow";
+import { getLastLanguage } from "@/context/LanguageContext";
+
+const TEXTS = {
+  details: { fr: "Voir les détails de l'erreur", en: "Show the error details", ar: "عرض تفاصيل الخطأ", es: "Ver los detalles del error" },
+  title: { fr: "Une erreur s'est produite", en: "Something went wrong", ar: "حدث خطأ", es: "Se ha producido un error" },
+  message: { fr: "Veuillez recharger l'application pour continuer.", en: "Please reload the app to continue.", ar: "يرجى إعادة تحميل التطبيق للمتابعة.", es: "Vuelva a cargar la aplicación para continuar." },
+  retry: { fr: "Réessayer", en: "Try again", ar: "إعادة المحاولة", es: "Reintentar" },
+  detailsTitle: { fr: "Détails de l'erreur", en: "Error details", ar: "تفاصيل الخطأ", es: "Detalles del error" },
+  close: { fr: "Fermer", en: "Close", ar: "إغلاق", es: "Cerrar" },
+} as const;
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -18,16 +28,18 @@ export type ErrorFallbackProps = {
 };
 
 const COLORS = {
-  background: "#f9fafb",
+  background: "#F7F4EE",
   card: "#ffffff",
-  foreground: "#111827",
-  muted: "#6b7280",
-  primary: "#2563EB",
+  foreground: "#0E0C1C",
+  muted: "#6A6680",
+  primary: "#5A4AD6",
   primaryForeground: "#ffffff",
-  border: "#e5e7eb",
+  border: "#E7E1D6",
 };
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
+  const lang = getLastLanguage();
+  const tx = (k: keyof typeof TEXTS) => TEXTS[k][lang] ?? TEXTS[k].fr;
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleRestart = async () => {
@@ -57,7 +69,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       {__DEV__ ? (
         <Pressable
           onPress={() => setIsModalVisible(true)}
-          accessibilityLabel="Voir les détails de l'erreur"
+          accessibilityLabel={tx("details")}
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.topButton,
@@ -78,11 +90,11 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         </View>
 
         <Text style={[styles.title, { color: COLORS.foreground }]}>
-          Une erreur s'est produite
+          {tx("title")}
         </Text>
 
         <Text style={[styles.message, { color: COLORS.muted }]}>
-          Veuillez recharger l'application pour continuer.
+          {tx("message")}
         </Text>
 
         <Pressable
@@ -97,7 +109,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           ]}
         >
           <Text style={[styles.buttonText, { color: COLORS.primaryForeground }]}>
-            Réessayer
+            {tx("retry")}
           </Text>
         </Pressable>
       </View>
@@ -113,11 +125,11 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             <View style={[styles.modalContainer, { backgroundColor: COLORS.background }]}>
               <View style={[styles.modalHeader, { borderBottomColor: COLORS.border }]}>
                 <Text style={[styles.modalTitle, { color: COLORS.foreground }]}>
-                  Détails de l'erreur
+                  {tx("detailsTitle")}
                 </Text>
                 <Pressable
                   onPress={() => setIsModalVisible(false)}
-                  accessibilityLabel="Fermer"
+                  accessibilityLabel={tx("close")}
                   accessibilityRole="button"
                   style={({ pressed }) => [
                     styles.closeButton,
@@ -173,7 +185,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#ede9fe",
+    backgroundColor: "#E4F2F4",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
@@ -204,7 +216,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 32,
     minWidth: 200,
-    ...crossPlatformShadow({ color: "#2563EB", offsetY: 2, opacity: 0.2, radius: 4, elevation: 3 }),
+    ...crossPlatformShadow({ color: "#5A4AD6", offsetY: 2, opacity: 0.2, radius: 4, elevation: 3 }),
     marginTop: 8,
   },
   buttonText: {

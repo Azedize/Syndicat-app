@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { initialEmailStatus, isReservedEmail, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../lib/email/deliverability.js";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomInt } from "node:crypto";
 import { z } from "zod";
@@ -120,6 +121,7 @@ router.post("/auth/register", async (req, res) => {
   }
   const { name, email, phone, password } = result.data;
   const emailLower = email.trim().toLowerCase();
+  if (reservedEmailRefused(emailLower)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
 
   try {
     const [existing] = await db
@@ -163,6 +165,7 @@ router.post("/auth/register", async (req, res) => {
         passwordHash,
         role: "syndicate_admin",
         status: "active",
+        emailStatus: initialEmailStatus(emailLower, true),
       } as any)
       .returning();
 
@@ -565,11 +568,23 @@ router.post("/auth/change-password", requireAuth, async (req, res) => {
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
+// Only these fields: role, condominium, status, e-mail (own flow) and the
+// like are not part of the schema, so they are dropped, never written.
 router.put("/profile", requireAuth, async (req, res) => {
+  // Text without control characters; surrounding spaces removed.
+  const cleanText = (max: number) =>
+    z
+      .string()
+      .transform((v) => v.replace(/\s+/g, " ").trim())
+      .refine((v) => v.length <= max, { message: `${max} caractères au maximum` })
+      .refine((v) => !/[\u0000-\u001f\u007f]/.test(v), { message: "Caractères non autorisés" });
   const schema = z.object({
-    name: z.string().min(1).max(100).optional(),
+    name: cleanText(100).refine((v) => v.length >= 2, { message: "Le nom doit contenir au moins 2 caractères" }).optional(),
+    // Empty clears the number; otherwise it is stored in E.164 (+212…).
     phone: z.string().max(30).optional(),
-    profession: z.string().max(100).optional(),
+    profession: cleanText(100).optional(),
+    // Language of push notifications, set by the app when the user changes it.
+    language: z.enum(["fr", "en", "ar", "es"]).optional(),
     // Avatar is either a server-hosted object path ("/objects/uploads/<uuid>.jpg",
     // returned by POST /storage/uploads) or a full https URL — never an arbitrary
     // protocol or a local device URI (file://, content://, blob:).
@@ -583,13 +598,32 @@ router.put("/profile", requireAuth, async (req, res) => {
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: "Données invalides" });
+    const issue = result.error.issues[0];
+    res.status(400).json({ error: issue?.message && issue.message !== "Required" ? issue.message : "Données invalides", code: "PROFILE_INVALID", field: issue?.path?.[0] });
+    return;
+  }
+  const changes: Record<string, unknown> = { ...result.data };
+  if (typeof changes.phone === "string") {
+    const raw = (changes.phone as string).trim();
+    if (!raw) changes.phone = null;
+    else {
+      const { normalizePhone } = await import("../lib/zimsend.service.js");
+      try {
+        changes.phone = normalizePhone(raw);
+      } catch {
+        res.status(400).json({ error: "Numéro de téléphone invalide (ex. : 06 XX XX XX XX ou +212 6 XX XX XX XX)", code: "PHONE_INVALID", field: "phone" });
+        return;
+      }
+    }
+  }
+  if (Object.keys(changes).length === 0) {
+    res.status(400).json({ error: "Aucune modification fournie", code: "PROFILE_INVALID" });
     return;
   }
   try {
     await db
       .update(usersTable)
-      .set({ ...result.data, updatedAt: new Date() })
+      .set({ ...changes, updatedAt: new Date() })
       .where(eq(usersTable.id, req.user!.userId));
     const [updated] = await db
       .select()
@@ -780,6 +814,10 @@ router.post("/auth/otp/send", async (req, res) => {
     return;
   }
   const em = email.trim().toLowerCase();
+  // A reserved address can never receive a code: say so instead of a 502.
+  if (isReservedEmail(em)) {
+    return void res.status(400).json(RESERVED_EMAIL_ERROR);
+  }
   try {
     if (!(await checkOtpRate(em))) {
       res

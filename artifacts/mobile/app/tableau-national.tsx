@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -33,6 +33,7 @@ import SyndicateCard, {
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { localDate } from "@/lib/localDate";
 
 interface SyndicateStat {
   id: string;
@@ -78,29 +79,29 @@ type RankingRow = {
 };
 
 const HEALTH_CONFIG = {
-  healthy: { color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
+  healthy: { color: "#13976C", bg: "#13976C18", icon: "check-circle" as const },
   warning: {
-    color: "#f59e0b",
-    bg: "#f59e0b18",
+    color: "#C98511",
+    bg: "#C9851118",
     icon: "alert-triangle" as const,
   },
   critical: {
-    color: "#ef4444",
-    bg: "#ef444418",
+    color: "#C8323C",
+    bg: "#C8323C18",
     icon: "alert-circle" as const,
   },
 };
 
 const ALERT_TYPE_CONFIG = {
-  info: { color: "#3b82f6", bg: "#3b82f618", icon: "info" as const },
+  info: { color: "#5A4AD6", bg: "#5A4AD618", icon: "info" as const },
   warning: {
-    color: "#f59e0b",
-    bg: "#f59e0b18",
+    color: "#C98511",
+    bg: "#C9851118",
     icon: "alert-triangle" as const,
   },
   critical: {
-    color: "#ef4444",
-    bg: "#ef444418",
+    color: "#C8323C",
+    bg: "#C8323C18",
     icon: "alert-circle" as const,
   },
 };
@@ -735,7 +736,7 @@ function TableauNationalScreenInner() {
       : a.type === "warning"
         ? "warning"
         : "info") as "info" | "warning" | "critical",
-    date: a.date ?? new Date().toISOString().slice(0, 10),
+    date: a.date ?? localDate(),
     syndicat: undefined,
   }));
 
@@ -815,7 +816,7 @@ function TableauNationalScreenInner() {
           ]}
         >
           <Feather name="shield" size={12} color={colors.primary} />
-          <Text style={[styles.platformBadgeText, { color: colors.primary }]}>
+          <Text style={[styles.platformBadgeText, { color: colors.tint }]}>
             {copy("superAdmin")}
           </Text>
         </View>
@@ -842,37 +843,37 @@ function TableauNationalScreenInner() {
               label: copy("syndicates"),
               value: formatNumber(syndicats.length),
               icon: "layers" as const,
-              color: colors.primary,
+              color: colors.tint,
             },
             {
               label: copy("membersTotalLabel"),
               value: formatNumber(totalMembers),
               icon: "users" as const,
-              color: "#3b82f6",
+              color: "#5A4AD6",
             },
             {
               label: copy("averageCollection"),
               value: `${avgCotisation}%`,
               icon: "percent" as const,
-              color: "#10b981",
+              color: "#13976C",
             },
             {
               label: copy("platformBalance"),
               value: formatMAD(totalBalance),
               icon: "dollar-sign" as const,
-              color: "#1F5EFF",
+              color: "#5A4AD6",
             },
             {
               label: copy("criticalAlerts"),
               value: formatNumber(criticalAlerts),
               icon: "alert-circle" as const,
-              color: "#ef4444",
+              color: "#C8323C",
             },
             {
               label: copy("criticalSyndicates"),
               value: formatNumber(criticalCount),
               icon: "alert-triangle" as const,
-              color: "#f59e0b",
+              color: "#C98511",
             },
           ].map((kpi) => (
             <View
@@ -943,7 +944,7 @@ function TableauNationalScreenInner() {
                     styles.tabBadge,
                     {
                       backgroundColor:
-                        t.key === "alertes" ? "#ef4444" : "#f59e0b",
+                        t.key === "alertes" ? "#C8323C" : "#C98511",
                     },
                   ]}
                 >
@@ -1115,18 +1116,18 @@ function TableauNationalScreenInner() {
               <View
                 style={[
                   styles.alertBanner,
-                  { backgroundColor: "#ef444415", borderColor: "#ef444430" },
+                  { backgroundColor: "#C8323C15", borderColor: "#C8323C30" },
                 ]}
               >
-                <Feather name="alert-circle" size={14} color="#ef4444" />
-                <Text style={[styles.alertBannerText, { color: "#ef4444" }]}>
+                <Feather name="alert-circle" size={14} color="#C8323C" />
+                <Text style={[styles.alertBannerText, { color: "#C8323C" }]}>
                   {formatNumber(criticalAlerts)}{" "}
                   {copy("alerts").toLocaleLowerCase()}{" "}
                   {copy("critical").toLocaleLowerCase()}{" "}
                   {copy("criticalAction")}
                 </Text>
               </View>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item: alert }) => {
             const ac = ALERT_TYPE_CONFIG[alert.type];
@@ -1137,7 +1138,7 @@ function TableauNationalScreenInner() {
                   {
                     backgroundColor: colors.card,
                     borderColor:
-                      alert.type === "critical" ? "#ef444440" : colors.border,
+                      alert.type === "critical" ? "#C8323C40" : colors.border,
                     borderLeftColor: ac.color,
                     borderLeftWidth: 4,
                   },
@@ -1175,7 +1176,7 @@ function TableauNationalScreenInner() {
                       <Text
                         style={[
                           styles.alertSyndicat,
-                          { color: colors.primary },
+                          { color: colors.tint },
                         ]}
                       >
                         {alert.syndicat}
@@ -1274,12 +1275,12 @@ function TableauNationalScreenInner() {
                         ? (synd.balance / totalBalance) * 100
                         : 0;
                     const syndColors = [
-                      "#2563EB",
-                      "#3b82f6",
-                      "#10b981",
-                      "#f59e0b",
-                      "#1F5EFF",
-                      "#ec4899",
+                      "#5A4AD6",
+                      "#5A4AD6",
+                      "#13976C",
+                      "#C98511",
+                      "#5A4AD6",
+                      "#C2456E",
                     ];
                     const c = syndColors[i % syndColors.length];
                     return (
@@ -1342,10 +1343,10 @@ function TableauNationalScreenInner() {
                   .map((synd) => {
                     const c =
                       synd.cotisationRate >= 85
-                        ? "#10b981"
+                        ? "#13976C"
                         : synd.cotisationRate >= 70
-                          ? "#f59e0b"
-                          : "#ef4444";
+                          ? "#C98511"
+                          : "#C8323C";
                     return (
                       <View key={synd.id} style={styles.cotisRow}>
                         <Text
@@ -1387,12 +1388,12 @@ function TableauNationalScreenInner() {
                 {
                   label: copy("consolidatedReport"),
                   icon: "file-text" as const,
-                  color: "#1F5EFF",
+                  color: "#5A4AD6",
                 },
                 {
                   label: copy("exportExcel"),
                   icon: "download" as const,
-                  color: "#10b981",
+                  color: "#13976C",
                 },
               ].map((a) => (
                 <TouchableOpacity
@@ -1487,10 +1488,10 @@ function TableauNationalScreenInner() {
                     const pct =
                       totalMembers > 0 ? (count / totalMembers) * 100 : 0;
                     const regionColors = [
-                      "#2563EB",
-                      "#3b82f6",
-                      "#10b981",
-                      "#f59e0b",
+                      "#5A4AD6",
+                      "#5A4AD6",
+                      "#13976C",
+                      "#C98511",
                     ];
                     const c = regionColors[i % regionColors.length];
                     return (
@@ -1542,9 +1543,9 @@ function TableauNationalScreenInner() {
             >
               <View style={styles.statCardHeader}>
                 <View
-                  style={[styles.statIcon, { backgroundColor: "#10b98118" }]}
+                  style={[styles.statIcon, { backgroundColor: "#13976C18" }]}
                 >
-                  <Feather name="activity" size={15} color="#10b981" />
+                  <Feather name="activity" size={15} color="#13976C" />
                 </View>
                 <Text
                   style={[styles.statCardTitle, { color: colors.foreground }]}
@@ -1606,9 +1607,9 @@ function TableauNationalScreenInner() {
             >
               <View style={styles.statCardHeader}>
                 <View
-                  style={[styles.statIcon, { backgroundColor: "#1F5EFF18" }]}
+                  style={[styles.statIcon, { backgroundColor: "#5A4AD618" }]}
                 >
-                  <Feather name="zap" size={15} color="#1F5EFF" />
+                  <Feather name="zap" size={15} color="#5A4AD6" />
                 </View>
                 <Text
                   style={[styles.statCardTitle, { color: colors.foreground }]}
@@ -1621,19 +1622,19 @@ function TableauNationalScreenInner() {
                   {
                     label: copy("createSyndicate"),
                     icon: "plus-circle" as const,
-                    color: colors.primary,
+                    color: colors.tint,
                     onPress: () => router.push("/syndicate-setup" as any),
                   },
                   {
                     label: copy("manageSubscriptions"),
                     icon: "star" as const,
-                    color: "#f59e0b",
+                    color: "#C98511",
                     onPress: () => router.push("/abonnements" as any),
                   },
                   {
                     label: copy("exportNationalReport"),
                     icon: "download" as const,
-                    color: "#10b981",
+                    color: "#13976C",
                     onPress: () => {
                       const lines = [
                         `${copy("syndicates")};${copy("membersByRegion")};${copy("members")};${copy("platformHealth")}`,
@@ -1655,7 +1656,7 @@ function TableauNationalScreenInner() {
                   {
                     label: copy("sendGlobalAnnouncement"),
                     icon: "send" as const,
-                    color: "#ec4899",
+                    color: "#C2456E",
                     onPress: () => router.push("/publications" as any),
                   },
                 ] as {
@@ -1715,7 +1716,7 @@ function TableauNationalScreenInner() {
           <LoadingState
             title={STATE_COPY.loadingRankings[lang]}
             description={STATE_COPY.loadingRankingsDescription[lang]}
-            accentColor="#f59e0b"
+            accentColor="#C98511"
           />
         ) : rankingsError ? (
           <ErrorState
@@ -1723,7 +1724,7 @@ function TableauNationalScreenInner() {
             description={STATE_COPY.rankingsUnavailable[lang]}
             retryLabel={STATE_COPY.retry[lang]}
             onRetry={() => void loadRankings()}
-            accentColor="#f59e0b"
+            accentColor="#C98511"
           />
         ) : (
           <FlatList
@@ -1800,7 +1801,7 @@ function TableauNationalScreenInner() {
               </View>
             }
             renderItem={({ item: r, index }) => {
-              const podiumColors = ["#f59e0b", "#9ca3af", "#a16207"];
+              const podiumColors = ["#C98511", "#A6A1BE", "#a16207"];
               const rankColor =
                 r.rank <= 3 ? podiumColors[r.rank - 1] : colors.primary;
               return (
@@ -1809,7 +1810,7 @@ function TableauNationalScreenInner() {
                     styles.syndicatCard,
                     {
                       backgroundColor: colors.card,
-                      borderColor: r.rank === 1 ? "#f59e0b40" : colors.border,
+                      borderColor: r.rank === 1 ? "#C9851140" : colors.border,
                     },
                   ]}
                 >
@@ -1879,22 +1880,22 @@ function TableauNationalScreenInner() {
                       {
                         label: copy("collectionShort"),
                         value: `${Math.round(r.collectionRate)}%`,
-                        color: "#10b981",
+                        color: "#13976C",
                       },
                       {
                         label: "Incidents",
                         value: `${Math.round(r.incidentResolutionRate)}%`,
-                        color: "#3b82f6",
+                        color: "#5A4AD6",
                       },
                       {
                         label: "Docs",
                         value: `${Math.round(r.documentationScore)}`,
-                        color: "#2563EB",
+                        color: "#5A4AD6",
                       },
                       {
                         label: copy("meetings"),
                         value: `${Math.round(r.meetingComplianceScore)}`,
-                        color: "#f59e0b",
+                        color: "#C98511",
                       },
                     ].map((m, i, arr) => (
                       <View
@@ -2013,26 +2014,26 @@ function TableauNationalScreenInner() {
                         {
                           label: copy("membersTotalLabel"),
                           value: formatNumber(selectedSyndicat.members),
-                          color: colors.primary,
+                          color: colors.tint,
                         },
                         {
                           label: copy("membersActive"),
                           value:
                             formatNumber(selectedSyndicat.activeMembers),
-                          color: "#10b981",
+                          color: "#13976C",
                         },
                         {
                           label: "Taux cotisations",
                           value: `${selectedSyndicat.cotisationRate}%`,
                           color:
                             selectedSyndicat.cotisationRate >= 80
-                              ? "#10b981"
-                              : "#f59e0b",
+                              ? "#13976C"
+                              : "#C98511",
                         },
                         {
                           label: copy("balance"),
                           value: formatMAD(selectedSyndicat.balance),
-                          color: "#1F5EFF",
+                          color: "#5A4AD6",
                         },
                       ].map((m) => (
                         <View
@@ -2241,14 +2242,14 @@ function TableauNationalScreenInner() {
                           .slice(0, 10)
                           .map((m: any, i: number) => {
                             const sc = {
-                              active: { color: "#10b981", label: copy("active") },
-                              inactive: { color: "#9ca3af", label: copy("inactive") },
+                              active: { color: "#13976C", label: copy("active") },
+                              inactive: { color: "#A6A1BE", label: copy("inactive") },
                               pending: {
-                                color: "#f59e0b",
+                                color: "#C98511",
                                 label: copy("pending"),
                               },
                             }[m.status as string] ?? {
-                              color: "#9ca3af",
+                              color: "#A6A1BE",
                               label: m.status,
                             };
                             return (
@@ -2435,7 +2436,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   platformBadge: {
     flexDirection: "row",
@@ -2558,7 +2559,7 @@ const styles = StyleSheet.create({
   },
   financeHeroAmount: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     color: "#fff",
   },
   financeHeroSub: {

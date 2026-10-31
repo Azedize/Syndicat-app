@@ -10,7 +10,7 @@
  * Step 7 : Publish (confirm, closes wizard)
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -79,10 +79,10 @@ interface Props {
 // ─── Category config ──────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "attestation", labelKey: "wizardCategoryAttestations", descKey: "wizardCategoryAttestationsDesc", icon: "award"       as const, color: "#8b5cf6" },
-  { key: "pv",          labelKey: "wizardCategoryGovernance", descKey: "wizardCategoryGovernanceDesc", icon: "clipboard"   as const, color: "#10b981" },
-  { key: "finances",    labelKey: "wizardCategoryFinance", descKey: "wizardCategoryFinanceDesc", icon: "dollar-sign" as const, color: "#f59e0b" },
-  { key: "juridique",   labelKey: "wizardCategoryLegal", descKey: "wizardCategoryLegalDesc", icon: "shield"      as const, color: "#ef4444" },
+  { key: "attestation", labelKey: "wizardCategoryAttestations", descKey: "wizardCategoryAttestationsDesc", icon: "award"       as const, color: "#1F8A9A" },
+  { key: "pv",          labelKey: "wizardCategoryGovernance", descKey: "wizardCategoryGovernanceDesc", icon: "clipboard"   as const, color: "#13976C" },
+  { key: "finances",    labelKey: "wizardCategoryFinance", descKey: "wizardCategoryFinanceDesc", icon: "dollar-sign" as const, color: "#C98511" },
+  { key: "juridique",   labelKey: "wizardCategoryLegal", descKey: "wizardCategoryLegalDesc", icon: "shield"      as const, color: "#C8323C" },
 ];
 
 // ─── Entity type → document template mapping ─────────────────────────────────
@@ -112,14 +112,111 @@ const ENTITY_TYPE_MAP: Record<string, {
   rapport_financier:     { type: "budgets",   idField: "budgetId",       label: "Budget (optionnel)",  icon: "trending-up", hint: "Sélectionnez un budget pour pré-remplir les indicateurs financiers." },
 };
 
+// ─── Field texts in the interface language ───────────────────────────────────
+// The field definitions above are written in French (they also document the
+// data source). They are translated only for display; the values typed in
+// and the generated document's language are not affected.
+const WIZARD_TEXTS: Record<string, { en: string; ar: string; es: string }> = {
+  "Réunion AG": { en: "General meeting", ar: "الجمع العام", es: "Junta general" },
+  "Les données de réunion (date, lieu, ordre du jour, résolutions) seront chargées automatiquement.": { en: "The meeting's data (date, place, agenda, resolutions) will be loaded automatically.", ar: "ستُحمَّل بيانات الاجتماع (التاريخ، المكان، جدول الأعمال، القرارات) تلقائيًا.", es: "Los datos de la reunión (fecha, lugar, orden del día, acuerdos) se cargarán automáticamente." },
+  "Réunion à convoquer": { en: "Meeting to convene", ar: "الاجتماع المراد الدعوة إليه", es: "Reunión que convocar" },
+  "Sélectionnez la réunion — date, lieu et heure seront pré-remplis.": { en: "Select the meeting — date, place and time will be filled in.", ar: "اختر الاجتماع — سيُملأ التاريخ والمكان والساعة مسبقًا.", es: "Seleccione la reunión: la fecha, el lugar y la hora se rellenarán." },
+  "Réunion liée (optionnel)": { en: "Related meeting (optional)", ar: "اجتماع مرتبط (اختياري)", es: "Reunión vinculada (opcional)" },
+  "Optionnel — liez cette décision à une réunion pour pré-remplir la date et le contexte.": { en: "Optional — link this decision to a meeting to fill in the date and context.", ar: "اختياري — اربط هذا القرار باجتماع لملء التاريخ والسياق مسبقًا.", es: "Opcional: vincule esta decisión a una reunión para rellenar la fecha y el contexto." },
+  "Lot / Appartement": { en: "Unit / Apartment", ar: "الوحدة / الشقة", es: "Unidad / Piso" },
+  "Le nom du résident, l'adresse et le numéro de lot seront chargés depuis la base.": { en: "The resident's name, address and unit number will be loaded from the records.", ar: "سيُحمَّل اسم الساكن والعنوان ورقم الوحدة من قاعدة البيانات.", es: "El nombre del residente, la dirección y el número de unidad se cargarán desde la base de datos." },
+  "Le titre foncier, les tantièmes et les données du propriétaire seront chargés automatiquement.": { en: "The land title, the shares and the owner's details will be loaded automatically.", ar: "سيُحمَّل الرسم العقاري والحصص وبيانات المالك تلقائيًا.", es: "El título de propiedad, las cuotas y los datos del propietario se cargarán automáticamente." },
+  "Le total des charges payées sera calculé automatiquement depuis les appels de fonds.": { en: "The total of charges paid will be calculated from the calls for funds.", ar: "سيُحسب مجموع التكاليف المدفوعة تلقائيًا من نداءات الأموال.", es: "El total de gastos pagados se calculará a partir de las derramas." },
+  "Copropriétaire / Membre": { en: "Co-owner / Member", ar: "المالك المشترك / العضو", es: "Copropietario / Miembro" },
+  "Le nom, le lot et les coordonnées du membre seront chargés automatiquement depuis la base de données.": { en: "The member's name, unit and contact details will be loaded from the records.", ar: "سيُحمَّل اسم العضو ووحدته وبيانات الاتصال به تلقائيًا من قاعدة البيانات.", es: "El nombre, la unidad y los datos de contacto del miembro se cargarán desde la base de datos." },
+  "Membre mis en demeure": { en: "Member given formal notice", ar: "العضو المُنذَر", es: "Miembro requerido" },
+  "Le nom, le lot et les coordonnées seront chargés — précisez seulement l'objet et le délai.": { en: "The name, unit and contact details will be loaded — only state the subject and the deadline.", ar: "سيُحمَّل الاسم والوحدة وبيانات الاتصال — حدّد فقط الموضوع والأجل.", es: "Se cargarán el nombre, la unidad y los datos de contacto: indique solo el objeto y el plazo." },
+  "Appel de fonds": { en: "Call for funds", ar: "نداء الأموال", es: "Derrama" },
+  "Toutes les données financières (montant, échéance, lot, copropriétaire) seront chargées.": { en: "All the financial data (amount, due date, unit, co-owner) will be loaded.", ar: "ستُحمَّل جميع البيانات المالية (المبلغ، الاستحقاق، الوحدة، المالك).", es: "Se cargarán todos los datos financieros (importe, vencimiento, unidad, copropietario)." },
+  "Facture": { en: "Invoice", ar: "الفاتورة", es: "Factura" },
+  "Les lignes de facture, le montant et le destinataire seront importés depuis la comptabilité.": { en: "The invoice lines, amount and recipient will be taken from the accounts.", ar: "ستُستورد بنود الفاتورة والمبلغ والمرسَل إليه من المحاسبة.", es: "Las líneas de la factura, el importe y el destinatario se tomarán de la contabilidad." },
+  "Budget (optionnel)": { en: "Budget (optional)", ar: "الميزانية (اختياري)", es: "Presupuesto (opcional)" },
+  "Sélectionnez un budget pour pré-remplir les indicateurs financiers.": { en: "Select a budget to fill in the financial figures.", ar: "اختر ميزانية لملء المؤشرات المالية مسبقًا.", es: "Seleccione un presupuesto para rellenar los indicadores financieros." },
+  "Titre du document": { en: "Document title", ar: "عنوان الوثيقة", es: "Título del documento" },
+  "Ex: PV Réunion Octobre 2026": { en: "E.g. Minutes, October 2026 meeting", ar: "مثال: محضر اجتماع أكتوبر 2026", es: "Ej.: Acta de la reunión de octubre de 2026" },
+  "Nom du membre": { en: "Member's name", ar: "اسم العضو", es: "Nombre del miembro" },
+  "Date de réunion": { en: "Meeting date", ar: "تاريخ الاجتماع", es: "Fecha de la reunión" },
+  "15/07/2026 — auto si réunion sélectionnée": { en: "15/07/2026 — automatic if a meeting is selected", ar: "15/07/2026 — تلقائي عند اختيار اجتماع", es: "15/07/2026 — automático si se selecciona una reunión" },
+  "Lieu": { en: "Place", ar: "المكان", es: "Lugar" },
+  "Salle de réunion, Résidence… — auto si réunion sélectionnée": { en: "Meeting room, residence… — automatic if a meeting is selected", ar: "قاعة الاجتماعات، الإقامة… — تلقائي عند اختيار اجتماع", es: "Sala de reuniones, residencia… — automático si se selecciona una reunión" },
+  "Heure": { en: "Time", ar: "الساعة", es: "Hora" },
+  "10h00 — auto si réunion sélectionnée": { en: "10:00 — automatic if a meeting is selected", ar: "10:00 — تلقائي عند اختيار اجتماع", es: "10:00 — automático si se selecciona una reunión" },
+  "Ordre du jour": { en: "Agenda", ar: "جدول الأعمال", es: "Orden del día" },
+  "1. Approbation du budget\n2. Travaux…": { en: "1. Approval of the budget\n2. Works…", ar: "1. المصادقة على الميزانية\n2. الأشغال…", es: "1. Aprobación del presupuesto\n2. Obras…" },
+  "Délibérations": { en: "Deliberations", ar: "المداولات", es: "Deliberaciones" },
+  "Résumé des discussions…": { en: "Summary of the discussions…", ar: "ملخص النقاشات…", es: "Resumen de los debates…" },
+  "Résolutions adoptées": { en: "Resolutions adopted", ar: "القرارات المعتمدة", es: "Acuerdos adoptados" },
+  "Résolution 1: …": { en: "Resolution 1: …", ar: "القرار 1: …", es: "Acuerdo 1: …" },
+  "Destinataire": { en: "Recipient", ar: "المرسَل إليه", es: "Destinatario" },
+  "Tous les membres": { en: "All members", ar: "جميع الأعضاء", es: "Todos los miembros" },
+  "Date": { en: "Date", ar: "التاريخ", es: "Fecha" },
+  "Résidence Al Fath, Salle… — auto si réunion sélectionnée": { en: "Al Fath residence, room… — automatic if a meeting is selected", ar: "إقامة الفتح، قاعة… — تلقائي عند اختيار اجتماع", es: "Residencia Al Fath, sala… — automático si se selecciona una reunión" },
+  "Objet": { en: "Subject", ar: "الموضوع", es: "Objeto" },
+  "Assemblée Générale Ordinaire": { en: "Ordinary general meeting", ar: "الجمع العام العادي", es: "Junta general ordinaria" },
+  "Partie 2 (Tiers)": { en: "Party 2 (third party)", ar: "الطرف الثاني (الغير)", es: "Parte 2 (tercero)" },
+  "Société XYZ SARL": { en: "XYZ SARL", ar: "شركة XYZ ش.م.م", es: "Sociedad XYZ SARL" },
+  "Objet du contrat": { en: "Subject of the contract", ar: "موضوع العقد", es: "Objeto del contrato" },
+  "Prestation de gardiennage...": { en: "Caretaking service...", ar: "خدمة الحراسة...", es: "Servicio de conserjería..." },
+  "Clauses du contrat": { en: "Contract clauses", ar: "بنود العقد", es: "Cláusulas del contrato" },
+  "Article 1 : ...": { en: "Article 1: ...", ar: "المادة 1: ...", es: "Artículo 1: ..." },
+  "Organe décisionnel": { en: "Deciding body", ar: "الهيئة المقرِّرة", es: "Órgano de decisión" },
+  "Bureau syndical": { en: "Syndic's board", ar: "مكتب السانديك", es: "Junta de gobierno" },
+  "Objet de la décision": { en: "Subject of the decision", ar: "موضوع القرار", es: "Objeto de la decisión" },
+  "Approbation du budget...": { en: "Approval of the budget...", ar: "المصادقة على الميزانية...", es: "Aprobación del presupuesto..." },
+  "Corps de la décision": { en: "Text of the decision", ar: "نص القرار", es: "Texto de la decisión" },
+  "Mis en demeure": { en: "Person given notice", ar: "المُنذَر", es: "Requerido" },
+  "Auto — sélectionnez un membre": { en: "Automatic — select a member", ar: "تلقائي — اختر عضوًا", es: "Automático: seleccione un miembro" },
+  "Impayés de charges — 3 mois": { en: "Unpaid charges — 3 months", ar: "تكاليف غير مؤداة — 3 أشهر", es: "Gastos impagados — 3 meses" },
+  "Délai imparti": { en: "Deadline given", ar: "الأجل الممنوح", es: "Plazo concedido" },
+  "15 jours à compter de la réception": { en: "15 days from receipt", ar: "15 يومًا من تاريخ التوصل", es: "15 días desde la recepción" },
+  "Conséquences": { en: "Consequences", ar: "العواقب", es: "Consecuencias" },
+  "Préambule": { en: "Preamble", ar: "الديباجة", es: "Preámbulo" },
+  "Exercice comptable": { en: "Financial year", ar: "السنة المالية", es: "Ejercicio contable" },
+  "Auto si budget sélectionné": { en: "Automatic if a budget is selected", ar: "تلقائي عند اختيار ميزانية", es: "Automático si se selecciona un presupuesto" },
+  "Budget prévu (MAD)": { en: "Planned budget (MAD)", ar: "الميزانية المتوقعة (د.م.)", es: "Presupuesto previsto (MAD)" },
+  "Réalisé (MAD)": { en: "Actual (MAD)", ar: "المنجز (د.م.)", es: "Realizado (MAD)" },
+  "Observations": { en: "Remarks", ar: "ملاحظات", es: "Observaciones" },
+  "Établi par": { en: "Prepared by", ar: "أعدّه", es: "Elaborado por" },
+  "Auto — Trésorier": { en: "Automatic — Treasurer", ar: "تلقائي — أمين المال", es: "Automático — Tesorero" },
+  "Approuvé par": { en: "Approved by", ar: "صادق عليه", es: "Aprobado por" },
+  "Auto — Président": { en: "Automatic — President", ar: "تلقائي — الرئيس", es: "Automático — Presidente" },
+  "Nom du résident": { en: "Resident's name", ar: "اسم الساكن", es: "Nombre del residente" },
+  "Auto si lot sélectionné": { en: "Automatic if a unit is selected", ar: "تلقائي عند اختيار وحدة", es: "Automático si se selecciona una unidad" },
+  "Période": { en: "Period", ar: "الفترة", es: "Periodo" },
+  "Du 01/01/2026 au 31/12/2026": { en: "From 01/01/2026 to 31/12/2026", ar: "من 01/01/2026 إلى 31/12/2026", es: "Del 01/01/2026 al 31/12/2026" },
+  "Nom du propriétaire": { en: "Owner's name", ar: "اسم المالك", es: "Nombre del propietario" },
+  "Titre foncier": { en: "Land title", ar: "الرسم العقاري", es: "Título de propiedad" },
+  "Tantièmes": { en: "Shares", ar: "الحصص", es: "Cuotas" },
+  "Auto si lot sélectionné (/ 10 000)": { en: "Automatic if a unit is selected (/ 10,000)", ar: "تلقائي عند اختيار وحدة (/ 10 000)", es: "Automático si se selecciona una unidad (/ 10 000)" },
+  "Nom du copropriétaire": { en: "Co-owner's name", ar: "اسم المالك المشترك", es: "Nombre del copropietario" },
+  "Période couverte": { en: "Period covered", ar: "الفترة المشمولة", es: "Periodo cubierto" },
+  "Exercice 2026": { en: "Financial year 2026", ar: "السنة المالية 2026", es: "Ejercicio 2026" },
+  "Montant total réglé": { en: "Total amount paid", ar: "المبلغ الإجمالي المؤدى", es: "Importe total pagado" },
+  "Auto calculé si lot sélectionné (MAD)": { en: "Calculated automatically if a unit is selected (MAD)", ar: "يُحسب تلقائيًا عند اختيار وحدة (د.م.)", es: "Calculado automáticamente si se selecciona una unidad (MAD)" },
+  "Copropriétaire": { en: "Co-owner", ar: "المالك المشترك", es: "Copropietario" },
+  "Auto si appel sélectionné": { en: "Automatic if a call is selected", ar: "تلقائي عند اختيار نداء", es: "Automático si se selecciona una derrama" },
+  "Montant": { en: "Amount", ar: "المبلغ", es: "Importe" },
+  "Objet spécifique": { en: "Specific subject", ar: "موضوع خاص", es: "Objeto específico" },
+  "Charges communes trimestrielles…": { en: "Quarterly common charges…", ar: "التكاليف المشتركة الفصلية…", es: "Gastos comunes trimestrales…" },
+  "Auto si facture sélectionnée": { en: "Automatic if an invoice is selected", ar: "تلقائي عند اختيار فاتورة", es: "Automático si se selecciona una factura" },
+  "Montant total": { en: "Total amount", ar: "المبلغ الإجمالي", es: "Importe total" },
+  "Objet additionnel": { en: "Additional subject", ar: "موضوع إضافي", es: "Objeto adicional" },
+  "Précisions…": { en: "Details…", ar: "تفاصيل…", es: "Detalles…" },
+};
+
 // ─── Source color helper ──────────────────────────────────────────────────────
 function sourceColor(source: string): string {
-  if (source.includes("syndicatesTable"))  return "#2563EB";
-  if (source.includes("buildingsTable") || source.includes("lotsTable")) return "#0891b2";
-  if (source.includes("usersTable") || source.includes("conseilSyndical")) return "#10b981";
-  if (source.includes("documentSequences")) return "#f59e0b";
-  if (source.includes("généré"))           return "#1F5EFF";
-  return "#64748b";
+  if (source.includes("syndicatesTable"))  return "#5A4AD6";
+  if (source.includes("buildingsTable") || source.includes("lotsTable")) return "#0F6E7D";
+  if (source.includes("usersTable") || source.includes("conseilSyndical")) return "#13976C";
+  if (source.includes("documentSequences")) return "#C98511";
+  if (source.includes("généré"))           return "#5A4AD6";
+  return "#6A6680";
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -127,6 +224,7 @@ function sourceColor(source: string): string {
 export default function DocumentWizard({ visible, onClose, onComplete }: Props) {
   const colors = useColors();
   const { t, lang: uiLang } = useLanguage();
+  const tw = (fr: string | undefined) => (fr && uiLang !== "fr" ? WIZARD_TEXTS[fr]?.[uiLang as "en"] ?? fr : fr ?? "");
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -705,17 +803,17 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.boxTitle, { color: colors.foreground, padding: 0 }]}>
-                        {entityCfg.label}
+                        {tw(entityCfg.label)}
                       </Text>
                       <Text style={[s.varSource, { color: colors.mutedForeground, marginTop: 1 }]}>
-                        {entityCfg.hint}
+                        {tw(entityCfg.hint)}
                       </Text>
                     </View>
                     {entityLoading && <ActivityIndicator size="small" color={selectedTpl.color} />}
                     {selectedEntityId && !entityLoading && (
-                      <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
-                        <Feather name="check" size={10} color="#10b981" />
-                          <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardSelected")}</Text>
+                      <View style={[s.autoChip, { backgroundColor: "#13976C15" }]}>
+                        <Feather name="check" size={10} color="#13976C" />
+                          <Text style={[s.autoChipText, { color: "#13976C" }]}>{t("wizardSelected")}</Text>
                       </View>
                     )}
                   </View>
@@ -798,7 +896,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               {selectedTpl.sections.map((sec, i) => (
                 <View key={i} style={[s.structureRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
                   <View style={[s.structureNum, { backgroundColor: colors.primary + "15" }]}>
-                    <Text style={[s.structureNumText, { color: colors.primary }]}>{i + 1}</Text>
+                    <Text style={[s.structureNumText, { color: colors.tint }]}>{i + 1}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.structureTitle, { color: colors.foreground }]}>{sec.title}</Text>
@@ -819,9 +917,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardAutomaticData")}</Text>
                 {autofillLoading && <ActivityIndicator size="small" color={selectedTpl.color} />}
                 {!autofillLoading && autofillData && (
-                  <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
-                    <Feather name="check-circle" size={10} color="#10b981" />
-                    <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardResolved")}</Text>
+                  <View style={[s.autoChip, { backgroundColor: "#13976C15" }]}>
+                    <Feather name="check-circle" size={10} color="#13976C" />
+                    <Text style={[s.autoChipText, { color: "#13976C" }]}>{t("wizardResolved")}</Text>
                   </View>
                 )}
               </View>
@@ -842,17 +940,17 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 const pi = autofillData.propertyInfo;
                 const oh = autofillData.officeHolders;
                 const mi = autofillData.memberInfo;
-                add("Syndicat", si.syndicate_name, "#2563EB");
-                add("Adresse", si.syndicate_address ? `${si.syndicate_address}, ${si.syndicate_city ?? ""}`.trim().replace(/,$/, "") : null, "#2563EB");
-                add("Immeuble", pi?.building_name, "#3b82f6");
-                add("Lots", pi?.total_lots ? `${pi.total_lots} lots` : null, "#3b82f6");
-                add("Président", oh?.president_name, "#f59e0b");
-                add("Vice-Président", oh?.vice_president_name, "#f59e0b");
-                add("Trésorier", oh?.treasurer_name, "#10b981");
-                add("Secrétaire", oh?.secretary_name, "#10b981");
-                add("Gestionnaire", oh?.manager_name, "#0891b2");
-                add("Membre", mi.member_name, "#ec4899");
-                add("Lot", mi.lot_number ? `Lot ${mi.lot_number}` : null, "#ec4899");
+                add("Syndicat", si.syndicate_name, "#5A4AD6");
+                add("Adresse", si.syndicate_address ? `${si.syndicate_address}, ${si.syndicate_city ?? ""}`.trim().replace(/,$/, "") : null, "#5A4AD6");
+                add("Immeuble", pi?.building_name, "#5A4AD6");
+                add("Lots", pi?.total_lots ? `${pi.total_lots} lots` : null, "#5A4AD6");
+                add("Président", oh?.president_name, "#C98511");
+                add("Vice-Président", oh?.vice_president_name, "#C98511");
+                add("Trésorier", oh?.treasurer_name, "#13976C");
+                add("Secrétaire", oh?.secretary_name, "#13976C");
+                add("Gestionnaire", oh?.manager_name, "#0F6E7D");
+                add("Membre", mi.member_name, "#C2456E");
+                add("Lot", mi.lot_number ? `Lot ${mi.lot_number}` : null, "#C2456E");
                 return rows.length === 0 ? (
                   <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
                      {t("wizardNoSyndicateData")}
@@ -894,14 +992,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             {tplFields.map((f) => (
               <View key={f.name} style={{ gap: 6 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{f.label}</Text>
+                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{tw(f.label)}</Text>
                   <View style={[s.srcBadge, { backgroundColor: sourceColor(f.source) + "12" }]}>
                     <Text style={[s.srcBadgeText, { color: sourceColor(f.source) }]}>
                       {f.source.includes("input") ? t("wizardUserInput") : f.source}
                     </Text>
                   </View>
                   {selectedTpl.requiredInputs.includes(f.name) ? (
-                      <Text style={{ color: "#ef4444", fontSize: 11 }}>{t("wizardRequired")}</Text>
+                      <Text style={{ color: "#C8323C", fontSize: 11 }}>{t("wizardRequired")}</Text>
                   ) : null}
                 </View>
                 <TextInput
@@ -912,7 +1010,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                   ]}
                   value={fields[f.name] ?? ""}
                   onChangeText={(v) => setFields((prev) => ({ ...prev, [f.name]: v }))}
-                  placeholder={f.placeholder ?? ""}
+                  placeholder={tw(f.placeholder)}
                   placeholderTextColor={colors.mutedForeground}
                   multiline={f.multiline}
                 />
@@ -1026,14 +1124,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                               {displayVal}
                             </Text>
                             {isFromDb ? (
-                              <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
-                                <Feather name="database" size={9} color="#10b981" />
-                                 <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardDatabase")}</Text>
+                              <View style={[s.autoChip, { backgroundColor: "#13976C15" }]}>
+                                <Feather name="database" size={9} color="#13976C" />
+                                 <Text style={[s.autoChipText, { color: "#13976C" }]}>{t("wizardDatabase")}</Text>
                               </View>
                             ) : userVal ? (
-                              <View style={[s.autoChip, { backgroundColor: "#3b82f615" }]}>
-                                <Feather name="user" size={9} color="#3b82f6" />
-                                 <Text style={[s.autoChipText, { color: "#3b82f6" }]}>{t("wizardEntered")}</Text>
+                              <View style={[s.autoChip, { backgroundColor: "#5A4AD615" }]}>
+                                <Feather name="user" size={9} color="#5A4AD6" />
+                                 <Text style={[s.autoChipText, { color: "#5A4AD6" }]}>{t("wizardEntered")}</Text>
                               </View>
                             ) : null}
                           </View>
@@ -1044,9 +1142,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 ) : null}
 
                 {error ? (
-                  <View style={[s.errorBox, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-                    <Feather name="alert-triangle" size={14} color="#ef4444" />
-                    <Text style={[s.errorText, { color: "#ef4444" }]}>{error}</Text>
+                  <View style={[s.errorBox, { backgroundColor: "#C8323C15", borderColor: "#C8323C30" }]}>
+                    <Feather name="alert-triangle" size={14} color="#C8323C" />
+                    <Text style={[s.errorText, { color: "#C8323C" }]}>{error}</Text>
                   </View>
                 ) : null}
               </>
@@ -1070,8 +1168,8 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               </>
             ) : generatedDocId ? (
               <>
-                <View style={[s.genSpinner, { backgroundColor: "#10b98118" }]}>
-                  <Feather name="check-circle" size={48} color="#10b981" />
+                <View style={[s.genSpinner, { backgroundColor: "#13976C18" }]}>
+                  <Feather name="check-circle" size={48} color="#13976C" />
                 </View>
                  <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>{t("wizardGenerated")}</Text>
                 <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>
@@ -1094,10 +1192,10 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               </>
             ) : (
               <>
-                <View style={[s.genSpinner, { backgroundColor: "#ef444418" }]}>
-                  <Feather name="alert-circle" size={48} color="#ef4444" />
+                <View style={[s.genSpinner, { backgroundColor: "#C8323C18" }]}>
+                  <Feather name="alert-circle" size={48} color="#C8323C" />
                 </View>
-                 <Text style={[s.stepTitle, { color: "#ef4444", textAlign: "center" }]}>{t("wizardGenerationFailed")}</Text>
+                 <Text style={[s.stepTitle, { color: "#C8323C", textAlign: "center" }]}>{t("wizardGenerationFailed")}</Text>
                 {error ? <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>{error}</Text> : null}
               </>
             )}
@@ -1120,7 +1218,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                  { icon: "user"    as const, text: t("wizardIdentityRecorded") },
               ].map((item) => (
                 <View key={item.text} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Feather name={item.icon} size={14} color="#8b5cf6" />
+                  <Feather name={item.icon} size={14} color="#1F8A9A" />
                   <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{item.text}</Text>
                 </View>
               ))}
@@ -1144,7 +1242,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                  <Text style={[s.secBtnText, { color: colors.foreground }]}>{t("wizardClear")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.primaryBtn, { flex: 2, backgroundColor: sigEmpty ? colors.mutedForeground : "#8b5cf6", opacity: signing ? 0.7 : 1 }]}
+                style={[s.primaryBtn, { flex: 2, backgroundColor: sigEmpty ? colors.mutedForeground : "#1F8A9A", opacity: signing ? 0.7 : 1 }]}
                 disabled={sigEmpty || signing}
                 onPress={handleSign}
               >
@@ -1154,9 +1252,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             </View>
 
             {error ? (
-              <View style={[s.errorBox, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-                <Feather name="alert-circle" size={14} color="#ef4444" />
-                <Text style={[s.errorText, { color: "#ef4444" }]}>{error}</Text>
+              <View style={[s.errorBox, { backgroundColor: "#C8323C15", borderColor: "#C8323C30" }]}>
+                <Feather name="alert-circle" size={14} color="#C8323C" />
+                <Text style={[s.errorText, { color: "#C8323C" }]}>{error}</Text>
               </View>
             ) : null}
           </ScrollView>
@@ -1166,8 +1264,8 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       case 7:
         return (
           <ScrollView contentContainerStyle={{ padding: 30, alignItems: "center", gap: 20, paddingBottom: 100 }}>
-            <View style={[s.genSpinner, { backgroundColor: "#10b98118" }]}>
-              <Feather name="globe" size={48} color="#10b981" />
+            <View style={[s.genSpinner, { backgroundColor: "#13976C18" }]}>
+              <Feather name="globe" size={48} color="#13976C" />
             </View>
             <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>
                {t("wizardReadyToPublish")}
@@ -1190,7 +1288,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             </View>
             <View style={{ width: "100%", gap: 10 }}>
               <TouchableOpacity
-                style={[s.primaryBtn, { backgroundColor: "#10b981", opacity: publishing ? 0.7 : 1 }]}
+                style={[s.primaryBtn, { backgroundColor: "#13976C", opacity: publishing ? 0.7 : 1 }]}
                 onPress={handlePublish}
                 disabled={publishing}
               >
@@ -1243,9 +1341,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     return (
       <View style={[s.footer, { borderTopColor: colors.border, backgroundColor: colors.card, paddingBottom: insets.bottom + 12 }]}>
         {error && step !== 4 ? (
-          <View style={[s.errorBox, { backgroundColor: "#ef444415", borderColor: "#ef444430", marginBottom: 10 }]}>
-            <Feather name="alert-triangle" size={13} color="#ef4444" />
-            <Text style={[s.errorText, { color: "#ef4444" }]}>{error}</Text>
+          <View style={[s.errorBox, { backgroundColor: "#C8323C15", borderColor: "#C8323C30", marginBottom: 10 }]}>
+            <Feather name="alert-triangle" size={13} color="#C8323C" />
+            <Text style={[s.errorText, { color: "#C8323C" }]}>{error}</Text>
           </View>
         ) : null}
         <View style={{ flexDirection: "row", gap: 10 }}>
@@ -1280,14 +1378,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         const isDone     = step > s_.num;
         const color      = isActive
           ? (selectedTpl?.color ?? colors.primary)
-          : isDone ? "#10b981" : colors.border;
+          : isDone ? "#13976C" : colors.border;
         return (
           <React.Fragment key={s_.num}>
             <View style={{ alignItems: "center", gap: 3 }}>
               <View style={[
                 st.stepDot,
                 {
-                  backgroundColor: isActive ? (selectedTpl?.color ?? colors.primary) : isDone ? "#10b981" : colors.muted,
+                  backgroundColor: isActive ? (selectedTpl?.color ?? colors.primary) : isDone ? "#13976C" : colors.muted,
                   borderColor: color,
                 },
               ]}>
@@ -1299,7 +1397,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               {isActive ? <Text style={[st.stepLabel, { color: selectedTpl?.color ?? colors.primary }]}>{s_.label}</Text> : null}
             </View>
             {i < STEPS.length - 1 ? (
-              <View style={[st.stepLine, { backgroundColor: step > s_.num ? "#10b981" : colors.border }]} />
+              <View style={[st.stepLine, { backgroundColor: step > s_.num ? "#13976C" : colors.border }]} />
             ) : null}
           </React.Fragment>
         );

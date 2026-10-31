@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import AuthHero, { AUTH_HERO_OVERLAP } from "@/components/brand/AuthHero";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth as authApi } from "@/services/api";
 import MizanFormField from "@/components/MizanFormField";
@@ -33,8 +35,8 @@ export default function ResetPasswordScreen() {
   const [success, setSuccess] = useState(false);
   const [linkInvalid, setLinkInvalid] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const newPasswordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const newPasswordRef = useRef<TextInputInstance>(null);
+  const confirmPasswordRef = useRef<TextInputInstance>(null);
 
   const validate = () => {
     if (!token.trim()) return t("codeRequired");
@@ -55,12 +57,12 @@ export default function ResetPasswordScreen() {
     if (/[0-9]/.test(pw)) score++;
     if (/[^A-Za-z0-9]/.test(pw)) score++;
     if (score <= 1)
-      return { label: t("passwordWeak"), color: "#ef4444", width: "25%" };
+      return { label: t("passwordWeak"), color: colors.danger, width: "25%" };
     if (score <= 2)
-      return { label: t("passwordMedium"), color: "#f59e0b", width: "50%" };
+      return { label: t("passwordMedium"), color: colors.warning, width: "50%" };
     if (score <= 3)
-      return { label: t("passwordGood"), color: "#3b82f6", width: "75%" };
-    return { label: t("passwordExcellent"), color: "#10b981", width: "100%" };
+      return { label: t("passwordGood"), color: "#5A4AD6", width: "75%" };
+    return { label: t("passwordExcellent"), color: colors.success, width: "100%" };
   };
 
   const strength = getPasswordStrength();
@@ -113,44 +115,11 @@ export default function ResetPasswordScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.container,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 },
+          { paddingTop: 0, paddingBottom: insets.bottom + 40 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity
-          style={[
-            styles.backBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t("back")}
-        >
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={20}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.iconWrap,
-              { backgroundColor: colors.success + "18" },
-            ]}
-          >
-            <Feather name="key" size={32} color={colors.success} />
-          </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("resetPasswordTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {t("resetPasswordSubtitle")}
-          </Text>
-        </View>
+        <AuthHero icon="key" title={t("resetPasswordTitle")} subtitle={t("resetPasswordSubtitle")} bleed={24} />
 
         {!success && !linkInvalid ? (
           <View
@@ -337,8 +306,8 @@ export default function ResetPasswordScreen() {
                 styles.submitBtn,
                 {
                   backgroundColor: loading
-                    ? colors.success + "80"
-                    : colors.success,
+                    ? colors.primary + "80"
+                    : colors.primary,
                 },
               ]}
               onPress={handleSubmit}
@@ -354,7 +323,7 @@ export default function ResetPasswordScreen() {
                   <Feather
                     name="check"
                     size={16}
-                    color={colors.successForeground}
+                    color={colors.primaryForeground}
                   />
                   <Text style={styles.submitBtnText}>
                     {t("resetPasswordBtn")}
@@ -376,7 +345,7 @@ export default function ResetPasswordScreen() {
                 ]}
               >
                 {t("noCode")}
-                <Text style={{ color: colors.primary }}>
+                <Text style={{ color: colors.tint }}>
                   {t("requestNewLink")}
                 </Text>
               </Text>
@@ -502,14 +471,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center" },
+  title: { fontSize: 24, fontFamily: "Fraunces_600SemiBold", textAlign: "center" },
   subtitle: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 20,
   },
-  card: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
+  // The first card overlaps the dusk band (container gap: 24).
+  card: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16, marginTop: -AUTH_HERO_OVERLAP - 24 },
   inputGroup: { gap: 6 },
   label: { fontSize: 13, fontFamily: "Inter_500Medium" },
   inputWrap: {
@@ -570,7 +540,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
-  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  successTitle: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   successText: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",

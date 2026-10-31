@@ -19,8 +19,8 @@ catalog:
   drizzle-orm: ^0.45.2
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
-  react: 19.1.0
-  react-dom: 19.1.0
+  react: 19.3.0
+  react-dom: 19.3.0
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
   tsx: ^4.21.0
@@ -29,6 +29,23 @@ catalog:
   zod: ^3.25.76
 
 minimumReleaseAge: 1440
+
+minimumReleaseAgeExclude:
+  - expo-updates@58.0.20
+  - '@expo/cli@58.1.18'
+  - '@expo/config@58.0.10'
+  - '@expo/fingerprint@0.21.8'
+  - '@expo/local-build-cache-provider@58.0.10'
+  - '@expo/log-box@58.0.14'
+  - '@expo/metro-config@58.0.20'
+  - '@expo/metro-runtime@58.0.16'
+  - '@expo/prebuild-config@58.0.18'
+  - '@expo/router-server@58.0.20'
+  - '@expo/schema-utils@58.0.3'
+  - babel-preset-expo@58.0.23
+  - expo-modules-core@58.0.29
+  - expo-router@58.0.29
+  - expo@58.0.22
 
 onlyBuiltDependencies:
   - '@swc/core'
@@ -47,7 +64,6 @@ overrides:
   '@expo/ngrok-bin>@expo/ngrok-bin-linux-ia32': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-sunos-x64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-win32-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-win32-x64': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-android-arm64': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-darwin-arm64': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64': '-'
@@ -92,7 +108,6 @@ overrides:
   lightningcss>lightningcss-linux-arm64-musl: '-'
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
-  lightningcss>lightningcss-win32-x64-msvc: '-'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'

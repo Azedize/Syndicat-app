@@ -18,13 +18,14 @@ import {
   conseilSyndicalTable,
   governanceDelegationsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
   requireAuth,
   requireAdmin,
   requireGovernanceAccess,
 } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -190,6 +191,67 @@ router.post(
         },
         message: "Membre ajouté au conseil syndical",
       });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── PUT /governance/conseil/:id/holder ─────────────────────────────────────
+// Names the holder of a VACANT mandate (row without a name). An occupied
+// mandate is never overwritten: the holder resigns first (DELETE), which
+// keeps the history of who held the post.
+router.put(
+  "/governance/conseil/:id/holder",
+  requireAuth,
+  requireGovernanceScope,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = z
+      .object({
+        name: z.string().trim().min(1).max(200),
+        email: z.string().email().optional(),
+        phone: z.string().max(30).optional(),
+        mandateStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
+    }
+    try {
+      const user = req.user!;
+      if (!user.syndicateId) {
+        return void res.status(400).json({ error: "Aucun syndicat associé à votre compte" });
+      }
+      const id = String(req.params.id);
+      const [existing] = await db
+        .select()
+        .from(conseilSyndicalTable)
+        .where(and(eq(conseilSyndicalTable.id, id), eq(conseilSyndicalTable.syndicateId, user.syndicateId)));
+      if (!existing) return void res.status(404).json({ error: "Mandat introuvable" });
+      if (existing.name || existing.status !== "active") {
+        return void res.status(409).json({ error: "Ce mandat n'est pas vacant", code: "MANDATE_NOT_VACANT" });
+      }
+      const [row] = await db
+        .update(conseilSyndicalTable)
+        .set({
+          name: parsed.data.name,
+          email: parsed.data.email ?? existing.email,
+          phone: parsed.data.phone ?? existing.phone,
+          mandateStart: parsed.data.mandateStart ?? existing.mandateStart ?? localToday(),
+        } as any)
+        // condition repeated: two concurrent nominations cannot both succeed
+        .where(and(eq(conseilSyndicalTable.id, id), sql`(${conseilSyndicalTable.name} IS NULL OR ${conseilSyndicalTable.name} = '')`))
+        .returning();
+      if (!row) return void res.status(409).json({ error: "Ce mandat vient d'être pourvu", code: "MANDATE_NOT_VACANT" });
+      await serverAuditLog(req, {
+        action: "UPDATE",
+        entity: "conseil_syndical",
+        entityId: id,
+        details: `Nomination : ${row.name} — ${row.role ?? ""}`,
+      });
+      res.json({ data: { id: row.id, holder: row.name, poste: row.role, startDate: row.mandateStart ?? "", endDate: row.mandateEnd ?? "", status: "actif" } });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState, useCallback } from "react";
@@ -28,18 +28,18 @@ type ActionType = ApiUnionAction["type"];
 type ActionStatus = ApiUnionAction["status"];
 
 const TYPE_CONFIG: Record<ActionType, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  greve:         { labelKey: "actTypeGreve", color: "#ef4444", icon: "zap" },
-  manifestation: { labelKey: "actTypeManifestation", color: "#f59e0b", icon: "users" },
-  petition:      { labelKey: "actTypePetition", color: "#3b82f6", icon: "file-text" },
-  negociation:   { labelKey: "actTypeNegociation", color: "#10b981", icon: "briefcase" },
-  communique:    { labelKey: "actTypeCommunique", color: "#8b5cf6", icon: "rss" },
+  greve:         { labelKey: "actTypeGreve", color: "#C8323C", icon: "zap" },
+  manifestation: { labelKey: "actTypeManifestation", color: "#C98511", icon: "users" },
+  petition:      { labelKey: "actTypePetition", color: "#5A4AD6", icon: "file-text" },
+  negociation:   { labelKey: "actTypeNegociation", color: "#13976C", icon: "briefcase" },
+  communique:    { labelKey: "actTypeCommunique", color: "#1F8A9A", icon: "rss" },
 };
 
 const STATUS_CONFIG: Record<ActionStatus, { labelKey: string; color: string }> = {
-  planned:   { labelKey: "actStatusPlanned", color: "#3b82f6" },
-  active:    { labelKey: "actStatusActive", color: "#10b981" },
-  completed: { labelKey: "actStatusCompleted", color: "#6b7280" },
-  cancelled: { labelKey: "actStatusCancelled", color: "#ef4444" },
+  planned:   { labelKey: "actStatusPlanned", color: "#5A4AD6" },
+  active:    { labelKey: "actStatusActive", color: "#13976C" },
+  completed: { labelKey: "actStatusCompleted", color: "#6A6680" },
+  cancelled: { labelKey: "actStatusCancelled", color: "#C8323C" },
 };
 
 export default function ActionsScreen() {
@@ -156,7 +156,7 @@ export default function ActionsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#1a1a2e" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#fff" />
@@ -165,7 +165,7 @@ export default function ActionsScreen() {
             <Text style={styles.headerTitle}>{t("actTitle")}</Text>
             <Text style={styles.headerSub}>{t("actSubtitle")}</Text>
           </View>
-          <View style={[styles.activeBadge, { backgroundColor: "#ef4444" }]}>
+          <View style={[styles.activeBadge, { backgroundColor: colors.danger }]}>
             <View style={styles.activeDot} />
             <Text style={styles.activeText}>{activeCount} {t("actActiveBadge")}</Text>
           </View>
@@ -174,9 +174,9 @@ export default function ActionsScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { label: t("actStatActive"),   value: activeCount,                             icon: "zap"        as const, color: "#ef4444" },
-            { label: t("actStatMyActions"), value: myActions,                             icon: "user-check" as const, color: "#f59e0b" },
-            { label: t("actStatSupports"),  value: totalSupports >= 1000 ? `${(totalSupports / 1000).toFixed(1)}k` : totalSupports, icon: "heart" as const, color: "#ec4899" },
+            { label: t("actStatActive"),   value: activeCount,                             icon: "zap"        as const, color: colors.danger },
+            { label: t("actStatMyActions"), value: myActions,                             icon: "user-check" as const, color: colors.warning },
+            { label: t("actStatSupports"),  value: totalSupports >= 1000 ? `${(totalSupports / 1000).toFixed(1)}k` : totalSupports, icon: "heart" as const, color: "#C2456E" },
           ].map((s) => (
             <View key={s.label} style={[styles.statBox, { backgroundColor: "rgba(255,255,255,0.08)" }]}>
               <Feather name={s.icon} size={14} color={s.color} />
@@ -191,7 +191,7 @@ export default function ActionsScreen() {
       <View style={[styles.filterSection, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           <TouchableOpacity
-            style={[styles.filterChip, { backgroundColor: filterType === "all" ? "#1a1a2e" : colors.muted }]}
+            style={[styles.filterChip, { backgroundColor: filterType === "all" ? "#17142B" : colors.muted }]}
             onPress={() => setFilterType("all")}
           >
             <Text style={[styles.filterText, { color: filterType === "all" ? "#fff" : colors.mutedForeground }]}>{t("actFilterAll")}</Text>
@@ -230,14 +230,14 @@ export default function ActionsScreen() {
       {/* List */}
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator size="large" color="#5A4AD6" />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("actLoading")}</Text>
         </View>
       ) : isError ? (
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
           <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{t("actLoadError")}</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#2563EB" }]} onPress={() => refetch()}>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#5A4AD6" }]} onPress={() => refetch()}>
             <Text style={styles.retryText}>{t("actRetry")}</Text>
           </TouchableOpacity>
         </View>
@@ -255,7 +255,7 @@ export default function ActionsScreen() {
           keyExtractor={(a) => a.id}
           contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#2563EB" />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { void refetch(); }} tintColor="#5A4AD6" />}
           renderItem={({ item: a }) => {
             const type = TYPE_CONFIG[a.type];
             const status = STATUS_CONFIG[a.status];
@@ -320,7 +320,7 @@ export default function ActionsScreen() {
                 {/* Action buttons */}
                 <View style={styles.cardActions}>
                   <TouchableOpacity
-                    style={[styles.supportBtn, { backgroundColor: a.userSupports ? "#ec4899" : colors.muted }]}
+                    style={[styles.supportBtn, { backgroundColor: a.userSupports ? "#C2456E" : colors.muted }]}
                     onPress={() => toggleSupport(a.id)}
                     disabled={supportMutation.isPending}
                   >
@@ -379,12 +379,12 @@ export default function ActionsScreen() {
                 {/* Support & participate */}
                 <View style={styles.actionBtnsRow}>
                   <TouchableOpacity
-                    style={[styles.bigSupportBtn, { backgroundColor: a.userSupports ? "#ec4899" : colors.card, borderColor: "#ec4899" }]}
+                    style={[styles.bigSupportBtn, { backgroundColor: a.userSupports ? "#C2456E" : colors.card, borderColor: "#C2456E" }]}
                     onPress={() => toggleSupport(a.id)}
                     disabled={supportMutation.isPending}
                   >
-                    <Feather name="heart" size={18} color={a.userSupports ? "#fff" : "#ec4899"} />
-                    <Text style={[styles.bigSupportText, { color: a.userSupports ? "#fff" : "#ec4899" }]}>
+                    <Feather name="heart" size={18} color={a.userSupports ? "#fff" : "#C2456E"} />
+                    <Text style={[styles.bigSupportText, { color: a.userSupports ? "#fff" : "#C2456E" }]}>
                       {a.userSupports ? t("actSupportedBtn") : t("actSupportBtn")} ({a.supportCount.toLocaleString()})
                     </Text>
                   </TouchableOpacity>
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 20, paddingBottom: 20, gap: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.7)" },
   activeBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },

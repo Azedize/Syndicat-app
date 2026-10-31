@@ -12,7 +12,7 @@ import {
 } from "@workspace/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { nextSequenceNumber } from "./sequences.js";
-import { isPastDue } from "./charge-time.js";
+import { isPastDue, localToday } from "./charge-time.js";
 
 /**
  * Treasury service — the only code path that writes the journal
@@ -49,6 +49,23 @@ export function fromCents(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** Exact sum of amounts, in cents (no floating-point accumulation). */
+export function sumCents(values: Iterable<unknown>): number {
+  let total = 0;
+  for (const v of values) total += toCents(v as string | number | null | undefined);
+  return total;
+}
+
+/** Exact sum of amounts, as a number of dirhams rounded to the cent. */
+export function moneySum(values: Iterable<unknown>): number {
+  return sumCents(values) / 100;
+}
+
+/** a − b computed in cents, as dirhams. */
+export function moneyDiff(a: string | number | null | undefined, b: string | number | null | undefined): number {
+  return (toCents(a) - toCents(b)) / 100;
+}
+
 /** Positive amount with at most 2 decimals, normalised to "123.45". */
 export const amountSchema = z
   .union([z.number(), z.string().trim()])
@@ -69,7 +86,7 @@ export const isoDateSchema = z
   });
 
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localToday();
 }
 
 /**

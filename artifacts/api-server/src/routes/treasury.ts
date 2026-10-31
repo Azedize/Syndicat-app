@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
+import { normaliseForMatch } from "../lib/payment-reference.js";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
@@ -578,8 +579,8 @@ router.post("/treasury/entries/:id/reverse", requireAuth, requireFinanceAccess, 
         .where(eq(appelPaymentsTable.id, result.paymentId));
       if (payment) {
         void notifyUser(payment.declaredBy, {
-          title: parsed.data.kind === "refund" ? "Paiement remboursé" : "Paiement annulé",
-          message: `Votre paiement de ${payment.amount} MAD (appel ${payment.period}) a été ${parsed.data.kind === "refund" ? "remboursé" : "annulé"} : ${parsed.data.reason}.`,
+          key: parsed.data.kind === "refund" ? "payment.refunded" : "payment.cancelled",
+          params: { amount: payment.amount, period: payment.period, reason: parsed.data.reason },
           type: "warning",
           syndicateId: sid,
         });
@@ -754,18 +755,27 @@ router.get("/treasury/statement-lines/:id/candidates", requireAuth, requireTreas
     if (!line) throw new FinanceError(404, "LINE_NOT_FOUND", "Ligne de relevé introuvable");
     const lineCents = toCents(line.amount);
     const remainingLine = Math.abs(lineCents) - toCents(line.matchedAmount);
+    // The motive printed by the bank (label + reference), letters and digits only.
+    const lineText = normaliseForMatch(`${line.label} ${line.reference ?? ""}`);
     const rows = await db.execute<Record<string, unknown>>(sql`
       SELECT le.id, le.entry_number, le.entry_date::text AS entry_date, le.amount, le.label, le.reference,
              le.category, le.source_type,
-             le.amount - COALESCE(m.matched, 0) AS remaining
+             le.amount - COALESCE(m.matched, 0) AS remaining,
+             a.payment_reference,
+             (a.payment_reference IS NOT NULL
+               AND position(regexp_replace(upper(a.payment_reference), '[^A-Z0-9]', '', 'g') IN ${lineText}) > 0) AS reference_match
       FROM ledger_entries le
       LEFT JOIN (SELECT ledger_entry_id, SUM(amount) AS matched FROM reconciliation_matches GROUP BY ledger_entry_id) m
         ON m.ledger_entry_id = le.id
+      -- A validated call payment carries the reference the owner wrote in the transfer.
+      LEFT JOIN appel_payments ap ON le.source_type = 'appel_payment' AND ap.id = le.source_id
+      LEFT JOIN appels_de_fonds a ON a.id = ap.appel_id
       WHERE le.syndicate_id = ${sid}
         AND le.account_id = ${line.accountId}
         AND le.direction = ${lineCents > 0 ? "in" : "out"}
         AND le.amount - COALESCE(m.matched, 0) > 0
-      ORDER BY abs((le.amount - COALESCE(m.matched, 0)) - ${fromCents(remainingLine)}::numeric),
+      ORDER BY reference_match DESC,
+               abs((le.amount - COALESCE(m.matched, 0)) - ${fromCents(remainingLine)}::numeric),
                abs(le.entry_date - ${line.valueDate}::date)
       LIMIT 10
     `);

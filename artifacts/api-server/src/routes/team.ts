@@ -4,6 +4,7 @@
  * - Syndicate admins can update team member profiles
  * - All authenticated users in the syndicate can view
  */
+import { initialEmailStatus, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../lib/email/deliverability.js";
 import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -17,6 +18,7 @@ import {
 import { eq, and, or } from "drizzle-orm";
 import { requireAuth, requireAdmin, BCRYPT_COST } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { BankDetailsError, maskBankIdentifier, normaliseBankFields } from "../lib/bank-details.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { teamInvitationTemplate } from "../lib/email/templates.js";
 
@@ -103,20 +105,37 @@ router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
     if (!user.syndicateId)
       return void res.status(400).json({ error: "Pas de syndicat associé" });
 
-    const allowed = [
-      "email",
-      "phone",
-      "address",
-      "officeHours",
-      "website",
-      "bankName",
-      "bankIban",
-      "bankBic",
-    ];
-    const updates: Record<string, any> = {};
-    for (const k of allowed) {
-      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    // Typed and bounded; anything else in the body is ignored.
+    const text = (max: number) => z.string().max(max).optional();
+    const parsed = z
+      .object({
+        email: z.union([z.literal(""), z.string().trim().email().max(200)]).optional(),
+        phone: text(30),
+        address: text(300),
+        officeHours: text(200),
+        website: z.union([z.literal(""), z.string().trim().url().max(200)]).optional(),
+        bankName: text(100),
+        bankIban: text(50),
+        bankBic: text(20),
+      })
+      .safeParse(req.body ?? {});
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return void res.status(400).json({ error: `Champ invalide : ${String(issue?.path?.[0] ?? "")}`, code: "INVALID_FIELD", field: issue?.path?.[0] });
     }
+    const updates: Record<string, any> = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
+    let bankFields: string[];
+    try {
+      bankFields = normaliseBankFields(updates);
+    } catch (e) {
+      if (e instanceof BankDetailsError) return void res.status(400).json({ error: e.message, code: e.code, field: e.code === "INVALID_BIC" ? "bankBic" : "bankIban" });
+      throw e;
+    }
+    if (!Object.keys(updates).length) return void res.status(400).json({ error: "Aucune modification fournie", code: "INVALID_FIELD" });
+    const [before] = await db
+      .select({ bankName: syndicatesTable.bankName, bankIban: syndicatesTable.bankIban, bankBic: syndicatesTable.bankBic })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, user.syndicateId));
 
     const [updated] = await db
       .update(syndicatesTable)
@@ -124,6 +143,13 @@ router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
       .where(eq(syndicatesTable.id, user.syndicateId))
       .returning();
 
+    if (bankFields.length && before && updated) {
+      const changed: string[] = [];
+      if (before.bankName !== updated.bankName) changed.push(`banque : « ${before.bankName ?? "—"} » → « ${updated.bankName ?? "—"} »`);
+      if (before.bankIban !== updated.bankIban) changed.push(`RIB/IBAN : ${maskBankIdentifier(before.bankIban) ?? "—"} → ${maskBankIdentifier(updated.bankIban) ?? "—"}`);
+      if (before.bankBic !== updated.bankBic) changed.push(`BIC : ${before.bankBic ?? "—"} → ${updated.bankBic ?? "—"}`);
+      if (changed.length) await serverAuditLog(req, { action: "BANK_DETAILS_UPDATED", entity: "syndicate", entityId: user.syndicateId, syndicateId: user.syndicateId, details: changed.join(" ; ") });
+    }
     res.json({ data: updated, message: "Informations mises à jour" });
   } catch (e) {
     console.error(e);
@@ -249,6 +275,7 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
 
   try {
     const emailLower = email.trim().toLowerCase();
+    if (reservedEmailRefused(emailLower)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
 
     const [existing] = await db
       .select()
@@ -276,6 +303,7 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
         role,
         syndicateId,
         status: "active",
+        emailStatus: initialEmailStatus(emailLower),
       })
       .returning();
 

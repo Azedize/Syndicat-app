@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
@@ -55,20 +56,10 @@ export default function FavoritesScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("myFavoritesTitle")}</Text>
-        {favorites.length > 0 && (
-          <TouchableOpacity
-            onPress={confirmClear}
-            style={styles.clearBtn}
-          >
-            <Text style={[styles.clearText, { color: colors.destructive }]}>{t("clearFavoritesLabel")}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("myFavoritesTitle")}
+        action={favorites.length > 0 ? { icon: "trash-2", onPress: confirmClear, label: t("clearFavoritesLabel") } : undefined}
+      />
 
       {favorites.length === 0 ? (
         <View style={styles.empty}>
@@ -117,7 +108,7 @@ export default function FavoritesScreen() {
                 onPress={(e) => { e.stopPropagation(); removeFavorite(fav.id); }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="star" size={18} color="#f59e0b" />
+                <Feather name="star" size={18} color={colors.warning} />
               </TouchableOpacity>
               <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -128,10 +119,10 @@ export default function FavoritesScreen() {
             <Text style={[styles.suggestTitle, { color: colors.mutedForeground }]}>{t("suggestionsLabel")}</Text>
             <View style={styles.suggestGrid}>
               {[
-                { id: "fav-dash", title: "Dashboard", icon: "home", color: "#2563EB", route: "/(tabs)/" },
-                { id: "fav-elections", title: "Élections", icon: "check-square", color: "#f59e0b", route: "/elections" },
-                { id: "fav-chat", title: "Chat", icon: "message-circle", color: "#ec4899", route: "/chat" },
-                { id: "fav-docs", title: "Documents", icon: "file-text", color: "#1F5EFF", route: "/documents" },
+                { id: "fav-dash", title: "Dashboard", icon: "home", color: "#5A4AD6", route: "/(tabs)/" },
+                { id: "fav-elections", title: "Élections", icon: "check-square", color: colors.warning, route: "/elections" },
+                { id: "fav-chat", title: "Chat", icon: "message-circle", color: "#C2456E", route: "/chat" },
+                { id: "fav-docs", title: "Documents", icon: "file-text", color: "#5A4AD6", route: "/documents" },
               ].filter((s) => !favorites.some((f) => f.id === s.id)).map((s) => (
                 <TouchableOpacity
                   key={s.id}
@@ -142,7 +133,7 @@ export default function FavoritesScreen() {
                   <View style={[styles.suggestIcon, { backgroundColor: s.color + "18" }]}>
                     <Feather name={s.icon as any} size={16} color={s.color} />
                   </View>
-                  <Text style={[styles.suggestLabel, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{s.title}</Text>
+                  <Text style={[styles.suggestLabel, { color: colors.foreground, textAlign: "auto" }]}>{s.title}</Text>
                   <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ))}
@@ -165,13 +156,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: { padding: 4 },
-  title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { flex: 1, fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   clearBtn: { padding: 4 },
   clearText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 16 },
   emptyIcon: { width: 80, height: 80, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  emptyTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
   exploreBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 8 },
   exploreBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },

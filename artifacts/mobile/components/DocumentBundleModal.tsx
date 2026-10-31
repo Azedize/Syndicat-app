@@ -55,7 +55,7 @@ const BUNDLE_CONFIG: Record<
     titleKey: "bundleRecoveryTitle",
     subtitleKey: "bundleRecoverySubtitle",
     icon: "alert-triangle",
-    color: "#dc2626",
+    color: "#B42530",
     stepKeys: [
       "bundleRecoveryStep1",
       "bundleRecoveryStep2",
@@ -69,7 +69,7 @@ const BUNDLE_CONFIG: Record<
     titleKey: "bundleSaleTitle",
     subtitleKey: "bundleSaleSubtitle",
     icon: "package",
-    color: "#7c3aed",
+    color: "#0F6E7D",
     stepKeys: [
       "bundleSaleStep1",
       "bundleSaleStep2",
@@ -82,7 +82,7 @@ const BUNDLE_CONFIG: Record<
     titleKey: "bundleAgTitle",
     subtitleKey: "bundleAgSubtitle",
     icon: "users",
-    color: "#3b82f6",
+    color: "#5A4AD6",
     stepKeys: ["bundleAgStep1", "bundleAgStep2", "bundleAgStep3"],
     hintKey: "bundleAgHint",
   },
@@ -439,7 +439,7 @@ export default function DocumentBundleModal({
                 <View>
                   <Text style={[s.fieldLabel, { color: colors.foreground }]}>
                     {t("bundleMeetingDate")}{" "}
-                    <Text style={{ color: "#ef4444" }}>*</Text>
+                    <Text style={{ color: "#C8323C" }}>*</Text>
                   </Text>
                   <TextInput
                     style={[
@@ -536,11 +536,11 @@ export default function DocumentBundleModal({
               <View
                 style={[
                   s.hintBanner,
-                  { backgroundColor: "#ef444410", borderColor: "#ef444430" },
+                  { backgroundColor: "#C8323C10", borderColor: "#C8323C30" },
                 ]}
               >
-                <Feather name="alert-circle" size={13} color="#ef4444" />
-                <Text style={[s.hintText, { color: "#ef4444" }]}>{error}</Text>
+                <Feather name="alert-circle" size={13} color="#C8323C" />
+                <Text style={[s.hintText, { color: "#C8323C" }]}>{error}</Text>
               </View>
             ) : null}
           </ScrollView>
@@ -555,12 +555,12 @@ export default function DocumentBundleModal({
                   width: 72,
                   height: 72,
                   borderRadius: 36,
-                  backgroundColor: "#10b98120",
+                  backgroundColor: "#13976C20",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Feather name="check-circle" size={40} color="#10b981" />
+                <Feather name="check-circle" size={40} color="#13976C" />
               </View>
               <Text style={[s.successTitle, { color: colors.foreground }]}>
                 {t("bundleGeneratedTitle")}
@@ -590,8 +590,8 @@ export default function DocumentBundleModal({
                     },
                   ]}
                 >
-                  <View style={[s.stepBadge, { backgroundColor: "#10b98120" }]}>
-                    <Feather name="file-text" size={12} color="#10b981" />
+                  <View style={[s.stepBadge, { backgroundColor: "#13976C20" }]}>
+                    <Feather name="file-text" size={12} color="#13976C" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -605,7 +605,7 @@ export default function DocumentBundleModal({
                       {doc.documentNumber}
                     </Text>
                   </View>
-                  <Feather name="check" size={14} color="#10b981" />
+                  <Feather name="check" size={14} color="#13976C" />
                 </View>
               ))}
             </View>

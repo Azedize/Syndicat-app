@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { parseLoginResponse, resolveApiBaseUrl } from "../lib/login-transport";
+import { isTunnelHost, parseLoginResponse, resolveApiBaseUrl } from "../lib/login-transport";
 
 const TOKEN_KEY = "@syndycat_token";
 const REFRESH_TOKEN_KEY = "@syndycat_refresh_token";
@@ -17,6 +17,8 @@ function secureKey(key: string): string {
   return key.replace(/[^A-Za-z0-9._-]/g, "");
 }
 
+let warnedTunnel = false;
+
 export function getApiBaseUrl(): string {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -24,6 +26,17 @@ export function getApiBaseUrl(): string {
   if (!apiUrl && !domain && !__DEV__) {
     console.error(
       "[API] EXPO_PUBLIC_DOMAIN is not set — requests will fail in production.",
+    );
+  }
+  const metroHost = Constants.expoConfig?.hostUri?.split("/")[0].split(":")[0];
+  // A local or emulator API address cannot be reached from a phone through the tunnel either.
+  const localApi = !apiUrl || /\/\/(localhost|127\.0\.0\.1|10\.0\.[23]\.2)(:|\/)/.test(apiUrl);
+  if (__DEV__ && localApi && !domain && isTunnelHost(metroHost) && !warnedTunnel) {
+    warnedTunnel = true;
+    console.warn(
+      "[API] Expo tunnel mode: the tunnel serves the app's code only, not the API on port 5000. " +
+        "Expose the API (e.g. cloudflared tunnel --url http://localhost:5000) and set " +
+        "EXPO_PUBLIC_API_URL=https://…/api, or use LAN mode (pnpm dev) with the phone on the same Wi-Fi.",
     );
   }
   return resolveApiBaseUrl({
@@ -1043,7 +1056,7 @@ export const documents = {
   signatures: (id: string) =>
     request<{ data: unknown[] }>(`/documents/${id}/signatures`),
   // Real dashboard aggregates: counts by status + 30/60/90-day retention-expiry buckets
-  summary: () =>
+  summary: (source?: "generated" | "upload") =>
     request<{
       data: {
         total: number;
@@ -1055,7 +1068,7 @@ export const documents = {
           documents30: { id: string; title: string }[];
         };
       };
-    }>("/documents/summary"),
+    }>(`/documents/summary${source ? `?source=${source}` : ""}`),
   // Recycle bin — admin-only, lists soft-deleted documents
   deleted: (params?: { search?: string; category?: string }) => {
     const qs = new URLSearchParams();
@@ -1391,7 +1404,8 @@ export const publications = {
 // ─── Content: alerts, cotisations, legal, support, notifications, etc. ────────
 
 export const content = {
-  alerts: () => request<{ data: unknown[] }>("/alerts"),
+  // Rendered by the server in this language, with the link the role may open.
+  alerts: (lang?: string) => request<{ data: unknown[] }>(lang ? `/alerts?lang=${encodeURIComponent(lang)}` : "/alerts"),
   markAlertRead: (id: string) =>
     request<{ data: unknown }>(`/alerts/${id}/read`, { method: "PUT" }),
   markAllAlertsRead: () =>
@@ -1797,6 +1811,10 @@ export interface ApiAnnouncement {
   pinned: boolean;
   expiresAt: string | null;
   createdAt: string;
+  /** The viewer already acknowledged it ("lu et compris"). */
+  acknowledged?: boolean;
+  /** Team only: number of acknowledgements. */
+  acknowledgementCount?: number;
 }
 
 export const announcements = {
@@ -2801,6 +2819,9 @@ export interface LibraryDocument {
   hasFile: boolean;
   createdAt: string;
   updatedAt: string | null;
+  publishedAt?: string | null;
+  /** Number of the unit a unit-level document concerns (when authorized). */
+  lotNumber?: string | null;
 }
 export interface LibraryQuery {
   q?: string;
@@ -2815,6 +2836,8 @@ export interface LibraryQuery {
 }
 
 export const library = {
+  /** One document's metadata (the server checks the person's access; 404 otherwise). */
+  get: (id: string) => request<{ data: LibraryDocument }>(`/documents/${encodeURIComponent(id)}`),
   search: (q: LibraryQuery = {}) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== "" && v !== false) qs.set(k, String(v));

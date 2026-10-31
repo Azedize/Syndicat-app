@@ -5,7 +5,7 @@
  * Plans are fetched dynamically from the database — nothing hardcoded.
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -89,7 +89,7 @@ function PlanCard({
   isPopular: boolean;
 }) {
   const { t, lang } = useLanguage();
-  const color = plan.color ?? "#2563EB";
+  const color = plan.color ?? "#5A4AD6";
   const features = parseFeatures(plan.features);
   const locale =
     lang === "ar"
@@ -99,7 +99,7 @@ function PlanCard({
         : lang === "en"
           ? "en-US"
           : "fr-MA";
-  const cardBg = isDark ? "#0D1929" : "#fff";
+  const cardBg = isDark ? "#17142B" : "#fff";
   const borderColor = isPopular
     ? color
     : isDark
@@ -140,7 +140,7 @@ function PlanCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text
-            style={[styles.planName, { color: isDark ? "#E8F0FE" : "#0A1628" }]}
+            style={[styles.planName, { color: isDark ? "#EEEBFC" : "#120F2C" }]}
           >
             {plan.name}
           </Text>
@@ -148,7 +148,7 @@ function PlanCard({
             <Text
               style={[
                 styles.planDesc,
-                { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" },
               ]}
               numberOfLines={2}
             >
@@ -173,7 +173,7 @@ function PlanCard({
           <Text
             style={[
               styles.pricePeriod,
-              { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" },
+              { color: isDark ? "rgba(232,240,254,0.45)" : "#A6A1BE" },
             ]}
           >
             / {yearly ? t("perYear") : t("perMonth")}
@@ -184,11 +184,11 @@ function PlanCard({
           plan.yearlyPrice &&
           Number(plan.yearlyPrice) < Number(plan.price) * 12 && (
             <View
-              style={[styles.saveBadge, { backgroundColor: "#10B981" + "25" }]}
+              style={[styles.saveBadge, { backgroundColor: "#13976C25" }]}
             >
               <Text
                 style={{
-                  color: "#10B981",
+                  color: "#13976C",
                   fontSize: 10,
                   fontFamily: "Inter_600SemiBold",
                 }}
@@ -238,7 +238,7 @@ function PlanCard({
             <Text
               style={[
                 styles.limitLabel,
-                { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" },
+                { color: isDark ? "rgba(232,240,254,0.6)" : "#4D4964" },
               ]}
             >
               {l.label}
@@ -256,7 +256,7 @@ function PlanCard({
               <Text
                 style={[
                   styles.featureItemText,
-                  { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" },
+                  { color: isDark ? "rgba(232,240,254,0.75)" : "#3A3652" },
                 ]}
               >
                 {f}
@@ -267,7 +267,7 @@ function PlanCard({
             <Text
               style={[
                 styles.moreFeatures,
-                { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" },
+                { color: isDark ? "rgba(232,240,254,0.4)" : "#A6A1BE" },
               ]}
             >
               +{features.length - 5} {t("publicPlanMoreFeatures")}
@@ -303,7 +303,7 @@ function PlanCard({
                   ? color
                   : isDark
                     ? "rgba(255,255,255,0.07)"
-                    : "#F1F5F9",
+                    : "#F0ECE4",
               },
             ]}
             onPress={() => {
@@ -313,7 +313,7 @@ function PlanCard({
                 params: {
                   planId: plan.id,
                   planName: plan.name,
-                  planColor: plan.color ?? "#2563EB",
+                  planColor: plan.color ?? "#5A4AD6",
                   planPrice:
                     yearly && plan.yearlyPrice
                       ? plan.yearlyPrice
@@ -328,7 +328,7 @@ function PlanCard({
             <Text
               style={[
                 styles.choosePlanText,
-                { color: isPopular ? "#fff" : isDark ? "#E8F0FE" : "#0A1628" },
+                { color: isPopular ? "#fff" : isDark ? "#EEEBFC" : "#120F2C" },
               ]}
             >
               {t("subscriptionChoosePlan")}
@@ -359,8 +359,8 @@ export default function PlansScreen() {
   }, [t]);
 
   const gradColors: [string, string] = isDark
-    ? ["#070D1A", "#0D1929"]
-    : ["#EFF6FF", "#F8FAFF"];
+    ? ["#0E0C1C", "#17142B"]
+    : ["#EEEBFC", "#F7F4EE"];
 
   const popularIndex =
     plans.findIndex((p) => !p.isTrial && (p.sortOrder ?? 0) === 1) !== -1
@@ -369,7 +369,7 @@ export default function PlansScreen() {
 
   return (
     <View
-      style={[styles.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}
+      style={[styles.root, { backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC" }]}
     >
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
@@ -391,7 +391,7 @@ export default function PlansScreen() {
             <Feather
               name="arrow-left"
               size={20}
-              color={isDark ? "#93C5FD" : "#2563EB"}
+              color={isDark ? "#C9BEFF" : "#5A4AD6"}
             />
           </TouchableOpacity>
 
@@ -399,7 +399,7 @@ export default function PlansScreen() {
             <Text
               style={[
                 styles.headerTitle,
-                { color: isDark ? "#E8F0FE" : "#0A1628" },
+                { color: isDark ? "#EEEBFC" : "#120F2C" },
               ]}
             >
               {t("publicPlansTitle")}
@@ -407,7 +407,7 @@ export default function PlansScreen() {
             <Text
               style={[
                 styles.headerSub,
-                { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.55)" : "#6A6680" },
               ]}
             >
               {t("publicPlansSubtitle")}
@@ -431,7 +431,7 @@ export default function PlansScreen() {
             <TouchableOpacity
               style={[
                 styles.toggleBtn,
-                !yearly && { backgroundColor: "#2563EB" },
+                !yearly && { backgroundColor: "#5A4AD6" },
               ]}
               onPress={() => {
                 setYearly(false);
@@ -446,7 +446,7 @@ export default function PlansScreen() {
                       ? "#fff"
                       : isDark
                         ? "rgba(232,240,254,0.5)"
-                        : "#64748B",
+                        : "#6A6680",
                   },
                 ]}
               >
@@ -456,7 +456,7 @@ export default function PlansScreen() {
             <TouchableOpacity
               style={[
                 styles.toggleBtn,
-                yearly && { backgroundColor: "#2563EB" },
+                yearly && { backgroundColor: "#5A4AD6" },
               ]}
               onPress={() => {
                 setYearly(true);
@@ -471,7 +471,7 @@ export default function PlansScreen() {
                       ? "#fff"
                       : isDark
                         ? "rgba(232,240,254,0.5)"
-                        : "#64748B",
+                        : "#6A6680",
                   },
                 ]}
               >
@@ -482,7 +482,7 @@ export default function PlansScreen() {
                   style={{
                     fontSize: 9,
                     fontFamily: "Inter_700Bold",
-                    color: "#10B981",
+                    color: "#13976C",
                   }}
                 >
                   -20%
@@ -495,11 +495,11 @@ export default function PlansScreen() {
         {/* Body */}
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#2563EB" />
+            <ActivityIndicator size="large" color="#5A4AD6" />
             <Text
               style={[
                 styles.loadingText,
-                { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" },
               ]}
             >
               {t("publicPlansLoading")}
@@ -510,18 +510,18 @@ export default function PlansScreen() {
             <Feather
               name="wifi-off"
               size={40}
-              color={isDark ? "rgba(232,240,254,0.3)" : "#CBD5E1"}
+              color={isDark ? "rgba(232,240,254,0.3)" : "#D3CBBE"}
             />
             <Text
               style={[
                 styles.errorText,
-                { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" },
+                { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" },
               ]}
             >
               {error}
             </Text>
             <TouchableOpacity
-              style={[styles.retryBtn, { borderColor: "#2563EB" }]}
+              style={[styles.retryBtn, { borderColor: "#5A4AD6" }]}
               onPress={() => {
                 setLoading(true);
                 setError(null);
@@ -533,7 +533,7 @@ export default function PlansScreen() {
             >
               <Text
                 style={{
-                  color: "#2563EB",
+                  color: "#5A4AD6",
                   fontFamily: "Inter_600SemiBold",
                   fontSize: 14,
                 }}
@@ -546,7 +546,7 @@ export default function PlansScreen() {
           <View style={styles.centered}>
             <Text
               style={{
-                color: isDark ? "rgba(232,240,254,0.5)" : "#64748B",
+                color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680",
                 fontFamily: "Inter_400Regular",
                 fontSize: 15,
               }}
@@ -573,13 +573,13 @@ export default function PlansScreen() {
           <Feather
             name="bar-chart-2"
             size={14}
-            color={isDark ? "#60A5FA" : "#2563EB"}
+            color={isDark ? "#B39CFF" : "#5A4AD6"}
           />
           <TouchableOpacity onPress={() => router.push("/get-started")}>
             <Text
               style={[
                 styles.compareText,
-                { color: isDark ? "#60A5FA" : "#2563EB" },
+                { color: isDark ? "#B39CFF" : "#5A4AD6" },
               ]}
             >
               {t("publicPlansCompare")}
@@ -602,12 +602,12 @@ export default function PlansScreen() {
           ]}
         >
           <View style={styles.salesInfoRow}>
-            <Feather name="phone" size={20} color="#2563EB" />
+            <Feather name="phone" size={20} color="#5A4AD6" />
             <View style={{ flex: 1 }}>
               <Text
                 style={[
                   styles.salesTitle,
-                  { color: isDark ? "#E8F0FE" : "#0A1628" },
+                  { color: isDark ? "#EEEBFC" : "#120F2C" },
                 ]}
               >
                 {t("customPlan")}
@@ -615,7 +615,7 @@ export default function PlansScreen() {
               <Text
                 style={[
                   styles.salesSub,
-                  { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" },
+                  { color: isDark ? "rgba(232,240,254,0.5)" : "#6A6680" },
                 ]}
               >
                 {t("contactTeam")}
@@ -623,7 +623,7 @@ export default function PlansScreen() {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.salesBtn, { backgroundColor: "#2563EB" }]}
+            style={[styles.salesBtn, { backgroundColor: "#5A4AD6" }]}
             onPress={() => router.push("/get-started")}
           >
             <Text
@@ -669,9 +669,8 @@ const styles = StyleSheet.create({
   },
   headerContent: { gap: 4 },
   headerTitle: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     fontSize: 28,
-    letterSpacing: -0.3,
   },
   headerSub: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 },
 
@@ -692,7 +691,7 @@ const styles = StyleSheet.create({
   },
   toggleText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
   savePill: {
-    backgroundColor: "#10B981" + "25",
+    backgroundColor: "#13976C25",
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 5,
@@ -742,9 +741,8 @@ const styles = StyleSheet.create({
 
   priceRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
   priceAmount: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     fontSize: 30,
-    letterSpacing: -0.5,
   },
   pricePeriod: { fontFamily: "Inter_400Regular", fontSize: 14 },
   saveBadge: {

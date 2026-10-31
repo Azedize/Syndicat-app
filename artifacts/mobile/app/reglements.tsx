@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
@@ -400,6 +400,9 @@ const STRINGS = {
     ar: "إعادة المحاولة",
     es: "Reintentar",
   },
+  descriptionTitle: { fr: "Description", en: "Description", ar: "الوصف", es: "Descripción" },
+  tagsTitle: { fr: "Mots-clés", en: "Tags", ar: "الكلمات المفتاحية", es: "Etiquetas" },
+  pagesValue: { fr: "{n} pages", en: "{n} pages", ar: "{n} صفحات", es: "{n} páginas" },
   historyEmpty: {
     fr: "Aucun historique de version disponible",
     en: "No version history available",
@@ -426,18 +429,18 @@ interface ReglementDoc {
 }
 
 const TYPE_CONFIG: Record<DocType, { label: { [key in LangCode]: string }; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  statuts: { label: STRINGS.tabStatuts, color: "#2563EB", icon: "book-open" },
-  ri: { label: STRINGS.tabRI, color: "#3b82f6", icon: "book" },
-  circulaire: { label: STRINGS.tabCirculaires, color: "#10b981", icon: "mail" },
-  charte: { label: STRINGS.tabChartes, color: "#f59e0b", icon: "star" },
-  accord: { label: STRINGS.tabAccords, color: "#ef4444", icon: "check-circle" },
+  statuts: { label: STRINGS.tabStatuts, color: "#5A4AD6", icon: "book-open" },
+  ri: { label: STRINGS.tabRI, color: "#5A4AD6", icon: "book" },
+  circulaire: { label: STRINGS.tabCirculaires, color: "#13976C", icon: "mail" },
+  charte: { label: STRINGS.tabChartes, color: "#C98511", icon: "star" },
+  accord: { label: STRINGS.tabAccords, color: "#C8323C", icon: "check-circle" },
 };
 
 const STATUS_CONFIG: Record<DocStatus, { label: { [key in LangCode]: string }; color: string }> = {
-  published: { label: { fr: "Publié", en: "Published", ar: "منشور", es: "Publicado" }, color: "#10b981" },
-  draft: { label: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" }, color: "#6b7280" },
-  revision: { label: { fr: "En révision", en: "In revision", ar: "قيد المراجعة", es: "En revisión" }, color: "#f59e0b" },
-  archived: { label: { fr: "Archivé", en: "Archived", ar: "مؤرشف", es: "Archivado" }, color: "#9ca3af" },
+  published: { label: { fr: "Publié", en: "Published", ar: "منشور", es: "Publicado" }, color: "#13976C" },
+  draft: { label: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" }, color: "#6A6680" },
+  revision: { label: { fr: "En révision", en: "In revision", ar: "قيد المراجعة", es: "En revisión" }, color: "#C98511" },
+  archived: { label: { fr: "Archivé", en: "Archived", ar: "مؤرشف", es: "Archivado" }, color: "#A6A1BE" },
 };
 
 type TabType = "tous" | DocType | "revision" | "versions";
@@ -548,9 +551,9 @@ export default function ReglementsScreen() {
               status: "current" as const,
             },
           ];
-          return { doc: doc.title, color: ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"][index % 4], versions };
+          return { doc: doc.title, color: ["#5A4AD6", "#5A4AD6", colors.success, colors.warning][index % 4], versions };
         } catch {
-          return { doc: doc.title, color: ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"][index % 4], versions: [] };
+          return { doc: doc.title, color: ["#5A4AD6", "#5A4AD6", colors.success, colors.warning][index % 4], versions: [] };
         }
       }));
       setVersionGroups(groups.filter((group) => group.versions.length > 0));
@@ -649,7 +652,7 @@ export default function ReglementsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#fff" />
@@ -758,8 +761,8 @@ export default function ReglementsScreen() {
                           <Text style={[styles.vhVerText, { color: ver.status === "current" ? group.color : colors.mutedForeground }]}>{ver.v}</Text>
                         </View>
                         {ver.status === "current" && (
-                          <View style={[styles.vhCurrentBadge, { backgroundColor: "#10b98118" }]}>
-                            <Text style={[styles.vhCurrentText, { color: "#10b981" }]}>{STRINGS.currentVersion[lang]}</Text>
+                          <View style={[styles.vhCurrentBadge, { backgroundColor: colors.success + "18" }]}>
+                            <Text style={[styles.vhCurrentText, { color: colors.success }]}>{STRINGS.currentVersion[lang]}</Text>
                           </View>
                         )}
                         <Text style={[styles.vhDate, { color: colors.mutedForeground }]}>{ver.date}</Text>
@@ -863,7 +866,7 @@ export default function ReglementsScreen() {
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />
-                  <Text style={[styles.docActionText, { color: colors.primary }]}>{STRINGS.pdfAction[lang]}</Text>
+                  <Text style={[styles.docActionText, { color: colors.tint }]}>{STRINGS.pdfAction[lang]}</Text>
                 </TouchableOpacity>
                 {d.status === "published" && (
                   <TouchableOpacity
@@ -874,17 +877,17 @@ export default function ReglementsScreen() {
                       Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis MIZAN` });
                     }}
                   >
-                    <Feather name="share-2" size={14} color="#1F5EFF" />
-                    <Text style={[styles.docActionText, { color: "#1F5EFF" }]}>{STRINGS.shareAction[lang]}</Text>
+                    <Feather name="share-2" size={14} color="#5A4AD6" />
+                    <Text style={[styles.docActionText, { color: "#5A4AD6" }]}>{STRINGS.shareAction[lang]}</Text>
                   </TouchableOpacity>
                 )}
                 {isAdmin && (d.status === "draft" || d.status === "revision") && (
                   <TouchableOpacity
-                    style={[styles.docActionBtn, { backgroundColor: "#10b98115" }]}
+                    style={[styles.docActionBtn, { backgroundColor: colors.success + "15" }]}
                     onPress={(e) => { e.stopPropagation?.(); handlePublish(d.id); }}
                   >
-                    <Feather name="check-circle" size={14} color="#10b981" />
-                    <Text style={[styles.docActionText, { color: "#10b981" }]}>{STRINGS.publishAction[lang]}</Text>
+                    <Feather name="check-circle" size={14} color={colors.success} />
+                    <Text style={[styles.docActionText, { color: colors.success }]}>{STRINGS.publishAction[lang]}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -923,11 +926,11 @@ export default function ReglementsScreen() {
                 <View style={[styles.infoGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
                     { icon: "user" as const, label: "Auteur", value: d.author },
-                    { icon: "check-circle" as const, label: "Approuvé par", value: d.approvedBy },
+                    { icon: "check-circle" as const, label: STRINGS.approvedBy[lang], value: d.approvedBy },
                     { icon: "calendar" as const, label: "Publication", value: d.publishedDate || "Non publié" },
-                    { icon: "edit-3" as const, label: "Dernière mise à jour", value: d.updatedDate },
-                    { icon: "file-text" as const, label: "Nombre de pages", value: `${d.pages} pages` },
-                    { icon: "download" as const, label: "Téléchargements", value: d.downloads.toString() },
+                    { icon: "edit-3" as const, label: STRINGS.lastUpdate[lang], value: d.updatedDate },
+                    { icon: "file-text" as const, label: STRINGS.pagesLabel[lang], value: STRINGS.pagesValue[lang].replace("{n}", String(d.pages)) },
+                    { icon: "download" as const, label: STRINGS.downloads[lang], value: d.downloads.toString() },
                   ].map(({ icon, label, value }, i) => (
                     <View key={label}>
                       {i > 0 && <View style={[styles.infoSep, { backgroundColor: colors.border }]} />}
@@ -945,13 +948,13 @@ export default function ReglementsScreen() {
                 </View>
 
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.descTitle, { color: colors.foreground }]}>Description</Text>
+                  <Text style={[styles.descTitle, { color: colors.foreground }]}>{STRINGS.descriptionTitle[lang]}</Text>
                   <Text style={[styles.descText, { color: colors.mutedForeground }]}>{d.description}</Text>
                 </View>
 
                 {d.tags.length > 0 && (
                   <View style={{ gap: 8 }}>
-                    <Text style={[styles.descTitle, { color: colors.foreground }]}>Tags</Text>
+                    <Text style={[styles.descTitle, { color: colors.foreground }]}>{STRINGS.tagsTitle[lang]}</Text>
                     <View style={styles.tagRow}>
                       {d.tags.map((tag) => (
                         <View key={tag} style={[styles.tag, { backgroundColor: typeCfg.color + "12" }]}>
@@ -968,24 +971,24 @@ export default function ReglementsScreen() {
                     onPress={() => handleDownload(d)}
                   >
                     <Feather name="download" size={18} color="#fff" />
-                    <Text style={styles.modalActionBtnText}>Télécharger PDF</Text>
+                    <Text style={styles.modalActionBtnText}>{STRINGS.btnDownloadPDF[lang]}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis MIZAN` }); }}
                   >
                     <Feather name="share-2" size={18} color={colors.foreground} />
-                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Partager</Text>
+                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>{STRINGS.shareAction[lang]}</Text>
                   </TouchableOpacity>
                 </View>
 
                 {isAdmin && (d.status === "draft" || d.status === "revision") && (
                   <TouchableOpacity
-                    style={[styles.publishBtn, { backgroundColor: "#10b981" }]}
+                    style={[styles.publishBtn, { backgroundColor: colors.success }]}
                     onPress={() => { handlePublish(d.id); setSelected(null); }}
                   >
                     <Feather name="check-circle" size={18} color="#fff" />
-                    <Text style={styles.publishBtnText}>Publier ce document</Text>
+                    <Text style={styles.publishBtnText}>{STRINGS.btnPublishDoc[lang]}</Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -1001,17 +1004,17 @@ export default function ReglementsScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Nouveau Document</Text>
+            <Text style={styles.modalTitle}>{STRINGS.modalNewDoc[lang]}</Text>
             <TouchableOpacity onPress={handleCreateDoc}>
-              <Text style={styles.modalSave}>Créer</Text>
+              <Text style={styles.modalSave}>{STRINGS.btnCreate[lang]}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.fieldTitle[lang]}</Text>
               <TextInput
                 style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Ex: Règlement Intérieur 2026"
+                placeholder={STRINGS.fieldTitlePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -1019,7 +1022,7 @@ export default function ReglementsScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type de document</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.fieldType[lang]}</Text>
               <View style={styles.typeGrid}>
                 {(Object.entries(TYPE_CONFIG) as [DocType, typeof TYPE_CONFIG["statuts"]][]).map(([key, cfg]) => (
                   <TouchableOpacity
@@ -1038,10 +1041,10 @@ export default function ReglementsScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.fieldDesc[lang]}</Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Décrivez le contenu et l'objectif de ce document..."
+                placeholder={STRINGS.fieldDescPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newDesc}
                 onChangeText={setNewDesc}
@@ -1066,7 +1069,7 @@ const styles = StyleSheet.create({
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, padding: 14 },
   statBox: { flex: 1, alignItems: "center", gap: 4 },
-  statVal: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  statVal: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   statLab: { fontSize: 10, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", textAlign: "center" },
   searchBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 4 },

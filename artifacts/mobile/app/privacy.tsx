@@ -1,29 +1,33 @@
 /**
  * MIZAN — Politique de Confidentialité
  */
+import ScreenHeader from "@/components/ScreenHeader";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
+import LegalLanguageNotice from "@/components/LegalLanguageNotice";
+import { CONTACT } from "@/constants/contact";
+import { useLanguage } from "@/context/LanguageContext";
 
 function Section({ title, children, isDark }: { title: string; children: React.ReactNode; isDark: boolean }) {
   return (
     <View style={s.section}>
-      <Text style={[s.sectionTitle, { color: isDark ? "#93C5FD" : "#2563EB" }]}>{title}</Text>
+      <Text style={[s.sectionTitle, { color: isDark ? "#C9BEFF" : "#5A4AD6" }]}>{title}</Text>
       {children}
     </View>
   );
 }
 function P({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
-  return <Text style={[s.para, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>{children}</Text>;
+  return <Text style={[s.para, { color: isDark ? "rgba(232,240,254,0.75)" : "#3A3652" }]}>{children}</Text>;
 }
 function Li({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
   return (
     <View style={s.liRow}>
-      <View style={[s.bullet, { backgroundColor: isDark ? "#3B82F6" : "#2563EB" }]} />
-      <Text style={[s.liText, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>{children}</Text>
+      <View style={[s.bullet, { backgroundColor: isDark ? "#5A4AD6" : "#5A4AD6" }]} />
+      <Text style={[s.liText, { color: isDark ? "rgba(232,240,254,0.75)" : "#3A3652" }]}>{children}</Text>
     </View>
   );
 }
@@ -31,36 +35,30 @@ function Li({ children, isDark }: { children: React.ReactNode; isDark: boolean }
 export default function PrivacyScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
-  const bg = isDark ? "#070D1A" : "#F8FAFF";
-  const card = isDark ? "#0D1929" : "#fff";
-  const fg = isDark ? "#E8F0FE" : "#0A1628";
-  const muted = isDark ? "rgba(232,240,254,0.45)" : "#64748B";
+  const { t } = useLanguage();
+  const bg = isDark ? "#0E0C1C" : "#F7F4EE";
+  const card = isDark ? "#17142B" : "#fff";
+  const fg = isDark ? "#EEEBFC" : "#120F2C";
+  const muted = isDark ? "rgba(232,240,254,0.45)" : "#6A6680";
   const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(37,99,235,0.1)";
 
   return (
     <View style={[s.root, { backgroundColor: bg }]}>
-      <View style={[s.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16), backgroundColor: card, borderBottomColor: border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color={isDark ? "#93C5FD" : "#2563EB"} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.headerTitle, { color: fg }]}>Politique de Confidentialité</Text>
-          <Text style={[s.headerSub, { color: muted }]}>Version 1.0 — Juillet 2025 · Loi n° 09-08</Text>
-        </View>
-      </View>
+      <ScreenHeader title={t("privacyPolicy")} subtitle={`${t("legalDraftSubtitle")} · 09-08`} />
 
       <ScrollView contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+        <LegalLanguageNotice />
 
-        <View style={[s.legalBadge, { backgroundColor: "#10B98115", borderColor: "#10B98130" }]}>
-          <Feather name="lock" size={14} color="#10B981" />
-          <Text style={[s.legalBadgeText, { color: isDark ? "#6EE7B7" : "#059669" }]}>
+        <View style={[s.legalBadge, { backgroundColor: "#13976C15", borderColor: "#13976C30" }]}>
+          <Feather name="lock" size={14} color="#13976C" />
+          <Text style={[s.legalBadgeText, { color: isDark ? "#7FE3B8" : "#13976C" }]}>
             MIZAN s'engage à protéger vos données personnelles conformément à la loi marocaine 09-08 et au RGPD européen.
           </Text>
         </View>
 
         <Section title="1. Responsable du traitement" isDark={isDark}>
           <P isDark={isDark}>
-            Le responsable du traitement de vos données personnelles est MIZAN Community OS SARL, société de droit marocain immatriculée à Casablanca. Contact DPO : privacy@mizan.ma
+            Le responsable du traitement de vos données personnelles est {CONTACT.legalEntity ?? "[raison sociale de l'exploitant — à compléter]"}. Contact protection des données : {CONTACT.privacyEmail ?? "[adresse à compléter]"}
           </P>
         </Section>
 
@@ -102,10 +100,10 @@ export default function PrivacyScreen() {
 
         <Section title="5. Durée de conservation" isDark={isDark}>
           <P isDark={isDark}>
-            Vos données sont conservées pendant toute la durée de votre abonnement, puis pendant 90 jours après la résiliation de votre compte pour permettre une réactivation éventuelle.
+            Vos données de compte sont conservées tant que votre compte est actif. Leur suppression ou leur anonymisation après la fermeture du compte se fait sur demande (voir « Vos droits ») ; la durée exacte de conservation après fermeture doit être fixée par l'exploitant.
           </P>
           <P isDark={isDark}>
-            Les données de facturation sont conservées pendant 10 ans conformément aux obligations comptables et fiscales. Les journaux d'audit sont conservés pendant 3 ans.
+            Les documents de la copropriété ont une durée de conservation par catégorie (par exemple 10 ans pour les documents financiers et juridiques, 5 ans pour les procès-verbaux), à l'issue de laquelle ils sont archivés puis purgés. Les écritures comptables et les paiements ne sont pas supprimés.
           </P>
         </Section>
 
@@ -120,7 +118,7 @@ export default function PrivacyScreen() {
 
         <Section title="7. Transferts internationaux" isDark={isDark}>
           <P isDark={isDark}>
-            Les données sont hébergées sur des serveurs situés dans l'Union Européenne et/ou au Maroc. Tout transfert vers des pays tiers est encadré par des garanties appropriées (clauses contractuelles types, décisions d'adéquation).
+            Le lieu d'hébergement des données et les éventuels transferts hors du Maroc dépendent de l'infrastructure retenue par l'exploitant ; ils doivent être précisés ici et, le cas échéant, déclarés à la CNDP.
           </P>
         </Section>
 
@@ -128,12 +126,11 @@ export default function PrivacyScreen() {
           <P isDark={isDark}>
             MIZAN met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données :
           </P>
-          <Li isDark={isDark}>Chiffrement des données en transit (TLS 1.3) et au repos (AES-256)</Li>
-          <Li isDark={isDark}>Authentification sécurisée avec hachage des mots de passe (bcrypt)</Li>
-          <Li isDark={isDark}>Contrôle d'accès basé sur les rôles (RBAC)</Li>
-          <Li isDark={isDark}>Audits de sécurité réguliers et tests de pénétration</Li>
-          <Li isDark={isDark}>Sauvegardes chiffrées quotidiennes avec rétention de 30 jours</Li>
-          <Li isDark={isDark}>Journaux d'audit complets et immuables</Li>
+          <Li isDark={isDark}>Connexion chiffrée (HTTPS) entre l'application et le serveur</Li>
+          <Li isDark={isDark}>Mots de passe stockés uniquement sous forme de hachage (bcrypt)</Li>
+          <Li isDark={isDark}>Contrôle d'accès par rôle et par copropriété, vérifié par le serveur</Li>
+          <Li isDark={isDark}>Documents privés servis par des liens temporaires (5 minutes)</Li>
+          <Li isDark={isDark}>Journal d'audit des actions sensibles</Li>
         </Section>
 
         <Section title="9. Vos droits" isDark={isDark}>
@@ -145,7 +142,7 @@ export default function PrivacyScreen() {
           <Li isDark={isDark}><Text style={{ fontFamily: "Inter_600SemiBold" }}>Droit d'opposition</Text> : vous opposer au traitement de vos données</Li>
           <Li isDark={isDark}><Text style={{ fontFamily: "Inter_600SemiBold" }}>Droit à la limitation</Text> : restreindre le traitement dans certains cas</Li>
           <P isDark={isDark}>
-            Pour exercer ces droits, contactez-nous à privacy@mizan.ma. Vous pouvez également introduire une réclamation auprès de la Commission Nationale de Contrôle de la Protection des Données à Caractère Personnel (CNDP).
+            Pour exercer ces droits, contactez-nous à {CONTACT.privacyEmail ?? "[adresse à compléter]"}. Vous pouvez également introduire une réclamation auprès de la Commission Nationale de Contrôle de la Protection des Données à Caractère Personnel (CNDP).
           </P>
         </Section>
 
@@ -162,11 +159,11 @@ export default function PrivacyScreen() {
         </Section>
 
         <View style={[s.contactBox, { backgroundColor: card, borderColor: border }]}>
-          <Feather name="shield" size={16} color="#10B981" />
+          <Feather name="shield" size={16} color="#13976C" />
           <View style={{ flex: 1 }}>
             <Text style={[s.contactTitle, { color: fg }]}>Délégué à la Protection des Données (DPO)</Text>
-            <Text style={[s.contactText, { color: muted }]}>privacy@mizan.ma</Text>
-            <Text style={[s.contactText, { color: muted }]}>MIZAN Community OS SARL — Casablanca, Maroc</Text>
+            <Text style={[s.contactText, { color: muted }]}>{CONTACT.privacyEmail ?? "[adresse à compléter]"}</Text>
+            <Text style={[s.contactText, { color: muted }]}>{CONTACT.legalEntity ?? "[raison sociale à compléter]"}</Text>
           </View>
         </View>
 

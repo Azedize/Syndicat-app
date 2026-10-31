@@ -12,8 +12,8 @@
  *   router.push({ pathname: "/pdf-viewer", params: { url: signedUrl, title: docTitle, docId } });
  */
 
-import { Feather } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
+import { Feather } from "@/components/ui/Feather";
+import * as FileSystem from "expo-file-system/legacy";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useRef, useState } from "react";
@@ -121,7 +121,7 @@ function buildPdfJsHtml(
     #loadingMsg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
       color:#fff;font-family:sans-serif;font-size:14px;text-align:center}
     #errorMsg{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-      color:#ff6b6b;font-family:sans-serif;font-size:14px;text-align:center}
+      color:#F58A90;font-family:sans-serif;font-size:14px;text-align:center}
   </style>
 </head>
 <body>
@@ -157,7 +157,7 @@ function buildPdfJsHtml(
 
     async function loadPdf() {
       try {
-        const loadingTask = pdfjsLib.getDocument({ url: '${pdfUrl}', withCredentials: false });
+        const loadingTask = pdfjsLib.getDocument({ url: ${JSON.stringify(pdfUrl)}, withCredentials: false });
         loadingTask.onProgress = (p) => {
           if (p.total > 0) postMsg('progress', { pct: Math.round(p.loaded/p.total*100) });
         };
@@ -201,7 +201,7 @@ function buildIosViewerUrl(pdfUrl: string) {
 
 export default function PdfViewerScreen() {
   const colors = useColors();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const copy = PDF_STRINGS[lang];
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
@@ -278,18 +278,21 @@ export default function PdfViewerScreen() {
     if (!pdfUrl) return;
     setDownloading(true);
     try {
-      const cacheDir = (FileSystem as any).cacheDirectory ?? "";
-      const filename = `${title.replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
+      // Private app cache; the copy is removed once the share sheet closes.
+      const cacheDir = FileSystem.cacheDirectory ?? "";
+      const filename = `${title.replace(/[^a-zA-Z0-9-]/g, "_").slice(0, 80) || "document"}.pdf`;
       const localPath = `${cacheDir}${filename}`;
       const res = await FileSystem.downloadAsync(pdfUrl, localPath);
-      if (res.uri) {
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
+      try {
+        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+        if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(res.uri, {
             mimeType: "application/pdf",
             UTI: "com.adobe.pdf",
           });
         }
+      } finally {
+        await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
       }
     } catch {
       setPhase("error");
@@ -309,7 +312,7 @@ export default function PdfViewerScreen() {
           { backgroundColor: colors.background },
         ]}
       >
-        <Feather name="alert-circle" size={40} color="#ef4444" />
+        <Feather name="alert-circle" size={40} color="#C8323C" />
         <Text style={[styles.errorTitle, { color: colors.foreground }]}>
           {copy.missingUrl}
         </Text>
@@ -331,7 +334,7 @@ export default function PdfViewerScreen() {
   // ── Web platform: WebView unsupported — use a native <iframe> via DOM ────────
   if (Platform.OS === "web") {
     return (
-      <View style={[styles.root, { backgroundColor: "#1a1a2e" }]}>
+      <View style={[styles.root, { backgroundColor: "#17142B" }]}>
         <StatusBar barStyle="light-content" />
         {/* Toolbar */}
         <View style={[styles.toolbar, { paddingTop: insets.top + 8 }]}>
@@ -374,7 +377,7 @@ export default function PdfViewerScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: "#1a1a2e" }]}>
+    <View style={[styles.root, { backgroundColor: "#17142B" }]}>
       <StatusBar barStyle="light-content" />
 
       {/* ── Toolbar ── */}
@@ -438,7 +441,7 @@ export default function PdfViewerScreen() {
       {/* ── Error state ── */}
       {phase === "error" ? (
         <View style={[styles.errorOverlay, styles.center]}>
-          <Feather name="alert-circle" size={48} color="#ff6b6b" />
+          <Feather name="alert-circle" size={48} color="#F58A90" />
           <Text style={styles.errorTitleWhite}>{copy.error}</Text>
           <Text style={styles.errorSubWhite}>{copy.connection}</Text>
           <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
@@ -497,9 +500,9 @@ export default function PdfViewerScreen() {
         // Loading overlay
         renderLoading={() => (
           <View style={[styles.loadingOverlay, styles.center]}>
-            <ActivityIndicator size="large" color="#1F5EFF" />
+            <ActivityIndicator size="large" color="#5A4AD6" />
             <Text style={styles.loadingText}>
-              {loadPct > 0 ? `Chargement… ${loadPct}%` : "Préparation du PDF…"}
+              {loadPct > 0 ? t("pdfLoadingPct").replace("{pct}", String(loadPct)) : t("pdfPreparing")}
             </Text>
           </View>
         )}
@@ -510,7 +513,7 @@ export default function PdfViewerScreen() {
       {phase === "ready" && totalPages > 1 ? (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 4 }]}>
           <Text style={styles.bottomBarText}>
-            Faites défiler pour naviguer entre les {totalPages} pages
+            {t("pdfScrollHint").replace("{n}", String(totalPages))}
           </Text>
         </View>
       ) : null}
@@ -521,14 +524,14 @@ export default function PdfViewerScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#1a1a2e" },
+  root: { flex: 1, backgroundColor: "#17142B" },
   center: { alignItems: "center", justifyContent: "center" },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#17142B",
     zIndex: 10,
   },
   toolBtn: {
@@ -545,12 +548,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressBg: { height: 3, backgroundColor: "#ffffff20", overflow: "hidden" },
-  progressFill: { height: 3, backgroundColor: "#1F5EFF" },
+  progressFill: { height: 3, backgroundColor: "#5A4AD6" },
   webview: { flex: 1, backgroundColor: "#404040" },
   loadingOverlay: {
     position: "absolute" as const,
     inset: 0,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#17142B",
     zIndex: 5,
   },
   loadingText: {
@@ -562,7 +565,7 @@ const styles = StyleSheet.create({
   errorOverlay: {
     position: "absolute" as const,
     inset: 0,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#17142B",
     zIndex: 6,
   },
   errorTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginTop: 16 },
@@ -597,7 +600,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#1F5EFF",
+    backgroundColor: "#5A4AD6",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,

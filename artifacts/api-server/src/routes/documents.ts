@@ -17,7 +17,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
 import { nextSequenceNumber } from "../lib/sequences.js";
-import { syndicateFlows } from "../lib/treasury.js";
+import { syndicateFlows, moneySum, toCents } from "../lib/treasury.js";
 import {
   findForeignReference,
   resolveDocumentSubject,
@@ -29,6 +29,7 @@ import {
   documentCommentsTable,
   documentVersionsTable,
   syndicatesTable,
+  treasuryAccountsTable,
   usersTable,
   buildingsTable,
   lotsTable,
@@ -76,6 +77,7 @@ import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
 
 import { canSeeDocument, documentView, documentVisibilityWhere } from "../lib/document-access.js";
 import { assertDeletable } from "./document-library.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -165,6 +167,14 @@ async function getSyndicateInfo(
     })
     .from(syndicatesTable)
     .where(eq(syndicatesTable.id, syndicateId));
+  // The account printed for payment is the one the app shows for the transfer
+  // and the treasurer reconciles: the default active bank account. The free
+  // fields of the condominium are used only when no such account exists.
+  const [account] = await db
+    .select({ bankName: treasuryAccountsTable.bankName, rib: treasuryAccountsTable.rib })
+    .from(treasuryAccountsTable)
+    .where(and(eq(treasuryAccountsTable.syndicateId, syndicateId), eq(treasuryAccountsTable.kind, "bank"), eq(treasuryAccountsTable.status, "active"), eq(treasuryAccountsTable.isDefault, true)))
+    .limit(1);
 
   return {
     name: s?.name ?? defaults.name,
@@ -177,8 +187,8 @@ async function getSyndicateInfo(
     logoColor: s?.logoColor ?? defaults.logoColor,
     logoUrl: s?.logoUrl ?? defaults.logoUrl,
     abbreviation: s?.abbreviation ?? defaults.abbreviation,
-    bankName: s?.bankName ?? defaults.bankName,
-    bankIban: s?.bankIban ?? defaults.bankIban,
+    bankName: (account?.rib ? account.bankName : null) ?? s?.bankName ?? defaults.bankName,
+    bankIban: account?.rib ?? s?.bankIban ?? defaults.bankIban,
     bankBic: s?.bankBic ?? defaults.bankBic,
   };
 }
@@ -680,8 +690,8 @@ async function getFinancialDashboardData(
 
     // Cancelled calls are not owed; paid = validated payments (partial included).
     appels = appels.filter((a) => a.status !== "cancelled");
-    const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalPaid = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+    const totalCharged = moneySum(appels.map((a) => a.amount));
+    const totalPaid = moneySum(appels.map((a) => a.amountPaid));
     const outstanding = totalCharged - totalPaid;
     const collectionRate =
       totalCharged > 0 ? Math.round((totalPaid / totalCharged) * 100) : 0;
@@ -694,7 +704,7 @@ async function getFinancialDashboardData(
       (s, a) => s + Number(a.amount ?? 0),
       0,
     );
-    const yearPaid = yearAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+    const yearPaid = moneySum(yearAppels.map((a) => a.amountPaid));
 
     // ── 2. Journal (revenue / expenses / treasury balance) ────────────────────
     let totalRevenue = 0;
@@ -825,10 +835,10 @@ async function getDecompteChargesData(
       (s, a) => s + Number(a.amount ?? 0),
       0,
     );
-    const totalPaid = useAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+    const totalPaid = moneySum(useAppels.map((a) => a.amountPaid));
     const totalOverdue = useAppels
       .filter((a) => a.status === "overdue")
-      .reduce((s, a) => s + Number(a.amount ?? 0) - Number(a.amountPaid ?? 0), 0);
+      .reduce((s, a) => s + toCents(a.amount) - toCents(a.amountPaid), 0) / 100;
 
     // Group by type for breakdown
     const byType: Record<string, number> = {};
@@ -986,7 +996,7 @@ async function getAttestationPaiementData(
       : allAppels;
     const useAppels = periodeAppels.length > 0 ? periodeAppels : allAppels;
 
-    const totalPaid = useAppels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+    const totalPaid = moneySum(useAppels.map((a) => a.amountPaid));
     const totalCharged = useAppels.reduce(
       (s, a) => s + Number(a.amount ?? 0),
       0,
@@ -1303,9 +1313,16 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
       return;
     }
+    const source = typeof req.query.source === "string" ? req.query.source : undefined;
+    if (source !== undefined && source !== "generated" && source !== "upload") {
+      res.status(400).json({ error: "source invalide (generated | upload)" });
+      return;
+    }
     const conditions = [eq(documentsTable.isDeleted, false)];
     if (syndicateId)
       conditions.push(eq(documentsTable.syndicateId, syndicateId));
+    // Same scope as GET /documents?source=… so a tile's count matches the list it opens.
+    if (source) conditions.push(eq(documentsTable.source, source));
     conditions.push((await documentVisibilityWhere(req.user!)) as any);
 
     const rows = await db
@@ -3200,8 +3217,8 @@ router.post("/documents/request", requireAuth, async (req, res) => {
 
     if (syndicateId) {
       createAlert({
-        title: "Nouvelle demande de document",
-        message: `${memberName ?? user.email} a demandé : "${docTitle}".`,
+        key: "document.requested",
+        params: { member: memberName ?? user.email, title: docTitle },
         type: "info",
         syndicateId,
         target: "admin",
@@ -4217,7 +4234,7 @@ router.post(
           ),
         );
 
-      const totalPaid = appels.reduce((s, a) => s + Number(a.amountPaid ?? 0), 0);
+      const totalPaid = moneySum(appels.map((a) => a.amountPaid));
       const totalCharged = appels.reduce(
         (s, a) => s + Number(a.amount ?? 0),
         0,
@@ -4225,10 +4242,7 @@ router.post(
       const overdueItems = appels.filter((a) =>
         ["overdue", "pending", "partially_paid", "rejected", "pending_validation"].includes(a.status ?? ""),
       );
-      const overdueAmount = overdueItems.reduce(
-        (s, a) => s + Number(a.amount ?? 0) - Number(a.amountPaid ?? 0),
-        0,
-      );
+      const overdueAmount = overdueItems.reduce((s, a) => s + toCents(a.amount) - toCents(a.amountPaid), 0) / 100;
       const remainingBalance = Math.max(0, totalCharged - totalPaid);
       const hasOverdue = overdueItems.length > 0 || remainingBalance > 0;
       const lastPaymentDate =
@@ -4363,7 +4377,7 @@ router.post(
           extra: {
             objet: `1ère relance : charges impayées — Montant dû : ${totalDue} MAD`,
             heure: "",
-            meetingDate: new Date().toISOString().slice(0, 10),
+            meetingDate: localToday(),
           },
         },
         {
@@ -4490,8 +4504,8 @@ router.post(
       });
       if (syndicateId) {
         createAlert({
-          title: "Dossier de recouvrement généré",
-          message: `${createdDocs.length} documents créés pour ${memberName}.`,
+          key: "document.recoveryPack",
+          params: { count: createdDocs.length, member: memberName },
           type: "warning",
           syndicateId,
           target: "admin",
@@ -4771,7 +4785,7 @@ router.post(
       const agDate =
         meetingDate ??
         meetingData.meetingDate ??
-        new Date().toISOString().slice(0, 10);
+        localToday();
       const agTitle = `AG du ${agDate}`;
 
       const agDocs: Array<{
@@ -4889,8 +4903,8 @@ router.post(
       });
       if (syndicateId) {
         createAlert({
-          title: "Dossier AG généré",
-          message: `${createdDocs.length} documents pour ${agTitle}.`,
+          key: "document.agPack",
+          params: { count: createdDocs.length, meeting: agTitle },
           type: "info",
           syndicateId,
           target: "admin",
@@ -4927,18 +4941,20 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Document introuvable" });
       return;
     }
+    // Another condominium's document, or one outside the person's audience,
+    // gets the same answer as a missing id: no hint that it exists.
     if (
-      req.user!.role !== "super_admin" &&
-      doc.syndicateId !== req.user!.syndicateId
+      (req.user!.role !== "super_admin" &&
+        doc.syndicateId !== req.user!.syndicateId) ||
+      !(await canSeeDocument(req.user!, doc))
     ) {
-      res.status(403).json({ error: "Accès refusé" });
+      res.status(404).json({ error: "Document introuvable", code: "DOCUMENT_NOT_FOUND" });
       return;
     }
-    if (!(await canSeeDocument(req.user!, doc))) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
-    res.json({ data: documentView(doc, req.user!) });
+    const lotNumber = doc.lotId
+      ? (await db.select({ n: lotsTable.number }).from(lotsTable).where(eq(lotsTable.id, doc.lotId)))[0]?.n ?? null
+      : null;
+    res.json({ data: { ...documentView(doc, req.user!), lotNumber } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -5384,8 +5400,8 @@ router.post(
       // 7. Push + email notification (fire-and-forget)
       if (syndicateId) {
         createAlert({
-          title: "Nouveau document généré",
-          message: `"${title}" a été généré dans la catégorie ${category}.`,
+          key: "document.generated",
+          params: { title, category },
           type: "info",
           syndicateId,
           target: "admin",
@@ -5582,15 +5598,15 @@ router.put(
           // Personal document: only the person concerned is told (its title
           // usually carries their name and situation).
           void notifyUser(existing.subjectUserId, {
-            title: "Votre document est disponible",
-            message: `"${doc.title}" est disponible dans votre espace Documents.`,
+            key: "document.available",
+            params: { title: doc.title },
             type: "success",
             syndicateId: existing.syndicateId,
           });
         } else {
           createAlert({
-            title: "Nouveau document publié",
-            message: `"${doc.title}" est maintenant disponible dans l'espace Documents.`,
+            key: "document.published",
+            params: { title: doc.title },
             type: "success",
             syndicateId: existing.syndicateId,
             target: "all",
@@ -5610,10 +5626,8 @@ router.put(
           .where(eq(usersTable.id, existing.createdBy));
         const approved = result.data.status === "validated";
         void notifyUser(existing.createdBy, {
-          title: approved ? "Document approuvé" : "Document rejeté",
-          message: approved
-            ? `"${doc.title}" a été approuvé.`
-            : `"${doc.title}" a été rejeté. Motif : ${rejectionReason}`,
+          key: approved ? "document.approved" : "document.rejected",
+          params: { title: doc.title, reason: rejectionReason ?? "" },
           type: approved ? "success" : "error",
           syndicateId: existing.syndicateId,
         });
@@ -6279,8 +6293,8 @@ router.post(
 
       if (doc.syndicateId) {
         createAlert({
-          title: "Document signé",
-          message: `"${doc.title}" a été signé électroniquement par ${signerName}.`,
+          key: "document.signed",
+          params: { title: doc.title, signer: signerName },
           type: "success",
           syndicateId: doc.syndicateId,
           target: "admin",

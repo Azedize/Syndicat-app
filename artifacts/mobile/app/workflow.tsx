@@ -143,28 +143,28 @@ interface Workflow {
 }
 
 const STATUS_CONFIG: Record<WfStatus, { label: StringKey; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending: { label: "statusPending", color: "#f59e0b", icon: "clock" },
-  in_progress: { label: "statusInProgress", color: "#3b82f6", icon: "loader" },
-  approved: { label: "statusApproved", color: "#10b981", icon: "check-circle" },
-  rejected: { label: "statusRejected", color: "#ef4444", icon: "x-circle" },
-  cancelled: { label: "statusCancelled", color: "#6b7280", icon: "slash" },
+  pending: { label: "statusPending", color: "#C98511", icon: "clock" },
+  in_progress: { label: "statusInProgress", color: "#5A4AD6", icon: "loader" },
+  approved: { label: "statusApproved", color: "#13976C", icon: "check-circle" },
+  rejected: { label: "statusRejected", color: "#C8323C", icon: "x-circle" },
+  cancelled: { label: "statusCancelled", color: "#6A6680", icon: "slash" },
 };
 
 const PRIORITY_CONFIG: Record<WfPriority, { label: StringKey; color: string }> = {
-  low: { label: "priorityLow", color: "#6b7280" },
-  medium: { label: "priorityMedium", color: "#3b82f6" },
-  high: { label: "priorityHigh", color: "#f59e0b" },
-  urgent: { label: "priorityUrgent", color: "#ef4444" },
+  low: { label: "priorityLow", color: "#6A6680" },
+  medium: { label: "priorityMedium", color: "#5A4AD6" },
+  high: { label: "priorityHigh", color: "#C98511" },
+  urgent: { label: "priorityUrgent", color: "#C8323C" },
 };
 
 const CAT_COLORS: Record<string, string> = {
-  statuts: "#2563EB",
-  reglement: "#3b82f6",
-  finance: "#10b981",
-  juridique: "#ef4444",
-  election: "#f59e0b",
-  publication: "#f97316",
-  gouvernance: "#8b5cf6",
+  statuts: "#5A4AD6",
+  reglement: "#5A4AD6",
+  finance: "#13976C",
+  juridique: "#C8323C",
+  election: "#C98511",
+  publication: "#C8642A",
+  gouvernance: "#1F8A9A",
 };
 
 const CAT_LABEL_KEYS: Record<string, keyof typeof STRINGS> = {
@@ -195,7 +195,7 @@ export default function WorkflowScreen() {
   const { documents } = useData();
   const { isWide, isMobile } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const rowDirection = isRTL ? "row-reverse" : "row";
+  const rowDirection = "row";
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
@@ -298,14 +298,14 @@ export default function WorkflowScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
-            <Text style={[styles.headerTitle, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.headerTitle[lang]}</Text>
-            <Text style={[styles.headerSub, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.headerSub[lang]}</Text>
+            <Text style={[styles.headerTitle, { textAlign: "auto" }]}>{STRINGS.headerTitle[lang]}</Text>
+            <Text style={[styles.headerSub, { textAlign: "auto" }]}>{STRINGS.headerSub[lang]}</Text>
           </View>
           {isAdmin && (
             <TouchableOpacity
@@ -320,9 +320,9 @@ export default function WorkflowScreen() {
         <View style={[styles.statsRow, isMobile && styles.statsRowCompact]}>
           {[
             { label: STRINGS.statTotal[lang], value: counts.all, color: "#fff" },
-            { label: STRINGS.statInProgress[lang], value: counts.in_progress, color: "#93c5fd" },
-            { label: STRINGS.statRequired[lang], value: myPending, color: "#fde68a" },
-            { label: STRINGS.statApproved[lang], value: counts.approved, color: "#6ee7b7" },
+            { label: STRINGS.statInProgress[lang], value: counts.in_progress, color: "#C9BEFF" },
+            { label: STRINGS.statRequired[lang], value: myPending, color: "#F8D08A" },
+            { label: STRINGS.statApproved[lang], value: counts.approved, color: "#7FE3B8" },
           ].map((s) => (
             <View
               key={s.label}
@@ -369,7 +369,7 @@ export default function WorkflowScreen() {
           description={STRINGS.errorDescription[lang]}
           retryLabel={STRINGS.retry[lang]}
           onRetry={loadWorkflows}
-          accentColor="#ef4444"
+         
         />
       ) : (
       <FlatList
@@ -419,7 +419,7 @@ export default function WorkflowScreen() {
                       <Text style={[styles.priorityText, { color: priorityCfg.color }]}>{STRINGS[priorityCfg.label][lang]}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.wfTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{w.title}</Text>
+                  <Text style={[styles.wfTitle, { color: colors.foreground, textAlign: "auto" }]}>{w.title}</Text>
                 </View>
               </View>
 
@@ -435,8 +435,8 @@ export default function WorkflowScreen() {
                 </View>
                 {daysLeft !== null && (
                   <View style={styles.metaItem}>
-                    <Feather name="clock" size={11} color={daysLeft < 7 ? "#ef4444" : colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: daysLeft < 7 ? "#ef4444" : colors.mutedForeground }]}>
+                    <Feather name="clock" size={11} color={daysLeft < 7 ? colors.danger : colors.mutedForeground} />
+                    <Text style={[styles.metaText, { color: daysLeft < 7 ? colors.danger : colors.mutedForeground }]}>
                       {daysLeft > 0 ? `${daysLeft}${STRINGS.daysLeft[lang]}` : STRINGS.overdue[lang]}
                     </Text>
                   </View>
@@ -464,7 +464,7 @@ export default function WorkflowScreen() {
                     style={[
                       styles.stepDot,
                       {
-                        backgroundColor: step.status === "done" ? "#10b981" : step.status === "current" ? colors.primary : step.status === "rejected" ? "#ef4444" : colors.muted,
+                        backgroundColor: step.status === "done" ? colors.success : step.status === "current" ? colors.primary : step.status === "rejected" ? colors.danger : colors.muted,
                         width: step.status === "current" ? 20 : 12,
                       },
                     ]}
@@ -479,7 +479,7 @@ export default function WorkflowScreen() {
               {w.status === "in_progress" && (
                 <View style={[styles.currentStepBox, { flexDirection: rowDirection, backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.primary} />
-                      <Text style={[styles.currentStepText, { color: colors.primary, textAlign: isRTL ? "right" : "left" }]} numberOfLines={1}>
+                      <Text style={[styles.currentStepText, { color: colors.tint, textAlign: "auto" }]} numberOfLines={1}>
                      {STRINGS.waitingOn[lang]} {w.steps[w.currentStep]?.assignee}
                   </Text>
                 </View>
@@ -503,7 +503,7 @@ export default function WorkflowScreen() {
                 <TouchableOpacity onPress={() => setSelected(null)}>
                   <Feather name="x" size={22} color="#fff" />
                 </TouchableOpacity>
-                <Text style={[styles.modalTitle, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={2}>{w.title}</Text>
+                <Text style={[styles.modalTitle, { textAlign: "auto" }]} numberOfLines={2}>{w.title}</Text>
                 <View style={[styles.modalStatusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                   <Text style={styles.modalStatusText}>{STRINGS[statusCfg.label][lang]}</Text>
                 </View>
@@ -540,7 +540,7 @@ export default function WorkflowScreen() {
                     const isDone = step.status === "done";
                     const isCurrent = step.status === "current";
                     const isRejected = step.status === "rejected";
-                    const dotColor = isDone ? "#10b981" : isCurrent ? catColor : isRejected ? "#ef4444" : colors.muted;
+                    const dotColor = isDone ? colors.success : isCurrent ? catColor : isRejected ? colors.danger : colors.muted;
                     return (
                        <View key={step.id} style={[styles.timelineItem, { flexDirection: rowDirection }]}>
                         <View style={styles.timelineLeft}>
@@ -551,19 +551,19 @@ export default function WorkflowScreen() {
                             {!isDone && !isRejected && !isCurrent && <Text style={styles.timelineNum}>{i + 1}</Text>}
                           </View>
                           {i < w.steps.length - 1 && (
-                            <View style={[styles.timelineLine, { backgroundColor: isDone ? "#10b981" : colors.border }]} />
+                            <View style={[styles.timelineLine, { backgroundColor: isDone ? colors.success : colors.border }]} />
                           )}
                         </View>
                         <View style={[styles.timelineContent, { backgroundColor: isCurrent ? catColor + "08" : "transparent", borderColor: isCurrent ? catColor + "30" : "transparent" }]}>
                            <View style={[styles.timelineTop, { flexDirection: rowDirection }]}>
-                             <Text style={[styles.stepTitle, { color: isCurrent ? catColor : isDone ? colors.foreground : colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{step.title}</Text>
+                             <Text style={[styles.stepTitle, { color: isCurrent ? catColor : isDone ? colors.foreground : colors.mutedForeground, textAlign: "auto" }]}>{step.title}</Text>
                              {step.date && <Text style={[styles.stepDate, { color: colors.mutedForeground, textAlign: isRTL ? "left" : "right" }]}>{formatWorkflowDate(step.date, lang)}</Text>}
                           </View>
-                           <Text style={[styles.stepAssignee, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{step.assignee} · {step.role}</Text>
+                           <Text style={[styles.stepAssignee, { color: colors.mutedForeground, textAlign: "auto" }]}>{step.assignee} · {step.role}</Text>
                           {step.comment ? (
-                            <View style={[styles.stepComment, { backgroundColor: isDone ? "#10b98112" : "#ef444412" }]}>
-                              <Feather name={isDone ? "message-circle" : "alert-circle"} size={12} color={isDone ? "#10b981" : "#ef4444"} />
-                              <Text style={[styles.stepCommentText, { color: isDone ? "#10b981" : "#ef4444" }]}>{step.comment}</Text>
+                            <View style={[styles.stepComment, { backgroundColor: isDone ? colors.success + "12" : colors.danger + "12" }]}>
+                              <Feather name={isDone ? "message-circle" : "alert-circle"} size={12} color={isDone ? colors.success : colors.danger} />
+                              <Text style={[styles.stepCommentText, { color: isDone ? colors.success : colors.danger }]}>{step.comment}</Text>
                             </View>
                           ) : null}
                         </View>
@@ -583,14 +583,14 @@ export default function WorkflowScreen() {
                     </View>
                      <View style={[styles.actionBtns, { flexDirection: rowDirection }]}>
                       <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
+                        style={[styles.actionBtn, { backgroundColor: colors.success }]}
                         onPress={() => { setApproveAction("approve"); setShowApprove(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
                       >
                         <Feather name="check" size={18} color="#fff" />
                         <Text style={styles.actionBtnText}>{STRINGS.approve[lang]}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
+                        style={[styles.actionBtn, { backgroundColor: colors.danger }]}
                         onPress={() => { setApproveAction("reject"); setShowApprove(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
                       >
                         <Feather name="x" size={18} color="#fff" />
@@ -609,12 +609,12 @@ export default function WorkflowScreen() {
       <Modal visible={showApprove} transparent animationType="fade">
         <View style={styles.overlay}>
            <View style={[styles.commentModal, { backgroundColor: colors.card }]}>
-             <Text style={[styles.commentTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>
+             <Text style={[styles.commentTitle, { color: colors.foreground, textAlign: "auto" }]}>
               {approveAction === "approve" ? STRINGS.approveStep[lang] : STRINGS.rejectStep[lang]}
             </Text>
-             <Text style={[styles.commentSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{STRINGS.commentOptional[lang]}</Text>
+             <Text style={[styles.commentSub, { color: colors.mutedForeground, textAlign: "auto" }]}>{STRINGS.commentOptional[lang]}</Text>
             <TextInput
-              style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+              style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: "auto" }]}
               placeholder={STRINGS.commentPlaceholder[lang]}
               placeholderTextColor={colors.mutedForeground}
               value={approveComment}
@@ -628,7 +628,7 @@ export default function WorkflowScreen() {
                 <Text style={[styles.commentBtnText, { color: colors.foreground }]}>{STRINGS.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.commentBtn, { backgroundColor: approveAction === "approve" ? "#10b981" : "#ef4444", opacity: submittingDecision ? 0.6 : 1 }]}
+                style={[styles.commentBtn, { backgroundColor: approveAction === "approve" ? colors.success : colors.danger, opacity: submittingDecision ? 0.6 : 1 }]}
                 onPress={handleApprove}
                 disabled={submittingDecision}
               >
@@ -646,7 +646,7 @@ export default function WorkflowScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-             <Text style={[styles.modalTitle, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.newWorkflow[lang]}</Text>
+             <Text style={[styles.modalTitle, { textAlign: "auto" }]}>{STRINGS.newWorkflow[lang]}</Text>
             <TouchableOpacity onPress={handleCreate} disabled={creating}>
               {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>}
             </TouchableOpacity>
@@ -655,7 +655,7 @@ export default function WorkflowScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.titleLabel[lang]}</Text>
               <TextInput
-                style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+                style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: "auto" }]}
                 placeholder={STRINGS.titlePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
@@ -705,7 +705,7 @@ export default function WorkflowScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.descriptionLabel[lang]}</Text>
               <TextInput
-                style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+                style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: "auto" }]}
                 placeholder={STRINGS.descriptionPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newDesc}

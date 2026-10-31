@@ -6,6 +6,7 @@
  * "not yet available" state rather than inventing status data. Once a
  * real endpoint is added, replace the empty state below with fetched records.
  */
+import ScreenHeader from "@/components/ScreenHeader";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
@@ -29,16 +30,7 @@ export default function EtatDesLieuxScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("edlTitle")}</Text>
-      </View>
+      <ScreenHeader title={t("edlTitle")} />
 
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 32 }]}
@@ -84,7 +76,7 @@ export default function EtatDesLieuxScreen() {
             activeOpacity={0.82}
           >
             <Feather name="message-circle" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("edlActionContact")}</Text>
+            <Text style={[styles.actionBtnText, { color: colors.tint }]}>{t("edlActionContact")}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

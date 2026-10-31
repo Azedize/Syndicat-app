@@ -75,32 +75,32 @@ const LEVEL_CONFIG: Record<
 > = {
   reminder: {
     labelKey: "escLevelReminder",
-    color: "#f59e0b",
-    bg: "#fef3c7",
+    color: "#C98511",
+    bg: "#FBF1DD",
     icon: "bell",
   },
   warning: {
     labelKey: "escLevelWarning",
-    color: "#f97316",
+    color: "#C98511",
     bg: "#ffedd5",
     icon: "alert-circle",
   },
   final_warning: {
     labelKey: "escLevelFinalWarning",
-    color: "#ef4444",
-    bg: "#fee2e2",
+    color: "#C8323C",
+    bg: "#FBE9EA",
     icon: "alert-triangle",
   },
   agm_proposal: {
     labelKey: "escLevelAgmProposal",
-    color: "#9333ea",
-    bg: "#f3e8ff",
+    color: "#1F8A9A",
+    bg: "#E4F2F4",
     icon: "users",
   },
   legal_action: {
     labelKey: "escLevelLegalAction",
-    color: "#1e293b",
-    bg: "#f1f5f9",
+    color: "#6A6680",
+    bg: "#F0ECE4",
     icon: "briefcase",
   },
 };
@@ -275,11 +275,11 @@ function EscalationScreenInner() {
   }, {});
 
   const stats = [
-    { label: t("escStatReminders"), value: statsByLevel.reminder, color: "#f59e0b" },
-    { label: t("escStatWarning"), value: statsByLevel.warning, color: "#f97316" },
-    { label: t("escStatFinalWarning"), value: statsByLevel.final_warning, color: "#ef4444" },
-    { label: t("escStatAgm"), value: statsByLevel.agm_proposal, color: "#9333ea" },
-    { label: t("escStatLegal"), value: statsByLevel.legal_action, color: "#1e293b" },
+    { label: t("escStatReminders"), value: statsByLevel.reminder, color: colors.warning },
+    { label: t("escStatWarning"), value: statsByLevel.warning, color: colors.warning },
+    { label: t("escStatFinalWarning"), value: statsByLevel.final_warning, color: colors.danger },
+    { label: t("escStatAgm"), value: statsByLevel.agm_proposal, color: "#1F8A9A" },
+    { label: t("escStatLegal"), value: statsByLevel.legal_action, color: colors.foreground },
   ];
 
   const filterChips = [
@@ -305,9 +305,9 @@ function EscalationScreenInner() {
               disabled={scanning}
             >
               {scanning ? (
-                <ActivityIndicator size="small" color="#2563EB" />
+                <ActivityIndicator size="small" color="#5A4AD6" />
               ) : (
-                <Feather name="refresh-cw" size={16} color="#2563EB" />
+                <Feather name="refresh-cw" size={16} color="#5A4AD6" />
               )}
               <Text style={s.scanBtnText}>{scanning ? t("escScanning") : t("escLaunchScan")}</Text>
             </TouchableOpacity>
@@ -333,7 +333,7 @@ function EscalationScreenInner() {
 
         {/* List */}
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 48 }} color="#2563EB" />
+          <ActivityIndicator style={{ marginTop: 48 }} color="#5A4AD6" />
         ) : displayed.length === 0 ? (
           <View style={s.empty}>
             <Feather name="check-circle" size={48} color={colors.border} />
@@ -443,18 +443,18 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
     <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Level badge + header */}
       <View style={s.cardHeader}>
-        <View style={[s.levelBadge, { backgroundColor: cfg.bg }]}>
+        <View style={[s.levelBadge, { backgroundColor: cfg.color + "1F" }]}>
           <Feather name={cfg.icon} size={12} color={cfg.color} />
           <Text style={[s.levelBadgeText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
         </View>
         {item.status === "overridden" && (
-          <View style={[s.statusPill, { backgroundColor: "#f1f5f9" }]}>
-            <Text style={[s.statusPillText, { color: "#64748b" }]}>{t("escStatusOverridden")}</Text>
+          <View style={[s.statusPill, { backgroundColor: colors.surfaceMuted }]}>
+            <Text style={[s.statusPillText, { color: "#6A6680" }]}>{t("escStatusOverridden")}</Text>
           </View>
         )}
         {item.status === "meeting_scheduled" && (
-          <View style={[s.statusPill, { backgroundColor: "#f3e8ff" }]}>
-            <Text style={[s.statusPillText, { color: "#2563EB" }]}>{t("escStatusMeeting")}</Text>
+          <View style={[s.statusPill, { backgroundColor: colors.infoSoft }]}>
+            <Text style={[s.statusPillText, { color: "#5A4AD6" }]}>{t("escStatusMeeting")}</Text>
           </View>
         )}
       </View>
@@ -498,31 +498,31 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       {isAdmin && item.status === "open" && (
         <View style={s.actions}>
           {item.letterUrl ? (
-            <TouchableOpacity style={[s.actionBtn, { borderColor: "#2563EB" }]} onPress={onOpenLetter}>
-              <Feather name="file-text" size={13} color="#2563EB" />
-              <Text style={[s.actionBtnText, { color: "#2563EB" }]}>{t("escViewLetter")}</Text>
+            <TouchableOpacity style={[s.actionBtn, { borderColor: "#5A4AD6" }]} onPress={onOpenLetter}>
+              <Feather name="file-text" size={13} color="#5A4AD6" />
+              <Text style={[s.actionBtnText, { color: "#5A4AD6" }]}>{t("escViewLetter")}</Text>
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
-            style={[s.actionBtn, { borderColor: "#f97316" }]}
+            style={[s.actionBtn, { borderColor: colors.warning }]}
             onPress={onOverride}
           >
-            <Feather name="x-circle" size={13} color="#f97316" />
-            <Text style={[s.actionBtnText, { color: "#f97316" }]}>{t("escCancelBtn")}</Text>
+            <Feather name="x-circle" size={13} color={colors.warning} />
+            <Text style={[s.actionBtnText, { color: colors.warning }]}>{t("escCancelBtn")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.actionBtn, { borderColor: "#10b981" }]}
+            style={[s.actionBtn, { borderColor: colors.success }]}
             onPress={onResolve}
           >
-            <Feather name="check-circle" size={13} color="#10b981" />
-            <Text style={[s.actionBtnText, { color: "#10b981" }]}>{t("escResolvedBtn")}</Text>
+            <Feather name="check-circle" size={13} color={colors.success} />
+            <Text style={[s.actionBtnText, { color: colors.success }]}>{t("escResolvedBtn")}</Text>
           </TouchableOpacity>
         </View>
       )}
       {item.letterUrl && item.status !== "open" && (
         <TouchableOpacity style={s.letterOnlyBtn} onPress={onOpenLetter}>
-          <Feather name="download" size={13} color="#2563EB" />
-          <Text style={[s.actionBtnText, { color: "#2563EB" }]}>{t("escDownloadLetter")}</Text>
+          <Feather name="download" size={13} color="#5A4AD6" />
+          <Text style={[s.actionBtnText, { color: "#5A4AD6" }]}>{t("escDownloadLetter")}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -546,7 +546,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
   },
-  scanBtnText: { fontSize: 12, color: "#2563EB", fontWeight: "600" },
+  scanBtnText: { fontSize: 12, color: "#5A4AD6", fontWeight: "600" },
   // Card
   card: {
     borderRadius: 14,
@@ -648,7 +648,7 @@ const s = StyleSheet.create({
   },
   modalBtnPrimary: {
     flex: 1,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#5A4AD6",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",

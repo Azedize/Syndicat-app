@@ -13,6 +13,9 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
+import { BalanceMeter, Button, StatusBadge } from "@/components/ui";
+import { TYPE } from "@/constants/typography";
+import { useCallStatus } from "@/hooks/useCallStatus";
 
 /**
  * Lot detail: identity, ownership (co-owners, shares, history), occupancy
@@ -106,6 +109,7 @@ function LotDetailInner() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const callStatus = useCallStatus();
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -321,11 +325,12 @@ function LotDetailInner() {
       <ScreenHeader title={`${tr("title")} ${lot.number}`} subtitle={`${lot.buildingName ?? data.building?.name ?? ""} · ${statusLabel}`} />
       <ScrollView
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         {isArchived && (
-          <View style={[...card, { borderColor: "#f59e0b" }]}>
-            <Text style={{ color: "#b45309", fontFamily: "Inter_600SemiBold" }}>{tr("archived")} — {lot.archiveReason}</Text>
+          <View style={[styles.banner, { backgroundColor: colors.warningSoft, borderColor: colors.warning + "55" }]}>
+            <Feather name="archive" size={16} color={colors.warning} />
+            <Text style={[TYPE.bodyStrong, { color: colors.warningText, flex: 1 }]}>{tr("archived")} — {lot.archiveReason}</Text>
           </View>
         )}
 
@@ -370,7 +375,7 @@ function LotDetailInner() {
           {perms.canManageTenancy && !isArchived && (
             <View style={styles.actions}>
               {data.tenant ? (
-                <ActionButton label={tr("moveOut")} icon="log-out" color="#f59e0b" onPress={() => { setNextStatus("vacant"); setMoveOutOpen(true); }} busy={busy} />
+                <ActionButton label={tr("moveOut")} icon="log-out" onPress={() => { setNextStatus("vacant"); setMoveOutOpen(true); }} busy={busy} />
               ) : (
                 <ActionButton label={tr("moveIn")} icon="log-in" onPress={() => { setTenantForm({ name: "", email: "", phone: "", rent: "", leaseStart: "" }); setTenantOpen(true); }} busy={busy} />
               )}
@@ -387,22 +392,39 @@ function LotDetailInner() {
           <View style={card}>
             <Text style={[styles.section, { color: colors.foreground }]}>{tr("finance")}</Text>
             <Row label={tr("called")} value={mad(data.financial.called)} />
-            <Row label={tr("paid")} value={mad(data.financial.paid)} />
-            <Row label={tr("outstanding")} value={mad(data.financial.outstanding?.total)} />
+            <BalanceMeter
+              paid={Number(data.financial.paid || 0)}
+              total={Number(data.financial.called || 0)}
+              paidLabel={tr("paid")}
+              remainingLabel={tr("outstanding")}
+              paidText={mad(data.financial.paid)}
+              remainingText={mad(data.financial.outstanding?.total)}
+              overdue={(data.charges ?? []).some((c: any) => c.status === "overdue")}
+            />
             {(data.financial.outstanding?.byDebtor ?? []).map((d: any) => (
-              <Text key={d.memberId ?? "none"} style={[styles.small, { color: "#ef4444" }]}>
-                {mad(d.due)} {tr("owedBy")} {d.name ?? "—"}
-              </Text>
+              <View key={d.memberId ?? "none"} style={styles.debtorRow}>
+                <Feather name="user" size={13} color={colors.danger} />
+                <Text style={[TYPE.secondary, { color: colors.dangerText, flex: 1 }]}>
+                  {mad(d.due)} {tr("owedBy")} {d.name ?? "—"}
+                </Text>
+              </View>
             ))}
             <Text style={[styles.sub, { color: colors.mutedForeground }]}>{tr("charges")}</Text>
             {(data.charges ?? []).length === 0 ? (
               <Text style={[styles.small, { color: colors.mutedForeground }]}>{tr("none")}</Text>
             ) : (
-              data.charges.slice(0, 12).map((c: any) => (
-                <Text key={c.id} style={[styles.small, { color: colors.foreground }]}>
-                  {c.period} · {mad(c.amount)} · {c.status}
-                </Text>
-              ))
+              data.charges.slice(0, 12).map((c: any) => {
+                const st = callStatus(c.status);
+                return (
+                  <View key={c.id} style={[styles.chargeRow, { borderTopColor: colors.border }]}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[TYPE.bodyStrong, { color: colors.foreground }]}>{c.period}</Text>
+                      <Text style={[TYPE.caption, { color: colors.textMuted, fontVariant: ["tabular-nums"] }]}>{mad(c.amount)}</Text>
+                    </View>
+                    <StatusBadge label={st.label} tone={st.tone} icon={st.icon} />
+                  </View>
+                );
+              })
             )}
           </View>
         )}
@@ -415,7 +437,7 @@ function LotDetailInner() {
             ) : (
               data.documents.map((d: any) => (
                 <TouchableOpacity key={d.id} onPress={() => router.push({ pathname: "/documents", params: { documentId: d.id } } as any)}>
-                  <Text style={[styles.small, { color: colors.primary }]}>{d.title} · {d.status}</Text>
+                  <Text style={[styles.small, { color: colors.tint }]}>{d.title} · {d.status}</Text>
                 </TouchableOpacity>
               ))
             )}
@@ -440,11 +462,11 @@ function LotDetailInner() {
         {perms.canManageOwnership && (
           <View style={styles.actions}>
             {isArchived ? (
-              <ActionButton label={tr("restore")} icon="rotate-ccw" onPress={doRestore} busy={busy} />
+              <Button label={tr("restore")} icon="rotate-ccw" variant="secondary" style={{ flex: 1 }} onPress={doRestore} loading={busy} />
             ) : (
-              <ActionButton label={tr("archive")} icon="archive" color="#6b7280" onPress={() => { setArchiveReason(""); setArchiveOpen(true); }} busy={busy} />
+              <Button label={tr("archive")} icon="archive" variant="secondary" style={{ flex: 1 }} onPress={() => { setArchiveReason(""); setArchiveOpen(true); }} loading={busy} />
             )}
-            <ActionButton label={tr("remove")} icon="trash-2" color="#ef4444" onPress={doDelete} busy={busy} />
+            <Button label={tr("remove")} icon="trash-2" variant="destructive" style={{ flex: 1 }} onPress={doDelete} loading={busy} />
           </View>
         )}
       </ScrollView>
@@ -474,13 +496,15 @@ function LotDetailInner() {
               onChangeText={(v) => setOwnerRows((rows) => rows.map((r, j) => (j === i ? { ...r, share: v } : r)))}
             />
             <TouchableOpacity onPress={() => setOwnerRows((rows) => rows.filter((_, j) => j !== i))} hitSlop={10}>
-              <Feather name="x-circle" size={20} color="#ef4444" />
+              <Feather name="x-circle" size={20} color={colors.danger} />
             </TouchableOpacity>
           </View>
         ))}
-        <Text style={{ color: Math.round(sharesTotal * 100) === 10000 ? "#10b981" : "#ef4444" }}>
-          {tr("sharesTotal")} : {sharesTotal.toFixed(2)} %
-        </Text>
+        <StatusBadge
+          label={`${tr("sharesTotal")} : ${sharesTotal.toFixed(2)} %`}
+          tone={Math.round(sharesTotal * 100) === 10000 ? "success" : "danger"}
+          size="md"
+        />
         <FieldLabel label={tr("pickMember")} />
         <TextInput style={input} placeholder={tr("search")} placeholderTextColor={colors.mutedForeground} value={memberQuery} onChangeText={setMemberQuery} />
         <ChoiceChips
@@ -508,12 +532,12 @@ function LotDetailInner() {
       <FormSheet visible={moveOutOpen} title={tr("moveOut")} onClose={() => setMoveOutOpen(false)} closeLabel={tr("cancel")}>
         <FieldLabel label={tr("afterDeparture")} />
         <ChoiceChips value={nextStatus} onChange={setNextStatus} options={[{ key: "vacant", label: tr("vacant") }, { key: "occupied", label: tr("occupied") }]} />
-        <ActionButton label={tr("save")} icon="check" color="#f59e0b" onPress={submitMoveOut} busy={busy} />
+        <ActionButton label={tr("save")} icon="check" onPress={submitMoveOut} busy={busy} />
       </FormSheet>
 
       <FormSheet visible={archiveOpen} title={tr("archive")} onClose={() => setArchiveOpen(false)} closeLabel={tr("cancel")}>
         <TextInput style={[...input, { minHeight: 70 }]} multiline placeholder={tr("archiveReason")} placeholderTextColor={colors.mutedForeground} value={archiveReason} onChangeText={setArchiveReason} />
-        <ActionButton label={tr("archive")} icon="archive" color="#6b7280" onPress={() => submitArchive(false)} busy={busy} />
+        <ActionButton label={tr("archive")} icon="archive" onPress={() => submitArchive(false)} busy={busy} />
       </FormSheet>
     </View>
   );
@@ -521,8 +545,11 @@ function LotDetailInner() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 8 },
-  section: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
+  section: { fontSize: 16, lineHeight: 22, fontFamily: "Inter_600SemiBold" },
+  banner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1 },
+  debtorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  chargeRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   sub: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 6 },
   small: { fontSize: 12, fontFamily: "Inter_400Regular" },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },

@@ -5,6 +5,7 @@
  * (super_admin only) permanently purge them. Restore is available to
  * syndicate_admin + super_admin; purge is super_admin only (matches backend RBAC).
  */
+import ScreenHeader from "@/components/ScreenHeader";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -240,53 +241,7 @@ export default function DocumentsRecycleBin() {
           },
         ]}
       >
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-            flexDirection: isRTL ? "row-reverse" : "row",
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={22}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-        <View
-          style={{
-            flex: 1,
-            marginStart: 12,
-            alignItems: isRTL ? "flex-end" : "flex-start",
-          }}
-        >
-          <Text
-            style={[
-              styles.title,
-              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
-            ]}
-          >
-            {t("recycleBinTitle")}
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color: colors.mutedForeground,
-                textAlign: isRTL ? "right" : "left",
-              },
-            ]}
-          >
-            {formatCopy("recycleBinCount", { count: String(items.length) })}
-          </Text>
-        </View>
-        <Feather name="trash-2" size={20} color={colors.mutedForeground} />
-      </View>
+      <ScreenHeader title={t("recycleBinTitle")} subtitle={formatCopy("recycleBinCount", { count: String(items.length) })} />
 
       <View
         style={[
@@ -333,7 +288,7 @@ export default function DocumentsRecycleBin() {
               styles.emptyText,
               {
                 color: colors.mutedForeground,
-                textAlign: isRTL ? "right" : "left",
+                textAlign: "auto",
               },
             ]}
           >
@@ -356,7 +311,7 @@ export default function DocumentsRecycleBin() {
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
-                  flexDirection: isRTL ? "row-reverse" : "row",
+                  flexDirection: "row",
                 },
               ]}
             >
@@ -366,7 +321,7 @@ export default function DocumentsRecycleBin() {
                     styles.cardTitle,
                     {
                       color: colors.foreground,
-                      textAlign: isRTL ? "right" : "left",
+                      textAlign: "auto",
                     },
                   ]}
                   numberOfLines={1}
@@ -378,7 +333,7 @@ export default function DocumentsRecycleBin() {
                     styles.cardMeta,
                     {
                       color: colors.mutedForeground,
-                      textAlign: isRTL ? "right" : "left",
+                      textAlign: "auto",
                     },
                   ]}
                 >
@@ -398,7 +353,7 @@ export default function DocumentsRecycleBin() {
                       {
                         color: colors.mutedForeground,
                         marginTop: 2,
-                        textAlign: isRTL ? "right" : "left",
+                        textAlign: "auto",
                       },
                     ]}
                   >
@@ -425,7 +380,7 @@ export default function DocumentsRecycleBin() {
                 </TouchableOpacity>
                 {isSuperAdmin ? (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
+                    style={[styles.actionBtn, { backgroundColor: colors.danger }]}
                     disabled={busyId === item.id}
                     onPress={() => handlePurge(item)}
                   >
@@ -451,7 +406,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   searchWrap: {
     flexDirection: "row",

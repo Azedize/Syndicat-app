@@ -37,9 +37,11 @@
 
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
-import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
+import { RADIUS, SPACING } from "@/constants/spacing";
+import { TYPE } from "@/constants/typography";
+import Button from "@/components/ui/Button";
 
 interface Props {
   icon: keyof typeof Feather.glyphMap;
@@ -63,34 +65,31 @@ export default function EmptyState({
   const accent = accentColor ?? colors.primary;
 
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.iconWrap, { backgroundColor: accent + "15" }]}>
-        <Feather name={icon} size={32} color={accent} />
+    <View style={styles.wrap} accessibilityLiveRegion="polite">
+      <View style={[styles.iconWrap, { backgroundColor: accentColor ? accent + "15" : colors.primarySoft }]}>
+        <View style={[styles.iconInner, { borderColor: (accentColor ? accent : colors.primary) + "33" }]}>
+          {/* The diamond frame is rotated; the icon is turned back upright. */}
+          <View style={{ transform: [{ rotate: "-45deg" }] }}>
+            <Feather name={icon} size={28} color={accent} />
+          </View>
+        </View>
       </View>
-      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[TYPE.subtitle, styles.center, { color: colors.foreground }]}>{title}</Text>
       {description ? (
-        <Text style={[styles.description, { color: colors.mutedForeground }]}>
+        <Text style={[TYPE.secondary, styles.center, { color: colors.textMuted, maxWidth: 320 }]}>
           {description}
         </Text>
       ) : null}
       {actionLabel && onAction ? (
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: accent }]}
-          onPress={onAction}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.actionBtnText}>{actionLabel}</Text>
-        </TouchableOpacity>
+        <Button label={actionLabel} onPress={onAction} style={{ marginTop: SPACING.XS }} />
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // flex: 1 + centered content is the whole trick: this view always takes
-  // up exactly the space its parent (the list's remaining area) gives it,
-  // so it never pushes content down or leaves a stray gap depending on
-  // screen chrome height.
+  // flex: 1 + centered content: this view takes exactly the space its parent
+  // (the list's remaining area) gives it.
   wrap: {
     flex: 1,
     alignItems: "center",
@@ -100,35 +99,21 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.XL,
   },
   iconWrap: {
-    width: 68,
-    height: 68,
+    width: 80,
+    height: 80,
     borderRadius: RADIUS.FULL,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: SPACING.XS,
   },
-  title: {
-    fontSize: TYPOGRAPHY.LG,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  description: {
-    fontSize: TYPOGRAPHY.MD,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  actionBtn: {
-    flexDirection: "row",
+  iconInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    borderWidth: 1,
     alignItems: "center",
-    gap: SPACING.SM,
-    paddingHorizontal: SPACING.XL,
-    paddingVertical: 11,
-    borderRadius: RADIUS.MD,
-    marginTop: SPACING.XS,
+    justifyContent: "center",
+    transform: [{ rotate: "45deg" }],
   },
-  actionBtnText: {
-    fontSize: TYPOGRAPHY.BASE,
-    fontFamily: "Inter_600SemiBold",
-    color: "#FFFFFF",
-  },
+  center: { textAlign: "center" },
 });

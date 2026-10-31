@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
 import { useToast } from "@/context/ToastContext";
 import { marketplace } from "@/services/api";
 
@@ -140,22 +141,11 @@ export default function CartScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View>
-           <Text style={[styles.title, { color: colors.foreground }]}>{t("cartTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-             {itemCount} {itemCount !== 1 ? t("cartItemsPlural") : t("cartItemSingular")}
-          </Text>
-        </View>
-        {cart.length > 0 && (
-          <TouchableOpacity onPress={handleClearCart}>
-            <Feather name="trash-2" size={20} color={colors.destructive} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title={t("cartTitle")}
+        subtitle={`${itemCount} ${itemCount !== 1 ? t("cartItemsPlural") : t("cartItemSingular")}`}
+        action={cart.length > 0 ? { icon: "trash-2", label: t("delete"), onPress: handleClearCart } : undefined}
+      />
 
       {cart.length === 0 ? (
         <View style={styles.empty}>
@@ -193,7 +183,7 @@ export default function CartScreen() {
                    <Text style={[styles.sellerName, { color: colors.mutedForeground }]}>
                      {t("sellerLabel")}: {item.sellerName}
                   </Text>
-                  <Text style={[styles.unitPrice, { color: colors.primary }]}>
+                  <Text style={[styles.unitPrice, { color: colors.tint }]}>
                      {Number(item.price).toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD / {t("unitLabel")}
                   </Text>
                 </View>
@@ -244,7 +234,7 @@ export default function CartScreen() {
                 <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.summaryRow}>
                    <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t("cartTotal")}</Text>
-                   <Text style={[styles.totalValue, { color: colors.primary }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
+                   <Text style={[styles.totalValue, { color: colors.tint }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
                 </View>
               </View>
             }
@@ -253,7 +243,7 @@ export default function CartScreen() {
           <View style={[styles.bottomBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 16 }]}>
             <View style={{ flex: 1 }}>
                <Text style={[styles.bottomLabel, { color: colors.mutedForeground }]}>{t("cartTotalToPay")}</Text>
-               <Text style={[styles.bottomTotal, { color: colors.primary }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
+               <Text style={[styles.bottomTotal, { color: colors.tint }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
             </View>
             <TouchableOpacity
               style={[styles.checkoutBtn, { backgroundColor: colors.primary }]}
@@ -299,7 +289,7 @@ export default function CartScreen() {
                   <View style={[styles.orderDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.orderRow}>
                      <Text style={[styles.orderTotalLabel, { color: colors.foreground }]}>{t("cartTotal")}</Text>
-                     <Text style={[styles.orderTotalValue, { color: colors.primary }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
+                     <Text style={[styles.orderTotalValue, { color: colors.tint }]}>{total.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
                   </View>
                 </View>
                 <View style={[styles.payMethod, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -340,11 +330,11 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 40 },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  emptyTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   browseBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
   browseBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
@@ -367,7 +357,7 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1, gap: 16 },
   bottomLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  bottomTotal: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  bottomTotal: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   checkoutBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
   checkoutBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
@@ -391,6 +381,6 @@ const styles = StyleSheet.create({
   confirmBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
   successBox: { alignItems: "center", gap: 16, paddingVertical: 24 },
   successIcon: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center" },
-  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  successTitle: { fontSize: 22, fontFamily: "Fraunces_600SemiBold" },
   successText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
 });

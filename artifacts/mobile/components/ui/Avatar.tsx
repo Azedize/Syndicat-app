@@ -21,7 +21,7 @@ export function initialsOf(name: string): string {
 }
 
 // Stable, calm hues — the same person always gets the same color.
-const HUES = ["#1F5EFF", "#11998A", "#7C5CD6", "#C8932F", "#2F6BE8", "#D25C7A", "#3E8E5E"];
+const HUES = ["#5A4AD6", "#11998A", "#7C5CD6", "#C8932F", "#2F6BE8", "#D25C7A", "#3E8E5E"];
 
 /** Profile picture with an initials fallback (also when the image fails). */
 export default function Avatar({ name, uri, size = 40 }: AvatarProps) {

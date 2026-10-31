@@ -141,7 +141,7 @@ function StatementForm({ visible, accountId, onClose, onDone, tr }: { visible: b
       {field("openingBalance", "opening", { keyboardType: "numbers-and-punctuation" })}
       {field("closingBalance", "closing", { keyboardType: "numbers-and-punctuation" })}
       {field("lines", "lines", { multiline: true, style: [formStyles.input, { minHeight: 120, borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card, textAlignVertical: "top" }] })}
-      {err ? <Text style={{ color: "#ef4444" }}>{err}</Text> : null}
+      {err ? <Text style={{ color: colors.danger }}>{err}</Text> : null}
       <ActionButton label={tr("save")} icon="check" onPress={submit} busy={busy} />
     </FormSheet>
   );
@@ -213,20 +213,20 @@ function StatementDetail({ id, onClose, onChanged, tr, canWrite, isAdmin }: { id
             <View style={{ height: 6 }} />
             <View style={styles.between}>
               <Text style={[styles.strong, { color: colors.foreground }]}>{tr("difference")}</Text>
-              <Text style={[styles.strong, { color: Number(r.balances.difference) === 0 ? "#10b981" : "#ef4444" }]}>{fmt(r.balances.difference)}</Text>
+              <Text style={[styles.strong, { color: Number(r.balances.difference) === 0 ? colors.success : colors.danger }]}>{fmt(r.balances.difference)}</Text>
             </View>
           </View>
           {isClosed ? (
-            <Text style={{ color: "#10b981", fontFamily: "Inter_600SemiBold" }}>{tr("closed")}</Text>
+            <Text style={{ color: colors.success, fontFamily: "Inter_600SemiBold" }}>{tr("closed")}</Text>
           ) : r.blocking.length ? (
-            <View style={[styles.box, { borderColor: "#f59e0b", backgroundColor: "#f59e0b12" }]}>
-              <Text style={[styles.strong, { color: "#b45309" }]}>{tr("blocking")}</Text>
+            <View style={[styles.box, { borderColor: colors.warning, backgroundColor: colors.warning + "12" }]}>
+              <Text style={[styles.strong, { color: "#A86D0B" }]}>{tr("blocking")}</Text>
               {r.blocking.map((b: any) => (
                 <Text key={b.code} style={[styles.meta, { color: colors.foreground }]}>• {b.message}</Text>
               ))}
             </View>
           ) : (
-            <Text style={{ color: "#10b981" }}>{tr("ready")}</Text>
+            <Text style={{ color: colors.success }}>{tr("ready")}</Text>
           )}
 
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("discrepancies")}</Text>
@@ -247,7 +247,7 @@ function StatementDetail({ id, onClose, onChanged, tr, canWrite, isAdmin }: { id
 
           <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("timing")} ({r.timingDifferences.length})</Text>
           {r.timingDifferences.map((e: any) => (
-            <Text key={e.id} style={[styles.meta, { color: e.ageDays > 60 ? "#b45309" : colors.foreground }]}>
+            <Text key={e.id} style={[styles.meta, { color: e.ageDays > 60 ? "#A86D0B" : colors.foreground }]}>
               {e.entryDate} · {e.entryNumber} · {e.label} · {e.direction === "in" ? "+" : "−"}{fmt(e.remaining)} · {e.ageDays} {tr("days")}
               {e.ageDays > 60 ? ` (${tr("stale")})` : ""}
             </Text>
@@ -291,14 +291,14 @@ function StatementDetail({ id, onClose, onChanged, tr, canWrite, isAdmin }: { id
                   });
                 }}
               />
-              <ActionButton label={tr("closeStatement")} icon="lock" color="#0f766e" busy={busy} disabled={!r.canClose} onPress={() => act(() => apiRequest(`/treasury/statements/${id}/close`, "POST"))} />
+              <ActionButton label={tr("closeStatement")} icon="lock" color="#0F6E7D" busy={busy} disabled={!r.canClose} onPress={() => act(() => apiRequest(`/treasury/statements/${id}/close`, "POST"))} />
             </>
           )}
           {isClosed && isAdmin && (
             <>
               <FieldLabel label={tr("reopenReason")} />
               <TextInput value={reason} onChangeText={setReason} style={[formStyles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} />
-              <ActionButton label={tr("reopen")} icon="unlock" color="#64748b" busy={busy} disabled={reason.trim().length < 3} onPress={() => act(() => apiRequest(`/treasury/statements/${id}/reopen`, "POST", { reason: reason.trim() }))} />
+              <ActionButton label={tr("reopen")} icon="unlock" color="#6A6680" busy={busy} disabled={reason.trim().length < 3} onPress={() => act(() => apiRequest(`/treasury/statements/${id}/reopen`, "POST", { reason: reason.trim() }))} />
             </>
           )}
         </>
@@ -339,11 +339,11 @@ function RelevesInner() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScreenHeader title={tr("title")} color="#0f766e" action={canWrite && accountId ? { icon: "plus", onPress: () => setCreating(true), label: tr("newStatement") } : undefined} />
+      <ScreenHeader title={tr("title")} color="#0F6E7D" action={canWrite && accountId ? { icon: "plus", onPress: () => setCreating(true), label: tr("newStatement") } : undefined} />
       {error ? (
-        <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setRows(null); load(); }} accentColor="#0f766e" />
+        <ErrorState title={tr("loadError")} description="" retryLabel={tr("retry")} onRetry={() => { setRows(null); load(); }} accentColor="#0F6E7D" />
       ) : !rows ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color="#0f766e" />
+        <ActivityIndicator style={{ marginTop: 40 }} color="#0F6E7D" />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
@@ -363,8 +363,8 @@ function RelevesInner() {
                   </Text>
                 </View>
                 <View style={styles.badgeRow}>
-                  <Feather name={s.status === "closed" ? "lock" : "unlock"} size={14} color={s.status === "closed" ? "#10b981" : "#f59e0b"} />
-                  <Text style={{ color: s.status === "closed" ? "#10b981" : "#f59e0b", fontSize: 12 }}>{tr(s.status === "closed" ? "closed" : "open")}</Text>
+                  <Feather name={s.status === "closed" ? "lock" : "unlock"} size={14} color={s.status === "closed" ? colors.success : colors.warning} />
+                  <Text style={{ color: s.status === "closed" ? colors.success : colors.warning, fontSize: 12 }}>{tr(s.status === "closed" ? "closed" : "open")}</Text>
                 </View>
               </View>
             </TouchableOpacity>

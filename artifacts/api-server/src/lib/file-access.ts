@@ -79,7 +79,24 @@ async function canOpenConversation(user: JwtPayload, conversationId: string): Pr
  * `object` is the storage_objects row of the path. The caller has already
  * handled the uploader and the supervised platform access.
  */
+/**
+ * Photos and video of a public listing (approved, reserved, sold) of an open
+ * condominium: the market can be browsed across residences, so its media is
+ * readable by any signed-in user — and only that media, nothing else.
+ */
+async function isPublicListingMedia(p: string): Promise<boolean> {
+  const rows = (await db.execute(sql`
+    SELECT 1 AS ok FROM products pr JOIN syndicates s ON s.id = pr.syndicate_id
+     WHERE (pr.video_url = ${p} OR position(${p} in COALESCE(pr.image_urls, '')) > 0)
+       AND pr.status IN ('approved', 'reserved', 'sold', 'sold_out')
+       AND s.status = 'active'
+       AND NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'suspended')
+     LIMIT 1`)) as unknown as { rows?: unknown[] } & unknown[];
+  return ((rows.rows ?? rows) as unknown[]).length > 0;
+}
+
 export async function canReadSharedObject(user: JwtPayload, object: { objectPath: string; syndicateId: string | null }): Promise<boolean> {
+  if (await isPublicListingMedia(object.objectPath)) return true;
   if (!user.syndicateId || object.syndicateId !== user.syndicateId) return false;
   const refs = await referencesOf(object.objectPath);
   for (const r of refs) {

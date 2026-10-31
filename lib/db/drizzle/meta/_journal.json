@@ -85,6 +85,55 @@
       "when": 1792337196111,
       "tag": "0011_funds_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792481131780,
+      "tag": "0012_fix_appel_issue_dates",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792567395998,
+      "tag": "0013_announcement_acknowledgements",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792618450871,
+      "tag": "0014_terms_acceptances",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792619607902,
+      "tag": "0015_email_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792620587433,
+      "tag": "0016_appel_payment_reference",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792706987433,
+      "tag": "0017_email_provider_message_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792793387433,
+      "tag": "0018_alert_i18n_links",
+      "breakpoints": true
     }
   ]
 }

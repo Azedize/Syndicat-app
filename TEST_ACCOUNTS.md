@@ -59,3 +59,5 @@ Agdal n'a pas de président, trésorier, secrétaire ni conseil dans le seed.
 Si un mot de passe a été changé pendant un test, relancer le seed (les comptes existants ne sont pas
 écrasés : supprimer d'abord le compte concerné, ou réinitialiser la base de développement).
 Les suites de tests automatiques créent leurs propres comptes temporaires et les suppriment à la fin.
+
+> **Adresses e-mail (21/10/2026).** Les comptes `@andalous.ma` ci-dessus existent dans la base locale et restent utilisables pour se connecter, mais `andalous.ma` est un **domaine réel** (avec serveur de messagerie) : ils sont marqués `email_status = 'undeliverable'` pour qu'aucun e-mail n'y parte plus. Un nouveau lancement de `scripts/src/seed.ts` crée ces comptes en `@andalous.test` (domaine réservé, RFC 2606).

@@ -53,6 +53,8 @@ export interface AuthUser {
   profession?: string;
   /** Invitation accounts must replace their temporary password first. */
   mustChangePassword?: boolean;
+  /** unverified | verified | undeliverable (the address cannot receive mail). */
+  emailStatus?: "unverified" | "verified" | "undeliverable";
 }
 
 interface AuthContextType {
@@ -94,6 +96,7 @@ function mapApiUser(u: Record<string, unknown>): AuthUser {
     phone: (u.phone as string) ?? undefined,
     profession: (u.profession as string) ?? undefined,
     mustChangePassword: u.mustChangePassword === true,
+    emailStatus: (u.emailStatus as AuthUser["emailStatus"]) ?? undefined,
   };
 }
 

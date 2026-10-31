@@ -1,14 +1,18 @@
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { Tabs } from "expo-router";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Feather } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { SPRING } from "@/constants/motion";
+import { FONT } from "@/constants/typography";
 import {
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +21,8 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
   index: "home",
@@ -28,6 +34,7 @@ const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
 
 function NotifBadge() {
   const { user } = useAuth();
+  const colors = useColors();
   const role = user?.role ?? "member";
   const isAdmin = role === "super_admin" || role === "syndicate_admin";
   const { alerts, elections, supportTickets } = useData();
@@ -46,8 +53,8 @@ function NotifBadge() {
   if (count === 0) return null;
 
   return (
-    <View style={bs.dot}>
-      <Text style={bs.dotText}>{count > 9 ? "9+" : String(count)}</Text>
+    <View style={[bs.dot, { backgroundColor: colors.danger, borderColor: colors.surface }]}>
+      <Text style={bs.dotText} allowFontScaling={false}>{count > 9 ? "9+" : String(count)}</Text>
     </View>
   );
 }
@@ -55,12 +62,12 @@ function NotifBadge() {
 const bs = StyleSheet.create({
   dot: {
     position: "absolute",
-    top: -5,
-    right: -8,
-    minWidth: 17,
-    height: 17,
+    top: -6,
+    end: -10,
+    minWidth: 18,
+    height: 18,
     borderRadius: 9,
-    backgroundColor: "#ef4444",
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
@@ -73,12 +80,17 @@ const bs = StyleSheet.create({
   },
 });
 
-function CustomTabBar({ state, descriptors, navigation, insets }: any) {
+/**
+ * Floating dock: a rounded bar lifted above the home indicator. The active
+ * destination gets a soft pill behind its icon, a bolder label and a small
+ * gold pivot (the MIZAN balance mark) — never color alone.
+ */
+// expo-router 58: the tab bar receives `emitter` and `navigateToTab` (no `navigation`).
+function CustomTabBar({ state, descriptors, emitter, navigateToTab, insets }: BottomTabBarProps) {
   const colors = useColors();
   const { isWide } = useBreakpoints();
+  const { isDark } = useTheme();
   const isIOS = Platform.OS === "ios";
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
   if (isWide) return null;
 
@@ -88,127 +100,150 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
     return s?.display !== "none";
   });
 
-  const pb = Math.max(insets?.bottom ?? 0, 10);
+  const bottom = Math.max(insets?.bottom ?? 0, 10);
 
   return (
-    <View style={[ts.bar, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
-      {isIOS ? (
-        <BlurView
-          intensity={90}
-          tint={isDark ? "dark" : "light"}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : (
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]}
-        />
-      )}
+    <View pointerEvents="box-none" style={[ts.wrap, { bottom }]}>
+      <View
+        style={[
+          ts.shadow,
+          crossPlatformShadow({ color: colors.shadow, offsetY: 8, opacity: isDark ? 0.4 : 0.12, radius: 20, elevation: 10 }),
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <View style={ts.clip}>
+          {isIOS ? (
+            <>
+              <BlurView intensity={80} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface, opacity: 0.82 }]} />
+            </>
+          ) : null}
+          <View style={ts.inner} accessibilityRole="tablist">
+            {visibleRoutes.map((route: any) => {
+              const routeIndex = state.routes.findIndex(
+                (r: any) => r.key === route.key
+              );
+              const focused = state.index === routeIndex;
+              const label =
+                (descriptors[route.key]?.options?.title as string) ?? route.name;
+              const iconName = ICON_MAP[route.name] ?? "circle";
 
-      <View style={[ts.inner, { paddingBottom: pb }]}>
-        {visibleRoutes.map((route: any) => {
-          const routeIndex = state.routes.findIndex(
-            (r: any) => r.key === route.key
-          );
-          const focused = state.index === routeIndex;
-          const label =
-            (descriptors[route.key]?.options?.title as string) ?? route.name;
-          const iconName = ICON_MAP[route.name] ?? "circle";
-          const primary = colors.primary;
-
-          return (
-            <Pressable
-              key={route.key}
-              onPress={() => {
-                const event = navigation.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(route.name);
-                }
-              }}
-              style={ts.item}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
-            >
-              <View
-                style={[
-                  ts.pill,
-                  {
-                    backgroundColor: focused ? primary + "18" : colors.surfaceMuted,
-                  },
-                ]}
-              >
-                <View style={{ position: "relative" }}>
-                  <Feather
-                    name={iconName}
-                    size={22}
-                    color={focused ? primary : colors.mutedForeground}
-                  />
-                  {route.name === "more" && <NotifBadge />}
-                </View>
-              </View>
-              <Text
-                style={[
-                  ts.label,
-                  {
-                    color: focused ? colors.foreground : colors.mutedForeground,
-                    fontFamily: focused
-                      ? "Inter_600SemiBold"
-                      : "Inter_400Regular",
-                  },
-                ]}
-              >
-                {label}
-              </Text>
-              {focused && (
-                <View style={[ts.activeDot, { backgroundColor: primary }]} />
-              )}
-            </Pressable>
-          );
-        })}
+              return (
+                <Pressable
+                  key={route.key}
+                  onPress={() => {
+                    const event = emitter.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
+                    if (!focused && !event.defaultPrevented) {
+                      if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+                      navigateToTab(route.key);
+                    }
+                  }}
+                  onLongPress={() => emitter.emit({ type: "tabLongPress", target: route.key })}
+                  style={ts.item}
+                  accessibilityRole="tab"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: focused }}
+                >
+                  <TabPill focused={focused} color={colors.primarySoft}>
+                    <View>
+                      <Feather
+                        name={iconName}
+                        size={21}
+                        color={focused ? colors.primary : colors.textMuted}
+                      />
+                      {route.name === "more" && <NotifBadge />}
+                    </View>
+                  </TabPill>
+                  <Text
+                    style={[
+                      ts.label,
+                      {
+                        color: focused ? colors.foreground : colors.textMuted,
+                        fontFamily: focused ? FONT.semibold : FONT.medium,
+                      },
+                    ]}
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.3}
+                  >
+                    {label}
+                  </Text>
+                  <View style={[ts.pivot, { backgroundColor: focused ? colors.gold : "transparent" }]} />
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       </View>
     </View>
   );
 }
 
+/** Active-tab pill: opens with the house spring (reduced motion: instant). */
+function TabPill({ focused, color, children }: { focused: boolean; color: string; children: React.ReactNode }) {
+  const p = useSharedValue(focused ? 1 : 0);
+  useEffect(() => {
+    p.value = withSpring(focused ? 1 : 0, SPRING.glide);
+  }, [focused, p]);
+  const pill = useAnimatedStyle(() => ({
+    opacity: p.value,
+    transform: [{ scaleX: interpolate(p.value, [0, 1], [0.55, 1]) }],
+  }));
+  const icon = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(p.value, [0, 1], [0, -1]) }] }));
+  return (
+    <View style={ts.pill}>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: color, borderRadius: 16 }, pill]} />
+      <Animated.View style={icon}>{children}</Animated.View>
+    </View>
+  );
+}
+
 const ts = StyleSheet.create({
-  bar: {
+  wrap: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    left: 12,
+    right: 12,
+  },
+  shadow: {
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  clip: {
+    borderRadius: 24,
     overflow: "hidden",
   },
   inner: {
     flexDirection: "row",
-    paddingTop: 6,
-    alignItems: "flex-start",
+    paddingTop: 8,
+    paddingBottom: 6,
+    paddingHorizontal: 4,
   },
   item: {
     flex: 1,
     alignItems: "center",
-    gap: 2,
-    paddingTop: 2,
+    gap: 3,
+    minHeight: 52,
   },
   pill: {
-    width: 56,
-    height: 36,
-    borderRadius: 14,
+    width: 52,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   label: {
-    fontSize: 9.5,
-    letterSpacing: 0.1,
+    fontSize: 11,
+    lineHeight: 14,
+    paddingHorizontal: 2,
   },
-  activeDot: {
+  pivot: {
     width: 4,
     height: 4,
-    borderRadius: 2,
-    marginTop: 1,
+    borderRadius: 1,
+    transform: [{ rotate: "45deg" }],
   },
 });
 
@@ -237,7 +272,7 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
     >
       {/* Dashboard — all roles */}
-      <Tabs.Screen name="index" options={{ title: t("dashboard") }} />
+      <Tabs.Screen name="index" options={{ title: t("tabHome") }} />
 
       {/* Members / Syndicats — super_admin sees platform list; syndicate_admin sees members */}
       <Tabs.Screen

@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -36,14 +37,14 @@ interface FicheJuridique {
 }
 
 const THEME_CONFIG: Record<ThemeType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  licenciement: { label: "Licenciement", icon: "user-x", color: "#ef4444" },
-  conges: { label: "Congés & RTT", icon: "sun", color: "#f59e0b" },
-  salaire: { label: "Salaire", icon: "dollar-sign", color: "#10b981" },
-  syndicale: { label: "Liberté syndicale", icon: "shield", color: "#2563EB" },
-  discrimination: { label: "Discrimination", icon: "alert-triangle", color: "#ec4899" },
-  contrat: { label: "Contrat de travail", icon: "file-text", color: "#3b82f6" },
-  sante: { label: "Santé & Sécurité", icon: "activity", color: "#06b6d4" },
-  retraite: { label: "Retraite", icon: "clock", color: "#8b5cf6" },
+  licenciement: { label: "Licenciement", icon: "user-x", color: "#C8323C" },
+  conges: { label: "Congés & RTT", icon: "sun", color: "#C98511" },
+  salaire: { label: "Salaire", icon: "dollar-sign", color: "#13976C" },
+  syndicale: { label: "Liberté syndicale", icon: "shield", color: "#5A4AD6" },
+  discrimination: { label: "Discrimination", icon: "alert-triangle", color: "#C2456E" },
+  contrat: { label: "Contrat de travail", icon: "file-text", color: "#5A4AD6" },
+  sante: { label: "Santé & Sécurité", icon: "activity", color: "#1F8A9A" },
+  retraite: { label: "Retraite", icon: "clock", color: "#1F8A9A" },
 };
 
 function mapApiFiche(row: any): FicheJuridique {
@@ -106,13 +107,7 @@ export default function RepertoireJuridiqueScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>{t("repertoireTitle")}</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <ScreenHeader title={t("repertoireTitle")} />
 
       {/* Search */}
       <View style={[styles.searchRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -132,7 +127,7 @@ export default function RepertoireJuridiqueScreen() {
       {/* Info banner */}
       <View style={[styles.infoBanner, { backgroundColor: colors.primary + "10", borderBottomColor: colors.primary + "20" }]}>
         <Feather name="info" size={14} color={colors.primary} />
-        <Text style={[styles.infoBannerText, { color: colors.primary }]}>
+        <Text style={[styles.infoBannerText, { color: colors.tint }]}>
           {t("legalDirectoryInfo")}
         </Text>
       </View>
@@ -262,25 +257,25 @@ export default function RepertoireJuridiqueScreen() {
                     {selected.jurisprudence && selected.jurisprudence.length > 0 ? (
                       <View style={[styles.refsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.refsHeader}>
-                          <Feather name="archive" size={15} color="#1F5EFF" />
+                          <Feather name="archive" size={15} color="#5A4AD6" />
                           <Text style={[styles.refsTitle, { color: colors.foreground }]}>{t("legalDirectoryCasesTitle")}</Text>
                         </View>
                         {selected.jurisprudence.map((j, i) => (
-                          <View key={i} style={[styles.refItem, { backgroundColor: "#1F5EFF10" }]}>
-                            <Feather name="chevron-right" size={12} color="#1F5EFF" />
-                            <Text style={[styles.refText, { color: "#1F5EFF" }]}>{j}</Text>
+                          <View key={i} style={[styles.refItem, { backgroundColor: "#5A4AD610" }]}>
+                            <Feather name="chevron-right" size={12} color="#5A4AD6" />
+                            <Text style={[styles.refText, { color: "#5A4AD6" }]}>{j}</Text>
                           </View>
                         ))}
                       </View>
                     ) : null}
-                    <View style={[styles.conseilsCard, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
+                    <View style={[styles.conseilsCard, { backgroundColor: colors.success + "10", borderColor: colors.success + "30" }]}>
                       <View style={styles.refsHeader}>
-                        <Feather name="alert-circle" size={15} color="#10b981" />
+                        <Feather name="alert-circle" size={15} color={colors.success} />
                         <Text style={[styles.refsTitle, { color: colors.foreground }]}>{t("legalDirectoryAdviceTitle")}</Text>
                       </View>
                       {selected.conseils.map((c, i) => (
                         <View key={i} style={styles.conseilItem}>
-                          <View style={[styles.conseilDot, { backgroundColor: "#10b981" }]} />
+                          <View style={[styles.conseilDot, { backgroundColor: colors.success }]} />
                           <Text style={[styles.conseilText, { color: colors.foreground }]}>{c}</Text>
                         </View>
                       ))}
@@ -300,7 +295,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, gap: 12 },
   backBtn: { padding: 4 },
-  title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { flex: 1, fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   searchRow: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
   searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },

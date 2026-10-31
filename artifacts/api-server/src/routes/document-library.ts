@@ -3,8 +3,8 @@ import multer from "multer";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { documentsTable, documentVersionsTable, storageObjectsTable, usersTable } from "@workspace/db/schema";
-import { and, asc, count, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
+import { documentsTable, documentVersionsTable, lotsTable, storageObjectsTable, usersTable } from "@workspace/db/schema";
+import { and, asc, count, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { requireAuth, signDocumentLink, verifyDocumentLink, DOCUMENT_LINK_TTL_SECONDS, type JwtPayload } from "../middleware/auth.js";
 import { verifyFileSignature } from "../lib/file-signature.js";
 import { serverAuditLog } from "../lib/audit.js";
@@ -61,7 +61,8 @@ const LIBRARY_TYPES = new Set([
 const INLINE_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "text/plain"]);
 const UPLOADERS = new Set([...DOCUMENT_MANAGERS, "treasurer"]);
 
-const memory = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LIBRARY_FILE, files: 1, fields: 20 } });
+// File names are UTF-8 (accents, Arabic): busboy's default (latin1) would garble them.
+const memory = multer({ storage: multer.memoryStorage(), defParamCharset: "utf8", limits: { fileSize: MAX_LIBRARY_FILE, files: 1, fields: 20 } });
 
 /** Multipart parsing with useful errors (too large, interrupted, several files). */
 function receiveFile(req: Request, res: Response, next: NextFunction) {
@@ -311,7 +312,15 @@ router.get("/documents", requireAuth, async (req, res) => {
         .where(facetWhere)
         .groupBy(documentsTable.category),
     ]);
-    res.json({ ...buildPagedResponse(rows.map((r) => documentView(r, user)), Number(total), pagination), categories });
+    // Unit number of unit-level documents (rows already filtered by audience).
+    const lotIds = [...new Set(rows.map((r) => r.lotId).filter((x): x is string => !!x))];
+    const lotNumbers = new Map(
+      lotIds.length ? (await db.select({ id: lotsTable.id, n: lotsTable.number }).from(lotsTable).where(inArray(lotsTable.id, lotIds))).map((l) => [l.id, l.n]) : [],
+    );
+    res.json({
+      ...buildPagedResponse(rows.map((r) => ({ ...documentView(r, user), lotNumber: r.lotId ? (lotNumbers.get(r.lotId) ?? null) : null })), Number(total), pagination),
+      categories,
+    });
   } catch (err) {
     sendFinanceError(res, req, err);
   }

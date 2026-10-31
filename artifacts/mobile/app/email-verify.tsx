@@ -5,6 +5,7 @@
  * User enters the 6-digit code sent to their email.
  */
 
+import AuthHero, { AUTH_HERO_OVERLAP } from "@/components/brand/AuthHero";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -20,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -58,7 +60,7 @@ export default function EmailVerifyScreen() {
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<"verifying" | "creating">("verifying");
 
-  const inputs = useRef<(TextInput | null)[]>([]);
+  const inputs = useRef<(TextInputInstance | null)[]>([]);
   const successAnim = useRef(new Animated.Value(0)).current;
 
   // Load pending registration data
@@ -272,7 +274,7 @@ export default function EmailVerifyScreen() {
         style={[
           s.root,
           {
-            backgroundColor: isDark ? "#070D1A" : "#EFF6FF",
+            backgroundColor: isDark ? "#0E0C1C" : "#EEEBFC",
             direction: isRTL ? "rtl" : "ltr",
           },
         ]}
@@ -296,14 +298,14 @@ export default function EmailVerifyScreen() {
             </View>
           </Animated.View>
           <Text
-            style={[s.successTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}
+            style={[s.successTitle, { color: isDark ? "#EEEBFC" : "#120F2C" }]}
           >
             {t("emailVerifySuccessTitle")}
           </Text>
           <Text
             style={[
               s.successSub,
-              { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" },
+              { color: isDark ? "rgba(232,240,254,0.55)" : "#6A6680" },
             ]}
           >
             {t("emailVerifySuccessMessage")}
@@ -332,53 +334,14 @@ export default function EmailVerifyScreen() {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingTop: insets.top + 20,
+          paddingTop: 0,
           paddingBottom: insets.bottom + 40,
           paddingHorizontal: 24,
           gap: 28,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[
-            s.backBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t("back")}
-        >
-          <Feather
-            name={isRTL ? "arrow-right" : "arrow-left"}
-            size={20}
-            color={colors.foreground}
-          />
-        </TouchableOpacity>
-
-        {/* Header */}
-        <View style={s.headerWrap}>
-          <View style={[s.iconCircle, { backgroundColor: color + "15" }]}>
-            <Feather name="mail" size={28} color={color} />
-          </View>
-          <Text style={[s.title, { color: colors.foreground }]}>
-            {t("emailVerifyTitle")}
-          </Text>
-          <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
-            {t("emailVerifySubtitle")}
-          </Text>
-          <View
-            style={[
-              s.emailBadge,
-              { backgroundColor: color + "12", borderColor: color + "30" },
-            ]}
-          >
-            <Feather name="mail" size={12} color={color} />
-            <Text style={[s.emailBadgeText, { color }]} numberOfLines={1}>
-              {email}
-            </Text>
-          </View>
-        </View>
+        <AuthHero icon="mail" title={t("emailVerifyTitle")} subtitle={`${t("emailVerifySubtitle")} ${email}`} bleed={24} style={{ paddingBottom: 28 }} />
 
         {/* Timer */}
         {timeLeft > 0 ? (
@@ -436,7 +399,7 @@ export default function EmailVerifyScreen() {
                   {
                     backgroundColor: colors.card,
                     borderColor: hasError
-                      ? "#EF4444"
+                      ? colors.danger
                       : digit
                         ? color
                         : colors.border,
@@ -465,7 +428,7 @@ export default function EmailVerifyScreen() {
               {
                 backgroundColor: colors.destructive + "12",
                 borderColor: colors.destructive + "40",
-                flexDirection: isRTL ? "row-reverse" : "row",
+                flexDirection: "row",
               },
             ]}
           >
@@ -475,7 +438,7 @@ export default function EmailVerifyScreen() {
                 s.errorText,
                 {
                   color: colors.destructive,
-                  textAlign: isRTL ? "right" : "left",
+                  textAlign: "auto",
                 },
               ]}
             >
@@ -492,7 +455,7 @@ export default function EmailVerifyScreen() {
               {
                 backgroundColor: cardBg,
                 borderColor: colors.border,
-                flexDirection: isRTL ? "row-reverse" : "row",
+                flexDirection: "row",
               },
             ]}
           >
@@ -502,7 +465,7 @@ export default function EmailVerifyScreen() {
                 s.stepText,
                 {
                   color: colors.mutedForeground,
-                  textAlign: isRTL ? "right" : "left",
+                  textAlign: "auto",
                 },
               ]}
             >
@@ -575,7 +538,7 @@ export default function EmailVerifyScreen() {
             {
               backgroundColor: colors.muted,
               borderColor: colors.border,
-              flexDirection: isRTL ? "row-reverse" : "row",
+              flexDirection: "row",
             },
           ]}
         >
@@ -585,7 +548,7 @@ export default function EmailVerifyScreen() {
               s.hintText,
               {
                 color: colors.mutedForeground,
-                textAlign: isRTL ? "right" : "left",
+                textAlign: "auto",
               },
             ]}
           >
@@ -618,9 +581,8 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     fontSize: 26,
-    letterSpacing: -0.3,
     textAlign: "center",
   },
   subtitle: {
@@ -664,7 +626,7 @@ const s = StyleSheet.create({
     borderWidth: 2,
     textAlign: "center",
     fontSize: 24,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
   },
 
   errorBox: {
@@ -678,7 +640,7 @@ const s = StyleSheet.create({
   errorText: {
     fontFamily: "Inter_500Medium",
     fontSize: 13,
-    color: "#EF4444",
+    color: "#C8323C",
     flex: 1,
   },
 
@@ -736,7 +698,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   successTitle: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     fontSize: 28,
     textAlign: "center",
   },

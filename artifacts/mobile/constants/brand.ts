@@ -3,10 +3,11 @@
  * Community governance and residence operations platform.
  *
  * The single source of truth for brand identity tokens.
+ * Rationale and usage rules: DESIGN_SYSTEM.md.
  */
 
 export const MIZAN = {
-  /** Official product name */
+  /** Official product name — « mîzân », the balance (ميزان) */
   name: "MIZAN",
   /** Short product name used in navigation, notifications and compact contexts */
   shortName: "MIZAN",
@@ -18,30 +19,31 @@ export const MIZAN = {
   promise: "Clarté, confiance et gouvernance numérique pour chaque résidence.",
   /** Identity principles for future surfaces and campaigns */
   values: ["Confiance", "Transparence", "Gouvernance", "Sécurité", "Excellence"] as const,
-  /** Geometric mark meaning: a balanced community under shared governance */
-  markMeaning: "Une communauté équilibrée, guidée par une gouvernance claire.",
+  /** Mark: the arch of a riad courtyard holding a level brass beam — a shared
+   *  home whose accounts stay in balance. */
+  markMeaning: "L'arche d'un riad et un fléau d'équilibre : un lieu partagé, des comptes justes.",
 
   colors: {
-    /** Deep navy — trust, app icon background and dark surfaces */
-    navyDeep: "#0B1F3A",
-    /** Mid navy — dark mode card surfaces */
-    navyMid: "#102B4D",
-    /** Standard navy — body text and light-mode mark */
-    navy: "#18385C",
-    /** Signal blue — primary product action */
-    blue: "#1F5EFF",
-    /** Lighter signal blue — active states and gradients */
-    blueLight: "#4C7DFF",
-    /** Calm teal — governance and success accent */
-    teal: "#20B8A6",
-    /** Pale blue — light-mode accent backgrounds */
-    bluePale: "#8DB2FF",
-    /** Near-white with cool-blue tint — light mode page background */
-    bgLight: "#F5F8FC",
+    /** Nuit — indigo night over the courtyard: app icon, splash, heroes */
+    navyDeep: "#14113A",
+    /** Nuit, raised — dark card surfaces */
+    navyMid: "#1F1B4A",
+    /** Ink — body text and light-mode mark */
+    navy: "#1B1833",
+    /** Majorelle — the single action color */
+    blue: "#5A4AD6",
+    /** Majorelle, lit — active states and the mark's light side */
+    blueLight: "#7E70F2",
+    /** Cedar teal — information */
+    teal: "#0F6E7D",
+    /** Pale Majorelle — light accents on dark surfaces */
+    bluePale: "#C9BEFF",
+    /** Tadelakt — warm ivory page background */
+    bgLight: "#F7F4EE",
     /** Pure white */
     white: "#FFFFFF",
-    /** Muted gold — balance line and premium highlights */
-    gold: "#D9A441",
+    /** Laiton — brass balance beam and rare highlights */
+    gold: "#C99A3E",
   },
 
   /** Typography scale used in the wordmark */

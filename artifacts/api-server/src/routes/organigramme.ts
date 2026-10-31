@@ -19,6 +19,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, or, inArray, lt, gte, count, desc } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -509,7 +510,7 @@ router.get("/organigramme/national", requireAuth, async (req, res) => {
         : Promise.resolve([]),
     ]);
 
-    const now = new Date().toISOString().slice(0, 10);
+    const now = localToday();
     const REQUIRED_ROLES = ["president", "treasurer", "secretary"];
 
     const syndicateData = syndicates.map((s) => {

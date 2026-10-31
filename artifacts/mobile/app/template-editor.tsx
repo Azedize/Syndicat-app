@@ -3,7 +3,7 @@
  *
  * Create/edit a template definition. Tabs: Info | Variables | Sections | Languages | Versions | Permissions
  */
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -257,12 +257,12 @@ const CATEGORIES = [
 ];
 
 const VARIABLE_SOURCES: { key: VariableSource; color: string }[] = [
-  { key: "db_syndicate", color: "#2563EB" },
-  { key: "db_property", color: "#3b82f6" },
-  { key: "db_office_holders", color: "#10b981" },
-  { key: "db_member", color: "#f59e0b" },
-  { key: "user_input", color: "#0891b2" },
-  { key: "generated", color: "#6b7280" },
+  { key: "db_syndicate", color: "#5A4AD6" },
+  { key: "db_property", color: "#5A4AD6" },
+  { key: "db_office_holders", color: "#13976C" },
+  { key: "db_member", color: "#C98511" },
+  { key: "user_input", color: "#0F6E7D" },
+  { key: "generated", color: "#6A6680" },
 ];
 
 const SECTION_TYPES: { key: SectionType; icon: keyof typeof Feather.glyphMap }[] = [
@@ -308,7 +308,7 @@ const defaultForm = (): TemplateForm => ({
     { id: crypto.randomUUID?.() ?? String(Date.now()), title: { fr: "Contenu", ar: "المحتوى", en: "Content", es: "Contenido" }, content: emptyI18N(), type: "text", required: true, order: 0 },
   ],
   languages: ["fr"],
-  layoutConfig: { accentColor: "#2563EB", headerStyle: "branded", footerStyle: "full", watermark: false, showQr: true, showStamp: true },
+  layoutConfig: { accentColor: "#5A4AD6", headerStyle: "branded", footerStyle: "full", watermark: false, showQr: true, showStamp: true },
 });
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <View style={s.field}>
-      <Text style={s.fieldLabel}>{label}{required && <Text style={{ color: "#ef4444" }}> *</Text>}</Text>
+      <Text style={s.fieldLabel}>{label}{required && <Text style={{ color: "#C8323C" }}> *</Text>}</Text>
       {children}
     </View>
   );
@@ -347,7 +347,7 @@ function TInput({ value, onChangeText, placeholder, multiline, mono }: {
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor="#475569"
+      placeholderTextColor="#4D4964"
       multiline={multiline}
       numberOfLines={multiline ? 3 : 1}
       textAlignVertical={multiline ? "top" : "center"}
@@ -375,7 +375,7 @@ function I18NEditor({ value, onChange, label, multiline }: {
         value={value[activeLang]}
         onChangeText={(t) => onChange({ ...value, [activeLang]: t })}
         placeholder={`${label} en ${LANG_LABELS[activeLang]?.split(" ")[0] ?? activeLang}`}
-        placeholderTextColor="#475569"
+        placeholderTextColor="#4D4964"
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         textAlignVertical={multiline ? "top" : "center"}
@@ -436,30 +436,30 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
         const src = VARIABLE_SOURCES.find((s2) => s2.key === v.source);
         return (
           <View key={v.name} style={s.varCard}>
-            <View style={[s.varSourceDot, { backgroundColor: src?.color ?? "#6b7280" }]} />
+            <View style={[s.varSourceDot, { backgroundColor: src?.color ?? "#6A6680" }]} />
             <View style={{ flex: 1 }}>
               <Text style={s.varName}>{"{{" + v.name + "}}"}</Text>
               <Text style={s.varLabel}>{v.label[lang] || "—"}</Text>
               <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
-                <View style={[s.varTag, { backgroundColor: (src?.color ?? "#6b7280") + "22" }]}>
-                  <Text style={[s.varTagText, { color: src?.color ?? "#6b7280" }]}>{src ? tr("source", lang) === tr("source", lang) ? SOURCE_LABELS[v.source][lang] : v.source : v.source}</Text>
+                <View style={[s.varTag, { backgroundColor: (src?.color ?? "#6A6680") + "22" }]}>
+                  <Text style={[s.varTagText, { color: src?.color ?? "#6A6680" }]}>{src ? tr("source", lang) === tr("source", lang) ? SOURCE_LABELS[v.source][lang] : v.source : v.source}</Text>
                 </View>
-                <View style={[s.varTag, { backgroundColor: "#33415522" }]}>
-                  <Text style={[s.varTagText, { color: "#64748b" }]}>{v.type}</Text>
+                <View style={[s.varTag, { backgroundColor: "#3A365222" }]}>
+                  <Text style={[s.varTagText, { color: "#6A6680" }]}>{v.type}</Text>
                 </View>
                 {v.required && (
-                  <View style={[s.varTag, { backgroundColor: "#ef444422" }]}>
-                    <Text style={[s.varTagText, { color: "#ef4444" }]}>{tr("required", lang)}</Text>
+                  <View style={[s.varTag, { backgroundColor: "#C8323C22" }]}>
+                    <Text style={[s.varTagText, { color: "#C8323C" }]}>{tr("required", lang)}</Text>
                   </View>
                 )}
               </View>
             </View>
             <View style={{ gap: 6 }}>
               <TouchableOpacity onPress={() => openEdit(idx)} style={s.varAction}>
-                <Feather name="edit-2" size={14} color="#94a3b8" />
+                <Feather name="edit-2" size={14} color="#A6A1BE" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => remove(idx)} style={s.varAction}>
-                <Feather name="trash-2" size={14} color="#ef4444" />
+                <Feather name="trash-2" size={14} color="#C8323C" />
               </TouchableOpacity>
             </View>
           </View>
@@ -467,7 +467,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
       })}
 
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
-        <Feather name="plus" size={16} color="#2563EB" />
+        <Feather name="plus" size={16} color="#5A4AD6" />
         <Text style={s.addBtnText}>{tr("addCustomVariable", lang)}</Text>
       </TouchableOpacity>
 
@@ -509,7 +509,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
                   </Field>
                   <View style={s.switchRow}>
                     <Text style={s.fieldLabel}>{tr("required", lang)}</Text>
-                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
+                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#3A3652", true: "#5A4AD6" }} />
                   </View>
                 </>
               )}
@@ -572,16 +572,16 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
           <View key={sec.id} style={s.secCard}>
             <View style={s.secOrderBtns}>
               <TouchableOpacity onPress={() => move(idx, -1)} disabled={idx === 0} style={[s.secOrderBtn, idx === 0 && { opacity: 0.3 }]}>
-                <Feather name="chevron-up" size={14} color="#94a3b8" />
+                <Feather name="chevron-up" size={14} color="#A6A1BE" />
               </TouchableOpacity>
               <Text style={s.secOrder}>{idx + 1}</Text>
               <TouchableOpacity onPress={() => move(idx, 1)} disabled={idx === sections.length - 1} style={[s.secOrderBtn, idx === sections.length - 1 && { opacity: 0.3 }]}>
-                <Feather name="chevron-down" size={14} color="#94a3b8" />
+                <Feather name="chevron-down" size={14} color="#A6A1BE" />
               </TouchableOpacity>
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <Feather name={typeInfo?.icon ?? "file"} size={13} color="#2563EB" />
+                <Feather name={typeInfo?.icon ?? "file"} size={13} color="#5A4AD6" />
                 <Text style={s.secTitle}>{sec.title[lang] || tr("untitledSection", lang)}</Text>
               </View>
               {sec.content?.[lang] ? (
@@ -593,18 +593,18 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                 <View style={s.varTag}>
                   <Text style={s.varTagText}>{SECTION_LABELS[sec.type][lang]}</Text>
                 </View>
-                {sec.required && <View style={[s.varTag, { backgroundColor: "#ef444422" }]}><Text style={[s.varTagText, { color: "#ef4444" }]}>{tr("required", lang)}</Text></View>}
+                {sec.required && <View style={[s.varTag, { backgroundColor: "#C8323C22" }]}><Text style={[s.varTagText, { color: "#C8323C" }]}>{tr("required", lang)}</Text></View>}
               </View>
             </View>
             <View style={{ gap: 8 }}>
-              <TouchableOpacity onPress={() => openEdit(idx)} style={s.varAction}><Feather name="edit-2" size={14} color="#94a3b8" /></TouchableOpacity>
-              <TouchableOpacity onPress={() => remove(idx)} style={s.varAction}><Feather name="trash-2" size={14} color="#ef4444" /></TouchableOpacity>
+              <TouchableOpacity onPress={() => openEdit(idx)} style={s.varAction}><Feather name="edit-2" size={14} color="#A6A1BE" /></TouchableOpacity>
+              <TouchableOpacity onPress={() => remove(idx)} style={s.varAction}><Feather name="trash-2" size={14} color="#C8323C" /></TouchableOpacity>
             </View>
           </View>
         );
       })}
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
-        <Feather name="plus" size={16} color="#2563EB" />
+        <Feather name="plus" size={16} color="#5A4AD6" />
         <Text style={s.addBtnText}>{tr("addSection", lang)}</Text>
       </TouchableOpacity>
 
@@ -623,7 +623,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                       {SECTION_TYPES.map((t) => (
                         <TouchableOpacity key={t.key} style={[s.pickerChip, draft.type === t.key && s.pickerChipActive]}
                           onPress={() => setDraft({ ...draft, type: t.key })}>
-                          <Feather name={t.icon} size={12} color={draft.type === t.key ? "#2563EB" : "#64748b"} />
+                          <Feather name={t.icon} size={12} color={draft.type === t.key ? "#5A4AD6" : "#6A6680"} />
                           <Text style={[s.pickerChipText, draft.type === t.key && s.pickerChipTextActive]}>{SECTION_LABELS[t.key][lang]}</Text>
                         </TouchableOpacity>
                       ))}
@@ -631,7 +631,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                   </Field>
                   <View style={s.switchRow}>
                     <Text style={s.fieldLabel}>{tr("requiredSection", lang)}</Text>
-                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
+                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#3A3652", true: "#5A4AD6" }} />
                   </View>
                 </>
               )}
@@ -682,17 +682,17 @@ function VersionsTab({ templateId }: { templateId: string }) {
     );
   };
 
-  if (loading) return <LoadingState title={tr("versions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />;
+  if (loading) return <LoadingState title={tr("versions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#5A4AD6" />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
       <SectionHeader title={tr("versionsHistory", lang)} subtitle={versions.length === 1 ? tr("versionOne", lang) : tr("versionsMany", lang, { count: String(versions.length) })} />
       {versions.map((ver, idx) => (
         <View key={ver.id} style={s.verCard}>
-          <View style={[s.verDot, idx === 0 && { backgroundColor: "#2563EB" }]} />
+          <View style={[s.verDot, idx === 0 && { backgroundColor: "#5A4AD6" }]} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={[s.verVersion, idx === 0 && { color: "#a78bfa" }]}>{tr("version", lang)} {ver.version}</Text>
+              <Text style={[s.verVersion, idx === 0 && { color: "#5CC6D4" }]}>{tr("version", lang)} {ver.version}</Text>
               {idx === 0 && <View style={s.verCurrentBadge}><Text style={s.verCurrentText}>{tr("current", lang)}</Text></View>}
             </View>
             <Text style={s.verDesc}>{ver.changeDescription ?? tr("update", lang)}</Text>
@@ -700,7 +700,7 @@ function VersionsTab({ templateId }: { templateId: string }) {
           </View>
           {idx > 0 && (
             <TouchableOpacity onPress={() => restore(ver)} style={s.verRestoreBtn}>
-              <Feather name="refresh-cw" size={14} color="#2563EB" />
+              <Feather name="refresh-cw" size={14} color="#5A4AD6" />
               <Text style={s.verRestoreText}>{tr("restore", lang)}</Text>
             </TouchableOpacity>
           )}
@@ -749,7 +749,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
     finally { setSaving(false); }
   };
 
-  if (loading) return <LoadingState title={tr("permissions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />;
+  if (loading) return <LoadingState title={tr("permissions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#5A4AD6" />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -772,8 +772,8 @@ function PermissionsTab({ templateId }: { templateId: string }) {
                   value={perm[field]}
                   onValueChange={() => { if (!isSuperAdmin) toggle(idx, field); }}
                   disabled={isSuperAdmin}
-                  trackColor={{ false: "#334155", true: "#2563EB" }}
-                  thumbColor={perm[field] ? "#a78bfa" : "#64748b"}
+                  trackColor={{ false: "#3A3652", true: "#5A4AD6" }}
+                  thumbColor={perm[field] ? "#5CC6D4" : "#6A6680"}
                   style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                 />
               </View>
@@ -792,7 +792,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
 
 function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"]; onChange: (c: TemplateForm["layoutConfig"]) => void }) {
   const { lang } = useLanguage();
-  const ACCENT_PRESETS = ["#2563EB", "#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#0891b2", "#ec4899", "#1e293b"];
+  const ACCENT_PRESETS = ["#5A4AD6", "#5A4AD6", "#13976C", "#C8323C", "#C98511", "#0F6E7D", "#C2456E", "#17142B"];
   return (
     <View style={{ paddingHorizontal: 20 }}>
       <SectionHeader title={tr("layout", lang)} subtitle={tr("layoutDesc", lang)} />
@@ -803,7 +803,7 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
               onPress={() => onChange({ ...config, accentColor: c })} />
           ))}
         </View>
-        <TInput value={config.accentColor} onChangeText={(t) => onChange({ ...config, accentColor: t })} placeholder="#2563EB" mono />
+        <TInput value={config.accentColor} onChangeText={(t) => onChange({ ...config, accentColor: t })} placeholder="#5A4AD6" mono />
       </Field>
       <Field label={tr("headerStyle", lang)}>
         <View style={s.pickerWrap}>
@@ -827,15 +827,15 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
       </Field>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>{tr("watermark", lang)}</Text><Text style={s.fieldSub}>{tr("watermarkDesc", lang)}</Text></View>
-        <Switch value={config.watermark} onValueChange={(v) => onChange({ ...config, watermark: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
+        <Switch value={config.watermark} onValueChange={(v) => onChange({ ...config, watermark: v })} trackColor={{ false: "#3A3652", true: "#5A4AD6" }} />
       </View>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>{tr("qrCode", lang)}</Text><Text style={s.fieldSub}>{tr("qrCodeDesc", lang)}</Text></View>
-        <Switch value={config.showQr} onValueChange={(v) => onChange({ ...config, showQr: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
+        <Switch value={config.showQr} onValueChange={(v) => onChange({ ...config, showQr: v })} trackColor={{ false: "#3A3652", true: "#5A4AD6" }} />
       </View>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>{tr("officialStamp", lang)}</Text><Text style={s.fieldSub}>{tr("officialStampDesc", lang)}</Text></View>
-        <Switch value={config.showStamp} onValueChange={(v) => onChange({ ...config, showStamp: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
+        <Switch value={config.showStamp} onValueChange={(v) => onChange({ ...config, showStamp: v })} trackColor={{ false: "#3A3652", true: "#5A4AD6" }} />
       </View>
     </View>
   );
@@ -924,7 +924,7 @@ function TemplateEditorContent() {
   if (loading) {
     return (
       <View style={s.root}>
-        <LoadingState title={tr("loadingTemplate", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />
+        <LoadingState title={tr("loadingTemplate", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#5A4AD6" />
       </View>
     );
   }
@@ -960,18 +960,18 @@ function TemplateEditorContent() {
                 .finally(() => setLoading(false));
             }
           }}
-          accentColor="#ef4444"
+          accentColor="#C8323C"
         />
       </View>
     );
   }
 
   return (
-    <View style={[s.root, { backgroundColor: "#0f172a" }]}>
+    <View style={[s.root, { backgroundColor: "#0E0C1C" }]}>
       {/* Header */}
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={20} color="#e2e8f0" />
+          <Feather name="arrow-left" size={20} color="#E7E1D6" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle} numberOfLines={1}>{isNew ? tr("newTemplate", lang) : (form.name[lang] || tr("editTemplate", lang))}</Text>
@@ -994,7 +994,7 @@ function TemplateEditorContent() {
         {TABS.map((tab) => (
           <TouchableOpacity key={tab.key} style={[s.tab, activeTab === tab.key && s.tabActive]}
             onPress={() => { Haptics.selectionAsync(); setActiveTab(tab.key); }}>
-            <Feather name={tab.icon} size={13} color={activeTab === tab.key ? "#a78bfa" : "#64748b"} />
+            <Feather name={tab.icon} size={13} color={activeTab === tab.key ? "#5CC6D4" : "#6A6680"} />
             <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>{tr(tab.key as keyof typeof TEXT, lang)}</Text>
           </TouchableOpacity>
         ))}
@@ -1060,8 +1060,8 @@ function TemplateEditorContent() {
         )}
         {(activeTab === "versions" || activeTab === "permissions") && isNew && (
           <View style={{ alignItems: "center", paddingVertical: 60 }}>
-            <Feather name="info" size={32} color="#334155" />
-            <Text style={{ color: "#64748b", marginTop: 12 }}>{tr("saveFirst", lang)}</Text>
+            <Feather name="info" size={32} color="#A6A1BE" />
+            <Text style={{ color: "#6A6680", marginTop: 12 }}>{tr("saveFirst", lang)}</Text>
           </View>
         )}
         <View style={{ height: insets.bottom + 40 }} />
@@ -1073,13 +1073,13 @@ function TemplateEditorContent() {
           <View style={[s.modalSheet, { maxHeight: 300 }]}>
             <View style={s.modalHandle} />
             <Text style={s.modalTitle}>{tr("changeDescription", lang)}</Text>
-            <Text style={{ color: "#64748b", marginBottom: 12, fontSize: 13 }}>{tr("changeDescriptionHint", lang)}</Text>
+            <Text style={{ color: "#6A6680", marginBottom: 12, fontSize: 13 }}>{tr("changeDescriptionHint", lang)}</Text>
             <TextInput
               style={[s.input, { marginBottom: 20 }]}
               value={changeDesc}
               onChangeText={setChangeDesc}
               placeholder={tr("changePlaceholder", lang)}
-              placeholderTextColor="#475569"
+              placeholderTextColor="#4D4964"
             />
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setShowChangeModal(false)}>
@@ -1107,106 +1107,106 @@ export default function TemplateEditor() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root:             { flex: 1, backgroundColor: "#0f172a" },
+  root:             { flex: 1, backgroundColor: "#0E0C1C" },
   header:           { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12,
-                      borderBottomWidth: 1, borderBottomColor: "#1e293b", gap: 12 },
-  backBtn:          { width: 36, height: 36, borderRadius: 18, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
-  headerTitle:      { fontSize: 16, fontWeight: "700", color: "#f1f5f9" },
-  headerSub:        { fontSize: 11, color: "#475569", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  saveBtn2:         { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#2563EB",
+                      borderBottomWidth: 1, borderBottomColor: "#17142B", gap: 12 },
+  backBtn:          { width: 36, height: 36, borderRadius: 18, backgroundColor: "#17142B", alignItems: "center", justifyContent: "center" },
+  headerTitle:      { fontSize: 16, fontWeight: "700", color: "#F0ECE4" },
+  headerSub:        { fontSize: 11, color: "#A6A1BE", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
+  saveBtn2:         { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#5A4AD6",
                       paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10 },
   saveBtnText2:     { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  tabsScroll:       { borderBottomWidth: 1, borderBottomColor: "#1e293b", maxHeight: 50 },
+  tabsScroll:       { borderBottomWidth: 1, borderBottomColor: "#17142B", maxHeight: 50 },
   tabsContent:      { paddingHorizontal: 12, gap: 4, flexDirection: "row", alignItems: "center" },
   tab:              { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12,
                       paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabActive:        { borderBottomColor: "#2563EB" },
-  tabText:          { fontSize: 12, color: "#64748b", fontWeight: "500" },
-  tabTextActive:    { color: "#a78bfa", fontWeight: "700" },
+  tabActive:        { borderBottomColor: "#5A4AD6" },
+  tabText:          { fontSize: 12, color: "#6A6680", fontWeight: "500" },
+  tabTextActive:    { color: "#5CC6D4", fontWeight: "700" },
 
   sectionHeader:    { marginBottom: 16, marginTop: 8 },
-  sectionTitle:     { fontSize: 15, fontWeight: "700", color: "#f1f5f9" },
-  sectionSub:       { fontSize: 12, color: "#64748b", marginTop: 3 },
-  sectionSub2:      { fontSize: 11, color: "#475569", fontWeight: "600", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  sectionTitle:     { fontSize: 15, fontWeight: "700", color: "#F0ECE4" },
+  sectionSub:       { fontSize: 12, color: "#6A6680", marginTop: 3 },
+  sectionSub2:      { fontSize: 11, color: "#A6A1BE", fontWeight: "600", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
 
   field:            { marginBottom: 16 },
-  fieldLabel:       { fontSize: 12, color: "#94a3b8", fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.3 },
-  fieldSub:         { fontSize: 11, color: "#475569", marginTop: 2 },
-  input:            { backgroundColor: "#1e293b", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-                      color: "#f1f5f9", fontSize: 14, borderWidth: 1, borderColor: "#334155" },
+  fieldLabel:       { fontSize: 12, color: "#A6A1BE", fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.3 },
+  fieldSub:         { fontSize: 11, color: "#A6A1BE", marginTop: 2 },
+  input:            { backgroundColor: "#17142B", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                      color: "#F0ECE4", fontSize: 14, borderWidth: 1, borderColor: "#3A3652" },
   inputMulti:       { minHeight: 90, paddingTop: 12 },
 
   i18nWrap:         { marginBottom: 16 },
   i18nTabs:         { flexDirection: "row", gap: 4, marginBottom: 8 },
-  i18nTab:          { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#1e293b", borderWidth: 1, borderColor: "#334155" },
-  i18nTabActive:    { backgroundColor: "#2563EB22", borderColor: "#2563EB" },
-  i18nTabText:      { fontSize: 11, color: "#64748b", fontWeight: "600" },
-  i18nTabTextActive:{ color: "#a78bfa" },
+  i18nTab:          { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#17142B", borderWidth: 1, borderColor: "#3A3652" },
+  i18nTabActive:    { backgroundColor: "#5A4AD622", borderColor: "#5A4AD6" },
+  i18nTabText:      { fontSize: 11, color: "#6A6680", fontWeight: "600" },
+  i18nTabTextActive:{ color: "#5CC6D4" },
 
   pickerWrap:       { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   pickerChip:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7,
-                      borderRadius: 8, backgroundColor: "#1e293b", borderWidth: 1, borderColor: "#334155" },
-  pickerChipActive: { backgroundColor: "#2563EB22", borderColor: "#2563EB" },
-  pickerChipText:   { fontSize: 12, color: "#64748b", fontWeight: "500" },
-  pickerChipTextActive: { color: "#a78bfa", fontWeight: "700" },
+                      borderRadius: 8, backgroundColor: "#17142B", borderWidth: 1, borderColor: "#3A3652" },
+  pickerChipActive: { backgroundColor: "#5A4AD622", borderColor: "#5A4AD6" },
+  pickerChipText:   { fontSize: 12, color: "#6A6680", fontWeight: "500" },
+  pickerChipTextActive: { color: "#5CC6D4", fontWeight: "700" },
 
   switchRow:        { flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#1e293b", marginBottom: 4 },
+                      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#17142B", marginBottom: 4 },
 
   // Variables
   presetChip:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10,
-                      paddingVertical: 6, borderRadius: 20, borderWidth: 1, backgroundColor: "#1e293b" },
+                      paddingVertical: 6, borderRadius: 20, borderWidth: 1, backgroundColor: "#17142B" },
   presetChipText:   { fontSize: 11, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  varCard:          { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#1e293b",
+  varCard:          { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#17142B",
                       borderRadius: 12, padding: 12, marginBottom: 8, gap: 10,
-                      borderWidth: 1, borderColor: "#334155" },
+                      borderWidth: 1, borderColor: "#3A3652" },
   varSourceDot:     { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  varName:          { fontSize: 12, color: "#a78bfa", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", marginBottom: 2 },
-  varLabel:         { fontSize: 13, color: "#e2e8f0", fontWeight: "500" },
-  varTag:           { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#33415522" },
-  varTagText:       { fontSize: 10, color: "#64748b", fontWeight: "600" },
-  varAction:        { width: 28, height: 28, borderRadius: 8, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" },
+  varName:          { fontSize: 12, color: "#5CC6D4", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", marginBottom: 2 },
+  varLabel:         { fontSize: 13, color: "#E7E1D6", fontWeight: "500" },
+  varTag:           { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#3A365222" },
+  varTagText:       { fontSize: 10, color: "#6A6680", fontWeight: "600" },
+  varAction:        { width: 28, height: 28, borderRadius: 8, backgroundColor: "#0E0C1C", alignItems: "center", justifyContent: "center" },
 
   addBtn:           { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 14,
-                      borderWidth: 1.5, borderColor: "#2563EB44", borderStyle: "dashed",
+                      borderWidth: 1.5, borderColor: "#5A4AD644", borderStyle: "dashed",
                       borderRadius: 12, justifyContent: "center", marginTop: 8 },
-  addBtnText:       { color: "#a78bfa", fontWeight: "600", fontSize: 14 },
+  addBtnText:       { color: "#5CC6D4", fontWeight: "600", fontSize: 14 },
 
   // Sections
-  secCard:          { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#1e293b",
-                      borderRadius: 12, padding: 12, marginBottom: 8, gap: 10, borderWidth: 1, borderColor: "#334155" },
+  secCard:          { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#17142B",
+                      borderRadius: 12, padding: 12, marginBottom: 8, gap: 10, borderWidth: 1, borderColor: "#3A3652" },
   secOrderBtns:     { alignItems: "center", gap: 4 },
-  secOrderBtn:      { width: 24, height: 24, borderRadius: 6, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" },
-  secOrder:         { fontSize: 11, color: "#64748b", fontWeight: "700", minWidth: 16, textAlign: "center" },
-  secTitle:         { fontSize: 13, color: "#e2e8f0", fontWeight: "700" },
-  secContent:       { fontSize: 12, color: "#64748b", lineHeight: 18 },
-  secContentEmpty:  { fontSize: 11, color: "#334155", fontStyle: "italic" },
+  secOrderBtn:      { width: 24, height: 24, borderRadius: 6, backgroundColor: "#0E0C1C", alignItems: "center", justifyContent: "center" },
+  secOrder:         { fontSize: 11, color: "#6A6680", fontWeight: "700", minWidth: 16, textAlign: "center" },
+  secTitle:         { fontSize: 13, color: "#E7E1D6", fontWeight: "700" },
+  secContent:       { fontSize: 12, color: "#6A6680", lineHeight: 18 },
+  secContentEmpty:  { fontSize: 11, color: "#A6A1BE", fontStyle: "italic" },
 
   // Versions
   verCard:          { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 14,
-                      borderBottomWidth: 1, borderBottomColor: "#1e293b" },
-  verDot:           { width: 10, height: 10, borderRadius: 5, backgroundColor: "#334155", marginTop: 4 },
-  verVersion:       { fontSize: 13, fontWeight: "700", color: "#94a3b8" },
-  verCurrentBadge:  { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#2563EB22" },
-  verCurrentText:   { fontSize: 10, color: "#a78bfa", fontWeight: "700" },
-  verDesc:          { fontSize: 13, color: "#e2e8f0", marginTop: 2 },
-  verMeta:          { fontSize: 11, color: "#64748b", marginTop: 4 },
+                      borderBottomWidth: 1, borderBottomColor: "#17142B" },
+  verDot:           { width: 10, height: 10, borderRadius: 5, backgroundColor: "#3A3652", marginTop: 4 },
+  verVersion:       { fontSize: 13, fontWeight: "700", color: "#A6A1BE" },
+  verCurrentBadge:  { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#5A4AD622" },
+  verCurrentText:   { fontSize: 10, color: "#5CC6D4", fontWeight: "700" },
+  verDesc:          { fontSize: 13, color: "#E7E1D6", marginTop: 2 },
+  verMeta:          { fontSize: 11, color: "#6A6680", marginTop: 4 },
   verRestoreBtn:    { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10,
-                      paddingVertical: 6, borderRadius: 8, backgroundColor: "#2563EB22",
-                      borderWidth: 1, borderColor: "#2563EB44" },
-  verRestoreText:   { fontSize: 11, color: "#a78bfa", fontWeight: "600" },
+                      paddingVertical: 6, borderRadius: 8, backgroundColor: "#5A4AD622",
+                      borderWidth: 1, borderColor: "#5A4AD644" },
+  verRestoreText:   { fontSize: 11, color: "#5CC6D4", fontWeight: "600" },
 
   // Permissions
-  permHeader:       { flexDirection: "row", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#334155", marginBottom: 4 },
-  permRow:          { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#1e293b" },
-  permLabel:        { fontSize: 13, color: "#94a3b8", fontWeight: "500" },
-  permCol:          { width: 68, textAlign: "center", fontSize: 11, color: "#64748b", fontWeight: "600" },
+  permHeader:       { flexDirection: "row", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#3A3652", marginBottom: 4 },
+  permRow:          { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#17142B" },
+  permLabel:        { fontSize: 13, color: "#A6A1BE", fontWeight: "500" },
+  permCol:          { width: 68, textAlign: "center", fontSize: 11, color: "#6A6680", fontWeight: "600" },
   permColView:      { width: 68, alignItems: "center" },
 
   // Save button
   saveBtn:          { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-                      backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, marginTop: 20 },
+                      backgroundColor: "#5A4AD6", borderRadius: 12, paddingVertical: 14, marginTop: 20 },
   saveBtnText:      { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   // Color swatches
@@ -1215,15 +1215,15 @@ const s = StyleSheet.create({
 
   // Modal
   modalOverlay:     { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalSheet:       { backgroundColor: "#1e293b", borderTopLeftRadius: 28, borderTopRightRadius: 28,
+  modalSheet:       { backgroundColor: "#17142B", borderTopLeftRadius: 28, borderTopRightRadius: 28,
                       maxHeight: "92%", paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12,
-                      borderWidth: 1, borderBottomWidth: 0, borderColor: "#334155" },
-  modalHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: "#334155", alignSelf: "center", marginBottom: 20 },
-  modalTitle:       { fontSize: 17, fontWeight: "700", color: "#f1f5f9", marginBottom: 20 },
+                      borderWidth: 1, borderBottomWidth: 0, borderColor: "#3A3652" },
+  modalHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: "#3A3652", alignSelf: "center", marginBottom: 20 },
+  modalTitle:       { fontSize: 17, fontWeight: "700", color: "#F0ECE4", marginBottom: 20 },
   modalFooter:      { flexDirection: "row", gap: 10, paddingTop: 12 },
   modalCancel:      { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center",
-                      backgroundColor: "#0f172a", borderWidth: 1, borderColor: "#334155" },
-  modalCancelText:  { color: "#94a3b8", fontWeight: "600" },
-  modalSave:        { flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: "#2563EB" },
+                      backgroundColor: "#0E0C1C", borderWidth: 1, borderColor: "#3A3652" },
+  modalCancelText:  { color: "#A6A1BE", fontWeight: "600" },
+  modalSave:        { flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: "#5A4AD6" },
   modalSaveText:    { color: "#fff", fontWeight: "700" },
 });

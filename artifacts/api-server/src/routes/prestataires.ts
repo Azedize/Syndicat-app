@@ -23,6 +23,7 @@ import {
   assertUserCanAccessBuilding,
 } from "../lib/scope.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { localToday } from "../lib/charge-time.js";
 
 const router = Router();
 
@@ -97,7 +98,7 @@ router.get("/prestataires", requireAuth, async (req, res) => {
         .groupBy(travauxTable.prestataireId),
     ]);
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = localToday();
     const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0];
@@ -163,7 +164,7 @@ router.get(
             .where(inArray(travauxTable.prestataireId, providerIds))
         : [];
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = localToday();
       const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
@@ -1032,7 +1033,7 @@ router.post(
           prestataireId: existing.prestataireId,
           buildingId: existing.buildingId,
           title: existing.title,
-          startDate: existing.endDate ?? new Date().toISOString().split("T")[0],
+          startDate: existing.endDate ?? localToday(),
           endDate,
           monthlyAmount: monthlyAmount ?? existing.monthlyAmount,
           annualAmount: annualAmount ?? existing.annualAmount,

@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -24,6 +24,7 @@ import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { localDate } from "@/lib/localDate";
 
 const STRINGS = {
   screenTitle: {
@@ -238,9 +239,9 @@ const STATUS_CFG: Record<
   string,
   { stringKey: keyof typeof STRINGS; color: string; bg: string }
 > = {
-  paid: { stringKey: "statusPaid", color: "#10b981", bg: "#10b98118" },
-  pending: { stringKey: "statusPending", color: "#f59e0b", bg: "#f59e0b18" },
-  draft: { stringKey: "statusDraft", color: "#6b7280", bg: "#6b728018" },
+  paid: { stringKey: "statusPaid", color: "#13976C", bg: "#13976C18" },
+  pending: { stringKey: "statusPending", color: "#C98511", bg: "#C9851118" },
+  draft: { stringKey: "statusDraft", color: "#6A6680", bg: "#6A668018" },
 };
 
 type SalaryRecord = {
@@ -424,7 +425,7 @@ function FichesPaieScreenInner() {
         "PUT",
         {
           status: "paid",
-          paidDate: new Date().toISOString().split("T")[0],
+          paidDate: localDate(),
         },
         token,
       );
@@ -469,7 +470,7 @@ function FichesPaieScreenInner() {
       <View
         style={[
           styles.header,
-          { paddingTop: topPad + 16, backgroundColor: "#2563EB" },
+          { paddingTop: topPad + 16, backgroundColor: colors.navy },
         ]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -501,24 +502,24 @@ function FichesPaieScreenInner() {
       <View
         style={[
           styles.statsRow,
-          { backgroundColor: "#fff", borderBottomColor: "#e2e8f0" },
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
         {[
           {
             label: STRINGS.totalMonth[lang],
             value: formatMoney(totalNet, lang),
-            color: "#2563EB",
+            color: "#5A4AD6",
           },
           {
             label: STRINGS.paid[lang],
             value: paidCount.toString(),
-            color: "#10b981",
+            color: colors.success,
           },
           {
             label: STRINGS.pending[lang],
             value: pendingCount.toString(),
-            color: "#f59e0b",
+            color: colors.warning,
           },
         ].map((s, i, arr) => (
           <View
@@ -527,12 +528,12 @@ function FichesPaieScreenInner() {
               styles.statCell,
               i < arr.length - 1 && {
                 borderRightWidth: 1,
-                borderRightColor: "#e2e8f0",
+                borderRightColor: "#E7E1D6",
               },
             ]}
           >
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-            <Text style={[styles.statLab, { color: "#64748b" }]}>
+            <Text style={[styles.statLab, { color: "#6A6680" }]}>
               {s.label}
             </Text>
           </View>
@@ -544,7 +545,7 @@ function FichesPaieScreenInner() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={[styles.monthsScroll, { borderBottomColor: "#e2e8f0" }]}
+          style={[styles.monthsScroll, { borderBottomColor: colors.border }]}
           contentContainerStyle={{
             paddingHorizontal: 12,
             gap: 8,
@@ -558,8 +559,8 @@ function FichesPaieScreenInner() {
                 styles.monthChip,
                 {
                   backgroundColor:
-                    selectedMonth === m ? "#2563EB" : colors.secondary,
-                  borderColor: selectedMonth === m ? "#2563EB" : colors.border,
+                    selectedMonth === m ? "#5A4AD6" : colors.secondary,
+                  borderColor: selectedMonth === m ? "#5A4AD6" : colors.border,
                 },
               ]}
               onPress={() => setSelectedMonth(m)}
@@ -581,7 +582,7 @@ function FichesPaieScreenInner() {
         <LoadingState
           title={STRINGS.loadingTitle[lang]}
           description={STRINGS.loadingDescription[lang]}
-          accentColor="#2563EB"
+          accentColor="#5A4AD6"
         />
       ) : loadError ? (
         <ErrorState
@@ -589,7 +590,7 @@ function FichesPaieScreenInner() {
           description={STRINGS.errorDescription[lang]}
           retryLabel={STRINGS.retry[lang]}
           onRetry={() => load()}
-          accentColor="#ef4444"
+         
         />
       ) : (
         <ScrollView
@@ -601,7 +602,7 @@ function FichesPaieScreenInner() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#2563EB"
+              tintColor="#5A4AD6"
             />
           }
           showsVerticalScrollIndicator={false}
@@ -609,9 +610,9 @@ function FichesPaieScreenInner() {
           {monthRecords.length === 0 ? (
             <View style={styles.empty}>
               <View
-                style={[styles.emptyIcon, { backgroundColor: "#2563EB15" }]}
+                style={[styles.emptyIcon, { backgroundColor: "#5A4AD615" }]}
               >
-                <Feather name="file-text" size={32} color="#2563EB" />
+                <Feather name="file-text" size={32} color="#5A4AD6" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 {STRINGS.emptyTitle[lang]}
@@ -642,10 +643,10 @@ function FichesPaieScreenInner() {
                     <View
                       style={[
                         styles.avatarCircle,
-                        { backgroundColor: "#2563EB18" },
+                        { backgroundColor: "#5A4AD618" },
                       ]}
                     >
-                      <Feather name="user" size={20} color="#2563EB" />
+                      <Feather name="user" size={20} color="#5A4AD6" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text
@@ -688,8 +689,8 @@ function FichesPaieScreenInner() {
                         { borderTopColor: colors.border },
                       ]}
                     >
-                      <Feather name="check-circle" size={12} color="#10b981" />
-                      <Text style={[styles.paidDate, { color: "#10b981" }]}>
+                      <Feather name="check-circle" size={12} color={colors.success} />
+                      <Text style={[styles.paidDate, { color: colors.success }]}>
                         {STRINGS.paidOn[lang]} {rec.paidDate}
                       </Text>
                     </View>
@@ -704,8 +705,8 @@ function FichesPaieScreenInner() {
                         style={[
                           styles.payBtn,
                           {
-                            backgroundColor: "#10b98118",
-                            borderColor: "#10b981",
+                            backgroundColor: colors.success + "18",
+                            borderColor: colors.success,
                             opacity: payingIds.has(rec.id) ? 0.6 : 1,
                           },
                         ]}
@@ -727,8 +728,8 @@ function FichesPaieScreenInner() {
                           );
                         }}
                       >
-                        <Feather name="check" size={14} color="#10b981" />
-                        <Text style={[styles.payBtnText, { color: "#10b981" }]}>
+                        <Feather name="check" size={14} color={colors.success} />
+                        <Text style={[styles.payBtnText, { color: colors.success }]}>
                           {STRINGS.markPaid[lang]}
                         </Text>
                       </TouchableOpacity>
@@ -805,7 +806,7 @@ function FichesPaieScreenInner() {
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                { backgroundColor: "#2563EB", opacity: submitting ? 0.7 : 1 },
+                { backgroundColor: "#5A4AD6", opacity: submitting ? 0.7 : 1 },
               ]}
               onPress={handleAdd}
               disabled={submitting}
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",

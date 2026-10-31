@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,7 +25,8 @@ import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
-type Role = "super_admin" | "syndicate_admin" | "member" | "tenant";
+// Every role the API returns (the list crashed on president/treasurer/…).
+type Role = "super_admin" | "syndicate_admin" | "president" | "treasurer" | "secretary" | "committee_member" | "member" | "tenant";
 type Status = "active" | "inactive" | "suspended" | "pending";
 
 interface User {
@@ -46,6 +47,10 @@ const STRINGS = {
   syndicateAdmin: { fr: "Admin Syndicat", en: "Syndicate Admin", ar: "مدير النقابة", es: "Admin Sindicato" },
   member: { fr: "Membre", en: "Member", ar: "عضو", es: "Miembro" },
   tenant: { fr: "Locataire", en: "Tenant", ar: "مستأجر", es: "Inquilino" },
+  president: { fr: "Président", en: "President", ar: "الرئيس", es: "Presidente" },
+  treasurer: { fr: "Trésorier", en: "Treasurer", ar: "أمين المال", es: "Tesorero" },
+  secretary: { fr: "Secrétaire", en: "Secretary", ar: "الكاتب العام", es: "Secretario" },
+  committeeMember: { fr: "Membre du conseil", en: "Council member", ar: "عضو المجلس", es: "Miembro del consejo" },
   active: { fr: "Actif", en: "Active", ar: "نشط", es: "Activo" },
   inactive: { fr: "Inactif", en: "Inactive", ar: "غير نشط", es: "Inactivo" },
   suspended: { fr: "Suspendu", en: "Suspended", ar: "موقوف", es: "Suspendido" },
@@ -112,17 +117,21 @@ const STRINGS = {
 };
 
 const ROLE_CONFIG: Record<Role, { labelKey: keyof typeof STRINGS; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  super_admin: { labelKey: "superAdmin", color: "#2563EB", icon: "shield" },
-  syndicate_admin: { labelKey: "syndicateAdmin", color: "#3b82f6", icon: "briefcase" },
-  member: { labelKey: "member", color: "#10b981", icon: "user" },
-  tenant: { labelKey: "tenant", color: "#f97316", icon: "key" },
+  super_admin: { labelKey: "superAdmin", color: "#5A4AD6", icon: "shield" },
+  syndicate_admin: { labelKey: "syndicateAdmin", color: "#5A4AD6", icon: "briefcase" },
+  member: { labelKey: "member", color: "#13976C", icon: "user" },
+  tenant: { labelKey: "tenant", color: "#C8642A", icon: "key" },
+  president: { labelKey: "president", color: "#B8862F", icon: "award" },
+  treasurer: { labelKey: "treasurer", color: "#0B7A57", icon: "bar-chart-2" },
+  secretary: { labelKey: "secretary", color: "#0F6E7D", icon: "file-text" },
+  committee_member: { labelKey: "committeeMember", color: "#6A6680", icon: "users" },
 };
 
 const STATUS_CONFIG: Record<Status, { labelKey: keyof typeof STRINGS; color: string }> = {
-  active: { labelKey: "active", color: "#10b981" },
-  inactive: { labelKey: "inactive", color: "#6b7280" },
-  suspended: { labelKey: "suspended", color: "#ef4444" },
-  pending: { labelKey: "pending", color: "#f59e0b" },
+  active: { labelKey: "active", color: "#13976C" },
+  inactive: { labelKey: "inactive", color: "#6A6680" },
+  suspended: { labelKey: "suspended", color: "#C8323C" },
+  pending: { labelKey: "pending", color: "#C98511" },
 };
 
 
@@ -308,7 +317,7 @@ export default function UtilisateursScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#fff" />
@@ -329,8 +338,8 @@ export default function UtilisateursScreen() {
         <View style={styles.statsRow}>
           {[
             { label: STRINGS.total[lang], value: counts.all, color: "#fff" },
-            { label: STRINGS.activeStats[lang], value: counts.active, color: "#6ee7b7" },
-            { label: STRINGS.pending[lang], value: counts.pending, color: "#fcd34d" },
+            { label: STRINGS.activeStats[lang], value: counts.active, color: "#7FE3B8" },
+            { label: STRINGS.pending[lang], value: counts.pending, color: "#F2B84B" },
             { label: STRINGS.suspendedPlural[lang], value: counts.suspended, color: "#fca5a5" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
@@ -537,19 +546,19 @@ export default function UtilisateursScreen() {
                 {/* Actions */}
                 <View style={styles.actionBtns}>
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b40" }]}
+                    style={[styles.actionBtn, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "40" }]}
                     onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); try { await apiRequest("/auth/forgot-password", "POST", { email: u.email }); } catch {} showToast({ type: "info", title: STRINGS.emailSent[lang], message: STRINGS.resetEmailSent[lang].replace("{email}", u.email) }); }}
                   >
-                    <Feather name="key" size={15} color="#f59e0b" />
-                    <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{STRINGS.resetPassword[lang]}</Text>
+                    <Feather name="key" size={15} color={colors.warning} />
+                    <Text style={[styles.actionBtnText, { color: colors.warning }]}>{STRINGS.resetPassword[lang]}</Text>
                   </TouchableOpacity>
                    {canManageAllRoles ? (
                      <TouchableOpacity
-                       style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef444440" }]}
+                       style={[styles.actionBtn, { backgroundColor: colors.danger + "15", borderColor: colors.danger + "40" }]}
                        onPress={() => handleDelete(u.id, u.name)}
                      >
-                       <Feather name="trash-2" size={15} color="#ef4444" />
-                       <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{STRINGS.delete[lang]}</Text>
+                       <Feather name="trash-2" size={15} color={colors.danger} />
+                       <Text style={[styles.actionBtnText, { color: colors.danger }]}>{STRINGS.delete[lang]}</Text>
                      </TouchableOpacity>
                    ) : null}
                 </View>
@@ -624,7 +633,7 @@ const styles = StyleSheet.create({
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, padding: 14 },
   statBox: { flex: 1, alignItems: "center", gap: 4 },
-  statVal: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  statVal: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   statLab: { fontSize: 10, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", textAlign: "center" },
   searchBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 4 },
@@ -657,8 +666,8 @@ const styles = StyleSheet.create({
   modalSave: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
   modalAvatarBox: { flex: 1, alignItems: "center", gap: 8 },
   modalAvatar: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  modalAvatarText: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff" },
-  modalName: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  modalAvatarText: { fontSize: 26, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
+  modalName: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   modalRoleBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
   modalRoleText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
 

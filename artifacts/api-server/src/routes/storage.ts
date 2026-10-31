@@ -198,6 +198,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB — matches mobile upload.ts
 // format as the GCS presigned-URL flow: "/objects/uploads/<uuid><ext>"
 
 const upload = multer({
+  // UTF-8 file names (accents, Arabic) instead of busboy's latin1 default.
+  defParamCharset: "utf8",
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
@@ -343,11 +345,23 @@ router.patch("/storage/documents/:id/confirm", requireAuth, (_req: Request, res:
   res.status(410).json({ error: "Utilisez POST /documents/upload", code: "USE_DOCUMENT_UPLOAD" });
 });
 
+/**
+ * Files are displayed by the web app from another origin (<img>, <video>):
+ * helmet's default Cross-Origin-Resource-Policy "same-origin" made the browser
+ * drop them. Access is still decided by the handlers below (download ticket or
+ * JWT, then the record that uses the file), never by the requesting origin.
+ */
+function allowCrossOriginEmbedding(_req: Request, res: Response, next: () => void) {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+}
+
 // ─── GET /storage/public-objects/* ───────────────────────────────────────────
 // Serve public assets (no auth required).
 
 router.get(
   "/storage/public-objects/*filePath",
+  allowCrossOriginEmbedding,
   async (req: Request, res: Response) => {
     try {
       const raw = req.params.filePath;
@@ -389,6 +403,7 @@ router.get(
 
 router.get(
   "/storage/objects/*path",
+  allowCrossOriginEmbedding,
   softAuth,
   async (req: Request, res: Response) => {
     try {

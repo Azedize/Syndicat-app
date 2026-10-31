@@ -13,7 +13,7 @@
  *   • Live counter strip (from /stats)
  */
 
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -135,13 +135,13 @@ const STATUS_TABS: {
   color: string;
   icon: React.ComponentProps<typeof Feather>["name"];
 }[] = [
-  { key: "pending_review",          labelKey: "marketplaceStatusPendingReview", color: "#f59e0b", icon: "clock"       },
-  { key: "approved",                labelKey: "marketplaceStatusApproved", color: "#22c55e", icon: "check-circle" },
-  { key: "rejected",                labelKey: "marketplaceStatusRejected", color: "#ef4444", icon: "x-circle"    },
-  { key: "modification_requested",  labelKey: "marketplaceStatusModificationRequested", color: "#f97316", icon: "edit-2"      },
-  { key: "reported",                labelKey: "marketplaceReported", color: "#dc2626", icon: "flag"        },
-  { key: "reserved",                labelKey: "marketplaceStatusReserved", color: "#1F5EFF", icon: "lock"        },
-  { key: "sold",                    labelKey: "marketplaceStatusSold", color: "#94a3b8", icon: "package"     },
+  { key: "pending_review",          labelKey: "marketplaceStatusPendingReview", color: "#C98511", icon: "clock"       },
+  { key: "approved",                labelKey: "marketplaceStatusApproved", color: "#13976C", icon: "check-circle" },
+  { key: "rejected",                labelKey: "marketplaceStatusRejected", color: "#C8323C", icon: "x-circle"    },
+  { key: "modification_requested",  labelKey: "marketplaceStatusModificationRequested", color: "#C8642A", icon: "edit-2"      },
+  { key: "reported",                labelKey: "marketplaceReported", color: "#B42530", icon: "flag"        },
+  { key: "reserved",                labelKey: "marketplaceStatusReserved", color: "#5A4AD6", icon: "lock"        },
+  { key: "sold",                    labelKey: "marketplaceStatusSold", color: "#A6A1BE", icon: "package"     },
 ];
 
 const REJECT_REASONS = [
@@ -405,9 +405,9 @@ function ModerationDashboard() {
            <Text style={[styles.title, { color: colors.foreground }]}>{t("marketplaceModeration")}</Text>
            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t("marketplaceModerationAccessibility")}</Text>
           </View>
-          <View style={[styles.rolePill, { backgroundColor: "#ef444420", borderColor: "#ef444430" }]}>
-            <Feather name="shield" size={12} color="#ef4444" />
-             <Text style={[styles.rolePillText, { color: "#ef4444" }]}>{t("superAdmin")}</Text>
+          <View style={[styles.rolePill, { backgroundColor: colors.danger + "20", borderColor: colors.danger + "30" }]}>
+            <Feather name="shield" size={12} color={colors.danger} />
+             <Text style={[styles.rolePillText, { color: colors.danger }]}>{t("superAdmin")}</Text>
           </View>
         </View>
       </View>
@@ -440,13 +440,13 @@ function ModerationDashboard() {
         </ScrollView>
       </View>
       {statsError ? (
-        <View style={[styles.dataWarning, { backgroundColor: "#f59e0b12", borderBottomColor: colors.border }]}>
-          <Feather name="alert-circle" size={14} color="#f59e0b" />
+        <View style={[styles.dataWarning, { backgroundColor: colors.warning + "12", borderBottomColor: colors.border }]}>
+          <Feather name="alert-circle" size={14} color={colors.warning} />
           <Text style={[styles.dataWarningText, { color: colors.foreground }]}>
             {STATE_COPY.statsUnavailable[lang]}
           </Text>
           <TouchableOpacity onPress={() => void fetchStats()} accessibilityRole="button" accessibilityLabel={STATE_COPY.retry[lang]}>
-            <Text style={[styles.dataWarningRetry, { color: "#f59e0b" }]}>{STATE_COPY.retry[lang]}</Text>
+            <Text style={[styles.dataWarningRetry, { color: colors.warning }]}>{STATE_COPY.retry[lang]}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -616,7 +616,7 @@ function ModerationDashboard() {
                 <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>{t("cartCancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.btnPrimary, { backgroundColor: !changesComment.trim() ? colors.muted : "#f97316" }]}
+                style={[styles.btnPrimary, { backgroundColor: !changesComment.trim() ? colors.muted : colors.warning }]}
                 onPress={submitChanges}
                 disabled={!changesComment.trim() || changesSubmitting}
               >
@@ -666,14 +666,14 @@ function ModerationDashboard() {
                 })()}
 
                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detailProduct.name}</Text>
-                <Text style={[styles.detailPrice, { color: colors.primary  }]}>{formatMAD(detailProduct.price, locale)} MAD</Text>
+                <Text style={[styles.detailPrice, { color: colors.tint  }]}>{formatMAD(detailProduct.price, locale)} MAD</Text>
 
                 {/* Info grid */}
                 <View style={[styles.infoGrid, { borderColor: colors.border }]}>
                   {([
-                    { label: "Catégorie",    value: detailProduct.category },
-                    { label: "Marque",       value: detailProduct.brand },
-                    { label: "Modèle",       value: detailProduct.model },
+                    { label: t("adminMkCategory"), value: detailProduct.category },
+                    { label: t("adminMkBrand"), value: detailProduct.brand },
+                    { label: t("adminMkModel"), value: detailProduct.model },
                     { label: t("marketplaceConditionLabel"), value: detailProduct.condition ? t(CONDITION_LABELS[detailProduct.condition] ?? "") : detailProduct.condition },
                     { label: t("marketplaceLocationLabel"), value: detailProduct.location },
                     { label: t("marketplaceBuildingLabel"), value: detailProduct.building },
@@ -708,9 +708,9 @@ function ModerationDashboard() {
                 ) : null}
 
                 {detailProduct.moderationNote && !detailProduct.rejectionReason ? (
-                  <View style={[styles.alertBox, { backgroundColor: "#f59e0b12", borderColor: "#f59e0b35" }]}>
-                    <Feather name="message-circle" size={13} color="#f59e0b" />
-                    <Text style={[styles.alertBoxText, { color: "#f59e0b" }]}>{detailProduct.moderationNote}</Text>
+                  <View style={[styles.alertBox, { backgroundColor: colors.warning + "12", borderColor: colors.warning + "35" }]}>
+                    <Feather name="message-circle" size={13} color={colors.warning} />
+                    <Text style={[styles.alertBoxText, { color: colors.warning }]}>{detailProduct.moderationNote}</Text>
                   </View>
                 ) : null}
 
@@ -718,7 +718,7 @@ function ModerationDashboard() {
                 {detailProduct.status === "pending_review" && (
                   <View style={styles.detailActions}>
                     <ActionBtn label={t("productApproveAction")} icon="check" color={colors.success} onPress={() => { setDetailModal(false); handleApprove(detailProduct.id, detailProduct.name); }} />
-                    <ActionBtn label={t("marketplaceModify")} icon="edit-2" color="#f97316" onPress={() => { setDetailModal(false); openChangesModal(detailProduct.id, detailProduct.name); }} />
+                    <ActionBtn label={t("marketplaceModify")} icon="edit-2" color={colors.warning} onPress={() => { setDetailModal(false); openChangesModal(detailProduct.id, detailProduct.name); }} />
                     <ActionBtn label={t("rejectProduct")} icon="x" color={colors.destructive} onPress={() => { setDetailModal(false); openRejectModal(detailProduct.id, detailProduct.name); }} />
                   </View>
                 )}
@@ -786,8 +786,8 @@ function ModerationDashboard() {
                     {r.details ? (
                       <Text style={[styles.reportDetails, { color: colors.foreground }]}>{r.details}</Text>
                     ) : null}
-                    <View style={[styles.reportStatusPill, { backgroundColor: r.status === "pending" ? "#f59e0b15" : "#22c55e15" }]}>
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: r.status === "pending" ? "#f59e0b" : "#22c55e" }}>
+                    <View style={[styles.reportStatusPill, { backgroundColor: r.status === "pending" ? colors.warning + "15" : colors.success + "15" }]}>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: r.status === "pending" ? colors.warning : colors.success }}>
                         {r.status === "pending" ? t("marketplaceStatusPendingReview") : t("marketplaceProcessedStatus")}
                       </Text>
                     </View>
@@ -820,12 +820,12 @@ type Colors = ReturnType<typeof import("@/hooks/useColors").useColors>;
 
 function StatusBadge({ status, colors, t }: { status: string; colors: Colors; t: (key: string) => string }) {
   const STATUS_MAP: Record<string, { color: string; label: string }> = {
-    approved:               { color: "#22c55e", label: "marketplaceStatusApproved" },
-    pending_review:         { color: "#f59e0b", label: "marketplaceStatusPendingReview" },
-    rejected:               { color: "#ef4444", label: "marketplaceStatusRejected" },
-    modification_requested: { color: "#f97316", label: "marketplaceStatusModificationRequested" },
-    reserved:               { color: "#1F5EFF", label: "marketplaceStatusReserved" },
-    sold:                   { color: "#94a3b8", label: "marketplaceStatusSold" },
+    approved:               { color: colors.success, label: "marketplaceStatusApproved" },
+    pending_review:         { color: colors.warning, label: "marketplaceStatusPendingReview" },
+    rejected:               { color: colors.danger, label: "marketplaceStatusRejected" },
+    modification_requested: { color: colors.warning, label: "marketplaceStatusModificationRequested" },
+    reserved:               { color: "#5A4AD6", label: "marketplaceStatusReserved" },
+    sold:                   { color: "#A6A1BE", label: "marketplaceStatusSold" },
   };
   const { color, label } = STATUS_MAP[status] ?? { color: colors.mutedForeground, label: status };
   return (
@@ -887,13 +887,13 @@ function ProductCard({
   t: (key: string) => string;
 }) {
   const STATUS_BORDER: Record<StatusTab, string> = {
-    pending_review:         "#f59e0b",
-    approved:               "#22c55e",
-    rejected:               "#ef4444",
-    modification_requested: "#f97316",
-    reported:               "#dc2626",
-    reserved:               "#1F5EFF",
-    sold:                   "#94a3b8",
+    pending_review:         colors.warning,
+    approved:               colors.success,
+    rejected:               colors.danger,
+    modification_requested: colors.warning,
+    reported:               colors.danger,
+    reserved:               "#5A4AD6",
+    sold:                   "#A6A1BE",
   };
   const accent    = STATUS_BORDER[tab];
   const isPending = p.status === "pending_review";
@@ -905,10 +905,10 @@ function ProductCard({
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardName,  { color: colors.foreground }]} numberOfLines={2}>{p.name ?? ""}</Text>
-          <Text style={[styles.cardPrice, { color: colors.primary    }]}>{formatMAD(p.price, locale)} MAD</Text>
+          <Text style={[styles.cardPrice, { color: colors.tint    }]}>{formatMAD(p.price, locale)} MAD</Text>
         </View>
         {(p.reportCount ?? 0) > 0 && (
-          <View style={[styles.reportCountBadge, { backgroundColor: "#ef4444" }]}>
+          <View style={[styles.reportCountBadge, { backgroundColor: colors.danger }]}>
             <Feather name="flag" size={10} color="#fff" />
             <Text style={styles.reportCountText}>{p.reportCount}</Text>
           </View>
@@ -933,9 +933,9 @@ function ProductCard({
         </View>
       )}
       {p.moderationNote && !p.rejectionReason && (
-        <View style={[styles.banner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
-          <Feather name="message-circle" size={12} color="#f59e0b" />
-          <Text style={[styles.bannerText, { color: "#f59e0b" }]} numberOfLines={2}>{p.moderationNote}</Text>
+        <View style={[styles.banner, { backgroundColor: colors.warning + "10", borderColor: colors.warning + "30" }]}>
+          <Feather name="message-circle" size={12} color={colors.warning} />
+          <Text style={[styles.bannerText, { color: colors.warning }]} numberOfLines={2}>{p.moderationNote}</Text>
         </View>
       )}
 
@@ -946,13 +946,13 @@ function ProductCard({
           <Pill icon="check" label={t("productApproveAction")} color={colors.success} loading={moderating === p.id} onPress={() => onApprove(p.id, p.name)} />
         )}
         {isPending && (
-          <Pill icon="edit-2" label={t("marketplaceModify")} color="#f97316" onPress={() => onChanges(p.id, p.name)} />
+          <Pill icon="edit-2" label={t("marketplaceModify")} color={colors.warning} onPress={() => onChanges(p.id, p.name)} />
         )}
         {(isPending || p.status === "approved" || isReported) && (
           <Pill icon="x" label={t("rejectProduct")} color={colors.destructive} onPress={() => onReject(p.id, p.name)} />
         )}
         {isReported && (
-          <Pill icon="flag" label={t("marketplaceReports")} color="#dc2626" onPress={() => onReports(p.id, p.name)} />
+          <Pill icon="flag" label={t("marketplaceReports")} color={colors.danger} onPress={() => onReports(p.id, p.name)} />
         )}
         <Pill icon="external-link" label={t("marketplaceSeller")} color={colors.mutedForeground} onPress={() => onViewSeller(p.sellerId)} />
       </View>

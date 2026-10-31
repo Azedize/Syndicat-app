@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 
@@ -16,6 +17,7 @@ const POLL_MS = 5 * 60 * 1000;
 
 export default function SubscriptionBanner() {
   const { token, user } = useAuth();
+  const { t } = useLanguage();
   const colors = useColors();
   const [status, setStatus] = useState<SubStatus | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -53,15 +55,15 @@ export default function SubscriptionBanner() {
   const isGrace = effectiveStatus === "grace";
 
   const cfg = isReadOnly
-    ? { bg: "#ef444415", border: "#ef444440", icon: "alert-circle" as const, color: "#ef4444",
-        text: "Abonnement expiré — mode lecture seule." }
+    ? { bg: "#C8323C15", border: "#C8323C40", icon: "alert-circle" as const, color: "#C8323C",
+        text: t("sbReadOnly") }
     : isGrace
-    ? { bg: "#f59e0b15", border: "#f59e0b40", icon: "alert-triangle" as const, color: "#f59e0b",
-        text: `Période de grâce — ${daysRemaining ?? 0}j restants.` }
-    : { bg: "#3b82f615", border: "#3b82f640", icon: "clock" as const, color: "#3b82f6",
+    ? { bg: "#C9851115", border: "#C9851140", icon: "alert-triangle" as const, color: "#C98511",
+        text: t("sbGrace").replace("{n}", String(daysRemaining ?? 0)) }
+    : { bg: "#5A4AD615", border: "#5A4AD640", icon: "clock" as const, color: "#5A4AD6",
         text: daysRemaining === 0
-          ? "Essai expiré aujourd'hui !"
-          : `Essai gratuit — ${daysRemaining}j restants.` };
+          ? t("sbTrialEndsToday")
+          : t("sbTrialDays").replace("{n}", String(daysRemaining)) };
 
   return (
     <Animated.View style={[styles.banner, { backgroundColor: cfg.bg, borderColor: cfg.border, opacity: fadeAnim }]}>
@@ -72,7 +74,7 @@ export default function SubscriptionBanner() {
         onPress={() => router.push("/abonnements" as any)}
         activeOpacity={0.8}
       >
-        <Text style={styles.upgradeBtnText}>Upgrade</Text>
+        <Text style={styles.upgradeBtnText}>{t("sbRenew")}</Text>
       </TouchableOpacity>
       {!isReadOnly && (
         <TouchableOpacity onPress={() => setDismissed(true)} style={styles.dismiss}>

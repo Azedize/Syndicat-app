@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -643,7 +643,7 @@ export default function ChatThreadScreen() {
           {isGroup ? (
             <Feather name="users" size={18} color={colors.primary} />
           ) : (
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.tint }]}>
               {conversation.participant.split(" ")[0].slice(0, 2).toUpperCase()}
             </Text>
           )}
@@ -784,7 +784,7 @@ export default function ChatThreadScreen() {
                   ]}
                 >
                   <Text
-                    style={[styles.msgAvatarText, { color: colors.primary }]}
+                    style={[styles.msgAvatarText, { color: colors.tint }]}
                   >
                     {msg.sender.slice(0, 2).toUpperCase()}
                   </Text>
@@ -797,7 +797,7 @@ export default function ChatThreadScreen() {
                 ]}
               >
                 {showSender && (
-                  <Text style={[styles.msgSender, { color: colors.primary }]}>
+                  <Text style={[styles.msgSender, { color: colors.tint }]}>
                     {msg.sender}
                   </Text>
                 )}
@@ -1015,7 +1015,7 @@ export default function ChatThreadScreen() {
         >
           <Feather name="edit-2" size={14} color={colors.primary} />
           <Text
-            style={[styles.editIndicatorText, { color: colors.primary }]}
+            style={[styles.editIndicatorText, { color: colors.tint }]}
             numberOfLines={1}
           >
             {t("editingMessage")}
@@ -1320,7 +1320,7 @@ export default function ChatThreadScreen() {
                 styles.sendBtn,
                 {
                   backgroundColor: editingText.trim()
-                    ? "#10b981"
+                    ? colors.success
                     : colors.muted,
                 },
               ]}

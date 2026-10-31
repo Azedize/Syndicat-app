@@ -6,7 +6,8 @@ import {
   syndicateSubscriptionsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { getStripeClient } from "../lib/stripeClient.js";
 import { logger } from "../lib/logger.js";
@@ -122,32 +123,40 @@ router.post("/subscriptions/stripe/checkout", requireAuth, requireAdmin, async (
       .limit(1);
     if (!plan || plan.isTrial) return res.status(404).json({ error: "Plan payant introuvable" });
 
-    const [existingPayment] = await db
-      .select()
-      .from(subscriptionPaymentsTable)
-      .where(
-        and(
-          eq(subscriptionPaymentsTable.syndicateId, syndicateId),
-          eq(subscriptionPaymentsTable.planId, planId),
-          eq(subscriptionPaymentsTable.billingInterval, interval),
-          eq(subscriptionPaymentsTable.paymentMethod, "card"),
-          inArray(subscriptionPaymentsTable.status, ["pending", "processing"]),
-        ),
-      )
-      .limit(1);
-    if (existingPayment?.metadata && (existingPayment.metadata as any).checkoutUrl) {
-      return res.json({
-        data: existingPayment,
-        url: (existingPayment.metadata as any).checkoutUrl,
-        duplicate: true,
-      });
-    }
-
     const price = await resolveStripePrice(plan, interval);
     const customer = await findOrCreateCustomer(user.userId, user.email, user.name);
-    const idempotencyKey = `stripe_checkout:${customer.id}:${planId}:${interval}:${Date.now()}`;
-
+    // One checkout at a time per condominium: concurrent requests (double
+    // click, two devices) are serialized by an advisory lock and the second
+    // one gets the checkout already started instead of a second subscription.
     const created = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`stripe_checkout:${syndicateId}`}))`);
+      const [existing] = await tx
+        .select()
+        .from(subscriptionPaymentsTable)
+        .where(
+          and(
+            eq(subscriptionPaymentsTable.syndicateId, syndicateId),
+            eq(subscriptionPaymentsTable.paymentMethod, "card"),
+            eq(subscriptionPaymentsTable.provider, "stripe"),
+            inArray(subscriptionPaymentsTable.status, ["pending", "processing"]),
+          ),
+        )
+        .limit(1);
+      // A checkout that never got its Stripe session (crash between the two
+      // steps) is abandoned after 10 minutes instead of blocking forever.
+      const stale = existing && !(existing.metadata as any)?.checkoutUrl && Date.now() - new Date(existing.createdAt as any).getTime() > 10 * 60_000;
+      if (existing && stale) {
+        await tx
+          .update(subscriptionPaymentsTable)
+          .set({ status: "failed", failureCode: "CHECKOUT_ABANDONED", failureMessage: "Session de paiement jamais créée", updatedAt: new Date() } as any)
+          .where(eq(subscriptionPaymentsTable.id, existing.id));
+        if (existing.subscriptionId) {
+          await tx
+            .update(syndicateSubscriptionsTable)
+            .set({ status: "cancelled", canceledAt: new Date(), notes: "Paiement Stripe abandonné" } as any)
+            .where(and(eq(syndicateSubscriptionsTable.id, existing.subscriptionId), eq(syndicateSubscriptionsTable.status, "pending_payment")));
+        }
+      } else if (existing) return { existing };
       const [pendingSubscription] = await tx
         .insert(syndicateSubscriptionsTable)
         .values({
@@ -164,7 +173,7 @@ router.post("/subscriptions/stripe/checkout", requireAuth, requireAdmin, async (
           syndicateId,
           subscriptionId: pendingSubscription.id,
           planId,
-          idempotencyKey,
+          idempotencyKey: `stripe_checkout:${randomUUID()}`,
           amount: String(interval === "yearly" ? plan.yearlyPrice : plan.price),
           currency: "MAD",
           billingInterval: interval,
@@ -180,8 +189,27 @@ router.post("/subscriptions/stripe/checkout", requireAuth, requireAdmin, async (
       return { pendingSubscription, payment };
     });
 
+    if ("existing" in created && created.existing) {
+      const ex = created.existing;
+      const url = (ex.metadata as any)?.checkoutUrl;
+      if (url && ex.planId === planId && ex.billingInterval === interval) {
+        return res.json({ data: ex, url, duplicate: true });
+      }
+      return res.status(409).json({
+        error: "Un paiement par carte est déjà en cours pour cette copropriété. Terminez-le ou attendez son expiration.",
+        code: "CHECKOUT_IN_PROGRESS",
+        data: { paymentId: ex.id, url: url ?? null },
+      });
+    }
+    if (!("payment" in created) || !created.payment || !created.pendingSubscription) {
+      throw new Error("Paiement non créé");
+    }
+
     const stripe = getStripeClient();
-    const session = await stripe.checkout.sessions.create({
+    let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+    try {
+      session = await stripe.checkout.sessions.create(
+        {
       mode: "subscription",
       customer: customer.id,
       line_items: [{ price: price.id, quantity: 1 }],
@@ -203,7 +231,22 @@ router.post("/subscriptions/stripe/checkout", requireAuth, requireAdmin, async (
           planId,
         },
       },
-    });
+        },
+        // Stripe replays the same session if this exact request is retried.
+        { idempotencyKey: created.payment.idempotencyKey ?? `stripe_checkout:${created.payment.id}` },
+      );
+    } catch (stripeError) {
+      // No session: the pending rows must not block nor pretend a checkout exists.
+      await db
+        .update(subscriptionPaymentsTable)
+        .set({ status: "failed", failureCode: "STRIPE_SESSION_FAILED", failureMessage: String((stripeError as Error)?.message ?? "").slice(0, 500), updatedAt: new Date() } as any)
+        .where(eq(subscriptionPaymentsTable.id, created.payment.id));
+      await db
+        .update(syndicateSubscriptionsTable)
+        .set({ status: "cancelled", canceledAt: new Date(), notes: "Session de paiement Stripe non créée" } as any)
+        .where(and(eq(syndicateSubscriptionsTable.id, created.pendingSubscription.id), eq(syndicateSubscriptionsTable.status, "pending_payment")));
+      throw stripeError;
+    }
 
     const [updatedPayment] = await db
       .update(subscriptionPaymentsTable)

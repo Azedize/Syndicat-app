@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -22,11 +22,11 @@ export interface SyndicateCardData {
 }
 
 const HEALTH_CONFIG = {
-  healthy: { label: "Sain", color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
-  warning: { label: "Attention", color: "#f59e0b", bg: "#f59e0b18", icon: "alert-triangle" as const },
-  critical: { label: "Critique", color: "#ef4444", bg: "#ef444418", icon: "alert-circle" as const },
-  active: { label: "Actif", color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
-  inactive: { label: "Inactif", color: "#9ca3af", bg: "#9ca3af18", icon: "minus-circle" as const },
+  healthy: { label: "Sain", color: "#13976C", bg: "#13976C18", icon: "check-circle" as const },
+  warning: { label: "Attention", color: "#C98511", bg: "#C9851118", icon: "alert-triangle" as const },
+  critical: { label: "Critique", color: "#C8323C", bg: "#C8323C18", icon: "alert-circle" as const },
+  active: { label: "Actif", color: "#13976C", bg: "#13976C18", icon: "check-circle" as const },
+  inactive: { label: "Inactif", color: "#A6A1BE", bg: "#A6A1BE18", icon: "minus-circle" as const },
 };
 
 interface SyndicateCardProps {
@@ -38,7 +38,7 @@ export default function SyndicateCard({ data, onPress }: SyndicateCardProps) {
   const colors = useColors();
   const statusKey = data.status in HEALTH_CONFIG ? data.status : "active";
   const hc = HEALTH_CONFIG[statusKey as keyof typeof HEALTH_CONFIG];
-  const logoColor = data.logoColor ?? "#2563EB";
+  const logoColor = data.logoColor ?? "#5A4AD6";
   const abbr = data.abbreviation ?? data.name.slice(0, 3).toUpperCase();
 
   const formattedDate = data.createdAt
@@ -57,9 +57,9 @@ export default function SyndicateCard({ data, onPress }: SyndicateCardProps) {
           backgroundColor: colors.card,
           borderColor:
             data.status === "critical"
-              ? "#ef444440"
+              ? "#C8323C40"
               : data.status === "warning"
-              ? "#f59e0b30"
+              ? "#C9851130"
               : colors.border,
         },
       ]}
@@ -85,7 +85,7 @@ export default function SyndicateCard({ data, onPress }: SyndicateCardProps) {
             {data.name}
           </Text>
           {data.legalForm ? (
-            <Text style={[styles.legalForm, { color: colors.primary }]} numberOfLines={1}>
+            <Text style={[styles.legalForm, { color: colors.tint }]} numberOfLines={1}>
               {data.legalForm}
             </Text>
           ) : null}
@@ -110,13 +110,13 @@ export default function SyndicateCard({ data, onPress }: SyndicateCardProps) {
             icon: "home" as const,
             label: "Immeubles",
             value: (data.buildingsCount ?? 0).toString(),
-            color: "#3b82f6",
+            color: "#5A4AD6",
           },
           {
             icon: "users" as const,
             label: "Membres",
             value: (data.membersCount ?? 0).toLocaleString(),
-            color: colors.primary,
+            color: colors.tint,
           },
           {
             icon: "hash" as const,

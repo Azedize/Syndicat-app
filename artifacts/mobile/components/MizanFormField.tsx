@@ -54,7 +54,7 @@ export default function MizanFormField({
           styles.label,
           {
             color: error ? colors.destructive : colors.foreground,
-            textAlign: isRTL ? "right" : "left",
+            textAlign: "auto",
           },
         ]}
       >
@@ -63,12 +63,12 @@ export default function MizanFormField({
       </Text>
       <View
         accessible
-        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityLabel={`${accessibilityLabel ?? label}${required ? " *" : ""}${error ? `, ${error}` : ""}`}
         accessibilityState={{ disabled }}
         style={[
           styles.inputRow,
           {
-            backgroundColor: disabled ? colors.surfaceMuted : colors.surfaceElevated,
+            backgroundColor: disabled ? colors.surfaceMuted : colors.surface,
             borderColor: stateColor,
             opacity: disabled ? 0.7 : 1,
           },
@@ -88,21 +88,24 @@ export default function MizanFormField({
         {trailing}
       </View>
       {error ? (
-        <Text
-          style={[
-            styles.error,
-            { color: colors.destructive, textAlign: isRTL ? "right" : "left" },
-          ]}
-        >
-          {error}
-        </Text>
+        <View style={styles.errorRow} accessibilityLiveRegion="polite">
+          <Feather name="alert-circle" size={13} color={colors.danger} />
+          <Text
+            style={[
+              styles.error,
+              { color: colors.dangerText, textAlign: "auto" },
+            ]}
+          >
+            {error}
+          </Text>
+        </View>
       ) : helper ? (
         <Text
           style={[
             styles.helper,
             {
               color: colors.mutedForeground,
-              textAlign: isRTL ? "right" : "left",
+              textAlign: "auto",
             },
           ]}
         >
@@ -134,8 +137,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   error: {
-    fontSize: TYPOGRAPHY.SM,
+    flex: 1,
+    fontSize: TYPOGRAPHY.SM + 1,
     fontFamily: "Inter_500Medium",
   },
   helper: {

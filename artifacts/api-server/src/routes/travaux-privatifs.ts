@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 /**
  * Travaux Privatifs — Resident Structural/Exterior Modification Requests
  *
@@ -177,8 +178,7 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 
     res.json({ data: rows.map(({ row }) => row), total: rows.length });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -213,8 +213,7 @@ router.get("/travaux-privatifs/:id", requireAuth, async (req, res) => {
     }
     res.json({ data: row });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -327,8 +326,7 @@ router.post("/travaux-privatifs", requireAuth, async (req, res) => {
 
     res.status(201).json({ data: row, message: "Demande soumise avec succès" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -411,8 +409,7 @@ router.post(
 
       res.json({ data: updated, message: "Revue initiale enregistrée" });
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -480,8 +477,7 @@ router.post(
 
       res.json({ data: updated, message: "Avis du comité enregistré" });
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -546,8 +542,7 @@ router.post(
 
       res.json({ data: updated, message: "Résultat du vote enregistré" });
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -621,8 +616,7 @@ router.post(
         message: `Demande ${decision === "approved" ? "approuvée" : "refusée"} et archivée`,
       });
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Erreur serveur" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -662,8 +656,7 @@ router.put("/travaux-privatifs/:id/withdraw", requireAuth, async (req, res) => {
 
     res.json({ data: updated, message: "Demande retirée" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, e);
   }
 });
 

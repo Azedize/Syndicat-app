@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -35,19 +36,7 @@ import { computeAllocation, loadSources } from "../lib/allocation.js";
 import { finalizeAllocation } from "../lib/allocation-store.js";
 import { localToday } from "../lib/charge-time.js";
 import { createAlert, notifyUser } from "../lib/notify.js";
-import {
-  FinanceError,
-  amountSchema,
-  fromCents,
-  lockAccount,
-  postEntry,
-  recordOperation,
-  sendFinanceError,
-  settlementStatus,
-  toCents,
-  today,
-  uniqueViolation,
-} from "../lib/treasury.js";
+import { FinanceError, amountSchema, fromCents, lockAccount, postEntry, recordOperation, sendFinanceError, settlementStatus, toCents, today, uniqueViolation, moneyDiff } from "../lib/treasury.js";
 
 /** True when the user is syndicate-scoped (not super_admin). Used for row-level scoping in finance queries. */
 function isSyndicateScoped(role: string): boolean {
@@ -126,6 +115,55 @@ const updateBudgetSchema = z.object({
   meetingId: z.string().min(1).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
 });
+
+const budgetLineSchema = z.object({
+  category: z.string().min(1).max(100),
+  label: z.string().min(1).max(300),
+  amountAnnual: budgetAmount,
+  amountQ1: budgetAmount.optional(),
+  amountQ2: budgetAmount.optional(),
+  amountQ3: budgetAmount.optional(),
+  amountQ4: budgetAmount.optional(),
+  prestataireId: z.string().min(1).nullable().optional(),
+});
+
+const createBudgetSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  buildingId: z.string().min(1),
+  totalAmount: budgetAmount.optional(),
+  chargesAmount: budgetAmount.optional(),
+  fondsReserve: budgetAmount.optional(),
+  status: z.string().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  lines: z.array(budgetLineSchema).max(200).optional(),
+});
+
+/**
+ * Budget amounts, in cents. The convention used by the execution report, the
+ * calls for funds and the charge allocation: the budget lines detail the
+ * current charges, and the reserve fund is apart from them —
+ *   lines = charges, total = charges + reserve.
+ * A missing amount is derived; amounts given that contradict each other are
+ * refused rather than stored.
+ */
+export function reconcileBudgetAmounts(input: {
+  totalAmount?: string;
+  chargesAmount?: string;
+  fondsReserve?: string;
+  linesTotal?: string;
+}): { ok: true; totalAmount: string; chargesAmount: string; fondsReserve: string } | { ok: false; error: string } {
+  const lines = input.linesTotal !== undefined ? toCents(input.linesTotal) : undefined;
+  const charges = input.chargesAmount !== undefined ? toCents(input.chargesAmount) : lines ?? 0;
+  if (lines !== undefined && lines !== charges) {
+    return { ok: false, error: `Les lignes du budget (${fromCents(lines)} MAD) doivent totaliser le montant des charges (${fromCents(charges)} MAD). Le fonds de réserve ne figure pas parmi les lignes.` };
+  }
+  const reserve = input.fondsReserve !== undefined ? toCents(input.fondsReserve) : 0;
+  const total = input.totalAmount !== undefined ? toCents(input.totalAmount) : charges + reserve;
+  if (total !== charges + reserve) {
+    return { ok: false, error: `Le total du budget (${fromCents(total)} MAD) doit être égal aux charges (${fromCents(charges)} MAD) plus le fonds de réserve (${fromCents(reserve)} MAD).` };
+  }
+  return { ok: true, totalAmount: fromCents(total), chargesAmount: fromCents(charges), fondsReserve: fromCents(reserve) };
+}
 
 type OwnerLookupExecutor = Pick<typeof db, "select">;
 
@@ -297,8 +335,7 @@ router.get("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
-    req.log.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -348,8 +385,7 @@ router.get(
 
       res.json({ budget, lines, appels });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -366,7 +402,9 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user!;
-      if (!["syndicate_admin", "treasurer", "president", "committee_member"].includes(user.role) || !user.syndicateId) {
+      // Co-owners read the execution of the budgets adopted in general meeting
+      // (approved / closed), never a draft — see GET /transparency/finances.
+      if (!["syndicate_admin", "treasurer", "president", "committee_member", "secretary", "member"].includes(user.role) || !user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
       const [budget] = await db
@@ -375,6 +413,9 @@ router.get(
         .innerJoin(buildingsTable, eq(buildingsTable.id, budgetsTable.buildingId))
         .where(eq(budgetsTable.id, String(req.params.id)));
       if (!budget || budget.syndicateId !== user.syndicateId) {
+        return void res.status(404).json({ error: "Budget introuvable" });
+      }
+      if ((user.role === "member" || user.role === "secretary") && !["approved", "closed"].includes(budget.budget.status ?? "")) {
         return void res.status(404).json({ error: "Budget introuvable" });
       }
       const b = budget.budget;
@@ -472,22 +513,27 @@ router.get(
 router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
-    const {
-      year,
-      buildingId,
-      totalAmount,
-      chargesAmount,
-      fondsReserve,
-      status,
-      notes,
-      lines,
-    } = req.body;
-
-    if (!year || !buildingId) {
+    if (!req.body?.year || !req.body?.buildingId) {
       return void res
         .status(400)
         .json({ error: "year and buildingId are required" });
     }
+    const parsedBody = createBudgetSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return void res.status(400).json({
+        error: parsedBody.error.issues[0]?.message ?? "Données invalides",
+        code: "BUDGET_INVALID",
+      });
+    }
+    const { year, buildingId, status, notes, lines } = parsedBody.data;
+    const amounts = reconcileBudgetAmounts({
+      ...parsedBody.data,
+      linesTotal: lines?.length ? fromCents(lines.reduce((s, l) => s + toCents(l.amountAnnual), 0)) : undefined,
+    });
+    if (!amounts.ok) {
+      return void res.status(400).json({ error: amounts.error, code: "BUDGET_TOTALS_MISMATCH" });
+    }
+    const { totalAmount, chargesAmount, fondsReserve } = amounts;
     // A budget is approved only by the general assembly (PUT with meetingId),
     // never at creation.
     if (status !== undefined && !PRE_APPROVAL_BUDGET_STATUSES.includes(status)) {
@@ -588,8 +634,7 @@ router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
 
     res.status(201).json(budget);
   } catch (e) {
-    req.log.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -645,6 +690,31 @@ router.put(
           code: "BUDGET_LOCKED",
         });
       }
+      if (changesAmounts) {
+        // The amounts after the change must still agree with each other and
+        // with the lines already recorded.
+        const existingLines = await db
+          .select({ amount: budgetLinesTable.amountAnnual })
+          .from(budgetLinesTable)
+          .where(eq(budgetLinesTable.budgetId, existing.id));
+        const touched = (k: "totalAmount" | "chargesAmount" | "fondsReserve") =>
+          k in updates ? String(updates[k]) : undefined;
+        const charges = touched("chargesAmount") ?? (existingLines.length ? undefined : String(existing.chargesAmount ?? "0"));
+        const reserve = touched("fondsReserve") ?? String(existing.fondsReserve ?? "0");
+        const amounts = reconcileBudgetAmounts({
+          chargesAmount: charges,
+          fondsReserve: reserve,
+          // The total follows charges and reserve unless it is set explicitly.
+          totalAmount: touched("totalAmount"),
+          linesTotal: existingLines.length ? fromCents(existingLines.reduce((s, l) => s + toCents(l.amount), 0)) : undefined,
+        });
+        if (!amounts.ok) {
+          return void res.status(400).json({ error: amounts.error, code: "BUDGET_TOTALS_MISMATCH" });
+        }
+        updates.totalAmount = amounts.totalAmount;
+        updates.chargesAmount = amounts.chargesAmount;
+        updates.fondsReserve = amounts.fondsReserve;
+      }
       // Loi 18-00: the provisional budget is adopted by the general assembly.
       // Approval must reference the assembly (meeting) of this syndicate.
       if (updates.status === "approved" && existing.status !== "approved") {
@@ -692,8 +762,7 @@ router.put(
 
       res.json(updated);
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -821,8 +890,8 @@ router.post(
         for (const row of insertedRows) {
           const userId = await resolveOwnerUserId(db, row.ownerId, syndicateId);
           await notifyUser(userId, {
-            title: "Nouvel appel de fonds",
-            message: `Appel de fonds ${period} : ${row.amount} MAD à régler avant le ${row.dueDate}.`,
+            key: "fundsCall.new",
+            params: { period, amount: row.amount, dueDate: row.dueDate },
             type: "info",
             syndicateId,
           });
@@ -848,8 +917,7 @@ router.post(
         excludedLots: computation.excluded.map((e) => ({ lotId: e.lotId, lotNumber: e.lotNumber, reason: e.reason })),
       });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -1225,8 +1293,8 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     });
 
     createAlert({
-      title: "Paiement à valider",
-      message: `Un paiement de ${result.payment.amount} MAD (appel ${appel.period}) a été déclaré et attend votre validation.`,
+      key: "payment.toValidate",
+      params: { amount: result.payment.amount, period: appel.period },
       type: "info",
       syndicateId,
       target: "admin",
@@ -1449,17 +1517,14 @@ router.put(
       const remaining = fromCents(toCents(outcome.appel.amount) - toCents(outcome.appel.amountPaid));
       void notifyUser(ownerUserId, approve
         ? {
-            title: "Paiement validé",
-            message:
-              outcome.appel.status === "paid"
-                ? `Votre paiement de ${outcome.payment.amount} MAD (appel ${appel.period}) est validé. Reçu n° ${outcome.receipt}.`
-                : `Votre paiement de ${outcome.payment.amount} MAD (appel ${appel.period}) est validé. Reçu n° ${outcome.receipt}. Reste à payer : ${remaining} MAD.`,
+            key: outcome.appel.status === "paid" ? "payment.validated" : "payment.validatedPartial",
+            params: { amount: outcome.payment.amount, period: appel.period, receipt: outcome.receipt, remaining },
             type: "success",
             syndicateId,
           }
         : {
-            title: "Paiement refusé",
-            message: `Votre paiement pour l'appel ${appel.period} a été refusé : ${rejectionReason}. Vous pouvez le déclarer à nouveau.`,
+            key: "payment.rejected",
+            params: { period: appel.period, reason: rejectionReason },
             type: "warning",
             syndicateId,
           });
@@ -1662,13 +1727,17 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
           date: (payment.reviewedAt ?? new Date()).toISOString().split("T")[0],
           amount: payment.amount,
           method: payment.method,
+          reference: payment.reference ?? null,
+          declaredBy: payment.declaredBy,
         }
       : !requestedPaymentId && appel.status === "paid" && appel.receiptNumber
         ? {
             number: appel.receiptNumber,
-            date: appel.paidDate ?? new Date().toISOString().split("T")[0],
+            date: appel.paidDate ?? localToday(),
             amount: appel.amount,
             method: appel.paymentMethod,
+            reference: null as string | null,
+            declaredBy: null as string | null,
           }
         : null;
     if (!receipt) {
@@ -1694,6 +1763,18 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
         .where(eq(lotsTable.id, appel.lotId))
         .limit(1),
     ]);
+
+    // The person who declared the payment (from the payment record).
+    const [payer] = receipt.declaredBy
+      ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, receipt.declaredBy)).limit(1)
+      : [undefined];
+    const longDate = (iso: string) => {
+      const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+      return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+    };
+    const money2 = (v: string | number | null | undefined) =>
+      `${Number(v ?? 0).toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
+    const remainingNow = Math.max(0, moneyDiff(appel.amount, appel.amountPaid));
 
     const [syndicate] = building?.syndicateId
       ? await db
@@ -1749,6 +1830,13 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       pageSize: "A4",
       pageMargins: [40, 60, 40, 60],
       defaultStyle: { font: FONT, fontSize: 10 },
+      info: { title: `Reçu ${receipt.number}`, author: syndicate?.name ?? "MIZAN" },
+      footer: (page: number, pages: number) => ({
+        columns: [
+          { text: `Reçu ${receipt.number} · ${syndicate?.name ?? ""}`, fontSize: 7, color: "#94a3b8", margin: [40, 20, 0, 0] },
+          { text: `${page} / ${pages}`, fontSize: 7, color: "#94a3b8", alignment: "right", margin: [0, 20, 40, 0] },
+        ],
+      }),
       content: [
         // Header band
         {
@@ -1795,8 +1883,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                   alignment: "right",
                 },
                 {
-                  text:
-                    receipt.date,
+                  text: longDate(receipt.date),
                   style: { font: FONT, fontSize: 12, bold: true },
                   alignment: "right",
                 },
@@ -1905,6 +1992,22 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                   borderColor: ["", "", "", "#e2e8f0"],
                 },
               ],
+              ...([
+                [ "Payé par", payer?.name ],
+                [ "Référence du paiement", receipt.reference ],
+                [ "Montant de l'appel", money2(appel.amount) ],
+                [ "Reste dû à l'émission du reçu", money2(remainingNow) ],
+              ] as Array<[string, string | null | undefined]>)
+                .filter(([, v]) => v)
+                .map(([label, value]) => [
+                  {
+                    text: label,
+                    style: { font: FONT, fontSize: 9, bold: true, color: "#475569" },
+                    border: [false, false, false, true],
+                    borderColor: ["", "", "", "#e2e8f0"],
+                  },
+                  { text: String(value), border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                ]),
               [
                 {
                   text: "Lot",
@@ -1918,7 +2021,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                   borderColor: ["", "", "", "#e2e8f0"],
                 },
                 {
-                  text: lot?.number ? `Lot ${lot.number}` : appel.lotId,
+                  text: lot?.number ? `Lot ${lot.number}` : "—",
                   border: [false, false, false, true],
                   borderColor: ["", "", "", "#e2e8f0"],
                 },
@@ -1958,7 +2061,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
           alignment: "center",
         },
         {
-          text: `Généré le ${new Date().toLocaleDateString("fr-MA")} — MIZAN`,
+          text: `Généré le ${longDate(new Date().toISOString())} par MIZAN`,
           style: { font: FONT, fontSize: 7, color: "#cbd5e1" },
           alignment: "center",
           margin: [0, 4, 0, 0],
@@ -2131,8 +2234,7 @@ router.post(
       }
       res.json({ escalations: created.length, data: created });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -2158,8 +2260,7 @@ router.get(
         .orderBy(desc(debtEscalationsTable.createdAt));
       res.json({ data: rows });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -2209,7 +2310,7 @@ router.post(
               title: "⚠️ Fonds de réserve insuffisant",
               message: `Le fonds de réserve de ${budget.syndicateName ?? "votre syndicat"} (${reserve.toFixed(2)} MAD) est inférieur au seuil de ${thresholdMonths} mois de charges (${threshold.toFixed(2)} MAD). Une réunion extraordinaire est recommandée.`,
               type: "warning",
-              date: new Date().toISOString().split("T")[0],
+              date: localToday(),
               target: "admin",
               syndicateId: budget.syndicateId,
             })
@@ -2219,8 +2320,7 @@ router.post(
       }
       res.json({ alerts: alertsCreated.length, data: alertsCreated });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -2249,7 +2349,9 @@ router.put(
         .set({ status: "overdue" })
         .where(
           and(
-            inArray(appelsDeFondsTable.status, ["pending", "partially_paid"]),
+            // Nothing paid yet: a partially paid call keeps that status (settlementStatus).
+            eq(appelsDeFondsTable.status, "pending"),
+            sql`${appelsDeFondsTable.amountPaid} = 0`,
             sql`${appelsDeFondsTable.dueDate} < ${today}`,
             inArray(appelsDeFondsTable.buildingId, buildingIds),
           ),
@@ -2258,8 +2360,7 @@ router.put(
 
       res.json({ updated: result.length });
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );

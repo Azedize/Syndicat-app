@@ -2,8 +2,14 @@
  * P10 — Financial Transparency
  * - Admins submit expense justifications (title, description, amount, receipt)
  * - All members can view and challenge
- * - Members vote: for / against the challenge
- * - Admin resolves after voting
+ * - Members give their opinion on a challenged expense: « for » = the
+ *   expense is justified, « against » = it is not (the meaning shown by the
+ *   app since the start, so existing opinions keep their sense). It is a
+ *   consultative opinion (one per account, not weighted by shares, no
+ *   quorum): NOT a vote of the general assembly, it decides nothing by itself.
+ * - The syndic closes the justification; a closed one cannot change.
+ * - Co-owners read the approved / paid expenses and their invoices
+ *   (/transparency/expenses/:id).
  */
 import { Router } from "express";
 import { db } from "@workspace/db";
@@ -14,7 +20,13 @@ import {
   syndicatesTable,
   transactionsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { appelsDeFondsTable, budgetLinesTable, budgetsTable, buildingsTable, expensesTable, prestatairesTable, storageObjectsTable, treasuryAccountsTable, ledgerEntriesTable } from "@workspace/db/schema";
+import { serverAuditLog } from "../lib/audit.js";
+import { sendStoredObject } from "../lib/file-store.js";
+import { uniqueViolation } from "../lib/treasury.js";
+import { localToday } from "../lib/charge-time.js";
+import { fromCents, toCents } from "../lib/treasury.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
@@ -87,6 +99,188 @@ async function requireActiveMember(req: any, res: any): Promise<boolean> {
   }
   return true;
 }
+
+// ─── GET /transparency/finances — the condominium's accounts, read-only ─────
+// Co-owners have a right to know how the common funds are used (budget voted
+// in general meeting, its execution, the accounts' balances, the expenses).
+// Aggregated and impersonal: no neighbour's payment status, no RIB in full,
+// salaries only as a total (they are personal data of the employees).
+const FINANCE_READERS = new Set(["member", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"]);
+
+router.get("/transparency/finances", requireAuth, async (req, res) => {
+  const user = req.user!;
+  if (!FINANCE_READERS.has(user.role) || !user.syndicateId) {
+    return void res.status(403).json({ error: "Accès réservé aux copropriétaires et à l'équipe du syndic", code: "FINANCE_READ_FORBIDDEN" });
+  }
+  if (user.role === "member" && !(await requireActiveMember(req, res))) return;
+  const sid = user.syndicateId;
+  try {
+    const year = Number(localToday().slice(0, 4));
+    const buildings = await db.select({ id: buildingsTable.id, name: buildingsTable.name }).from(buildingsTable).where(eq(buildingsTable.syndicateId, sid));
+    const buildingIds = buildings.map((b) => b.id);
+    const buildingName = new Map(buildings.map((b) => [b.id, b.name]));
+
+    const [budgets, accounts, flows, [calls], expenses, [salaries]] = await Promise.all([
+      buildingIds.length
+        ? db
+            .select({ id: budgetsTable.id, year: budgetsTable.year, status: budgetsTable.status, buildingId: budgetsTable.buildingId, totalAmount: budgetsTable.totalAmount })
+            .from(budgetsTable)
+            // Only budgets adopted by the general meeting — never a draft.
+            .where(and(inArray(budgetsTable.buildingId, buildingIds), inArray(budgetsTable.status, ["approved", "closed"])))
+            .orderBy(desc(budgetsTable.year))
+        : Promise.resolve([]),
+      db.select({ id: treasuryAccountsTable.id, label: treasuryAccountsTable.label, kind: treasuryAccountsTable.kind }).from(treasuryAccountsTable).where(eq(treasuryAccountsTable.syndicateId, sid)),
+      db
+        .select({
+          accountId: ledgerEntriesTable.accountId,
+          balance: sql<string>`COALESCE(SUM(CASE WHEN ${ledgerEntriesTable.direction} = 'in' THEN ${ledgerEntriesTable.amount} ELSE -${ledgerEntriesTable.amount} END), 0)`,
+        })
+        .from(ledgerEntriesTable)
+        .where(eq(ledgerEntriesTable.syndicateId, sid))
+        .groupBy(ledgerEntriesTable.accountId),
+      buildingIds.length
+        ? db
+            .select({
+              called: sql<string>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} <> 'cancelled'), 0)`,
+              collected: sql<string>`COALESCE(SUM(${appelsDeFondsTable.amountPaid}) FILTER (WHERE ${appelsDeFondsTable.status} <> 'cancelled'), 0)`,
+            })
+            .from(appelsDeFondsTable)
+            .where(and(inArray(appelsDeFondsTable.buildingId, buildingIds), sql`left(${appelsDeFondsTable.period}, 4) = ${String(year)}`))
+        : Promise.resolve([{ called: "0", collected: "0" }]),
+      db
+        .select({
+          id: expensesTable.id,
+          date: sql<string>`COALESCE(${expensesTable.invoiceDate}, ${expensesTable.createdAt}::date)::text`,
+          label: expensesTable.label,
+          category: expensesTable.category,
+          amount: expensesTable.amount,
+          supplierName: expensesTable.supplierName,
+          buildingId: expensesTable.buildingId,
+          status: expensesTable.status,
+          hasProof: sql<boolean>`${expensesTable.proofUrl} IS NOT NULL AND ${expensesTable.proofUrl} <> ''`,
+        })
+        .from(expensesTable)
+        .where(and(eq(expensesTable.syndicateId, sid), inArray(expensesTable.status, ["approved", "paid"])))
+        .orderBy(desc(sql`COALESCE(${expensesTable.invoiceDate}, ${expensesTable.createdAt}::date)`))
+        .limit(40),
+      db
+        .select({ total: sql<string>`COALESCE(SUM(${ledgerEntriesTable.amount}), 0)` })
+        .from(ledgerEntriesTable)
+        .where(and(eq(ledgerEntriesTable.syndicateId, sid), eq(ledgerEntriesTable.sourceType, "salary"), sql`EXTRACT(YEAR FROM ${ledgerEntriesTable.entryDate}) = ${year}`)),
+    ]);
+
+    const balanceOf = new Map(flows.map((f) => [f.accountId, toCents(f.balance)]));
+    const called = toCents(calls?.called ?? 0);
+    const collected = toCents(calls?.collected ?? 0);
+    res.json({
+      data: {
+        year,
+        budgets: budgets.map((b) => ({ ...b, buildingName: buildingName.get(b.buildingId) ?? null })),
+        accounts: accounts.map((a) => ({ label: a.label, kind: a.kind, balance: fromCents(balanceOf.get(a.id) ?? 0) })),
+        collection: { called: fromCents(called), collected: fromCents(collected), rate: called > 0 ? Math.round((collected / called) * 1000) / 10 : null },
+        expenses: expenses.map((e) => ({ ...e, buildingName: e.buildingId ? buildingName.get(e.buildingId) ?? null : null })),
+        salariesTotal: fromCents(toCents(salaries?.total ?? 0)),
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "transparency finances failed");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /transparency/expenses/:id — one expense, as a co-owner reads it ────
+// What was bought, from whom, for how much, against which budget line, and
+// when it was approved and paid. Never the bank details, the payment
+// reference or the names of the people who handled it (steps only).
+// Only approved or paid expenses of the reader's condominium; anything else
+// does not exist for them (404).
+async function loadPublicExpense(req: any, res: any) {
+  const user = req.user!;
+  if (!FINANCE_READERS.has(user.role) || !user.syndicateId) {
+    res.status(403).json({ error: "Accès réservé aux copropriétaires et à l'équipe du syndic", code: "FINANCE_READ_FORBIDDEN" });
+    return null;
+  }
+  if (user.role === "member" && !(await requireActiveMember(req, res))) return null;
+  const [e] = await db
+    .select()
+    .from(expensesTable)
+    .where(and(eq(expensesTable.id, String(req.params.id)), eq(expensesTable.syndicateId, user.syndicateId), inArray(expensesTable.status, ["approved", "paid"])))
+    .limit(1);
+  if (!e) {
+    res.status(404).json({ error: "Dépense introuvable" });
+    return null;
+  }
+  return e;
+}
+
+router.get("/transparency/expenses/:id", requireAuth, async (req, res) => {
+  try {
+    const e = await loadPublicExpense(req, res);
+    if (!e) return;
+    const [building] = e.buildingId ? await db.select({ name: buildingsTable.name }).from(buildingsTable).where(eq(buildingsTable.id, e.buildingId)) : [];
+    const [line] = e.budgetLineId
+      ? await db
+          .select({ label: budgetLinesTable.label, category: budgetLinesTable.category, planned: budgetLinesTable.amountAnnual, year: budgetsTable.year })
+          .from(budgetLinesTable)
+          .innerJoin(budgetsTable, eq(budgetsTable.id, budgetLinesTable.budgetId))
+          .where(eq(budgetLinesTable.id, e.budgetLineId))
+      : [];
+    const [provider] = e.prestataireId
+      ? await db.select({ name: prestatairesTable.name, type: prestatairesTable.type }).from(prestatairesTable).where(eq(prestatairesTable.id, e.prestataireId))
+      : [];
+    const [proof] = e.proofUrl
+      ? await db.select({ contentType: storageObjectsTable.contentType }).from(storageObjectsTable).where(and(eq(storageObjectsTable.objectPath, e.proofUrl), eq(storageObjectsTable.syndicateId, e.syndicateId))).limit(1)
+      : [];
+    const history = [
+      { step: "recorded", at: e.createdAt },
+      e.approvedAt ? { step: "approved", at: e.approvedAt } : null,
+      e.paidAt ? { step: "paid", at: e.paidAt, method: e.paymentMethod ?? null } : null,
+    ].filter(Boolean);
+    res.json({
+      data: {
+        id: e.id,
+        reference: e.reference,
+        label: e.label,
+        category: e.category,
+        amount: e.amount,
+        currency: e.currency,
+        invoiceNumber: e.invoiceNumber,
+        invoiceDate: e.invoiceDate,
+        supplierName: provider?.name ?? e.supplierName,
+        supplierType: provider?.type ?? null,
+        buildingName: building?.name ?? null,
+        budget: line ? { year: line.year, lineLabel: line.label, lineCategory: line.category, linePlanned: line.planned } : null,
+        status: e.status,
+        history,
+        hasProof: !!proof,
+        proofKind: proof ? (proof.contentType === "application/pdf" ? "pdf" : proof.contentType.startsWith("image/") ? "image" : "file") : null,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "transparency expense failed");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// GET /transparency/expenses/:id/proof — the invoice of that expense (inline).
+router.get("/transparency/expenses/:id/proof", requireAuth, async (req, res) => {
+  try {
+    const e = await loadPublicExpense(req, res);
+    if (!e) return;
+    if (!e.proofUrl) return void res.status(404).json({ error: "Aucun justificatif" });
+    const [meta] = await db
+      .select({ contentType: storageObjectsTable.contentType, originalName: storageObjectsTable.originalName })
+      .from(storageObjectsTable)
+      .where(and(eq(storageObjectsTable.objectPath, e.proofUrl), eq(storageObjectsTable.syndicateId, e.syndicateId)))
+      .limit(1);
+    if (!meta) return void res.status(404).json({ error: "Justificatif introuvable" });
+    const sent = await sendStoredObject(e.proofUrl, res, { contentType: meta.contentType, fileName: meta.originalName ?? `${e.reference}.pdf`, inline: true });
+    if (!sent && !res.headersSent) res.status(404).json({ error: "Fichier du justificatif introuvable" });
+  } catch (err) {
+    req.log.error({ err }, "transparency expense proof failed");
+    if (!res.headersSent) res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // GET /transparency — list expense justifications
 router.get("/expense-justifications", requireAuth, async (req, res) => {
@@ -193,6 +387,9 @@ router.post(
           .status(400)
           .json({ error: "Le titre et le montant sont obligatoires" });
       }
+      if (!/^\d+(\.\d{1,2})?$/.test(String(amount).trim()) || Number(amount) <= 0) {
+        return void res.status(400).json({ error: "Montant invalide (positif, 2 décimales au plus)", code: "INVALID_AMOUNT" });
+      }
 
       let targetSyndicateId =
         user.role === "super_admin"
@@ -260,7 +457,7 @@ router.post(
           transactionId: transactionId ?? null,
           title: title.trim(),
           description: (description ?? "").trim(),
-          amount: String(parseFloat(String(amount))),
+          amount: Number(String(amount).trim()).toFixed(2),
           category: category ?? null,
           receiptUrl: receiptUrl ?? null,
           status: "pending",
@@ -326,9 +523,10 @@ router.post(
         .where(eq(expenseJustificationsTable.id, row.id))
         .returning();
 
+      await serverAuditLog(req, { action: "UPDATE", entity: "expense_justification", entityId: row.id, syndicateId: row.syndicateId ?? undefined, details: `Contestation : ${reason.trim().slice(0, 200)}` });
       res.json({
         data: updated,
-        message: "Contestation enregistrée. Les membres peuvent voter.",
+        message: "Contestation enregistrée. Les copropriétaires peuvent donner leur avis.",
       });
     } catch (e) {
       console.error(e);
@@ -344,7 +542,7 @@ router.post(
   async (req, res) => {
     try {
       const user = req.user!;
-      const { vote } = req.body; // "for" | "against"
+      const { vote } = req.body; // "for" = the expense is justified | "against" = it is not
 
       if (!(await requireActiveMember(req, res))) return;
 
@@ -395,12 +593,20 @@ router.post(
           .set({ vote })
           .where(eq(expenseVotesTable.id, existingVote.id));
       } else {
-        await db.insert(expenseVotesTable).values({
-          justificationId: row.id,
-          userId: user.userId,
-          vote,
-        });
+        try {
+          await db.insert(expenseVotesTable).values({
+            justificationId: row.id,
+            userId: user.userId,
+            vote,
+          });
+        } catch (err) {
+          // Two taps at once: the unique index keeps one opinion per person.
+          if (uniqueViolation(err)) return void res.status(409).json({ error: "Vous avez déjà voté" });
+          throw err;
+        }
       }
+      // Every opinion, and every change of opinion, is kept in the audit trail.
+      await serverAuditLog(req, { action: existingVote ? "UPDATE" : "CREATE", entity: "expense_justification_vote", entityId: row.id, syndicateId: row.syndicateId ?? undefined, details: existingVote ? `Avis modifié : ${existingVote.vote} → ${vote}` : `Avis : ${vote}` });
 
       // Recount
       const allVotes = await db
@@ -471,6 +677,10 @@ router.put(
           .status(400)
           .json({ error: "Statut de résolution invalide" });
       }
+      // A decision taken is final: no change after closing.
+      if (!["pending", "challenged"].includes(existing.status ?? "")) {
+        return void res.status(409).json({ error: "Ce justificatif est déjà clos.", code: "JUSTIFICATION_CLOSED" });
+      }
 
       const [updated] = await db
         .update(expenseJustificationsTable)
@@ -487,6 +697,7 @@ router.put(
         )
         .returning();
 
+      await serverAuditLog(req, { action: "UPDATE", entity: "expense_justification", entityId: existing.id, syndicateId: existing.syndicateId ?? undefined, details: `Clos : ${status} (avis : ${existing.votesFor ?? 0} justifiée / ${existing.votesAgainst ?? 0} non justifiée)${resolutionNote ? ` — ${String(resolutionNote).slice(0, 200)}` : ""}` });
       res.json({ data: updated, message: "Justificatif résolu" });
     } catch (e) {
       console.error(e);

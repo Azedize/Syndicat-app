@@ -21,6 +21,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image as CoverImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { ZelligePattern } from "@/components/ui";
+import { categoryIcon } from "@/components/marketplace/catalog";
+import { FONT } from "@/constants/typography";
+import { useFileTicket } from "@/hooks/useFileTicket";
+import { listingImages, resolveMediaUrl } from "@/lib/media";
 import { useAuth } from "@/context/AuthContext";
 import { LangCode, useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -61,6 +68,7 @@ type Product = {
   boostExpiresAt?: string | null;
   reservedByName?: string | null;
   soldAt?: string | null;
+  imageUrls?: string | null;
 };
 
 type Promotion = {
@@ -216,13 +224,13 @@ const CONDITIONS = [
 ];
 
 const STATUS_CONFIG: Record<string, { color: string; labelKey: keyof typeof SHOP_TEXTS }> = {
-  approved:               { color: "#22c55e", labelKey: "statusApproved" },
-  pending_review:         { color: "#f59e0b", labelKey: "statusPending" },
-  rejected:               { color: "#ef4444", labelKey: "statusRejected" },
-  modification_requested: { color: "#f97316", labelKey: "statusModification" },
-  sold_out:               { color: "#94a3b8", labelKey: "statusSoldOut" },
-  reserved:               { color: "#1F5EFF", labelKey: "statusReserved" },
-  sold:                   { color: "#94a3b8", labelKey: "statusSold" },
+  approved:               { color: "#13976C", labelKey: "statusApproved" },
+  pending_review:         { color: "#C98511", labelKey: "statusPending" },
+  rejected:               { color: "#C8323C", labelKey: "statusRejected" },
+  modification_requested: { color: "#C8642A", labelKey: "statusModification" },
+  sold_out:               { color: "#A6A1BE", labelKey: "statusSoldOut" },
+  reserved:               { color: "#5A4AD6", labelKey: "statusReserved" },
+  sold:                   { color: "#A6A1BE", labelKey: "statusSold" },
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -231,8 +239,9 @@ export default function MyShopScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { showToast } = useToast();
+  const ticket = useFileTicket();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -553,9 +562,9 @@ export default function MyShopScreen() {
   // ─── Render ───────────────────────────────────────────────────────────
 
   const PROMO_STATUS_CONFIG: Record<string, { color: string; labelKey: keyof typeof SHOP_TEXTS }> = {
-    pending_payment: { color: "#f59e0b", labelKey: "promoPending" },
-    active:          { color: "#8b5cf6", labelKey: "promoActive" },
-    rejected:        { color: "#ef4444", labelKey: "promoRejected" },
+    pending_payment: { color: colors.warning, labelKey: "promoPending" },
+    active:          { color: "#1F8A9A", labelKey: "promoActive" },
+    rejected:        { color: colors.danger, labelKey: "promoRejected" },
   };
 
   const renderItem = ({ item: p }: { item: Product }) => {
@@ -566,9 +575,19 @@ export default function MyShopScreen() {
     return (
       <View style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.cardTop}>
+          {(() => {
+            const cover = resolveMediaUrl(listingImages(p.imageUrls)[0], ticket);
+            return cover ? (
+              <CoverImage source={{ uri: cover }} style={styles.thumb} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+            ) : (
+              <View style={[styles.thumb, { backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }]}>
+                <Feather name={categoryIcon(p.category)} size={24} color={colors.tint} />
+              </View>
+            );
+          })()}
           <View style={{ flex: 1 }}>
             <Text style={[styles.productName, { color: colors.foreground }]}>{p.name}</Text>
-            <Text style={[styles.productPrice, { color: colors.primary }]}>{formatMAD(p.price, lang)} {lang === "ar" ? "د.م." : "MAD"}</Text>
+            <Text style={[styles.productPrice, { color: colors.tint }]}>{formatMAD(p.price, lang)} {lang === "ar" ? "د.م." : "MAD"}</Text>
             <Text style={[styles.productMeta, { color: colors.mutedForeground }]}>
               {CATEGORY_LABELS[p.category]?.[lang] ?? p.category} · {p.viewCount ?? 0} {shopText("viewCount", lang)}
               {p.status === "reserved" ? ` · ${shopText("reservedBy", lang)} ${p.reservedByName ?? shopText("resident", lang)}` : ""}
@@ -602,7 +621,7 @@ export default function MyShopScreen() {
           {p.status !== "sold" && (
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary + "12" }]} onPress={() => openEdit(p)}>
               <Feather name="edit-2" size={14} color={colors.primary} />
-              <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("edit")}</Text>
+              <Text style={[styles.actionBtnText, { color: colors.tint }]}>{t("edit")}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}>
@@ -626,9 +645,9 @@ export default function MyShopScreen() {
             </TouchableOpacity>
           )}
           {p.status === "approved" && promo?.status !== "pending_payment" && promo?.status !== "active" && (
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#8b5cf612" }]} onPress={() => openSponsor(p)}>
-              <Feather name="zap" size={14} color="#8b5cf6" />
-              <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>{shopText("sponsor", lang)}</Text>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#1F8A9A12" }]} onPress={() => openSponsor(p)}>
+              <Feather name="zap" size={14} color="#1F8A9A" />
+              <Text style={[styles.actionBtnText, { color: "#1F8A9A" }]}>{shopText("sponsor", lang)}</Text>
             </TouchableOpacity>
           )}
           {p.status !== "sold" && (
@@ -649,14 +668,15 @@ export default function MyShopScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <LinearGradient colors={[colors.navy, "#2B2475"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: topPad + 16 }]}>
+        <ZelligePattern opacity={0.035} />
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel={t("back")}>
+            <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={{ flex: 1, marginStart: 10 }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>{t("myShop")}</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            <Text style={[styles.title, { color: "#FFFFFF" }]} accessibilityRole="header">{t("myShop")}</Text>
+            <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.75)" }]}>
               {approved.length === 1
                 ? shopText("publishedOne", lang)
                 : shopText("publishedMany", lang).replace("{count}", String(approved.length))}
@@ -666,9 +686,9 @@ export default function MyShopScreen() {
                 : shopText("reservedMany", lang).replace("{count}", String(reserved.length))}
             </Text>
           </View>
-          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openAdd}>
-            <Feather name="plus" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>{t("add")}</Text>
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.gold }]} onPress={openAdd} accessibilityRole="button">
+            <Feather name="plus" size={18} color={colors.navy} />
+            <Text style={[styles.addBtnText, { color: colors.navy }]}>{t("add")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -681,13 +701,13 @@ export default function MyShopScreen() {
             { key: "sold", label: shopText("sold", lang), value: sold.length },
             { key: "views", label: shopText("views", lang), value: totalViews },
           ].map((s) => (
-            <View key={s.key} style={[styles.statBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>{s.value}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+            <View key={s.key} style={[styles.statBox, { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.14)" }]}>
+              <Text style={[styles.statValue, { color: "#FFFFFF" }]}>{s.value}</Text>
+              <Text style={[styles.statLabel, { color: "rgba(255,255,255,0.7)" }]}>{s.label}</Text>
             </View>
           ))}
         </View>
-      </View>
+      </LinearGradient>
 
       {/* List */}
       {loading ? (
@@ -738,7 +758,7 @@ export default function MyShopScreen() {
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
 
             {/* ── Section: Produit ──────────────────────────────── */}
-            <Text style={[styles.sectionLabel, { color: colors.primary }]}>{shopText("productInfo", lang)}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("productInfo", lang)}</Text>
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{shopText("listingTitle", lang)} *</Text>
             <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder={shopText("titlePlaceholder", lang)} placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} maxLength={200} />
@@ -787,7 +807,7 @@ export default function MyShopScreen() {
             <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder={shopText("sellingReasonPlaceholder", lang)} placeholderTextColor={colors.mutedForeground} value={sellingReason} onChangeText={setSellingReason} maxLength={500} />
 
             {/* ── Section: Prix ─────────────────────────────────── */}
-            <Text style={[styles.sectionLabel, { color: colors.primary }]}>{shopText("priceSection", lang)}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("priceSection", lang)}</Text>
 
             <View style={styles.rowFields}>
               <View style={{ flex: 1 }}>
@@ -809,7 +829,7 @@ export default function MyShopScreen() {
             </View>
 
             {/* ── Section: Localisation ─────────────────────────── */}
-            <Text style={[styles.sectionLabel, { color: colors.primary }]}>{shopText("locationSection", lang)}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("locationSection", lang)}</Text>
 
             <View style={styles.rowFields}>
               <View style={{ flex: 1 }}>
@@ -830,7 +850,7 @@ export default function MyShopScreen() {
             <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder={lang === "ar" ? "حي الرياض، الرباط" : lang === "en" ? "Hay Riad, Rabat" : lang === "es" ? "Hay Riad, Rabat" : "Hay Riad, Rabat"} placeholderTextColor={colors.mutedForeground} value={location} onChangeText={setLocation} maxLength={200} />
 
             {/* ── Section: Contact ──────────────────────────────── */}
-            <Text style={[styles.sectionLabel, { color: colors.primary }]}>{shopText("contactSection", lang)}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("contactSection", lang)}</Text>
 
             {[{ key: "chat", labelKey: "internalChat" as const, icon: "message-circle" as const }, { key: "phone", labelKey: "phone" as const, icon: "phone" as const }, { key: "email", labelKey: "email" as const, icon: "mail" as const }].map((opt) => (
               <TouchableOpacity key={opt.key} style={[styles.contactRow, { borderColor: contactPrefs.includes(opt.key) ? colors.primary : colors.border, backgroundColor: contactPrefs.includes(opt.key) ? colors.primary + "10" : colors.card }]} onPress={() => toggleContactPref(opt.key)}>
@@ -841,13 +861,13 @@ export default function MyShopScreen() {
             ))}
 
             {/* ── Section: Photos ───────────────────────────────── */}
-            <Text style={[styles.sectionLabel, { color: colors.primary }]}>{shopText("photosSection", lang)}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("photosSection", lang)}</Text>
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {imageLocalUris.map((uri, idx) => (
                 <View key={uri} style={{ position: "relative" }}>
                   <Image source={{ uri }} style={{ width: 76, height: 76, borderRadius: 10, resizeMode: "cover" }} />
-                  <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => removeImage(idx)}>
+                  <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: colors.danger, borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => removeImage(idx)}>
                     <Feather name="x" size={12} color="#fff" />
                   </TouchableOpacity>
                 </View>
@@ -864,7 +884,7 @@ export default function MyShopScreen() {
             {!editingId && (
               <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                 <Feather name="info" size={14} color={colors.primary} />
-                <Text style={[styles.infoText, { color: colors.primary }]}>{shopText("moderationNote", lang)}</Text>
+                <Text style={[styles.infoText, { color: colors.tint }]}>{shopText("moderationNote", lang)}</Text>
               </View>
             )}
           </ScrollView>
@@ -879,7 +899,7 @@ export default function MyShopScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{shopText("sponsorTitle", lang)}</Text>
-            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: "#8b5cf6" }, (submittingPromo || uploadingProof) && { opacity: 0.6 }]} onPress={submitSponsorRequest} disabled={submittingPromo || uploadingProof}>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: "#1F8A9A" }, (submittingPromo || uploadingProof) && { opacity: 0.6 }]} onPress={submitSponsorRequest} disabled={submittingPromo || uploadingProof}>
               {submittingPromo ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>{t("send")}</Text>}
             </TouchableOpacity>
           </View>
@@ -893,8 +913,8 @@ export default function MyShopScreen() {
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{shopText("promotionType", lang)}</Text>
             <View style={styles.conditionRow}>
               {PROMO_TYPES.map((pt) => (
-                <TouchableOpacity key={pt.value} style={[styles.conditionChip, { borderColor: sponsorType === pt.value ? "#8b5cf6" : colors.border }, sponsorType === pt.value && { backgroundColor: "#8b5cf615" }]} onPress={() => setSponsorType(pt.value)}>
-                  <Text style={[styles.conditionChipText, { color: sponsorType === pt.value ? "#8b5cf6" : colors.foreground }]}>{shopText(pt.labelKey, lang)} · {pt.ratePerDay} MAD/j</Text>
+                <TouchableOpacity key={pt.value} style={[styles.conditionChip, { borderColor: sponsorType === pt.value ? "#1F8A9A" : colors.border }, sponsorType === pt.value && { backgroundColor: "#1F8A9A15" }]} onPress={() => setSponsorType(pt.value)}>
+                  <Text style={[styles.conditionChipText, { color: sponsorType === pt.value ? "#1F8A9A" : colors.foreground }]}>{shopText(pt.labelKey, lang)} · {pt.ratePerDay} MAD/j</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -902,9 +922,9 @@ export default function MyShopScreen() {
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{shopText("duration", lang)}</Text>
             <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} keyboardType="number-pad" value={sponsorDays} onChangeText={setSponsorDays} maxLength={2} />
 
-            <View style={[styles.infoBox, { backgroundColor: "#8b5cf610", borderColor: "#8b5cf630" }]}>
-              <Feather name="tag" size={14} color="#8b5cf6" />
-              <Text style={[styles.infoText, { color: "#8b5cf6" }]}>{shopText("amountDue", lang)} : {formatMAD(sponsorEstimatedAmount, lang)} {lang === "ar" ? "د.م." : "MAD"}</Text>
+            <View style={[styles.infoBox, { backgroundColor: "#1F8A9A10", borderColor: "#1F8A9A30" }]}>
+              <Feather name="tag" size={14} color="#1F8A9A" />
+              <Text style={[styles.infoText, { color: "#1F8A9A" }]}>{shopText("amountDue", lang)} : {formatMAD(sponsorEstimatedAmount, lang)} {lang === "ar" ? "د.م." : "MAD"}</Text>
             </View>
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{shopText("paymentMethod", lang)}</Text>
@@ -919,7 +939,7 @@ export default function MyShopScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   </View>
                 )}
-                <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => { setSponsorProofLocalUri(null); setSponsorProofObjectPath(null); }}>
+                <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: colors.danger, borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => { setSponsorProofLocalUri(null); setSponsorProofObjectPath(null); }}>
                   <Feather name="x" size={12} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -940,15 +960,15 @@ export default function MyShopScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
+  header: { paddingHorizontal: 16, paddingBottom: 16, gap: 12, overflow: "hidden" },
   headerRow: { flexDirection: "row", alignItems: "center" },
-  title: { fontSize: 20, fontWeight: "800" },
+  title: { fontSize: 24, fontFamily: FONT.display },
   subtitle: { fontSize: 12, marginTop: 1 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   statsRow: { flexDirection: "row", gap: 6 },
-  statBox: { flex: 1, borderRadius: 8, borderWidth: 1, padding: 8, alignItems: "center" },
-  statValue: { fontSize: 16, fontWeight: "800" },
+  statBox: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 8, alignItems: "center" },
+  statValue: { fontSize: 18, fontFamily: FONT.display },
   statLabel: { fontSize: 9, marginTop: 1, textAlign: "center" },
   list: { padding: 12, gap: 12 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -957,10 +977,11 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   emptyAction: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, marginTop: 8 },
   emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  productCard: { borderRadius: 12, borderWidth: 1, padding: 14, gap: 10 },
-  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  productCard: { borderRadius: 16, borderWidth: 1, padding: 12, gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  thumb: { width: 76, height: 76, borderRadius: 12 },
   productName: { fontSize: 15, fontWeight: "700", lineHeight: 20 },
-  productPrice: { fontSize: 16, fontWeight: "800", marginTop: 2 },
+  productPrice: { fontSize: 18, fontFamily: FONT.display, marginTop: 2 },
   productMeta: { fontSize: 11, marginTop: 3, lineHeight: 15 },
   statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 11, fontWeight: "700" },

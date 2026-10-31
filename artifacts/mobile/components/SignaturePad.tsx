@@ -26,7 +26,7 @@ export interface SignaturePadHandle {
  * native `svg` node type (no rasterization needed).
  */
 const SignaturePad = React.forwardRef<SignaturePadHandle, SignaturePadProps>(
-  ({ width, height, strokeColor = "#1e293b", strokeWidth = 2.5, backgroundColor = "#ffffff", onChange }, ref) => {
+  ({ width, height, strokeColor = "#17142B", strokeWidth = 2.5, backgroundColor = "#ffffff", onChange }, ref) => {
     const [paths, setPaths] = useState<string[]>([]);
     const currentPath = useRef<string>("");
     const [, forceRender] = useState(0);

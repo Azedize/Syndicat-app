@@ -15,11 +15,12 @@ interface IconButtonProps {
   /** Unread / pending count (real data only). */
   badge?: number;
   disabled?: boolean;
+  testID?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Square 44 pt icon control with an optional count badge. */
-export default function IconButton({ icon, accessibilityLabel, onPress, variant = "surface", badge, disabled, style }: IconButtonProps) {
+export default function IconButton({ icon, accessibilityLabel, onPress, variant = "surface", badge, disabled, testID, style }: IconButtonProps) {
   const colors = useColors();
   const tone = {
     surface: { bg: colors.surface, pressed: colors.surfaceMuted, fg: colors.foreground, border: colors.border },
@@ -30,6 +31,7 @@ export default function IconButton({ icon, accessibilityLabel, onPress, variant 
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"

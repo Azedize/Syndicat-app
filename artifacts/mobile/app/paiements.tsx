@@ -25,6 +25,7 @@ import { apiRequest } from "@/lib/api";
 import { shareContent } from "@/hooks/useShare";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState } from "@/components/DataState";
+import { IconButton, StatusBadge, ZelligePattern, toneColors, type StatusTone } from "@/components/ui";
 import { ticketedUrl } from "@/services/api";
 
 type TxStatus = "paid" | "pending" | "overdue" | "cancelled";
@@ -58,11 +59,11 @@ const STATUS_ICONS: Record<TxStatus, keyof typeof Feather.glyphMap> = {
   cancelled: "slash",
 };
 
-const STATUS_COLORS: Record<TxStatus, { color: string; bg: string }> = {
-  paid:    { color: "#10b981", bg: "#10b98115" },
-  pending: { color: "#f59e0b", bg: "#f59e0b15" },
-  overdue: { color: "#ef4444", bg: "#ef444415" },
-  cancelled: { color: "#6b7280", bg: "#6b728015" },
+const STATUS_TONES: Record<TxStatus, StatusTone> = {
+  paid: "success",
+  pending: "warning",
+  overdue: "danger",
+  cancelled: "neutral",
 };
 
 const TYPE_ICONS: Record<TxType, keyof typeof Feather.glyphMap> = {
@@ -72,11 +73,11 @@ const TYPE_ICONS: Record<TxType, keyof typeof Feather.glyphMap> = {
   recette:    "trending-up",
 };
 
-const TYPE_COLORS: Record<TxType, string> = {
-  cotisation: "#2563EB",
-  depense:    "#ef4444",
-  salaire:    "#f59e0b",
-  recette:    "#10b981",
+const TYPE_TONES: Record<TxType, StatusTone> = {
+  cotisation: "primary",
+  depense:    "danger",
+  salaire:    "warning",
+  recette:    "success",
 };
 
 function getInitials(label: string): string {
@@ -135,7 +136,7 @@ function RegisterView() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
@@ -261,11 +262,10 @@ function RegisterView() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.navy }]}>
+        <ZelligePattern opacity={0.05} />
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={22} color="#fff" />
-          </TouchableOpacity>
+          <IconButton icon={isRTL ? "arrow-right" : "arrow-left"} variant="onDark" accessibilityLabel={t("back")} onPress={() => router.back()} />
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{t("paymentsManagement")}</Text>
             <Text style={styles.headerSub}>{t("paymentsSubtitle")}</Text>
@@ -309,7 +309,7 @@ function RegisterView() {
         <View style={styles.kpiRow}>
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <View style={styles.kpiTop}>
-              <Feather name="trending-up" size={14} color="#6ee7b7" />
+              <Feather name="trending-up" size={14} color={colors.teal} />
               <Text style={styles.kpiLabel}>{t("totalCollected")}</Text>
             </View>
             <Text style={styles.kpiValue}>{formatMAD(totalPaid, lang)}</Text>
@@ -317,7 +317,7 @@ function RegisterView() {
           </View>
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <View style={styles.kpiTop}>
-              <Feather name="clock" size={14} color="#fde68a" />
+              <Feather name="clock" size={14} color={colors.gold} />
               <Text style={styles.kpiLabel}>{t("inProgressPayment")}</Text>
             </View>
             <Text style={styles.kpiValue}>{formatMAD(totalPending, lang)}</Text>
@@ -327,7 +327,7 @@ function RegisterView() {
 
         {totalOverdue > 0 && (
           <View style={styles.alertBanner}>
-            <Feather name="alert-triangle" size={14} color="#fbbf24" />
+            <Feather name="alert-triangle" size={14} color={colors.gold} />
             <Text style={styles.alertText}>{totalOverdue} {t("overdueAlertText")}</Text>
           </View>
         )}
@@ -338,7 +338,7 @@ function RegisterView() {
         <View style={[styles.methodBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.methodContent}>
             {typeBreakdown.map((tb) => {
-              const color = TYPE_COLORS[tb.type];
+              const color = toneColors(colors, TYPE_TONES[tb.type]).fg;
               const icon  = TYPE_ICONS[tb.type];
               const label = TYPE_LABELS[tb.type];
               return (
@@ -407,10 +407,11 @@ function RegisterView() {
             </View>
           }
           renderItem={({ item: tx }) => {
-            const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
+            const sTone = toneColors(colors, STATUS_TONES[tx.status as TxStatus] ?? "warning");
+            const statusColors = { color: sTone.text, bg: sTone.bg };
             const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
             const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
-            const typeColor    = TYPE_COLORS[tx.type as TxType] ?? "#6b7280";
+            const typeColor    = toneColors(colors, TYPE_TONES[tx.type as TxType] ?? "neutral").fg;
             const typeIcon     = TYPE_ICONS[tx.type as TxType] ?? "users";
             const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
             const initials     = getInitials(tx.label);
@@ -444,7 +445,7 @@ function RegisterView() {
                   </View>
 
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
-                    <Text style={[styles.payAmount, { color: isDebit ? "#ef4444" : "#10b981" }]}>
+                    <Text style={[styles.payAmount, { color: isDebit ? colors.dangerText : colors.successText }]}>
                       {isDebit ? "-" : "+"}{formatMAD(tx.amount, lang)}
                     </Text>
                     <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
@@ -473,7 +474,8 @@ function RegisterView() {
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
         {selected && (() => {
           const tx = selected;
-          const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
+          const mTone = toneColors(colors, STATUS_TONES[tx.status as TxStatus] ?? "warning");
+          const statusColors = { color: mTone.fg, bg: mTone.bg };
           const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
           const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
           const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
@@ -519,7 +521,7 @@ function RegisterView() {
                 <View style={styles.actionBtns}>
                   {tx.status === "pending" && isAdmin && ["recette", "revenue"].includes(tx.type as string) && (
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
+                      style={[styles.actionBtn, { backgroundColor: colors.success }]}
                       disabled={busy}
                       onPress={() => markAsPaid(tx)}
                     >
@@ -555,7 +557,7 @@ function RegisterView() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: { paddingHorizontal: 16, paddingBottom: 20, overflow: "hidden" },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
@@ -570,7 +572,7 @@ const styles = StyleSheet.create({
   kpiValue: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   kpiSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.65)" },
   alertBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(251,191,36,0.2)", padding: 10, borderRadius: 12 },
-  alertText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fbbf24", flex: 1 },
+  alertText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#F2B84B", flex: 1 },
   methodBar: { borderBottomWidth: 1 },
   methodContent: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
   methodChip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1 },
@@ -604,7 +606,7 @@ const styles = StyleSheet.create({
   modal: { flex: 1 },
   modalHeader: { padding: 20, paddingTop: 50, flexDirection: "row", alignItems: "flex-start", gap: 14 },
   modalHeaderCenter: { flex: 1, alignItems: "center", gap: 8 },
-  modalAmount: { fontSize: 32, fontFamily: "Inter_700Bold", color: "#fff" },
+  modalAmount: { fontSize: 32, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   modalStatusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   modalStatusText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
   qrSection: { borderRadius: 16, borderWidth: 1, padding: 20, alignItems: "center", gap: 12 },
@@ -640,17 +642,17 @@ interface MyPayment {
   lotNumber: string | null;
 }
 
-const MY_STATUS: Record<MyPayment["status"], { color: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending: { color: "#3b82f6", icon: "loader" },
-  validated: { color: "#10b981", icon: "check-circle" },
-  rejected: { color: "#ef4444", icon: "x-circle" },
-  reversed: { color: "#6b7280", icon: "slash" },
+const MY_STATUS: Record<MyPayment["status"], { tone: StatusTone; icon: keyof typeof Feather.glyphMap }> = {
+  pending: { tone: "info", icon: "clock" },
+  validated: { tone: "success", icon: "check-circle" },
+  rejected: { tone: "danger", icon: "x-circle" },
+  reversed: { tone: "neutral", icon: "slash" },
 };
 
 function MyPaymentsView() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const [rows, setRows] = useState<MyPayment[]>([]);
@@ -689,11 +691,10 @@ function MyPaymentsView() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.navy }]}>
+        <ZelligePattern opacity={0.05} />
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={22} color="#fff" />
-          </TouchableOpacity>
+          <IconButton icon={isRTL ? "arrow-right" : "arrow-left"} variant="onDark" accessibilityLabel={t("back")} onPress={() => router.back()} />
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{t("paymentHistory")}</Text>
             <Text style={styles.headerSub}>{formatMAD(validatedTotal, lang)} · {t("paid")}</Text>
@@ -723,25 +724,26 @@ function MyPaymentsView() {
               <Feather name="credit-card" size={40} color={colors.mutedForeground} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noTransactions")}</Text>
               <TouchableOpacity onPress={() => router.push("/charges" as any)}>
-                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", marginTop: 8 }}>{t("chargesAppels")}</Text>
+                <Text style={{ color: colors.tint, fontFamily: "Inter_600SemiBold", marginTop: 8 }}>{t("chargesAppels")}</Text>
               </TouchableOpacity>
             </View>
           }
           renderItem={({ item: p }) => {
             const st = MY_STATUS[p.status] ?? MY_STATUS.pending;
+            const stc = toneColors(colors, st.tone);
             return (
               <View style={[styles.payCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.payTop}>
-                  <View style={[styles.payAvatar, { backgroundColor: st.color + "18" }]}>
-                    <Feather name={st.icon} size={18} color={st.color} />
+                  <View style={[styles.payAvatar, { backgroundColor: stc.bg }]}>
+                    <Feather name={st.icon} size={18} color={stc.fg} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={[styles.payLabel, { color: colors.foreground }]}>
                       {p.period}{p.lotNumber ? ` · ${t("lotLabel")} ${p.lotNumber}` : ""}
                     </Text>
-                    <Text style={[styles.payDate, { color: st.color }]}>{statusLabel(p.status)}</Text>
+                    <StatusBadge label={statusLabel(p.status)} tone={st.tone} icon={st.icon} />
                     {p.status === "rejected" && p.rejectionReason ? (
-                      <Text style={[styles.payDate, { color: "#ef4444" }]}>{p.rejectionReason}</Text>
+                      <Text style={[styles.payDate, { color: colors.dangerText }]}>{p.rejectionReason}</Text>
                     ) : null}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -752,8 +754,8 @@ function MyPaymentsView() {
                 {p.status === "validated" && p.receiptNumber ? (
                   <TouchableOpacity style={styles.payMeta} onPress={() => openReceipt(p)}>
                     <View style={styles.metaItem}>
-                      <Feather name="download" size={12} color="#10b981" />
-                      <Text style={[styles.metaText, { color: "#10b981" }]}>{t("paymentReceiptLabel")} {p.receiptNumber}</Text>
+                      <Feather name="download" size={12} color={colors.success} />
+                      <Text style={[styles.metaText, { color: colors.successText }]}>{t("paymentReceiptLabel")} {p.receiptNumber}</Text>
                     </View>
                   </TouchableOpacity>
                 ) : null}

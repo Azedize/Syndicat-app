@@ -17,6 +17,7 @@ import { useData } from "@/context/DataContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import ScreenHeader from "@/components/ScreenHeader";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import * as statisticsApi from "@/services/api";
@@ -219,34 +220,11 @@ function ReportsScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("rptTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {label}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: colors.primary + "15" }]}
-          onPress={() => handleExport(`${t("rptExportGeneral")} — ${label}`)}
-        >
-          <Feather name="download" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t("rptTitle")}
+        subtitle={label}
+        action={{ icon: "download", label: t("rptExportGeneral"), onPress: () => handleExport(`${t("rptExportGeneral")} — ${label}`) }}
+      />
 
       {/* Period selector */}
       <View
@@ -355,7 +333,7 @@ function ReportsScreenInner() {
                 label: t("rptKpiGrowth"),
                 value: `+${pd.kpi.memberGrowth} ${t("rptKpiMembersUnit")}`,
                 icon: "users" as const,
-                color: colors.primary,
+                color: colors.tint,
                 change:
                   pd.kpi.memberGrowth > 0 ? `+${pd.kpi.memberGrowth}` : "—",
                 up: pd.kpi.memberGrowth > 0,
@@ -364,7 +342,7 @@ function ReportsScreenInner() {
                 label: t("rptKpiCotisationRate"),
                 value: pd.kpi.cotisationRate === null ? "—" : `${pd.kpi.cotisationRate}%`,
                 icon: "credit-card" as const,
-                color: "#f59e0b",
+                color: colors.warning,
                 change:
                   pd.kpi.cotisationRate === null
                     ? "—"
@@ -530,7 +508,7 @@ function ReportsScreenInner() {
               {
                 label: t("rptBreakdownPending"),
                 count: pendingCount,
-                color: "#f59e0b",
+                color: colors.warning,
               },
               {
                 label: t("rptBreakdownOverdue"),
@@ -656,7 +634,7 @@ function ReportsScreenInner() {
                 ]}
               >
                 <Feather name="trending-up" size={22} color={colors.primary} />
-                <Text style={[styles.balanceVal, { color: colors.primary }]}>
+                <Text style={[styles.balanceVal, { color: colors.tint }]}>
                   {pd.kpi.revenues - pd.kpi.expenses >= 0 ? "+" : ""}
                   {formatMad(pd.kpi.revenues - pd.kpi.expenses)}
                 </Text>

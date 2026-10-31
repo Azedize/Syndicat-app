@@ -1,148 +1,156 @@
 /**
  * MIZAN Design System — semantic color tokens.
  *
- * Identity: "la balance" (mizan). Deep navy carries trust, signal blue is the
- * single action color, gold is reserved for the balance line and premium
- * highlights, teal for settled / governance states. Screens use the semantic
- * names below, never raw hex values.
+ * Direction « Riad au crépuscule » : a condominium is a riad — private rooms
+ * around a shared courtyard. The palette comes from its materials, not from a
+ * generic SaaS blue:
+ *   - Majorelle   the single action color (the cobalt-violet of Marrakech)
+ *   - Nuit        indigo night over the courtyard: heroes and dark surfaces
+ *   - Tadelakt    warm ivory plaster: the light page background
+ *   - Laiton      brass: the balance line and rare highlights, never an action
+ *   - Zellige     emerald for settled states; cedar teal for information
+ * Screens use the semantic names below, never raw hex values.
  *
  * Status colors come in three tones:
  *   <status>      icons, indicators, strokes
  *   <status>Soft  tinted backgrounds (badges, banners)
- *   <status>Text  readable text on the soft background (WCAG AA ≥ 4.5:1)
+ *   <status>Text  readable text on the soft background (WCAG AA ≥ 4.5:1,
+ *                 measured — see DESIGN_SYSTEM.md)
  * A status is never conveyed by color alone: pair it with an icon and a label
  * (see components/ui/StatusBadge).
  */
 
 const colors = {
   light: {
-    text: "#0B1A30",
-    tint: "#1F5EFF",
+    text: "#1B1833",
+    tint: "#5A4AD6",
 
     /** Page and text */
-    background: "#F4F6FA",
-    foreground: "#0B1A30",
+    background: "#F7F4EE",
+    foreground: "#1B1833",
 
     /** Surfaces: page < surface/card < elevated (sheets, popovers) */
     card: "#FFFFFF",
-    cardForeground: "#0B1A30",
+    cardForeground: "#1B1833",
     surface: "#FFFFFF",
     surfaceElevated: "#FFFFFF",
-    surfaceMuted: "#EEF2F8",
+    surfaceMuted: "#F0ECE4",
 
     /** Text hierarchy */
-    textSecondary: "#3D4B63",
-    textMuted: "#5E6B80",
+    textSecondary: "#4D4964",
+    textMuted: "#6A6680",
 
     /** Brand */
-    primary: "#1F5EFF",
-    primaryStrong: "#1546D1",
-    primarySoft: "#E8EFFF",
+    primary: "#5A4AD6",
+    primaryStrong: "#4637BE",
+    primarySoft: "#EEEBFC",
     primaryForeground: "#FFFFFF",
-    secondary: "#E8EFFF",
-    secondaryForeground: "#1546D1",
-    navy: "#0B1F3A",
+    secondary: "#EEEBFC",
+    secondaryForeground: "#4637BE",
+    navy: "#1A1640",
     navyForeground: "#FFFFFF",
-    gold: "#C8932F",
+    gold: "#B8862F",
     goldSoft: "#FBF3E2",
-    teal: "#11998A",
+    goldText: "#8C6418",
+    teal: "#0F6E7D",
 
     /** Utility */
-    muted: "#EEF2F8",
-    mutedForeground: "#5E6B80",
-    accent: "#E3EBFF",
-    accentForeground: "#1546D1",
+    muted: "#F0ECE4",
+    mutedForeground: "#6A6680",
+    accent: "#ECE8FB",
+    accentForeground: "#4637BE",
 
     /** States */
-    success: "#0E9F6E",
-    successSoft: "#E6F6EF",
-    successText: "#05704D",
+    success: "#0B7A57",
+    successSoft: "#E5F4EC",
+    successText: "#05664A",
     successForeground: "#FFFFFF",
-    warning: "#D9921A",
-    warningSoft: "#FDF3E0",
-    warningText: "#8A5300",
+    warning: "#C98511",
+    warningSoft: "#FBF1DD",
+    warningText: "#8A5A08",
     warningForeground: "#2A1A00",
-    danger: "#DC2626",
-    dangerSoft: "#FDECEC",
-    dangerText: "#B01E1E",
-    destructive: "#DC2626",
+    danger: "#B42530",
+    dangerSoft: "#FBE9EA",
+    dangerText: "#9C1F29",
+    destructive: "#B42530",
     destructiveForeground: "#FFFFFF",
-    info: "#2F6BE8",
-    infoSoft: "#E8F0FE",
-    infoText: "#1C4FB8",
+    info: "#0F6E7D",
+    infoSoft: "#E4F2F4",
+    infoText: "#0B5A66",
     infoForeground: "#FFFFFF",
-    disabled: "#C5CEDB",
-    disabledForeground: "#7A8699",
-    focus: "#1F5EFF",
+    disabled: "#D9D3C8",
+    disabledForeground: "#7D7890",
+    focus: "#5A4AD6",
 
     /** Lines and inputs */
-    border: "#DFE5EE",
-    borderStrong: "#C7D0DD",
-    input: "#E7ECF4",
-    overlay: "rgba(8, 18, 36, 0.48)",
-    shadow: "#0B1F3A",
+    border: "#E7E1D6",
+    borderStrong: "#D3CBBE",
+    input: "#F1EDE6",
+    overlay: "rgba(20, 16, 44, 0.5)",
+    shadow: "#1A1640",
   },
   dark: {
-    text: "#E9EFF8",
-    tint: "#8DB2FF",
+    text: "#EDEAF6",
+    tint: "#B39CFF",
 
-    background: "#06121F",
-    foreground: "#E9EFF8",
+    background: "#0E0C1C",
+    foreground: "#EDEAF6",
 
-    card: "#0E1E33",
-    cardForeground: "#E9EFF8",
-    surface: "#0E1E33",
-    surfaceElevated: "#14273F",
-    surfaceMuted: "#13243A",
+    card: "#17142B",
+    cardForeground: "#EDEAF6",
+    surface: "#17142B",
+    surfaceElevated: "#1F1B3D",
+    surfaceMuted: "#1C1934",
 
-    textSecondary: "#C2CFE2",
-    textMuted: "#93A4BD",
+    textSecondary: "#C8C3DC",
+    textMuted: "#A6A1BE",
 
-    primary: "#5B8BFF",
-    primaryStrong: "#3E73FF",
-    primarySoft: "#16294A",
+    primary: "#6B5DE6",
+    primaryStrong: "#5A4AD6",
+    primarySoft: "#252052",
     primaryForeground: "#FFFFFF",
-    secondary: "#16294A",
-    secondaryForeground: "#B9CCFF",
-    navy: "#0A1A30",
+    secondary: "#252052",
+    secondaryForeground: "#C9BEFF",
+    navy: "#120F2C",
     navyForeground: "#FFFFFF",
-    gold: "#E2B457",
-    goldSoft: "#2A2414",
-    teal: "#3CCFBD",
+    gold: "#E3B75C",
+    goldSoft: "#2B2414",
+    goldText: "#E3B75C",
+    teal: "#5CC6D4",
 
-    muted: "#13243A",
-    mutedForeground: "#93A4BD",
-    accent: "#16294A",
-    accentForeground: "#B9CCFF",
+    muted: "#1C1934",
+    mutedForeground: "#A6A1BE",
+    accent: "#252052",
+    accentForeground: "#C9BEFF",
 
-    success: "#34D399",
-    successSoft: "#0F2E26",
-    successText: "#6EE7B7",
-    successForeground: "#FFFFFF",
+    success: "#4CD39B",
+    successSoft: "#10291F",
+    successText: "#7FE3B8",
+    successForeground: "#0E0C1C",
     warning: "#F2B84B",
     warningSoft: "#2E2410",
-    warningText: "#FAD38A",
+    warningText: "#F8D08A",
     warningForeground: "#2A1A00",
-    danger: "#F87171",
-    dangerSoft: "#341619",
-    dangerText: "#FCA5A5",
-    destructive: "#F87171",
+    danger: "#F58A90",
+    dangerSoft: "#35161B",
+    dangerText: "#F9B2B6",
+    destructive: "#C8323C",
     destructiveForeground: "#FFFFFF",
-    info: "#60A5FA",
-    infoSoft: "#122A4A",
-    infoText: "#A5CBFD",
-    infoForeground: "#FFFFFF",
-    disabled: "#2A3B52",
-    disabledForeground: "#6B7C94",
-    focus: "#8DB2FF",
+    info: "#5CC6D4",
+    infoSoft: "#0F2A30",
+    infoText: "#9BDDE6",
+    infoForeground: "#0E0C1C",
+    disabled: "#2C2846",
+    disabledForeground: "#7D7896",
+    focus: "#B39CFF",
 
-    border: "#1E324C",
-    borderStrong: "#2B4565",
-    input: "#13243A",
-    overlay: "rgba(0, 0, 0, 0.6)",
+    border: "#272341",
+    borderStrong: "#37325A",
+    input: "#1C1934",
+    overlay: "rgba(0, 0, 0, 0.62)",
     shadow: "#000000",
   },
-  radius: 12,
+  radius: 14,
 };
 
 export type ThemeColors = typeof colors.light;

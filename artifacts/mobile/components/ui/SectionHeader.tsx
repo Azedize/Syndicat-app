@@ -26,14 +26,14 @@ export default function SectionHeader({ title, eyebrow, actionLabel, onAction }:
             {lang === "ar" ? eyebrow : eyebrow.toUpperCase()}
           </Text>
         ) : null}
-        <Text style={[TYPE.subtitle, { color: colors.foreground }]} accessibilityRole="header" numberOfLines={2}>
+        <Text style={[TYPE.headline, { fontSize: 19, color: colors.foreground }]} accessibilityRole="header" numberOfLines={2}>
           {title}
         </Text>
       </View>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} accessibilityRole="link" accessibilityLabel={`${actionLabel} — ${title}`} hitSlop={8} style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
-          <Text style={[TYPE.label, { color: colors.primary }]}>{actionLabel}</Text>
-          <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.primary} />
+          <Text style={[TYPE.label, { color: colors.tint }]}>{actionLabel}</Text>
+          <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.tint} />
         </Pressable>
       ) : null}
     </View>

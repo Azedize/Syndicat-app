@@ -1,17 +1,15 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import {
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { IconButton, ZelligePattern } from "@/components/ui";
+import { displayFace, FONT } from "@/constants/typography";
 
 interface ActionButton {
   icon: keyof typeof Feather.glyphMap;
@@ -22,6 +20,10 @@ interface ActionButton {
 interface Props {
   title: string;
   subtitle?: string;
+  /**
+   * @deprecated Module colors are no longer used for headers: every screen
+   * shares the MIZAN navy header. Kept for API compatibility.
+   */
   color?: string;
   onBack?: () => void;
   action?: ActionButton;
@@ -29,6 +31,7 @@ interface Props {
   rightContent?: React.ReactNode;
 }
 
+/** Header of every secondary screen: Nuit band (indigo dusk), zellige texture, back + up to two actions. */
 export default function ScreenHeader({
   title,
   subtitle,
@@ -39,55 +42,47 @@ export default function ScreenHeader({
   rightContent,
 }: Props) {
   const colors = useColors();
-  const { isRTL } = useLanguage();
+  const { isRTL, t, lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
   const goBack = useBackNavigation();
+  const { isDark } = useTheme();
 
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const handleBack = onBack ?? goBack;
-  const headerColor = color ?? colors.primary;
 
   return (
     <View
       style={[
         styles.header,
         {
-          backgroundColor: headerColor,
-          paddingTop: topPad + 14,
+          backgroundColor: colors.navy,
+          paddingTop: topPad + 10,
           direction: isRTL ? "rtl" : "ltr",
         },
       ]}
     >
-      <TouchableOpacity
+      <LinearGradient
+        colors={[colors.navy, isDark ? "#1A1640" : "#2B2475"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <ZelligePattern opacity={0.035} />
+      <IconButton
+        icon={isRTL ? "arrow-right" : "arrow-left"}
+        variant="onDark"
         onPress={handleBack}
-        style={styles.backBtn}
-        hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
-        accessibilityRole="button"
-      >
-        <Feather
-          name={isRTL ? "arrow-right" : "arrow-left"}
-          size={22}
-          color={colors.primaryForeground}
-        />
-      </TouchableOpacity>
+        accessibilityLabel={t("back")}
+      />
 
       <View style={styles.titles}>
-        <Text
-          style={[styles.title, { color: colors.primaryForeground }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.title, lang === "ar" && { fontFamily: displayFace(lang), lineHeight: 30 }]} numberOfLines={1} accessibilityRole="header">
           {title}
         </Text>
         {subtitle ? (
-          <Text
-            style={[
-              styles.subtitle,
-              { color: colors.primaryForeground + "CC" },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
           </Text>
         ) : null}
@@ -98,34 +93,10 @@ export default function ScreenHeader({
       ) : (
         <View style={styles.actions}>
           {action2 ? (
-            <TouchableOpacity
-              onPress={action2.onPress}
-              style={styles.actionBtn}
-              hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={action2.label}
-            >
-              <Feather
-                name={action2.icon}
-                size={20}
-                color={colors.primaryForeground}
-              />
-            </TouchableOpacity>
+            <IconButton icon={action2.icon} variant="onDark" onPress={action2.onPress} accessibilityLabel={action2.label ?? title} />
           ) : null}
           {action ? (
-            <TouchableOpacity
-              onPress={action.onPress}
-              style={styles.actionBtn}
-              hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={action.label}
-            >
-              <Feather
-                name={action.icon}
-                size={20}
-                color={colors.primaryForeground}
-              />
-            </TouchableOpacity>
+            <IconButton icon={action.icon} variant="onDark" onPress={action.onPress} accessibilityLabel={action.label ?? title} />
           ) : null}
         </View>
       )}
@@ -138,30 +109,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
     gap: 12,
     minHeight: 56,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    overflow: "hidden",
   },
   titles: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+    gap: 1,
   },
   title: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
+    fontSize: 19,
+    lineHeight: 25,
+    fontFamily: FONT.display,
+    color: "#FFFFFF",
   },
   subtitle: {
     fontSize: 12,
-    fontFamily: "Inter_400Regular",
+    lineHeight: 16,
+    fontFamily: FONT.regular,
+    color: "rgba(255,255,255,0.75)",
   },
   actions: {
     flexDirection: "row",
@@ -170,13 +138,5 @@ const styles = StyleSheet.create({
   },
   rightSlot: {
     flexShrink: 0,
-  },
-  actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

@@ -20,6 +20,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
+import { toCents } from "../lib/treasury.js";
 
 const router = Router();
 
@@ -62,7 +63,7 @@ async function computeScoreForSyndicate(
   );
   const paidAmt = appelsAll
     .filter((a) => a.status === "paid")
-    .reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
+    .reduce((s, a) => s + toCents(a.amount), 0) / 100;
   const collectionRate = totalAmt > 0 ? (paidAmt / totalAmt) * 100 : 100;
 
   // 2. Incident resolution rate — % sinistres resolved/closed

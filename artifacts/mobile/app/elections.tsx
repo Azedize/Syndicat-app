@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -650,16 +651,16 @@ function ElectionsScreenInner() {
         bg: colors.muted,
       },
       candidacy_open: {
-        color: "#3b82f6",
+        color: "#5A4AD6",
         label: t("statusCandidacyOpen"),
         icon: "user-plus" as const,
-        bg: "#3b82f615",
+        bg: "#5A4AD615",
       },
       campaign: {
-        color: "#8b5cf6",
+        color: "#1F8A9A",
         label: t("statusCampaign"),
         icon: "flag" as const,
-        bg: "#8b5cf615",
+        bg: "#1F8A9A15",
       },
       open: {
         color: colors.success,
@@ -674,10 +675,10 @@ function ElectionsScreenInner() {
         bg: colors.muted,
       },
       quorum_failed: {
-        color: "#f59e0b",
+        color: colors.warning,
         label: t("statusQuorumFailed"),
         icon: "alert-triangle" as const,
-        bg: "#f59e0b15",
+        bg: colors.warning + "15",
       },
       contested: {
         color: colors.destructive,
@@ -692,7 +693,7 @@ function ElectionsScreenInner() {
         bg: colors.destructive + "15",
       },
       completed: {
-        color: colors.primary,
+        color: colors.tint,
         label: t("statusCompleted"),
         icon: "check-circle" as const,
         bg: colors.primary + "15",
@@ -853,46 +854,12 @@ function ElectionsScreenInner() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("elections")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {electionList.filter((e) => e.status === "open").length}{" "}
-            {t("openElections")}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.secondary }]}
-          onPress={() => router.push("/elected-members" as any)}
-        >
-          <Feather name="award" size={18} color={colors.primary} />
-        </TouchableOpacity>
-        {isAdmin ? (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setShowCreate(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={t("elections")}
+        subtitle={`${electionList.filter((e) => e.status === "open").length} ${t("openElections")}`}
+        action2={{ icon: "award", label: t("electedMembers"), onPress: () => router.push("/elected-members" as any) }}
+        action={isAdmin ? { icon: "plus", label: t("newItem"), onPress: () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       <FlatList
         data={electionList}
@@ -906,7 +873,7 @@ function ElectionsScreenInner() {
         refreshControl={
           <RefreshControl
             refreshing={false}
-            onRefresh={refetch}
+            onRefresh={() => { void refetch(); }}
             tintColor={colors.primary}
           />
         }
@@ -1392,7 +1359,7 @@ function ElectionsScreenInner() {
                         >
                           <Text
                             style={{
-                              color: colors.primary,
+                              color: colors.tint,
                               fontSize: 12,
                               fontWeight: "700",
                             }}
@@ -1420,7 +1387,7 @@ function ElectionsScreenInner() {
                           color={colors.primary}
                         />
                         <Text
-                          style={[styles.warnText, { color: colors.primary }]}
+                          style={[styles.warnText, { color: colors.tint }]}
                         >
                           {t("votingOnBehalfOf")} {d.grantorName}
                         </Text>
@@ -1809,7 +1776,7 @@ function ElectionsScreenInner() {
                 )}
                 <Text
                   style={{
-                    color: colors.primary,
+                    color: colors.tint,
                     fontSize: 12,
                     fontWeight: "600",
                   }}
@@ -1974,7 +1941,7 @@ function ElectionsScreenInner() {
                     >
                       <Text
                         style={{
-                          color: colors.primary,
+                          color: colors.tint,
                           fontWeight: "700",
                           fontSize: 13,
                         }}
@@ -2319,21 +2286,7 @@ function ElectionsScreenInner() {
 
 function Header({ colors, topPad, title, onBack }: any) {
   return (
-    <View
-      style={[
-        styles.header,
-        {
-          paddingTop: topPad + 16,
-          backgroundColor: colors.card,
-          borderBottomColor: colors.border,
-        },
-      ]}
-    >
-      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-        <Feather name="arrow-left" size={22} color={colors.foreground} />
-      </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-    </View>
+    <ScreenHeader title={title} onBack={onBack} />
   );
 }
 
@@ -2354,7 +2307,7 @@ function CandidateAvatar({
   }
   return (
     <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
-      <Text style={[styles.avatarText, { color: colors.primary }]}>
+      <Text style={[styles.avatarText, { color: colors.tint }]}>
         {c.name.charAt(0)}
       </Text>
     </View>
@@ -2411,7 +2364,7 @@ function CandidateCard({
         ? colors.destructive
         : c.status === "withdrawn"
           ? colors.mutedForeground
-          : "#f59e0b";
+          : colors.warning;
   return (
     <View
       style={[
@@ -2486,7 +2439,7 @@ function CandidateCard({
                     {q.askedByName}: {q.question}
                   </Text>
                   {q.answer ? (
-                    <Text style={[styles.qaAnswer, { color: colors.primary }]}>
+                    <Text style={[styles.qaAnswer, { color: colors.tint }]}>
                       → {q.answer}
                     </Text>
                   ) : isMine ? (
@@ -2669,7 +2622,7 @@ function ResultsPanel({
                 ) : (
                   <Text
                     style={{
-                      color: colors.primary,
+                      color: colors.tint,
                       fontSize: 12,
                       fontWeight: "700",
                     }}
@@ -2807,7 +2760,7 @@ function ResultsPanel({
                   >
                     <Feather name="award" size={10} color={colors.primary} />
                     <Text
-                      style={[styles.myVoteText, { color: colors.primary }]}
+                      style={[styles.myVoteText, { color: colors.tint }]}
                     >
                       {t("winner")}
                     </Text>
@@ -2823,7 +2776,7 @@ function ResultsPanel({
                 {c.post}
               </Text>
             </View>
-            <Text style={[styles.pctText, { color: colors.primary }]}>
+            <Text style={[styles.pctText, { color: colors.tint }]}>
               {c.pct}%
             </Text>
           </View>

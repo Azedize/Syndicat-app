@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -24,12 +24,12 @@ import { useToast } from "@/context/ToastContext";
 type Tab = "alerts" | "analysis" | "documents";
 
 const LEGAL_DOCS = [
-  { id: "1", title: "Mise en demeure - Cotisations impayées", icon: "file-text" as const, category: "Recouvrement", template: "mise_en_demeure" },
-  { id: "2", title: "Convocation Assemblée Générale", icon: "users" as const, category: "AG", template: "convocation" },
-  { id: "3", title: "Procès-verbal d'élection", icon: "check-square" as const, category: "Elections", template: "pv" },
-  { id: "4", title: "Contrat de travail syndicat", icon: "briefcase" as const, category: "RH", template: "contrat" },
-  { id: "5", title: "Recours administratif", icon: "shield" as const, category: "Juridique", template: "acte_administratif" },
-  { id: "6", title: "Accord de partenariat", icon: "link" as const, category: "Partenariat", template: "contrat" },
+  { id: "1", titleKey: "lgDocNotice", icon: "file-text" as const, categoryKey: "lgCatRecovery", template: "mise_en_demeure" },
+  { id: "2", titleKey: "lgDocConvocation", icon: "users" as const, categoryKey: "lgCatGM", template: "convocation" },
+  { id: "3", titleKey: "lgDocElectionPv", icon: "check-square" as const, categoryKey: "lgCatElections", template: "pv" },
+  { id: "4", titleKey: "lgDocEmployment", icon: "briefcase" as const, categoryKey: "lgCatHR", template: "contrat" },
+  { id: "5", titleKey: "lgDocAppeal", icon: "shield" as const, categoryKey: "lgCatLegal", template: "acte_administratif" },
+  { id: "6", titleKey: "lgDocPartnership", icon: "link" as const, categoryKey: "lgCatPartnership", template: "contrat" },
 ];
 
 export default function LegalScreen() {
@@ -57,15 +57,15 @@ function LegalScreenInner() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const levelConfig = (level: LegalAlert["level"]) => {
-    if (level === "critical") return { color: colors.destructive, label: "Critique", icon: "alert-octagon" as const };
-    if (level === "warning") return { color: "#f59e0b", label: "Avertissement", icon: "alert-triangle" as const };
-    return { color: "#3b82f6", label: "Information", icon: "info" as const };
+    if (level === "critical") return { color: colors.destructive, label: t("lgLevelCritical"), icon: "alert-octagon" as const };
+    if (level === "warning") return { color: colors.warning, label: t("lgLevelWarning"), icon: "alert-triangle" as const };
+    return { color: "#5A4AD6", label: t("lgLevelInfo"), icon: "info" as const };
   };
 
   const statusConfig = (status: LegalAlert["status"]) => {
-    if (status === "open") return { color: colors.destructive, label: "Ouvert" };
-    if (status === "in_progress") return { color: "#f59e0b", label: "En cours" };
-    return { color: colors.success, label: "Résolu" };
+    if (status === "open") return { color: colors.destructive, label: t("lgStatusOpen") };
+    if (status === "in_progress") return { color: colors.warning, label: t("lgStatusInProgress") };
+    return { color: colors.success, label: t("lgStatusResolved") };
   };
 
   const analysisCopy = {
@@ -88,7 +88,7 @@ function LegalScreenInner() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -97,7 +97,7 @@ function LegalScreenInner() {
           <Text style={styles.headerSub}>{t("legalAlertTitle")}</Text>
         </View>
         <View style={[styles.aiBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-          <Feather name="zap" size={12} color="#fbbf24" />
+          <Feather name="zap" size={12} color="#F2B84B" />
           <Text style={styles.aiBadgeText}>IA</Text>
         </View>
       </View>
@@ -105,9 +105,9 @@ function LegalScreenInner() {
       {/* Tabs */}
       <View style={[styles.tabs, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {([
-          { key: "alerts", label: "Alertes", count: legalAlerts.filter((a) => a.status === "open").length },
-          { key: "analysis", label: "Analyse risques", count: null },
-          { key: "documents", label: "Documents légaux", count: null },
+          { key: "alerts", label: t("lgTabAlerts"), count: legalAlerts.filter((a) => a.status === "open").length },
+          { key: "analysis", label: t("lgTabAnalysis"), count: null },
+          { key: "documents", label: t("lgTabDocuments"), count: null },
         ] as { key: Tab; label: string; count: number | null }[]).map((t) => (
           <TouchableOpacity
             key={t.key}
@@ -173,7 +173,7 @@ function LegalScreenInner() {
                 {alert.action ? (
                   <View style={[styles.actionRow, { backgroundColor: colors.muted }]}>
                     <Feather name="arrow-right-circle" size={14} color={colors.primary} />
-                    <Text style={[styles.actionText, { color: colors.primary }]}>{alert.action}</Text>
+                    <Text style={[styles.actionText, { color: colors.tint }]}>{alert.action}</Text>
                   </View>
                 ) : null}
                 <View style={styles.alertFooter}>
@@ -192,7 +192,7 @@ function LegalScreenInner() {
                       }}
                     >
                       <Feather name="check" size={13} color="#fff" />
-                      <Text style={styles.resolveBtnText}>Résoudre</Text>
+                      <Text style={styles.resolveBtnText}>{t("lgResolve")}</Text>
                     </TouchableOpacity>
                   ) : (
                     <View style={[styles.resolvedTag, { backgroundColor: colors.success + "18" }]}>
@@ -241,18 +241,18 @@ function LegalScreenInner() {
                 <Feather name={doc.icon} size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.docTitle, { color: colors.foreground }]}>{doc.title}</Text>
-                <Text style={[styles.docCat, { color: colors.mutedForeground }]}>{doc.category}</Text>
+                <Text style={[styles.docTitle, { color: colors.foreground }]}>{t(doc.titleKey)}</Text>
+                <Text style={[styles.docCat, { color: colors.mutedForeground }]}>{t(doc.categoryKey)}</Text>
               </View>
               <TouchableOpacity
                 style={[styles.generateBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/documents?template=${doc.template}` as any);
                 }}
               >
                 <Feather name="download" size={14} color="#fff" />
-                <Text style={styles.generateText}>Générer</Text>
+                <Text style={styles.generateText}>{t("lgGenerate")}</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           )}
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  aiBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fbbf24" },
+  aiBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#F2B84B" },
   tabs: {
     flexDirection: "row",
     borderBottomWidth: 1,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   scoreLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  scoreValue: { fontSize: 40, fontFamily: "Inter_700Bold", letterSpacing: -1 },
+  scoreValue: { fontSize: 40, fontFamily: "Fraunces_600SemiBold" },
   scoreDesc: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   riskCard: {
     borderRadius: 14,

@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -109,7 +109,7 @@ export default function CoproprietesScreen() {
             <TouchableOpacity style={[styles.card, { backgroundColor: colors.primary + "12", borderColor: colors.primary }]} onPress={() => router.push("/portefeuille" as any)}>
               <View style={styles.row}>
                 <Feather name="pie-chart" size={18} color={colors.primary} />
-                <Text style={[styles.name, { color: colors.primary, flex: 1 }]}>{tr("portfolio")}</Text>
+                <Text style={[styles.name, { color: colors.tint, flex: 1 }]}>{tr("portfolio")}</Text>
                 <Feather name="chevron-right" size={18} color={colors.primary} />
               </View>
             </TouchableOpacity>
@@ -140,9 +140,9 @@ export default function CoproprietesScreen() {
                   {switchingTo === c.syndicateId ? (
                     <ActivityIndicator color={colors.primary} />
                   ) : current ? (
-                    <Text style={[styles.badge, { color: colors.primary }]}>{tr("current")}</Text>
+                    <Text style={[styles.badge, { color: colors.tint }]}>{tr("current")}</Text>
                   ) : (
-                    <Text style={[styles.badge, { color: statusKey === "active" ? "#10b981" : "#f59e0b" }]}>{tr(statusKey)}</Text>
+                    <Text style={[styles.badge, { color: statusKey === "active" ? colors.success : colors.warning }]}>{tr(statusKey)}</Text>
                   )}
                 </View>
               </TouchableOpacity>

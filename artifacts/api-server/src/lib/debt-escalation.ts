@@ -26,6 +26,7 @@ import { createAlert, sendPushToUsers, sendEmail } from "./notify.js";
 import { logger } from "./logger.js";
 import { paymentReminderTemplate, latePaymentWarningTemplate } from "./email/templates.js";
 import { scheduleJob } from "./scheduler.js";
+import { toCents } from "./treasury.js";
 
 export type EscalationLevel =
   | "reminder"
@@ -126,11 +127,11 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
       try {
         // Find the oldest unpaid date and sum total overdue
         let oldestDate: Date | null = null;
-        let totalUnpaid = 0;
+        let unpaidCents = 0;
 
         for (const appel of appels) {
           // Only the part not covered by validated payments is owed.
-          totalUnpaid += Number(appel.amount ?? 0) - Number(appel.amountPaid ?? 0);
+          unpaidCents += toCents(appel.amount) - toCents(appel.amountPaid);
           const refDate = appel.dueDate
             ? new Date(appel.dueDate)
             : appel.createdAt ?? null;
@@ -138,6 +139,7 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
             oldestDate = refDate;
           }
         }
+        const totalUnpaid = unpaidCents / 100;
 
         if (!oldestDate || totalUnpaid <= 0) {
           result.skipped++;
@@ -257,8 +259,8 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
         // to all users via the broadcast push mechanism in notify.ts.
         const levelLabel = LEVEL_LABELS[requiredLevel];
         await createAlert({
-          title: `⚠️ Nouvelle escalade de recouvrement — ${levelLabel}`,
-          message: `Un dossier de recouvrement au niveau "${levelLabel}" a été ouvert. Consultez le tableau de bord Recouvrement pour les détails.`,
+          key: "debt.escalation",
+          params: { level: levelLabel },
           type: "warning",
           syndicateId,
           target: "admin",

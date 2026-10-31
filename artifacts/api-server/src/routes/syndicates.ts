@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -5,6 +6,7 @@ import { organizationMembersTable, organizationsTable, syndicatesTable, usersTab
 import { and, eq, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { BankDetailsError, maskBankIdentifier, normaliseBankFields } from "../lib/bank-details.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { syndicateCreatedTemplate } from "../lib/email/templates.js";
 import { bustLogoCache } from "../lib/documentPdf.js";
@@ -32,8 +34,7 @@ router.get("/syndicates", requireAuth, async (req, res) => {
             .where(eq(syndicatesTable.id, user.syndicateId ?? ""));
     res.json({ data: rows });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -57,8 +58,7 @@ router.get("/syndicates/:id", requireAuth, async (req, res) => {
     }
     res.json({ data: syndicate });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
 
@@ -166,6 +166,12 @@ router.post(
         .status(400)
         .json({ error: "Données invalides", details: result.error.flatten() });
       return;
+    }
+    try {
+      normaliseBankFields(result.data as Record<string, unknown>);
+    } catch (e) {
+      if (e instanceof BankDetailsError) return void res.status(400).json({ error: e.message, code: e.code });
+      throw e;
     }
     try {
       const data = result.data;
@@ -399,7 +405,18 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
     return;
   }
   const updateData = result.data as z.infer<typeof updateSchema>;
+  // Bank details are verified (RIB key, IBAN check digits, BIC) before anything is written.
+  let bankFields: string[];
   try {
+    bankFields = normaliseBankFields(updateData as Record<string, unknown>);
+  } catch (e) {
+    if (e instanceof BankDetailsError) return void res.status(400).json({ error: e.message, code: e.code });
+    throw e;
+  }
+  try {
+    const [before] = bankFields.length
+      ? await db.select({ bankName: syndicatesTable.bankName, bankIban: syndicatesTable.bankIban, bankBic: syndicatesTable.bankBic }).from(syndicatesTable).where(eq(syndicatesTable.id, id))
+      : [undefined];
     if (user.role === "super_admin" && updateData.adminId !== undefined) {
       const [admin] = await db
         .select({
@@ -446,11 +463,29 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
       syndicateId: id,
       platformAction: user.role === "super_admin",
     });
+    if (bankFields.length && before) await auditBankChange(req, id, before, updated);
     res.json({ data: updated, message: "Syndicat mis à jour" });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+    sendRouteError(req, res, err);
   }
 });
+
+/**
+ * Financial configuration change: who, when, which fields — the account
+ * identifiers masked to their last four characters, never in full.
+ */
+async function auditBankChange(
+  req: Parameters<typeof serverAuditLog>[0],
+  syndicateId: string,
+  before: { bankName: string | null; bankIban: string | null; bankBic: string | null },
+  after: { bankName: string | null; bankIban: string | null; bankBic: string | null },
+) {
+  const changed: string[] = [];
+  if (before.bankName !== after.bankName) changed.push(`banque : « ${before.bankName ?? "—"} » → « ${after.bankName ?? "—"} »`);
+  if (before.bankIban !== after.bankIban) changed.push(`RIB/IBAN : ${maskBankIdentifier(before.bankIban) ?? "—"} → ${maskBankIdentifier(after.bankIban) ?? "—"}`);
+  if (before.bankBic !== after.bankBic) changed.push(`BIC : ${before.bankBic ?? "—"} → ${after.bankBic ?? "—"}`);
+  if (!changed.length) return;
+  await serverAuditLog(req, { action: "BANK_DETAILS_UPDATED", entity: "syndicate", entityId: syndicateId, syndicateId, details: changed.join(" ; ") });
+}
 
 export default router;

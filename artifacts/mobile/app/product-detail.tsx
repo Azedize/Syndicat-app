@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +24,14 @@ import { useToast } from "@/context/ToastContext";
 import { marketplace, chat } from "@/services/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { crossPlatformShadow } from "@/lib/shadow";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { Button, IconButton } from "@/components/ui";
+import { FONT } from "@/constants/typography";
+import { useFileTicket } from "@/hooks/useFileTicket";
+import { listingImages, resolveMediaUrl } from "@/lib/media";
+import { categoryIcon, categoryLabelKey, conditionLabelKey } from "@/components/marketplace/catalog";
+import { useWindowDimensions } from "react-native";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +74,14 @@ type Product = {
   reservedAt?: string | null;
   soldAt?: string | null;
   createdAt: string;
+  /** Seller is a current resident of this condominium (server fact). */
+  sellerVerifiedResident?: boolean;
+  otherResidence?: boolean;
+  residenceCity?: string | null;
+  /** The viewer is the neighbour who reserved it (the server hides who otherwise). */
+  reservedByMe?: boolean;
+  /** Sold to the viewer: they may rate the exchange once. */
+  canReview?: boolean;
 };
 
 type Comment = {
@@ -107,13 +124,13 @@ const CATEGORY_KEYS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  approved: "#22c55e",
-  pending_review: "#f59e0b",
-  rejected: "#ef4444",
-  modification_requested: "#f97316",
-  sold_out: "#94a3b8",
-  reserved: "#1F5EFF",
-  sold: "#94a3b8",
+  approved: "#13976C",
+  pending_review: "#C98511",
+  rejected: "#C8323C",
+  modification_requested: "#C8642A",
+  sold_out: "#A6A1BE",
+  reserved: "#5A4AD6",
+  sold: "#A6A1BE",
 };
 
 const STATUS_KEYS: Record<string, string> = {
@@ -143,7 +160,7 @@ export default function ProductDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -165,7 +182,14 @@ export default function ProductDetailScreen() {
   // Only super_admin has marketplace moderation rights — syndicate_admin is read-only
   const isAdmin = user?.role === "super_admin";
   const isSeller = product?.sellerId === user?.id;
-  const isReserver = product?.reservedBy === user?.id;
+  const isReserver = !!product?.reservedByMe || (!!product?.reservedBy && product?.reservedBy === user?.id);
+  const ticket = useFileTicket();
+  const { width: winW } = useWindowDimensions();
+  const [photo, setPhoto] = useState(0);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const [pendingPromo, setPendingPromo] = useState<{ id: string; type: string; amount: string; paymentMethod: string | null; proofUrl: string | null } | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
@@ -324,7 +348,7 @@ export default function ProductDetailScreen() {
       [
         { text: t("cartCancel"), style: "cancel" },
         {
-          text: "Marquer comme vendu",
+          text: t("mkMarkSold"),
           onPress: async () => {
             setMarkingSold(true);
             try {
@@ -416,6 +440,21 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const submitReview = async () => {
+    if (!product) return;
+    setSubmittingReview(true);
+    try {
+      await marketplace.addReview({ productId: product.id, rating: reviewRating, comment: reviewText.trim() });
+      setShowReview(false);
+      setProduct((p) => (p ? { ...p, canReview: false } : p));
+      showToast({ type: "success", title: t("mkReviewThanks"), message: t("mkReviewThanksMsg") });
+    } catch (e: any) {
+      Alert.alert(t("cartUpdateErrorTitle"), e?.message ?? t("uiActionFailed"));
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -456,7 +495,8 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const locale = lang === "fr" ? "fr-MA" : lang === "en" ? "en-US" : lang === "ar" ? "ar-MA" : "es-ES";
+  // Same number format as the listing cards (useFormat).
+  const locale = lang === "fr" ? "fr-FR" : lang === "en" ? "en-US" : lang === "ar" ? "ar-MA" : "es-ES";
   const parsedImages: string[] = (() => { try { return JSON.parse(product.imageUrls ?? "[]"); } catch { return []; } })();
   const parsedContactPrefs: string[] = (() => { try { return JSON.parse(product.contactPreferences ?? '["chat"]'); } catch { return ["chat"]; } })();
   const price = formatMAD(product.price, locale) + " MAD";
@@ -474,164 +514,198 @@ export default function ProductDetailScreen() {
     canMarkSold, // mark sold
   ].filter(Boolean).length;
 
+  const images = listingImages(product.imageUrls);
+  const galleryW = Math.min(winW, 720);
+  const isBuyer = !isSeller && !isAdmin;
+  const sold = product.status === "sold";
+  const reservedByOther = product.status === "reserved" && !isReserver && !isSeller;
+  const contactLabels: Record<string, string> = { chat: t("productContactChat"), phone: t("productContactPhone"), email: t("productContactEmail") };
+
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.background }]}
+      style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={insets.top + 60}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 + fabCount * 58 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Header bar */}
-        <View style={[styles.headerBar, { paddingTop: insets.top + 8, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>{product.name}</Text>
-          <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn} disabled={favoriteLoading}>
-            <Feather name="heart" size={22} color={product.isFavorited ? "#ef4444" : colors.mutedForeground} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Image area */}
-        <View style={[styles.imagePlaceholder, { backgroundColor: colors.secondary }]}>
-          {parsedImages.length > 0 ? (
-            <Text style={[styles.imageCount, { color: colors.mutedForeground }]}>
-              {parsedImages.length} {t(parsedImages.length === 1 ? "productPhotoSingular" : "productPhotoPlural")}
-            </Text>
+        {/* ── Gallery ── */}
+        <View style={[pd.gallery, { width: "100%", backgroundColor: colors.primarySoft }]}>
+          {images.length > 0 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => setPhoto(Math.round(e.nativeEvent.contentOffset.x / galleryW))}
+              style={{ width: galleryW, alignSelf: "center" }}
+            >
+              {images.map((img, i) => (
+                <Image
+                  key={img + i}
+                  source={resolveMediaUrl(img, ticket) ? { uri: resolveMediaUrl(img, ticket)! } : undefined}
+                  style={{ width: galleryW, height: 360 }}
+                  contentFit="cover"
+                  transition={200}
+                  accessibilityLabel={`${product.name} — ${i + 1}/${images.length}`}
+                />
+              ))}
+            </ScrollView>
           ) : (
-            <Feather name="image" size={48} color={colors.mutedForeground} />
+            <LinearGradient colors={[colors.primarySoft, colors.surfaceMuted]} style={pd.noPhoto}>
+              <Feather name={categoryIcon(product.category)} size={56} color={colors.tint} />
+            </LinearGradient>
           )}
-          {product.status === "reserved" && (
-            <View style={[styles.overlayBadge, { backgroundColor: "#1F5EFFCC" }]}>
-              <Feather name="lock" size={14} color="#fff" />
-              <Text style={styles.overlayBadgeText}>{t("productReservedBy")} {product.reservedByName ?? t("productAResident")}</Text>
+          <LinearGradient colors={["rgba(14,12,28,0.55)", "rgba(14,12,28,0)"]} style={[pd.topShade, { paddingTop: insets.top + 8 }]}>
+            <IconButton icon={isRTL ? "arrow-right" : "arrow-left"} variant="onDark" accessibilityLabel={t("back")} onPress={() => router.back()} />
+            <IconButton
+              icon="heart"
+              variant="onDark"
+              accessibilityLabel={product.isFavorited ? t("uiFavoriteRemove") : t("uiFavoriteAdd")}
+              onPress={toggleFavorite}
+              disabled={favoriteLoading}
+            />
+          </LinearGradient>
+          {images.length > 1 ? (
+            <View style={pd.dots}>
+              {images.map((_, i) => (
+                <View key={i} style={[pd.dot, { backgroundColor: i === photo ? "#FFFFFF" : "rgba(255,255,255,0.5)", width: i === photo ? 18 : 6 }]} />
+              ))}
             </View>
-          )}
-          {product.status === "sold" && (
-            <View style={[styles.overlayBadge, { backgroundColor: "#374151CC" }]}>
-              <Feather name="check-circle" size={14} color="#fff" />
-              <Text style={styles.overlayBadgeText}>{t("marketplaceStatusSold")}</Text>
+          ) : null}
+          {product.status === "reserved" || sold ? (
+            <View style={[pd.statusPill, { backgroundColor: sold ? "rgba(58,54,82,0.9)" : "rgba(20,17,58,0.85)" }]}>
+              <Feather name={sold ? "check-circle" : "lock"} size={13} color="#FFFFFF" />
+              <Text style={pd.statusPillText}>{sold ? t("marketplaceStatusSold") : isReserver ? t("mkReservedByYou") : t("mkReserved")}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
-        {/* Product info card */}
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.badgeRow}>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}>
-              <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-            </View>
-            {product.featured && (
-              <View style={[styles.statusBadge, { backgroundColor: "#f59e0b20" }]}>
-                <Feather name="star" size={11} color="#f59e0b" />
-                <Text style={[styles.statusText, { color: "#f59e0b", marginStart: 3 }]}>{t("productFeatured")}</Text>
+        {/* ── Content sheet ── */}
+        <View style={[pd.sheet, { backgroundColor: colors.background }]}>
+          <View style={pd.priceRow}>
+            <Text style={[pd.price, { color: colors.foreground }]}>{price}</Text>
+            {product.originalPrice && Number(product.originalPrice) > Number(product.price) ? (
+              <Text style={[pd.oldPrice, { color: colors.textMuted }]}>{formatMAD(product.originalPrice, locale)} MAD</Text>
+            ) : null}
+            {product.negotiable ? (
+              <View style={[pd.pill, { backgroundColor: colors.primarySoft }]}>
+                <Text style={[pd.pillText, { color: colors.tint }]}>{t("mkNegotiable")}</Text>
               </View>
-            )}
-            {product.negotiable && (
-              <View style={[styles.statusBadge, { backgroundColor: colors.primary + "20" }]}>
-                <Text style={[styles.statusText, { color: colors.primary }]}>{t("productNegotiable")}</Text>
+            ) : null}
+          </View>
+          <Text style={[pd.name, { color: colors.foreground }]} accessibilityRole="header">{product.name}</Text>
+
+          <View style={pd.chips}>
+            <View style={[pd.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name={categoryIcon(product.category)} size={13} color={colors.tint} />
+              <Text style={[pd.chipText, { color: colors.textSecondary }]}>{t(categoryLabelKey(product.category))}</Text>
+            </View>
+            {product.condition ? (
+              <View style={[pd.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="star" size={13} color={colors.goldText} />
+                <Text style={[pd.chipText, { color: colors.textSecondary }]}>{t(conditionLabelKey(product.condition))}</Text>
               </View>
-            )}
+            ) : null}
+            {product.brand || product.model || product.purchaseYear ? (
+              <View style={[pd.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="info" size={13} color={colors.textMuted} />
+                <Text style={[pd.chipText, { color: colors.textSecondary }]}>
+                  {[product.brand, product.model, product.purchaseYear].filter(Boolean).join(" · ")}
+                </Text>
+              </View>
+            ) : null}
           </View>
-
-          <Text style={[styles.productName, { color: colors.foreground }]}>{product.name}</Text>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-            <Text style={[styles.productPrice, { color: colors.primary }]}>{price}</Text>
-            {product.originalPrice && Number(product.originalPrice) > 0 && (
-              <Text style={[styles.originalPrice, { color: colors.mutedForeground }]}>
-                {formatMAD(product.originalPrice, locale)} MAD
-              </Text>
-            )}
-          </View>
-
-          {/* Category / condition */}
-          <View style={styles.metaRow}>
-            <Feather name="tag" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-              {t(CATEGORY_KEYS[product.category] ?? product.category)}
-            </Text>
-            <Feather name="box" size={13} color={colors.mutedForeground} style={{ marginStart: 12 }} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{t(CONDITION_KEYS[product.condition] ?? product.condition)}</Text>
-          </View>
-
-          {/* Brand / model / year */}
-          {(product.brand || product.model || product.purchaseYear) && (
-            <View style={styles.metaRow}>
-              <Feather name="cpu" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {[product.brand, product.model, product.purchaseYear ? `(${product.purchaseYear})` : null].filter(Boolean).join(" · ")}
-              </Text>
-            </View>
-          )}
-
-          {/* Location */}
-          {(product.location || product.building) && (
-            <View style={styles.metaRow}>
-              <Feather name="map-pin" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {[product.building, product.block ? `${t("productBlock")} ${product.block}` : null, product.floor ? `${t("productFloor")} ${product.floor}` : null, product.location].filter(Boolean).join(" · ")}
-              </Text>
-            </View>
-          )}
 
           {/* Seller */}
-          <View style={styles.metaRow}>
-            <Feather name="user" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.sellerName}</Text>
-            <Feather name="eye" size={13} color={colors.mutedForeground} style={{ marginStart: 12 }} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.viewCount} {t("productViews")}</Text>
+          <View style={[pd.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={pd.sellerRow}>
+              <View style={[pd.avatar, { backgroundColor: colors.primarySoft }]}>
+                <Text style={[pd.avatarText, { color: colors.tint }]}>{(product.sellerName ?? "?").trim().charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={[pd.sellerName, { color: colors.foreground }]} numberOfLines={1}>{product.sellerName}</Text>
+                {product.sellerVerifiedResident ? (
+                  <View style={pd.verified}>
+                    <Feather name="check-circle" size={13} color={colors.success} />
+                    <Text style={[pd.verifiedText, { color: colors.successText }]}>
+                      {t("mkVerifiedNeighbour")}{product.building ? ` · ${t("mkBuildingShort").replace("{b}", product.building)}` : ""}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[pd.verifiedText, { color: colors.textMuted }]}>{t("mkNotVerified")}</Text>
+                )}
+              </View>
+              {Number(product.ratingCount) > 0 ? (
+                <View style={[pd.pill, { backgroundColor: colors.goldSoft }]}>
+                  <Feather name="star" size={12} color={colors.goldText} />
+                  <Text style={[pd.pillText, { color: colors.goldText }]}>{product.avgRating} ({product.ratingCount})</Text>
+                </View>
+              ) : null}
+            </View>
+            {parsedContactPrefs.length > 0 ? (
+              <Text style={[pd.small, { color: colors.textMuted }]}>
+                {t("mkContactBy")} {parsedContactPrefs.map((c) => contactLabels[c] ?? c).join(" · ")}
+                {product.sellerPhone ? ` · ${product.sellerPhone}` : ""}
+              </Text>
+            ) : null}
           </View>
 
-          {/* Rating */}
-          {Number(product.ratingCount) > 0 && (
-            <View style={styles.metaRow}>
-              <Feather name="star" size={13} color="#f59e0b" />
-              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {product.avgRating} / 5 ({product.ratingCount} {t("productReviews")})
-              </Text>
-            </View>
-          )}
-
-          {/* Contact preferences */}
-          {parsedContactPrefs.length > 0 && (
-            <View style={styles.metaRow}>
-              <Feather name="phone" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {t("productContact")}: {parsedContactPrefs.map((c) => ({ chat: t("productContactChat"), phone: t("productContactPhone"), email: t("productContactEmail") }[c] ?? c)).join(", ")}
-              </Text>
-            </View>
-          )}
-
-          {/* Description */}
           {product.description ? (
-            <Text style={[styles.description, { color: colors.foreground, borderTopColor: colors.border }]}>{product.description}</Text>
-          ) : null}
-
-          {/* Selling reason */}
-          {product.sellingReason ? (
-            <View style={[styles.infoBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-              <Feather name="info" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.infoBoxText, { color: colors.mutedForeground }]}>{t("productSellingReason")}: {product.sellingReason}</Text>
+            <View style={pd.block}>
+              <Text style={[pd.blockTitle, { color: colors.foreground }]}>{t("mkDescription")}</Text>
+              <Text style={[pd.body, { color: colors.textSecondary }]}>{product.description}</Text>
+              {product.sellingReason ? (
+                <Text style={[pd.small, { color: colors.textMuted }]}>{t("productSellingReason")} : {product.sellingReason}</Text>
+              ) : null}
             </View>
           ) : null}
 
-          {/* Rejection reason / modification notes */}
-          {product.rejectionReason && (isSeller || isAdmin) && (
-            <View style={[styles.rejectionBox, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "40" }]}>
-              <Feather name="alert-circle" size={14} color={colors.destructive} />
-              <Text style={[styles.rejectionText, { color: colors.destructive }]}>{product.rejectionReason}</Text>
+          {/* Listing from another residence: city only, questions on the listing. */}
+          {!isSeller && product.otherResidence ? (
+            <View style={[pd.card, { backgroundColor: colors.goldSoft, borderColor: colors.gold, flexDirection: "row", gap: 10, alignItems: "flex-start" }]}>
+              <Feather name="map-pin" size={16} color={colors.goldText} />
+              <Text style={[{ flex: 1, fontSize: 13, lineHeight: 19, color: colors.goldText, fontFamily: "Inter_500Medium" }]}>{t("mkOtherResidenceNote").replace("{city}", product.residenceCity ?? "—")}</Text>
             </View>
-          )}
-          {product.moderationNote && isAdmin && (
-            <View style={[styles.rejectionBox, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b40" }]}>
-              <Feather name="info" size={14} color="#f59e0b" />
-              <Text style={[styles.rejectionText, { color: "#f59e0b" }]}>{product.moderationNote}</Text>
+          ) : null}
+
+          {/* How the exchange works */}
+          {!isSeller ? (
+            <View style={[pd.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[pd.blockTitle, { color: colors.foreground }]}>{t("mkHowTitle")}</Text>
+              {[
+                { icon: "lock" as const, text: t("mkHowReserve") },
+                { icon: "map-pin" as const, text: t("mkHowMeet") },
+                { icon: "check-circle" as const, text: t("mkHowPay") },
+              ].map((x, i) => (
+                <View key={i} style={pd.step}>
+                  <View style={[pd.stepNum, { backgroundColor: colors.primarySoft }]}>
+                    <Text style={[pd.stepNumText, { color: colors.tint }]}>{i + 1}</Text>
+                  </View>
+                  <Text style={[pd.body, { color: colors.textSecondary, flex: 1 }]}>{x.text}</Text>
+                </View>
+              ))}
+              <View style={[pd.safety, { backgroundColor: colors.warningSoft }]}>
+                <Feather name="shield" size={15} color={colors.warning} />
+                <Text style={[pd.small, { color: colors.warningText, flex: 1 }]}>{t("mkSafety")}</Text>
+              </View>
             </View>
-          )}
+          ) : null}
+
+          {product.rejectionReason && (isSeller || isAdmin) ? (
+            <View style={[pd.safety, { backgroundColor: colors.dangerSoft }]}>
+              <Feather name="alert-circle" size={15} color={colors.danger} />
+              <Text style={[pd.small, { color: colors.dangerText, flex: 1 }]}>{product.rejectionReason}</Text>
+            </View>
+          ) : null}
+          {product.moderationNote && isAdmin ? (
+            <View style={[pd.safety, { backgroundColor: colors.warningSoft }]}>
+              <Feather name="info" size={15} color={colors.warning} />
+              <Text style={[pd.small, { color: colors.warningText, flex: 1 }]}>{product.moderationNote}</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Admin moderation panel */}
@@ -645,15 +719,15 @@ export default function ProductDetailScreen() {
                     <Feather name="check" size={16} color={colors.success} />
                     <Text style={[styles.modBtnText, { color: colors.success }]}>{t("productApproveAction")}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.modBtn, { backgroundColor: "#f9731615" }]} onPress={() => {
+                  <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.warning + "15" }]} onPress={() => {
                     Alert.prompt
                       ? Alert.prompt(t("productRequestChangesTitle"), t("productRequestChangesDescription"), (reason) => {
                           if (reason?.trim()) marketplace.moderate(product.id, { action: "request_modification", reason }).then((r) => setProduct((p) => p ? { ...p, ...(r.data as Partial<Product>) } : p)).catch(() => {});
                         })
                       : Alert.alert(t("productActionUnavailableTitle"), t("productRequestChangesWebFallback"));
                   }}>
-                    <Feather name="edit" size={16} color="#f97316" />
-                    <Text style={[styles.modBtnText, { color: "#f97316" }]}>{t("productRequestChangesAction")}</Text>
+                    <Feather name="edit" size={16} color={colors.warning} />
+                    <Text style={[styles.modBtnText, { color: colors.warning }]}>{t("productRequestChangesAction")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]} onPress={() => handleModerate("reject")}>
                     <Feather name="x" size={16} color={colors.destructive} />
@@ -662,9 +736,9 @@ export default function ProductDetailScreen() {
                 </>
               )}
               {product.status === "approved" && !product.featured && (
-                <TouchableOpacity style={[styles.modBtn, { backgroundColor: "#f59e0b15" }]} onPress={() => handleModerate("feature")}>
-                  <Feather name="star" size={16} color="#f59e0b" />
-                  <Text style={[styles.modBtnText, { color: "#f59e0b" }]}>{t("productFeatureAction")}</Text>
+                <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.warning + "15" }]} onPress={() => handleModerate("feature")}>
+                  <Feather name="star" size={16} color={colors.warning} />
+                  <Text style={[styles.modBtnText, { color: colors.warning }]}>{t("productFeatureAction")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -693,131 +767,116 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
-        {/* Comments */}
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("productComments")} ({comments.length})</Text>
+
+        {/* Questions (public) */}
+        <View style={[pd.card, pd.cardInset, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[pd.blockTitle, { color: colors.foreground }]}>{t("mkQuestions")} ({comments.length})</Text>
           {comments.length === 0 ? (
-            <View style={styles.emptyComments}>
-              <Feather name="message-circle" size={28} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("productNoComments")}</Text>
-            </View>
+            <Text style={[pd.small, { color: colors.textMuted }]}>{t("mkNoQuestions")}</Text>
           ) : (
             comments.map((c) => (
-              <View key={c.id} style={[styles.commentRow, { borderBottomColor: colors.border }]}>
-                <View style={[styles.commentAvatar, { backgroundColor: colors.primary + "20" }]}>
-                  <Text style={[styles.commentInitial, { color: colors.primary }]}>{(c.userName ?? "?")[0].toUpperCase()}</Text>
+              <View key={c.id} style={[pd.comment, { borderBottomColor: colors.border }]}>
+                <View style={[pd.commentAvatar, { backgroundColor: colors.primarySoft }]}>
+                  <Text style={[pd.avatarText, { color: colors.tint, fontSize: 13 }]}>{(c.userName ?? "?")[0].toUpperCase()}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.commentHeader}>
-                    <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.userName ?? t("productUser")}</Text>
-                    <Text style={[styles.commentDate, { color: colors.mutedForeground }]}>{new Date(c.createdAt).toLocaleDateString(locale)}</Text>
-                  </View>
-                  <Text style={[styles.commentContent, { color: colors.foreground }]}>{c.content}</Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[pd.small, { color: colors.foreground, fontFamily: FONT.semibold }]}>
+                    {c.userName ?? t("productUser")} · <Text style={{ color: colors.textMuted, fontFamily: FONT.regular }}>{new Date(c.createdAt).toLocaleDateString(locale)}</Text>
+                  </Text>
+                  <Text style={[pd.body, { color: colors.textSecondary }]}>{c.content}</Text>
                 </View>
-                {(isAdmin || c.userId === user?.id) && (
-                  <TouchableOpacity onPress={() => handleDeleteComment(c.id)} style={{ padding: 4 }}>
-                    <Feather name="trash-2" size={14} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                )}
+                {isAdmin || c.userId === user?.id ? (
+                  <Pressable onPress={() => handleDeleteComment(c.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("productDelete")}>
+                    <Feather name="trash-2" size={14} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
               </View>
             ))
           )}
+          {!sold ? (
+            <View style={pd.askRow}>
+              <TextInput
+                style={[pd.askInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+                placeholder={t("productAskSellerPlaceholder")}
+                placeholderTextColor={colors.textMuted}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                maxLength={1000}
+              />
+              <Pressable
+                onPress={handleSendComment}
+                disabled={!commentText.trim() || sendingComment}
+                accessibilityRole="button"
+                accessibilityLabel={t("send")}
+                style={[pd.askSend, { backgroundColor: commentText.trim() ? colors.primary : colors.surfaceMuted }]}
+              >
+                {sendingComment ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Feather name="send" size={17} color={commentText.trim() ? "#FFFFFF" : colors.textMuted} />}
+              </Pressable>
+            </View>
+          ) : null}
         </View>
 
-        {/* Report button */}
-        {!isSeller && ["approved", "reserved"].includes(product.status) && (
-          <TouchableOpacity
-            style={[styles.reportBtn, { borderColor: colors.border }]}
-            onPress={() => setShowReportModal(true)}
-          >
-            <Feather name="flag" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.reportBtnText, { color: colors.mutedForeground }]}>{t("productReportTitle")}</Text>
-          </TouchableOpacity>
-        )}
+        {!isSeller && ["approved", "reserved"].includes(product.status) ? (
+          <Pressable onPress={() => setShowReportModal(true)} style={pd.report} accessibilityRole="button">
+            <Feather name="flag" size={14} color={colors.textMuted} />
+            <Text style={[pd.small, { color: colors.textMuted }]}>{t("productReportTitle")}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
-      {/* Comment input */}
-      <View style={[styles.commentInputBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
-        <TextInput
-          style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-          placeholder={t("productAskSellerPlaceholder")}
-          placeholderTextColor={colors.mutedForeground}
-          value={commentText}
-          onChangeText={setCommentText}
-          multiline
-          maxLength={1000}
-        />
-        <TouchableOpacity
-          style={[styles.sendBtn, { backgroundColor: commentText.trim() ? colors.primary : colors.secondary }]}
-          onPress={handleSendComment}
-          disabled={!commentText.trim() || sendingComment}
-        >
-          {sendingComment ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={18} color={commentText.trim() ? "#fff" : colors.mutedForeground} />}
-        </TouchableOpacity>
-      </View>
+      {/* ── Action bar: only what this person can do now ── */}
+      {(() => {
+        const actions: React.ReactNode[] = [];
+        if (isBuyer && ["approved", "reserved"].includes(product.status) && !sold) {
+          actions.push(<Button key="contact" label={t("productContactSellerAction")} icon="message-circle" variant="secondary" loading={contactingSeller} onPress={handleContactSeller} style={{ flex: 1 }} />);
+        }
+        if (canReserve) actions.push(<Button key="reserve" label={t("productReserveAction")} icon="lock" loading={reserving} onPress={handleReserve} style={{ flex: 1 }} />);
+        if (canUnreserve && !isSeller) actions.push(<Button key="unreserve" label={t("productCancelReservation")} icon="unlock" variant="secondary" loading={reserving} onPress={handleUnreserve} style={{ flex: 1 }} />);
+        if (canMarkSold) actions.push(<Button key="sold" label={t("mkHandedOver")} icon="check-circle" loading={markingSold} onPress={handleMarkSold} style={{ flex: 1 }} />);
+        if (isSeller && product.status === "reserved") actions.push(<Button key="free" label={t("mkFreeReservation")} icon="unlock" variant="secondary" loading={reserving} onPress={handleUnreserve} style={{ flex: 1 }} />);
+        if (product.canReview) actions.push(<Button key="review" label={t("mkRateSeller")} icon="star" onPress={() => setShowReview(true)} style={{ flex: 1 }} />);
+        if (reservedByOther && actions.length === 0) {
+          return (
+            <View style={[pd.bar, { paddingBottom: insets.bottom + 12, backgroundColor: colors.card, borderTopColor: colors.border }]}>
+              <Text style={[pd.small, { color: colors.textMuted, textAlign: "center", flex: 1 }]}>{t("mkReservedByNeighbour")}</Text>
+            </View>
+          );
+        }
+        if (!actions.length) return null;
+        return (
+          <View style={[pd.bar, { paddingBottom: insets.bottom + 12, backgroundColor: colors.card, borderTopColor: colors.border }]}>
+            {actions}
+          </View>
+        );
+      })()}
 
-      {/* Contact Seller FAB */}
-      {!isSeller && !isAdmin && ["approved", "reserved"].includes(product.status) && (
-        <TouchableOpacity
-          style={[styles.contactSellerFab, { backgroundColor: colors.card, borderColor: colors.border, bottom: insets.bottom + 80 + (canReserve || canUnreserve ? 58 : 0) + (canMarkSold ? 58 : 0) }]}
-          onPress={handleContactSeller}
-          disabled={contactingSeller}
-        >
-          {contactingSeller ? <ActivityIndicator size="small" color={colors.primary} /> : (
-            <>
-              <Feather name="message-circle" size={18} color={colors.primary} />
-              <Text style={[styles.contactSellerFabText, { color: colors.primary }]}>{t("productContactSellerAction")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {/* Reserve / Unreserve FAB */}
-      {canReserve && (
-        <TouchableOpacity
-          style={[styles.cartFab, { backgroundColor: "#1F5EFF", bottom: insets.bottom + 80 }]}
-          onPress={handleReserve}
-          disabled={reserving}
-        >
-          {reserving ? <ActivityIndicator size="small" color="#fff" /> : (
-            <>
-              <Feather name="lock" size={18} color="#fff" />
-              <Text style={styles.cartFabText}>{t("productReserveAction")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {canUnreserve && (
-        <TouchableOpacity
-          style={[styles.cartFab, { backgroundColor: colors.card, borderWidth: 1, borderColor: "#1F5EFF", bottom: insets.bottom + 80 }]}
-          onPress={handleUnreserve}
-          disabled={reserving}
-        >
-          {reserving ? <ActivityIndicator size="small" color="#1F5EFF" /> : (
-            <>
-              <Feather name="unlock" size={18} color="#1F5EFF" />
-              <Text style={[styles.cartFabText, { color: "#1F5EFF" }]}>{t("productCancelReservation")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {/* Mark as Sold FAB — seller only */}
-      {canMarkSold && (
-        <TouchableOpacity
-          style={[styles.cartFab, { backgroundColor: colors.success, bottom: insets.bottom + 80 + (canReserve || canUnreserve ? 58 : 0) }]}
-          onPress={handleMarkSold}
-          disabled={markingSold}
-        >
-          {markingSold ? <ActivityIndicator size="small" color="#fff" /> : (
-            <>
-              <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.cartFabText}>{t("productMarkSold")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
+      {/* Rate the exchange */}
+      {showReview ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} onPress={() => setShowReview(false)} accessibilityLabel={t("close")} />
+          <View style={[styles.modal, { backgroundColor: colors.card, bottom: insets.bottom + 16, gap: 14 }]}>
+            <Text style={[pd.blockTitle, { color: colors.foreground }]}>{t("mkRateSeller")}</Text>
+            <View style={pd.stars} accessibilityRole="adjustable" accessibilityValue={{ min: 1, max: 5, now: reviewRating }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Pressable key={n} onPress={() => setReviewRating(n)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${n}/5`}>
+                  <Feather name="star" size={30} color={n <= reviewRating ? colors.gold : colors.borderStrong} />
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={[pd.askInput, { minHeight: 80, backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+              placeholder={t("mkReviewPlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              value={reviewText}
+              onChangeText={setReviewText}
+              multiline
+              maxLength={2000}
+            />
+            <Button label={t("mkPublishReview")} fullWidth loading={submittingReview} onPress={submitReview} />
+          </View>
+        </View>
+      ) : null}
 
       {/* Report modal */}
       {showReportModal && (
@@ -946,4 +1005,48 @@ const styles = StyleSheet.create({
   reportDetailsInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14, minHeight: 72, textAlignVertical: "top" },
   reportSubmitBtn: { paddingVertical: 14, borderRadius: 10, alignItems: "center" },
   reportSubmitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+});
+
+const pd = StyleSheet.create({
+  gallery: { height: 360, overflow: "hidden" },
+  noPhoto: { flex: 1, alignItems: "center", justifyContent: "center" },
+  topShade: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 28 },
+  dots: { position: "absolute", bottom: 40, alignSelf: "center", flexDirection: "row", gap: 5 },
+  dot: { height: 6, borderRadius: 3 },
+  statusPill: { position: "absolute", bottom: 40, start: 16, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  statusPillText: { fontFamily: FONT.semibold, fontSize: 12, color: "#FFFFFF" },
+  sheet: { marginTop: -24, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 22, gap: 16 },
+  priceRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: 10 },
+  price: { fontFamily: "Fraunces_600SemiBold", fontSize: 32, lineHeight: 38, fontVariant: ["lining-nums"] },
+  oldPrice: { fontFamily: FONT.medium, fontSize: 15, textDecorationLine: "line-through" },
+  pill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  pillText: { fontFamily: FONT.semibold, fontSize: 12 },
+  name: { fontFamily: FONT.semibold, fontSize: 20, lineHeight: 27, marginTop: -6 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, minHeight: 34, borderRadius: 999, borderWidth: 1 },
+  chipText: { fontFamily: FONT.medium, fontSize: 13 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 12 },
+  cardInset: { marginHorizontal: 20, marginTop: 16 },
+  sellerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: "Fraunces_600SemiBold", fontSize: 20 },
+  sellerName: { fontFamily: FONT.semibold, fontSize: 16 },
+  verified: { flexDirection: "row", alignItems: "center", gap: 5 },
+  verifiedText: { fontFamily: FONT.medium, fontSize: 12 },
+  small: { fontFamily: FONT.regular, fontSize: 13, lineHeight: 18 },
+  block: { gap: 8 },
+  blockTitle: { fontFamily: "Fraunces_600SemiBold", fontSize: 18, lineHeight: 24 },
+  body: { fontFamily: FONT.regular, fontSize: 15, lineHeight: 22 },
+  step: { flexDirection: "row", alignItems: "center", gap: 12 },
+  stepNum: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  stepNumText: { fontFamily: FONT.bold, fontSize: 13 },
+  safety: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 12 },
+  comment: { flexDirection: "row", gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  askRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  askInput: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontFamily: FONT.regular, fontSize: 14 },
+  askSend: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  report: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, marginTop: 8 },
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  stars: { flexDirection: "row", justifyContent: "center", gap: 10 },
 });

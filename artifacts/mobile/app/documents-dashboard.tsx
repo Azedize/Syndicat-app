@@ -4,6 +4,7 @@
  * 8 status widgets + recent activity + expiring docs + quick actions
  */
 
+import ScreenHeader from "@/components/ScreenHeader";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -102,6 +103,8 @@ export default function DocumentsDashboard() {
     };
   }
   const [summary, setSummary] = useState<Summary | null>(null);
+  // Uploaded files live in the library (not in this workflow): counted apart.
+  const [libraryTotal, setLibraryTotal] = useState(0);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
 
@@ -110,11 +113,10 @@ export default function DocumentsDashboard() {
     setSummaryError(false);
     try {
       const { documents: docsApi } = await import("@/services/api");
-      const res = (await (docsApi as any).summary?.()) as
-        | { data: Summary }
-        | undefined;
-      if (res?.data) {
-        setSummary(res.data);
+      const [res, all] = await Promise.all([docsApi.summary("generated"), docsApi.summary("upload")]);
+      setLibraryTotal(((all as { data?: { total?: number } })?.data?.total) ?? 0);
+      if ((res as { data?: Summary })?.data) {
+        setSummary((res as { data: Summary }).data);
       } else {
         setSummaryError(true);
       }
@@ -132,10 +134,14 @@ export default function DocumentsDashboard() {
   // ── Compute metrics ─────────────────────────────────────────────────────────
 
   const metrics = useMemo(() => {
+    // Counts come from the server (no 200-row ceiling of the list in memory);
+    // the list is only used until the summary arrives.
     const byStatus = (st: string | string[]) =>
-      documents.filter((d) =>
-        Array.isArray(st) ? st.includes(d.status) : d.status === st,
-      ).length;
+      summary
+        ? (Array.isArray(st) ? st : [st]).reduce((n, k) => n + (summary.byStatus[k] ?? 0), 0)
+        : documents.filter((d) =>
+            Array.isArray(st) ? st.includes(d.status) : d.status === st,
+          ).length;
 
     const recentDocs = [...documents]
       .filter((d) => d.date)
@@ -165,13 +171,14 @@ export default function DocumentsDashboard() {
       signed: byStatus("signed"),
       published: byStatus("published"),
       archived: byStatus("archived"),
-      total: documents.length,
+      total: summary?.total ?? documents.length,
+      libraryTotal,
       expiring: expiringCount,
       recentDocs,
       recentlyModified,
       expiringDocs,
     };
-  }, [documents, summary, t]);
+  }, [documents, summary, libraryTotal, t]);
 
   // ── Widgets ─────────────────────────────────────────────────────────────────
 
@@ -181,7 +188,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardDrafts"),
       count: metrics.draft + metrics.generated,
       icon: "edit-3",
-      color: "#64748b",
+      color: "#6A6680",
       filterStatus: "draft",
       description: t("documentsDashboardDraftsDescription"),
     },
@@ -190,7 +197,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardInReview"),
       count: metrics.pending_review,
       icon: "eye",
-      color: "#f59e0b",
+      color: colors.warning,
       filterStatus: "pending_review",
       description: t("documentsDashboardInReviewDescription"),
     },
@@ -199,7 +206,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardPendingApproval"),
       count: metrics.validated,
       icon: "check-square",
-      color: "#0891b2",
+      color: "#0F6E7D",
       filterStatus: "validated",
       description: t("documentsDashboardPendingApprovalDescription"),
     },
@@ -208,7 +215,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardToSign"),
       count: metrics.pending_sign,
       icon: "pen-tool",
-      color: "#8b5cf6",
+      color: "#1F8A9A",
       filterStatus: "generated",
       description: t("documentsDashboardToSignDescription"),
     },
@@ -217,7 +224,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardSigned"),
       count: metrics.signed,
       icon: "check-circle",
-      color: "#10b981",
+      color: colors.success,
       filterStatus: "signed",
       description: t("documentsDashboardSignedDescription"),
     },
@@ -235,7 +242,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardExpiring"),
       count: metrics.expiring,
       icon: "clock",
-      color: "#ef4444",
+      color: colors.danger,
       description: t("documentsDashboardExpiringDescription"),
     },
     {
@@ -243,7 +250,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardArchived"),
       count: metrics.archived,
       icon: "archive",
-      color: "#94a3b8",
+      color: "#A6A1BE",
       filterStatus: "archived",
       description: t("documentsDashboardArchivedDescription"),
     },
@@ -271,37 +278,37 @@ export default function DocumentsDashboard() {
           label: t("documentsDashboardStatusPublished"),
           color: MIZAN.colors.blue,
         },
-        draft: { label: t("documentsDashboardStatusDraft"), color: "#94a3b8" },
+        draft: { label: t("documentsDashboardStatusDraft"), color: "#A6A1BE" },
         generated: {
           label: t("documentsDashboardStatusGenerated"),
-          color: "#3b82f6",
+          color: "#5A4AD6",
         },
         pending_review: {
           label: t("documentsDashboardStatusInReview"),
-          color: "#f59e0b",
+          color: colors.warning,
         },
         validated: {
           label: t("documentsDashboardStatusValidated"),
-          color: "#10b981",
+          color: colors.success,
         },
         signed: {
           label: t("documentsDashboardStatusSigned"),
-          color: "#8b5cf6",
+          color: "#1F8A9A",
         },
         archived: {
           label: t("documentsDashboardStatusArchived"),
-          color: "#64748b",
+          color: "#6A6680",
         },
       }) as Record<string, { label: string; color: string }>
-    )[status] ?? { label: status, color: "#64748b" };
+    )[status] ?? { label: status, color: "#6A6680" };
 
   const CAT_COLORS: Record<string, string> = {
-    statuts: "#2563EB",
-    reglements: "#3b82f6",
-    pv: "#10b981",
-    juridique: "#ef4444",
-    finances: "#f59e0b",
-    attestation: "#8b5cf6",
+    statuts: "#5A4AD6",
+    reglements: "#5A4AD6",
+    pv: colors.success,
+    juridique: colors.danger,
+    finances: colors.warning,
+    attestation: "#1F8A9A",
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -309,34 +316,11 @@ export default function DocumentsDashboard() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: topPad + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            {t("documentsDashboardTitle")}
-          </Text>
-          <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
-            {t("documentsDashboardSubtitle")}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.headerAction, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/documents")}
-        >
-          <Feather name="file-text" size={16} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t("documentsDashboardTitle")}
+        subtitle={t("documentsDashboardSubtitle")}
+        action={{ icon: "file-text", label: t("documentsTitle"), onPress: () => router.push("/documents") }}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -353,6 +337,15 @@ export default function DocumentsDashboard() {
             <Text style={styles.summaryLabel}>
               {t("documentsDashboardTotal")}
             </Text>
+            {metrics.libraryTotal > 0 ? (
+              <Text
+                style={[styles.summaryLabel, { textDecorationLine: "underline", marginTop: 2 }]}
+                onPress={() => router.push("/bibliotheque" as any)}
+                accessibilityRole="link"
+              >
+                {t("documentsDashboardLibrary").replace("{n}", String(metrics.libraryTotal))}
+              </Text>
+            ) : null}
             <View style={styles.summaryProgress}>
               <View
                 style={[
@@ -369,7 +362,7 @@ export default function DocumentsDashboard() {
             <View style={styles.summaryBadge}>
               <Feather name="activity" size={14} color={colors.primary} />
               <Text
-                style={[styles.summaryBadgeText, { color: colors.primary }]}
+                style={[styles.summaryBadgeText, { color: colors.tint }]}
               >
                 {totalActive} {t("documentsDashboardActive")}
               </Text>
@@ -445,27 +438,27 @@ export default function DocumentsDashboard() {
             {
               label: t("documentsDashboardStatusDraft"),
               count: metrics.draft,
-              color: "#94a3b8",
+              color: "#A6A1BE",
             },
             {
               label: t("documentsDashboardStatusGenerated"),
               count: metrics.generated,
-              color: "#3b82f6",
+              color: "#5A4AD6",
             },
             {
               label: t("documentsDashboardStatusInReview"),
               count: metrics.pending_review,
-              color: "#f59e0b",
+              color: colors.warning,
             },
             {
               label: t("documentsDashboardStatusValidated"),
               count: metrics.validated,
-              color: "#10b981",
+              color: colors.success,
             },
             {
               label: t("documentsDashboardStatusSigned"),
               count: metrics.signed,
-              color: "#8b5cf6",
+              color: "#1F8A9A",
             },
             {
               label: t("documentsDashboardStatusPublished"),
@@ -539,7 +532,7 @@ export default function DocumentsDashboard() {
               <LoadingState
                 title={STATE_COPY.loadingTitle[lang]}
                 description={STATE_COPY.loadingDescription[lang]}
-                accentColor="#ef4444"
+               
               />
             </View>
           </>
@@ -561,7 +554,7 @@ export default function DocumentsDashboard() {
                 description={STATE_COPY.unavailableDescription[lang]}
                 retryLabel={STATE_COPY.retry[lang]}
                 onRetry={() => void loadSummary()}
-                accentColor="#ef4444"
+               
               />
             </View>
           </>
@@ -575,7 +568,7 @@ export default function DocumentsDashboard() {
             <View
               style={[
                 styles.expiringCard,
-                { backgroundColor: "#fef2f2", borderColor: "#fecaca" },
+                { backgroundColor: "#FBE9EA", borderColor: "#fecaca" },
               ]}
             >
               {metrics.expiringDocs.map((d) => (
@@ -584,7 +577,7 @@ export default function DocumentsDashboard() {
                   style={styles.expiringRow}
                   onPress={() => router.push("/documents")}
                 >
-                  <Feather name="clock" size={14} color="#ef4444" />
+                  <Feather name="clock" size={14} color={colors.danger} />
                   <Text style={styles.expiringTitle} numberOfLines={1}>
                     {d.title}
                   </Text>
@@ -691,25 +684,25 @@ export default function DocumentsDashboard() {
                 {
                   label: t("documentsDashboardNewDocument"),
                   icon: "file-plus" as const,
-                  color: colors.primary,
+                  color: colors.tint,
                   onPress: () => router.push("/documents"),
                 },
                 {
                   label: t("documentsDashboardViewAll"),
                   icon: "list" as const,
-                  color: "#10b981",
+                  color: colors.success,
                   onPress: () => router.push("/documents"),
                 },
                 {
                   label: t("documentsDashboardSignedDocuments"),
                   icon: "check-circle" as const,
-                  color: "#8b5cf6",
+                  color: "#1F8A9A",
                   onPress: () => router.push("/documents?status=signed"),
                 },
                 {
                   label: t("documentsDashboardLegalArchives"),
                   icon: "archive" as const,
-                  color: "#64748b",
+                  color: "#6A6680",
                   onPress: () => router.push("/documents?status=archived"),
                 },
               ].map((a) => (
@@ -762,7 +755,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   headerAction: {
     width: 38,
@@ -785,7 +778,7 @@ const styles = StyleSheet.create({
   },
   summaryTotal: {
     fontSize: 48,
-    fontFamily: "Inter_700Bold",
+    fontFamily: "Fraunces_600SemiBold",
     color: "#fff",
     lineHeight: 52,
   },
@@ -835,7 +828,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
-  widgetCount: { fontSize: 28, fontFamily: "Inter_700Bold", lineHeight: 32 },
+  widgetCount: { fontSize: 28, fontFamily: "Fraunces_600SemiBold", lineHeight: 32 },
   widgetLabel: { fontSize: 12, fontFamily: "Inter_700Bold" },
   widgetDesc: { fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 13 },
   pipeline: {
@@ -869,12 +862,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
-    color: "#ef4444",
+    color: "#C8323C",
   },
   expiringDate: {
     fontSize: 11,
     fontFamily: "Inter_400Regular",
-    color: "#ef4444",
+    color: "#C8323C",
   },
   recentList: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   recentRow: {

@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { contratsPrestatairesTable, prestatairesTable } from "@workspace/db/schema";
+import { buildingsTable, contratsPrestatairesTable, prestatairesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createAlert } from "./notify.js";
 import { logger } from "./logger.js";
@@ -49,11 +49,16 @@ export async function checkExpiringContracts(): Promise<void> {
         .from(prestatairesTable)
         .where(eq(prestatairesTable.id, contract.prestataireId));
 
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, contract.buildingId));
+      if (!building?.syndicateId) continue; // no condominium: nobody to notify
       await createAlert({
-        title: `⏰ Contrat expirant dans ${threshold} jours`,
-        message: `Le contrat "${contract.title}" avec ${prestataire?.name ?? "le prestataire"} expire le ${contract.endDate}. Pensez à le renouveler.`,
+        key: "contract.expiring",
+        params: { days: threshold, title: contract.title, provider: prestataire?.name ?? "—", endDate: contract.endDate },
         type: "warning",
-        syndicateId: null,
+        syndicateId: building.syndicateId,
         target: "admin",
       });
 

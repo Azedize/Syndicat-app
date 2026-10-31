@@ -145,6 +145,13 @@ export async function processStripeWebhook(payload: Buffer, signature: string) {
     case "checkout.session.async_payment_succeeded":
       await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
       break;
+    case "checkout.session.expired": {
+      // The customer never paid: the pending payment must not block a new checkout.
+      const session = event.data.object as Stripe.Checkout.Session;
+      const paymentId = session.metadata?.paymentId;
+      if (paymentId) await markPaymentFailed(paymentId, "Session de paiement Stripe expirée");
+      break;
+    }
     case "checkout.session.async_payment_failed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const paymentId = session.metadata?.paymentId;

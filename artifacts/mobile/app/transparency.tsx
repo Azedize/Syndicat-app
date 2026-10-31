@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -41,8 +41,9 @@ const STRINGS: Record<string, Record<LangCode, string>> = {
   categoryOther: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
   contestedBy: { fr: "Contesté par", en: "Contested by", ar: "بواسطة الطاعن", es: "Impugnado por" },
   member: { fr: "un membre", en: "a member", ar: "عضو", es: "un miembro" },
-  for: { fr: "Pour", en: "For", ar: "مع", es: "A favor" },
-  against: { fr: "Contre", en: "Against", ar: "ضد", es: "En contra" },
+  for: { fr: "Justifiée", en: "Justified", ar: "مبرَّرة", es: "Justificado" },
+  against: { fr: "Non justifiée", en: "Not justified", ar: "غير مبرَّرة", es: "No justificado" },
+  opinionNote: { fr: "Avis consultatif des copropriétaires (une voix par compte) : il ne remplace pas un vote en assemblée générale. Le syndic clôt la contestation.", en: "Consultative opinion of the co-owners (one per account): it does not replace a vote at the general meeting. The syndic closes the challenge.", ar: "رأي استشاري للملاك (صوت واحد لكل حساب): لا يعوّض التصويت في الجمع العام. يُغلق السانديك الاعتراض.", es: "Opinión consultiva de los propietarios (una por cuenta): no sustituye una votación en la junta general. El administrador cierra la impugnación." },
   contest: { fr: "Contester", en: "Challenge", ar: "اعتراض", es: "Impugnar" },
   receipt: { fr: "Justificatif", en: "Supporting document", ar: "المستند الداعم", es: "Comprobante" },
   publish: { fr: "Publier un justificatif", en: "Publish justification", ar: "نشر مبرر", es: "Publicar justificación" },
@@ -65,26 +66,26 @@ const STRINGS: Record<string, Record<LangCode, string>> = {
   publishedMessage: { fr: "La justification a été enregistrée.", en: "The justification has been recorded.", ar: "تم تسجيل المبرر.", es: "La justificación ha sido registrada." },
   challengedTitle: { fr: "Contestation envoyée", en: "Challenge sent", ar: "تم إرسال الطعن", es: "Impugnación enviada" },
   challengedMessage: { fr: "Votre contestation a été transmise.", en: "Your challenge has been submitted.", ar: "تم إرسال طعنك.", es: "Su impugnación ha sido enviada." },
-  voteTitle: { fr: "Vote enregistré", en: "Vote recorded", ar: "تم تسجيل التصويت", es: "Voto registrado" },
-  voteMessageFor: { fr: "Vous avez voté pour cette dépense.", en: "You voted for this expense.", ar: "صوتت لصالح هذه النفقة.", es: "Ha votado a favor de este gasto." },
-  voteMessageAgainst: { fr: "Vous avez voté contre cette dépense.", en: "You voted against this expense.", ar: "صوتت ضد هذه النفقة.", es: "Ha votado en contra de este gasto." },
+  voteTitle: { fr: "Avis enregistré", en: "Opinion recorded", ar: "تم تسجيل الرأي", es: "Opinión registrada" },
+  voteMessageFor: { fr: "Vous estimez cette dépense justifiée.", en: "You consider this expense justified.", ar: "ترى أن هذه النفقة مبرَّرة.", es: "Considera que este gasto está justificado." },
+  voteMessageAgainst: { fr: "Vous estimez cette dépense non justifiée.", en: "You consider this expense not justified.", ar: "ترى أن هذه النفقة غير مبرَّرة.", es: "Considera que este gasto no está justificado." },
   genericError: { fr: "Une erreur est survenue. Réessayez.", en: "Something went wrong. Please try again.", ar: "حدث خطأ. حاول مرة أخرى.", es: "Se produjo un error. Inténtelo de nuevo." },
 };
 
 const STATUS_CONFIG: Record<string, { stringKey: keyof typeof STRINGS; color: string; bg: string }> = {
-  pending:    { stringKey: "statusPending", color: "#3b82f6", bg: "#3b82f615" },
-  approved:   { stringKey: "statusApproved", color: "#10b981", bg: "#10b98115" },
-  challenged: { stringKey: "statusChallenged", color: "#ef4444", bg: "#ef444415" },
-  resolved:   { stringKey: "statusResolved", color: "#2563EB", bg: "#2563EB15" },
+  pending:    { stringKey: "statusPending", color: "#5A4AD6", bg: "#5A4AD615" },
+  approved:   { stringKey: "statusApproved", color: "#13976C", bg: "#13976C15" },
+  challenged: { stringKey: "statusChallenged", color: "#C8323C", bg: "#C8323C15" },
+  resolved:   { stringKey: "statusResolved", color: "#5A4AD6", bg: "#5A4AD615" },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  maintenance: "#f97316",
-  salaires: "#2563EB",
-  travaux: "#ef4444",
-  fournitures: "#3b82f6",
-  assurance: "#10b981",
-  autre: "#6b7280",
+  maintenance: "#C8642A",
+  salaires: "#5A4AD6",
+  travaux: "#C8323C",
+  fournitures: "#5A4AD6",
+  assurance: "#13976C",
+  autre: "#6A6680",
 };
 
 type Justification = {
@@ -197,7 +198,7 @@ export default function TransparencyScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#1e293b" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.navy }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -217,10 +218,10 @@ export default function TransparencyScreen() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-           { label: STRINGS.total[lang], value: items.length, color: "#1e293b" },
-           { label: STRINGS.totalAmount[lang], value: `${(totalPublished / 1000).toFixed(0)}k`, color: "#3b82f6" },
-           { label: STRINGS.challenged[lang], value: challenged, color: "#ef4444" },
-           { label: STRINGS.resolved[lang], value: items.filter((i) => i.status === "resolved").length, color: "#10b981" },
+           { label: STRINGS.total[lang], value: items.length, color: colors.foreground },
+           { label: STRINGS.totalAmount[lang], value: `${(totalPublished / 1000).toFixed(0)}k`, color: "#5A4AD6" },
+           { label: STRINGS.challenged[lang], value: challenged, color: "#C8323C" },
+           { label: STRINGS.resolved[lang], value: items.filter((i) => i.status === "resolved").length, color: "#13976C" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -230,25 +231,25 @@ export default function TransparencyScreen() {
       </View>
 
       {loading ? (
-        <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} accentColor="#1e293b" />
+        <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} accentColor="#17142B" />
       ) : loadError ? (
         <ErrorState
           title={STRINGS.loadingError[lang]}
           description={STRINGS.errorDescription[lang]}
           retryLabel={STRINGS.retry[lang]}
           onRetry={() => load()}
-          accentColor="#ef4444"
+          accentColor="#C8323C"
         />
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e293b" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#17142B" />}
           showsVerticalScrollIndicator={false}
         >
           {items.length === 0 ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#1e293b15" }]}>
-                <Feather name="file-text" size={32} color="#1e293b" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#17142B15" }]}>
+                <Feather name="file-text" size={32} color={colors.foreground} />
               </View>
                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{STRINGS.emptyTitle[lang]}</Text>
                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.emptyDescription[lang]}</Text>
@@ -256,7 +257,7 @@ export default function TransparencyScreen() {
           ) : (
             items.map((item) => {
               const st = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
-              const catColor = CATEGORY_COLORS[item.category ?? ""] ?? "#6b7280";
+              const catColor = CATEGORY_COLORS[item.category ?? ""] ?? "#6A6680";
 
               return (
                 <View key={item.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -281,10 +282,10 @@ export default function TransparencyScreen() {
                   ) : null}
 
                   {item.status === "challenged" ? (
-                    <View style={[styles.challengeBox, { backgroundColor: "#ef444410", borderColor: "#ef4444" }]}>
-                      <Feather name="alert-triangle" size={12} color="#ef4444" />
+                    <View style={[styles.challengeBox, { backgroundColor: "#C8323C10", borderColor: "#C8323C" }]}>
+                      <Feather name="alert-triangle" size={12} color="#C8323C" />
                       <View style={{ flex: 1 }}>
-                         <Text style={[styles.challengeWho, { color: "#ef4444" }]}>{STRINGS.contestedBy[lang]} {item.challengerName ?? STRINGS.member[lang]}</Text>
+                         <Text style={[styles.challengeWho, { color: "#C8323C" }]}>{STRINGS.contestedBy[lang]} {item.challengerName ?? STRINGS.member[lang]}</Text>
                         {item.challengeReason ? <Text style={[styles.challengeReason, { color: colors.mutedForeground }]}>{item.challengeReason}</Text> : null}
                       </View>
                     </View>
@@ -294,23 +295,24 @@ export default function TransparencyScreen() {
                     {item.status === "challenged" ? (
                       <>
                         <View style={styles.voteInfo}>
-                           <Text style={[styles.voteLabel, { color: "#10b981" }]}>{STRINGS.for[lang]}: {item.votesFor ?? 0}</Text>
-                           <Text style={[styles.voteLabel, { color: "#ef4444" }]}>{STRINGS.against[lang]}: {item.votesAgainst ?? 0}</Text>
+                           <Text style={[styles.voteLabel, { color: "#13976C" }]}>{STRINGS.for[lang]}: {item.votesFor ?? 0}</Text>
+                           <Text style={[styles.voteLabel, { color: "#C8323C" }]}>{STRINGS.against[lang]}: {item.votesAgainst ?? 0}</Text>
+                           <Text style={{ fontSize: 11, color: colors.mutedForeground }}>{STRINGS.opinionNote[lang]}</Text>
                         </View>
-                        <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#10b98118", borderColor: "#10b981" }]}
+                        <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#13976C18", borderColor: "#13976C" }]}
                           onPress={() => handleVote(item.id, "for")} disabled={votingId === item.id}>
-                           <Text style={[styles.smallBtnText, { color: "#10b981" }]}>{STRINGS.for[lang]} ✓</Text>
+                           <Text style={[styles.smallBtnText, { color: "#13976C" }]}>{STRINGS.for[lang]} ✓</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#ef444418", borderColor: "#ef4444" }]}
+                        <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#C8323C18", borderColor: "#C8323C" }]}
                           onPress={() => handleVote(item.id, "against")} disabled={votingId === item.id}>
-                           <Text style={[styles.smallBtnText, { color: "#ef4444" }]}>{STRINGS.against[lang]} ✗</Text>
+                           <Text style={[styles.smallBtnText, { color: "#C8323C" }]}>{STRINGS.against[lang]} ✗</Text>
                         </TouchableOpacity>
                       </>
                     ) : item.status === "pending" || item.status === "approved" ? (
-                      <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#ef444418", borderColor: "#ef4444" }]}
+                      <TouchableOpacity style={[styles.smallBtn, { backgroundColor: "#C8323C18", borderColor: "#C8323C" }]}
                         onPress={() => { setShowChallenge(item); setChallengeReason(""); }}>
-                        <Feather name="alert-triangle" size={12} color="#ef4444" />
-                         <Text style={[styles.smallBtnText, { color: "#ef4444" }]}>{STRINGS.contest[lang]}</Text>
+                        <Feather name="alert-triangle" size={12} color="#C8323C" />
+                         <Text style={[styles.smallBtnText, { color: "#C8323C" }]}>{STRINGS.contest[lang]}</Text>
                       </TouchableOpacity>
                     ) : null}
 
@@ -358,7 +360,7 @@ export default function TransparencyScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#1e293b", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#17142B", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleAdd} disabled={submitting}
             >
                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.publishButton[lang]}</Text>}
@@ -389,7 +391,7 @@ export default function TransparencyScreen() {
               multiline numberOfLines={4} textAlignVertical="top"
             />
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#ef4444", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#C8323C", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleChallenge} disabled={submitting}
             >
                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.confirmChallenge[lang]}</Text>}
@@ -405,7 +407,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 20, flexDirection: "row", alignItems: "center", gap: 14 },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
+  headerTitle: { fontSize: 20, fontFamily: "Fraunces_600SemiBold", color: "#fff" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
   addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },

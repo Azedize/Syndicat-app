@@ -1,3 +1,4 @@
+import { sendRouteError } from "../lib/route-error.js";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
@@ -128,8 +129,7 @@ router.get("/buildings", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
-    req.log.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -242,8 +242,7 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
 
     res.json({ building, lots, travaux, sinistres, chargeStats });
   } catch (e) {
-    req.log.error(e);
-    res.status(500).json({ error: "Server error" });
+    sendRouteError(req, res, e);
   }
 });
 
@@ -327,8 +326,7 @@ router.post(
 
       res.status(201).json(building);
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );
@@ -411,8 +409,7 @@ router.put(
 
       res.json(updated);
     } catch (e) {
-      req.log.error(e);
-      res.status(500).json({ error: "Server error" });
+      sendRouteError(req, res, e);
     }
   },
 );

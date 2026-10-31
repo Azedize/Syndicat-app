@@ -11,6 +11,7 @@ import { softAuth } from "./middleware/auth.js";
 import { enforceSessionContext } from "./lib/access.js";
 import Redis from "ioredis";
 import { processStripeWebhook } from "./lib/stripeWebhook.js";
+import { rateLimitProfile } from "./lib/rate-limit-profile.js";
 
 const app: Express = express();
 
@@ -90,9 +91,12 @@ const CREDENTIAL_ENDPOINTS = [
   "/api/auth/verify-phone",
 ];
 
+const LIMITS = rateLimitProfile();
+if (LIMITS.name !== "production") logger.warn({ limits: LIMITS }, "Rate limits: test profile (isolated test database only)");
+
 const credentialLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: LIMITS.credentialPerIp,
   message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -102,7 +106,7 @@ const credentialLimiter = rateLimit({
 // Per-account brute-force protection, independent of the source IP.
 const loginAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: LIMITS.loginPerAccount,
   message: { error: "Trop de tentatives de connexion pour ce compte. Réessayez dans 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -115,7 +119,7 @@ const loginAccountLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 500,
+  max: LIMITS.apiPerMinute,
   message: { error: "Trop de requêtes. Réessayez dans une minute." },
   standardHeaders: true,
   legacyHeaders: false,

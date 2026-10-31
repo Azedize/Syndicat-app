@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -34,21 +35,21 @@ const TYPE_CONFIG: Record<
   string,
   { icon: keyof typeof Feather.glyphMap; color: string }
 > = {
-  board: { icon: "briefcase", color: "#2563EB" },
-  general: { icon: "users", color: "#3b82f6" },
-  committee: { icon: "layers", color: "#10b981" },
-  emergency: { icon: "alert-triangle", color: "#ef4444" },
-  ag_ordinaire: { icon: "calendar", color: "#3b82f6" },
-  ag_extraordinaire: { icon: "alert-triangle", color: "#ef4444" },
-  ag_constitutive: { icon: "flag", color: "#10b981" },
-  ag_elective: { icon: "award", color: "#f59e0b" },
+  board: { icon: "briefcase", color: "#5A4AD6" },
+  general: { icon: "users", color: "#5A4AD6" },
+  committee: { icon: "layers", color: "#13976C" },
+  emergency: { icon: "alert-triangle", color: "#C8323C" },
+  ag_ordinaire: { icon: "calendar", color: "#5A4AD6" },
+  ag_extraordinaire: { icon: "alert-triangle", color: "#C8323C" },
+  ag_constitutive: { icon: "flag", color: "#13976C" },
+  ag_elective: { icon: "award", color: "#C98511" },
 };
-const DEFAULT_TYPE_ICON = { icon: "calendar" as const, color: "#6b7280" };
+const DEFAULT_TYPE_ICON = { icon: "calendar" as const, color: "#6A6680" };
 
 const STATUS_CONFIG_COLORS = {
-  scheduled: "#3b82f6",
-  completed: "#10b981",
-  cancelled: "#ef4444",
+  scheduled: "#5A4AD6",
+  completed: "#13976C",
+  cancelled: "#C8323C",
 };
 
 type FilterType = "all" | "scheduled" | "completed";
@@ -135,10 +136,18 @@ export default function MeetingsScreen() {
   const upcoming = meetings.filter((m) => m.status === "scheduled");
   const meetingsLoading = dataLoading && meetings.length === 0;
 
-  const handleConfirm = (id: string, title: string) => {
+  const handleConfirm = async (id: string, title: string) => {
     if (confirmed.has(id)) return;
     setConfirmed((prev) => new Set(prev).add(id));
-    confirmMeetingAttendance(id);
+    // Confirmed only once the API has saved it; otherwise the button is restored.
+    if (!(await confirmMeetingAttendance(id))) {
+      setConfirmed((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     showToast({
       type: "success",
@@ -150,7 +159,7 @@ export default function MeetingsScreen() {
       target: title,
       route: "/meetings",
       icon: "calendar",
-      color: "#3b82f6",
+      color: "#5A4AD6",
     });
   };
 
@@ -197,7 +206,7 @@ export default function MeetingsScreen() {
         target: newTitle,
         route: "/meetings",
         icon: "calendar",
-        color: "#3b82f6",
+        color: "#5A4AD6",
       });
     } catch (e: any) {
       showToast({
@@ -263,58 +272,12 @@ export default function MeetingsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: (isWide ? 0 : insets.top) + 16,
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {t("meetingsTitle")}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {upcoming.length} {t("upcomingMeetings")}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() =>
-            toggleFavorite({
-              id: FAV_ID,
-              title: t("meetingsTitle"),
-              icon: "calendar",
-              color: "#3b82f6",
-              route: "/meetings",
-            })
-          }
-          style={{ padding: 6 }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather
-            name="star"
-            size={20}
-            color={isFavorite(FAV_ID) ? "#f59e0b" : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-        {canCreateMeeting ? (
-          <TouchableOpacity
-            style={[styles.createBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setShowCreate(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          >
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={t("meetingsTitle")}
+        subtitle={`${upcoming.length} ${t("upcomingMeetings")}`}
+        action2={{ icon: "star", label: t("docFavorite"), onPress: () => toggleFavorite({ id: FAV_ID, title: t("meetingsTitle"), icon: "calendar", color: "#5A4AD6", route: "/meetings" }) }}
+        action={canCreateMeeting ? { icon: "plus", label: t("newItem"), onPress: () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } } : undefined}
+      />
 
       {/* Upcoming banner */}
       {upcoming.length > 0 && (
@@ -395,7 +358,7 @@ export default function MeetingsScreen() {
           const scColor =
             STATUS_CONFIG_COLORS[
               m.status as keyof typeof STATUS_CONFIG_COLORS
-            ] ?? "#6b7280";
+            ] ?? "#6A6680";
           const isConfirmed = confirmed.has(m.id);
           const isScheduled = m.status === "scheduled";
           const isEmergency =
@@ -407,7 +370,7 @@ export default function MeetingsScreen() {
                 styles.card,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isEmergency ? "#ef444440" : colors.border,
+                  borderColor: isEmergency ? colors.danger + "40" : colors.border,
                   borderLeftColor: tc.color,
                 },
               ]}
@@ -515,7 +478,7 @@ export default function MeetingsScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.agendaLabel, { color: colors.primary }]}>
+                  <Text style={[styles.agendaLabel, { color: colors.tint }]}>
                     {t("agendaLabel")}
                   </Text>
                   {m.agenda.slice(0, 2).map((item, i) => (
@@ -539,7 +502,7 @@ export default function MeetingsScreen() {
                   ))}
                   {m.agenda.length > 2 ? (
                     <Text
-                      style={[styles.agendaMore, { color: colors.primary }]}
+                      style={[styles.agendaMore, { color: colors.tint }]}
                     >
                       +{m.agenda.length - 2} {t("moreAgendaPoints")}
                     </Text>
@@ -558,7 +521,7 @@ export default function MeetingsScreen() {
                   >
                     <Feather name="list" size={14} color={colors.primary} />
                     <Text
-                      style={[styles.actionBtnText, { color: colors.primary }]}
+                      style={[styles.actionBtnText, { color: colors.tint }]}
                     >
                       {t("fullAgenda")}
                     </Text>
@@ -614,7 +577,7 @@ export default function MeetingsScreen() {
                   }}
                 >
                   <Feather name="file-text" size={14} color={colors.primary} />
-                  <Text style={[styles.pvBtnText, { color: colors.primary }]}>
+                  <Text style={[styles.pvBtnText, { color: colors.tint }]}>
                     {t("downloadPVBtn")}
                   </Text>
                 </TouchableOpacity>
@@ -984,7 +947,7 @@ export default function MeetingsScreen() {
                   >
                     <Feather name="calendar" size={16} color={colors.primary} />
                     <Text
-                      style={[styles.calBtnText, { color: colors.primary }]}
+                      style={[styles.calBtnText, { color: colors.tint }]}
                     >
                       {t("calendar")}
                     </Text>
@@ -1131,7 +1094,7 @@ export default function MeetingsScreen() {
                     styles.fieldInput,
                     {
                       color: colors.foreground,
-                      textAlign: isRTL ? "right" : "left",
+                      textAlign: "auto",
                     },
                     field.label === t("meetingDescLabel")
                       ? { minHeight: 80, textAlignVertical: "top" }
@@ -1223,7 +1186,7 @@ export default function MeetingsScreen() {
                 width: 40,
                 height: 4,
                 borderRadius: 2,
-                backgroundColor: "#e5e7eb",
+                backgroundColor: colors.border,
                 alignSelf: "center",
                 marginBottom: 16,
               }}
@@ -1301,7 +1264,7 @@ export default function MeetingsScreen() {
                       styles.fieldInput,
                       {
                         color: colors.foreground,
-                        textAlign: isRTL ? "right" : "left",
+                        textAlign: "auto",
                         minHeight:
                           f.label === t("meetingDescLabel") ? 72 : undefined,
                       },
@@ -1384,7 +1347,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   createBtn: {
     width: 38,
@@ -1627,5 +1590,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_400Regular",
   },
-  stateOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 3 },
+  stateOverlay: { ...StyleSheet.absoluteFill, zIndex: 3 },
 });

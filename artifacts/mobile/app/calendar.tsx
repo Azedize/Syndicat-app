@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
+import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -50,9 +51,9 @@ export default function CalendarScreen() {
 
   const TYPE_COLORS: Record<FilterType, string> = {
     all: colors.primary,
-    meeting: "#3b82f6",
-    election: "#f59e0b",
-    cotisation: "#10b981",
+    meeting: "#5A4AD6",
+    election: colors.warning,
+    cotisation: colors.success,
   };
 
   const allEvents: CalendarEvent[] = [
@@ -65,7 +66,7 @@ export default function CalendarScreen() {
       status: m.status,
       location: m.location,
       description: m.description,
-      color: "#3b82f6",
+      color: "#5A4AD6",
       icon: "calendar" as const,
     })),
     ...elections.map((e) => ({
@@ -75,7 +76,7 @@ export default function CalendarScreen() {
       type: "election" as FilterType,
       status: e.status,
       description: e.description,
-      color: "#f59e0b",
+      color: colors.warning,
       icon: "check-square" as const,
     })),
     ...cotisations
@@ -87,7 +88,7 @@ export default function CalendarScreen() {
         type: "cotisation" as FilterType,
         status: c.status,
         description: `Échéance: ${c.dueDate} — ${c.amount} MAD`,
-        color: "#10b981",
+        color: colors.success,
         icon: "credit-card" as const,
       })),
   ];
@@ -119,15 +120,15 @@ export default function CalendarScreen() {
   };
 
   const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    scheduled: { label: t("calStatusScheduled"), color: "#3b82f6" },
-    completed: { label: t("calStatusCompleted"), color: "#10b981" },
-    cancelled: { label: t("calStatusCancelled"), color: "#ef4444" },
-    open: { label: t("calStatusOpen"), color: "#f59e0b" },
-    upcoming: { label: t("calStatusUpcoming"), color: "#1F5EFF" },
-    closed: { label: t("calStatusClosed"), color: "#6b7280" },
-    pending: { label: t("calStatusPending"), color: "#f59e0b" },
-    overdue: { label: t("calStatusOverdue"), color: "#ef4444" },
-    paid: { label: t("calStatusPaid"), color: "#10b981" },
+    scheduled: { label: t("calStatusScheduled"), color: "#5A4AD6" },
+    completed: { label: t("calStatusCompleted"), color: colors.success },
+    cancelled: { label: t("calStatusCancelled"), color: colors.danger },
+    open: { label: t("calStatusOpen"), color: colors.warning },
+    upcoming: { label: t("calStatusUpcoming"), color: "#5A4AD6" },
+    closed: { label: t("calStatusClosed"), color: "#6A6680" },
+    pending: { label: t("calStatusPending"), color: colors.warning },
+    overdue: { label: t("calStatusOverdue"), color: colors.danger },
+    paid: { label: t("calStatusPaid"), color: colors.success },
   };
 
   const upcomingEvents = filteredEvents
@@ -137,17 +138,7 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("calTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {allEvents.length} {t("calEventsCount")}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title={t("calTitle")} subtitle={`${allEvents.length} ${t("calEventsCount")}`} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
         {/* Filter chips */}
@@ -255,8 +246,8 @@ export default function CalendarScreen() {
                     </View>
                   )}
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: (STATUS_CONFIG[ev.status]?.color ?? "#6b7280") + "18" }]}>
-                  <Text style={[styles.statusText, { color: STATUS_CONFIG[ev.status]?.color ?? "#6b7280" }]}>
+                <View style={[styles.statusBadge, { backgroundColor: (STATUS_CONFIG[ev.status]?.color ?? "#6A6680") + "18" }]}>
+                  <Text style={[styles.statusText, { color: STATUS_CONFIG[ev.status]?.color ?? "#6A6680" }]}>
                     {STATUS_CONFIG[ev.status]?.label ?? ev.status}
                   </Text>
                 </View>
@@ -301,7 +292,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  title: { fontSize: 20, fontFamily: "Fraunces_600SemiBold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular" },
   filters: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, flexShrink: 0 },

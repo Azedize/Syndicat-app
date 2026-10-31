@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useData } from "./DataContext";
 import { useAuth } from "./AuthContext";
+import { useLanguage } from "./LanguageContext";
+import { MENU_SECTIONS_DEF } from "@/constants/menu";
 
 export interface SearchResult {
   id: string;
@@ -75,40 +77,8 @@ function scoreResult(query: string, fields: string[]): number {
   return Math.max(...fields.map((f) => fuzzyScore(query, f)));
 }
 
-const NAVIGATION_ITEMS = [
-  { id: "nav-dashboard", title: "Dashboard", subtitle: "Accueil principal", route: "/(tabs)/", icon: "home", color: "#2563EB" },
-  { id: "nav-members", title: "Membres / Syndicats", subtitle: "Gestion des membres", route: "/members", icon: "users", color: "#2563EB" },
-  { id: "nav-finance", title: "Finance", subtitle: "Comptabilité et transactions", route: "/finance", icon: "dollar-sign", color: "#10b981" },
-  { id: "nav-marketplace", title: "Marketplace", subtitle: "Boutique en ligne", route: "/marketplace", icon: "shopping-bag", color: "#f97316" },
-  { id: "nav-elections", title: "Élections", subtitle: "Votes et candidats", route: "/elections", icon: "check-square", color: "#f59e0b" },
-  { id: "nav-meetings", title: "Réunions", subtitle: "Agenda des réunions", route: "/meetings", icon: "calendar", color: "#3b82f6" },
-  { id: "nav-governance", title: "Gouvernance", subtitle: "Organigramme et commissions", route: "/governance", icon: "git-merge", color: "#10b981" },
-  { id: "nav-legal", title: "Module Juridique", subtitle: "Alertes et risques légaux", route: "/legal", icon: "shield", color: "#8b5cf6" },
-  { id: "nav-documents", title: "Documents", subtitle: "Base documentaire", route: "/documents", icon: "file-text", color: "#1F5EFF" },
-  { id: "nav-publications", title: "Publications", subtitle: "Articles et actualités", route: "/publications", icon: "rss", color: "#f97316" },
-  { id: "nav-alerts", title: "Alertes", subtitle: "Notifications et alertes", route: "/alerts", icon: "bell", color: "#ef4444" },
-  { id: "nav-chat", title: "Chat Hub", subtitle: "Messages et conversations", route: "/chat", icon: "message-circle", color: "#ec4899" },
-  { id: "nav-cotisations", title: "Mes Cotisations", subtitle: "Paiements des cotisations", route: "/cotisations", icon: "credit-card", color: "#10b981" },
-  { id: "nav-support", title: "Tickets Support", subtitle: "Aide et assistance", route: "/support", icon: "headphones", color: "#ef4444" },
-  { id: "nav-profile", title: "Mon Profil", subtitle: "Informations personnelles", route: "/profile", icon: "user", color: "#1F5EFF" },
-  { id: "nav-settings", title: "Paramètres", subtitle: "Configuration et préférences", route: "/settings", icon: "settings", color: "#6b7280" },
-  { id: "nav-reports", title: "Rapports", subtitle: "Statistiques et exports", route: "/reports", icon: "bar-chart-2", color: "#2563EB" },
-  { id: "nav-calendar", title: "Calendrier", subtitle: "Planning et événements", route: "/calendar", icon: "calendar", color: "#1F5EFF" },
-  { id: "nav-formations", title: "Formations", subtitle: "Catalogue de formations", route: "/formations", icon: "book-open", color: "#3b82f6" },
-  { id: "nav-partenaires", title: "Partenaires", subtitle: "Partenaires et avantages", route: "/partenaires", icon: "briefcase", color: "#3b82f6" },
-  { id: "nav-orders", title: "Mes Commandes", subtitle: "Achats et ventes", route: "/orders", icon: "package", color: "#1F5EFF" },
-  { id: "nav-myshop", title: "Ma Boutique", subtitle: "Gestion de mes produits", route: "/my-shop", icon: "shopping-bag", color: "#10b981" },
-  { id: "nav-reviews", title: "Avis & Évaluations", subtitle: "Notes et commentaires", route: "/reviews", icon: "star", color: "#f97316" },
-  { id: "nav-statistiques", title: "Statistiques Globales", subtitle: "Tableaux de bord avancés", route: "/statistiques", icon: "trending-up", color: "#10b981" },
-  { id: "nav-sondages", title: "Sondages", subtitle: "Enquêtes et votes", route: "/sondages", icon: "bar-chart-2", color: "#2563EB" },
-  { id: "nav-actions", title: "Actions Syndicales", subtitle: "Grèves et mobilisations", route: "/actions", icon: "zap", color: "#ef4444" },
-  { id: "nav-annuaire", title: "Annuaire Membres", subtitle: "Répertoire des membres", route: "/annuaire", icon: "book", color: "#10b981" },
-  { id: "nav-invoices", title: "Devis & Factures", subtitle: "Facturation et devis", route: "/invoices", icon: "file-text", color: "#3b82f6" },
-  { id: "nav-fiches", title: "Fiches de Paie", subtitle: "Bulletins de salaire", route: "/fiches-paie", icon: "file-text", color: "#1F5EFF" },
-  { id: "nav-abonnements", title: "Abonnements", subtitle: "Plans et facturation", route: "/abonnements", icon: "star", color: "#f59e0b" },
-  { id: "nav-cart", title: "Mon Panier", subtitle: "Articles en attente", route: "/cart", icon: "shopping-cart", color: "#f59e0b" },
-  { id: "nav-notifications", title: "Notifications", subtitle: "Préférences de notifications", route: "/notifications", icon: "bell", color: "#ec4899" },
-];
+// Screens are offered from the app's menu: translated, and only those the
+// role may open (the static list pointed at removed or forbidden screens).
 
 interface SearchContextType {
   query: string;
@@ -127,6 +97,7 @@ const SearchContext = createContext<SearchContextType | null>(null);
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const data = useData();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -390,17 +361,25 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
       addGroup("commande", orderResults);
 
       // Navigation
-      const navResults: ScoredResult[] = NAVIGATION_ITEMS.map((n) => ({
-        id: n.id,
-        title: n.title,
-        subtitle: n.subtitle,
-        category: "navigation",
-        categoryLabel: "Navigation",
-        icon: n.icon,
-        color: SEARCH_CATEGORIES.navigation.color,
-        route: n.route,
-        _score: scoreResult(q, [n.title, n.subtitle]),
-      }));
+      const navResults: ScoredResult[] = MENU_SECTIONS_DEF.flatMap((section) =>
+        section.items
+          .filter((item) => (item.roles as string[]).includes(role))
+          .map((item) => {
+            const title = t(item.labelKey);
+            const subtitle = t(section.titleKey);
+            return {
+              id: `nav-${item.route}`,
+              title,
+              subtitle,
+              category: "navigation",
+              categoryLabel: t("navigation"),
+              icon: item.icon,
+              color: SEARCH_CATEGORIES.navigation.color,
+              route: item.route,
+              _score: scoreResult(q, [title, subtitle]),
+            };
+          }),
+      );
       addGroup("navigation", navResults);
 
       // Sort groups by result count (already scored internally)
@@ -408,7 +387,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
       return groups;
     },
-    [data, user]
+    [data, user, t]
   );
 
   const [results, setResults] = useState<SearchGroup[]>([]);

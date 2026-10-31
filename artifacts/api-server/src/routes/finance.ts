@@ -21,12 +21,15 @@ import {
 import { findForeignReference } from "../lib/scope.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { nextSequenceNumber } from "../lib/sequences.js";
 import {
   FinanceError,
   isoDateSchema,
   lockAccount,
   postEntry,
+  fromCents,
   sendFinanceError,
+  toCents,
   today,
 } from "../lib/treasury.js";
 
@@ -756,7 +759,8 @@ router.post(
       unitPrice: z.number().nonnegative(),
     });
     const schema = z.object({
-      reference: z.string().min(1),
+      // Ignored: the number is allocated by the server (BL-<year>-<n>, per condominium).
+      reference: z.string().optional(),
       recipient: z.string().min(1),
       date: z.string(),
       type: z.enum(["sortie", "entree"]).default("sortie"),
@@ -770,17 +774,20 @@ router.post(
     }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, items, ...data } = result.data;
-      const total = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-      const [bon] = await db
-        .insert(bonsLivraisonTable)
-        .values({ ...data, syndicateId: sid, total, status: "draft" } as any)
-        .returning();
-      if (items.length > 0) {
-        await db
-          .insert(bonItemsTable)
-          .values(items.map((i) => ({ ...i, bonId: bon.id })) as any);
-      }
+      const { syndicateId: _sid, reference: _clientRef, items, ...data } = result.data;
+      // Total in cents; note and lines saved together or not at all.
+      const totalCents = items.reduce((s, i) => s + Math.round(i.quantity * toCents(i.unitPrice)), 0);
+      const bon = await db.transaction(async (tx) => {
+        const reference = await nextSequenceNumber(tx, sid, "BL", 4);
+        const [created] = await tx
+          .insert(bonsLivraisonTable)
+          .values({ ...data, reference, syndicateId: sid, total: fromCents(totalCents), status: "draft" } as any)
+          .returning();
+        if (items.length > 0) {
+          await tx.insert(bonItemsTable).values(items.map((i) => ({ ...i, bonId: created.id })) as any);
+        }
+        return created;
+      });
       await serverAuditLog(req, {
         action: "CREATE",
         entity: "delivery_note",

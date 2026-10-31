@@ -236,7 +236,8 @@ async function main() {
     const journal = await db
       .select()
       .from(ledgerEntriesTable)
-      .where(eq(ledgerEntriesTable.reference, approved.receiptNumber ?? "?"));
+      // Receipt numbers are sequential per condominium: scope to this one.
+      .where(and(eq(ledgerEntriesTable.syndicateId, ATLAS), eq(ledgerEntriesTable.reference, approved.receiptNumber ?? "?")));
     const [paymentRow] = await db
       .select()
       .from(appelPaymentsTable)

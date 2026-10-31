@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -55,7 +56,7 @@ export default function SearchScreen() {
   const { query, setQuery, results, history, addHistory, removeHistory, clearHistory, isSearching, totalCount } =
     useSearch();
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -178,7 +179,7 @@ export default function SearchScreen() {
           ) : null}
         </View>
         <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
-          <Text style={[styles.cancelText, { color: colors.primary }]}>{t("searchCancel")}</Text>
+          <Text style={[styles.cancelText, { color: colors.tint }]}>{t("searchCancel")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -343,12 +344,12 @@ function EmptyState({
   t: (key: string) => string;
 }) {
   const SUGGESTIONS = [
-    { labelKey: "searchCategoryMembers", icon: "users" as const, color: "#2563EB", query: "membre" },
-    { labelKey: "searchCategoryMeetings", icon: "calendar" as const, color: "#3b82f6", query: "réunion" },
-    { labelKey: "searchCategoryDocuments", icon: "file-text" as const, color: "#1F5EFF", query: "statut" },
-    { labelKey: "searchCategoryElections", icon: "check-square" as const, color: "#f59e0b", query: "bureau" },
-    { labelKey: "searchCategoryFinance", icon: "dollar-sign" as const, color: "#10b981", query: "cotisation" },
-    { labelKey: "searchCategoryAlerts", icon: "bell" as const, color: "#ef4444", query: "alerte" },
+    { labelKey: "searchCategoryMembers", icon: "users" as const, color: "#5A4AD6", query: "membre" },
+    { labelKey: "searchCategoryMeetings", icon: "calendar" as const, color: "#5A4AD6", query: "réunion" },
+    { labelKey: "searchCategoryDocuments", icon: "file-text" as const, color: "#5A4AD6", query: "statut" },
+    { labelKey: "searchCategoryElections", icon: "check-square" as const, color: colors.warning, query: "bureau" },
+    { labelKey: "searchCategoryFinance", icon: "dollar-sign" as const, color: colors.success, query: "cotisation" },
+    { labelKey: "searchCategoryAlerts", icon: "bell" as const, color: colors.danger, query: "alerte" },
   ];
 
   return (
@@ -385,7 +386,7 @@ function EmptyState({
               {t("searchRecent")}
             </Text>
             <TouchableOpacity onPress={onClearHistory}>
-              <Text style={[styles.clearText, { color: colors.primary }]}>{t("searchClearAll")}</Text>
+              <Text style={[styles.clearText, { color: colors.tint }]}>{t("searchClearAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -423,10 +424,10 @@ function EmptyState({
         </Text>
         <View style={styles.shortcutsGrid}>
           {[
-            { labelKey: "publications", icon: "rss" as const, color: "#f97316", route: "/publications" },
-            { labelKey: "chat", icon: "message-circle" as const, color: "#ec4899", route: "/chat" },
-            { labelKey: "profile", icon: "user" as const, color: "#1F5EFF", route: "/profile" },
-            { labelKey: "settings", icon: "settings" as const, color: "#6b7280", route: "/settings" },
+            { labelKey: "publications", icon: "rss" as const, color: colors.warning, route: "/publications" },
+            { labelKey: "chat", icon: "message-circle" as const, color: "#C2456E", route: "/chat" },
+            { labelKey: "profile", icon: "user" as const, color: "#5A4AD6", route: "/profile" },
+            { labelKey: "settings", icon: "settings" as const, color: "#6A6680", route: "/settings" },
           ].map((s) => (
             <TouchableOpacity
               key={s.labelKey}
