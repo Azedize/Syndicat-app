@@ -1,6 +1,5 @@
 import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
-import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 

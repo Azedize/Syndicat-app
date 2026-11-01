@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { appelsDeFondsTable, invoicesTable, buildingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 export async function getAppelSyndicateId(appelId: string): Promise<string | null> {
   const [appel] = await db
     .select({ buildingId: appelsDeFondsTable.buildingId })

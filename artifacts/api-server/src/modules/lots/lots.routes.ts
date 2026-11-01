@@ -105,8 +105,6 @@ function requireRoles(req: Request, roles: string[]): void {
   if (!roles.includes(role)) throw new FinanceError(403, "FORBIDDEN", "Action réservée au syndic");
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
-
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 const SORTS: Record<string, SQL[]> = {

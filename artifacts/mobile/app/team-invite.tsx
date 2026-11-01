@@ -34,7 +34,7 @@ import { crossPlatformShadow } from "@/lib/shadow";
 import { useColors } from "@/hooks/useColors";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import MizanFormField from "@/components/MizanFormField";
-import { team as teamApi } from "@/services/api";
+import { team as teamApi } from "@/features/directory/api";
 
 // ─── Team roles config ────────────────────────────────────────────────────────
 

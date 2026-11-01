@@ -40,10 +40,6 @@ import {
 
 const router = Router();
 
-// ─── Role Communication Matrix ────────────────────────────────────────────────
-// Encodes "who can chat with whom" so it is enforced in one place instead of
-// scattered ad-hoc checks. See AUDIT_REPORT.md for the full rationale.
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -1001,10 +997,6 @@ router.get("/conversations/:id/typing", requireAuth, async (req, res) => {
   }
   res.json({ data: getTypingUsers(id, req.user!.userId) });
 });
-
-// ─── Message enrichment helpers ──────────────────────────────────────────────
-
-// ─── Reactions helper ────────────────────────────────────────────────────────
 
 // ─── GET /conversations/:id/messages ─────────────────────────────────────────
 

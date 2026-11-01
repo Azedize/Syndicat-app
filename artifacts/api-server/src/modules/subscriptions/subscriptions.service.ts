@@ -271,6 +271,7 @@ export async function finalizeSuccessfulPayment(
   });
 }
 
+// ─── Exported helper ──────────────────────────────────────────────────────
 type TrialExecutor = Pick<typeof db, "select" | "insert">;
 
 /** Creates the 30-day trial. Pass the onboarding transaction so a syndicate is

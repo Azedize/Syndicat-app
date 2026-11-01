@@ -1824,3 +1824,28 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Page de vérification d'un document :
   - un jeton inconnu donne bien la page « introuvable » (404) ;
   - **le cas d'un jeton valide n'a pas été exécuté** : aucun document de la base de test n'a de jeton et aucune suite ne couvre ce cas.
+
+## 2026-11-01 — Restructuration, étape 5
+
+### Mobile : 4 fonctionnalités de plus (14 au total)
+- `community` (publications, annonces, actions, idées), `organizations` (syndicats, sociétés de syndic, copropriétés, portefeuille), `statistics` (statistiques, classements, `SyndicateCard`), `directory` (membres, locataires, équipe).
+- `services/api/index.ts` ne garde que l'authentification, l'audit et le contenu transverse : 226 lignes (2 928 au départ).
+- `app/reports.tsx` : l'ancien import `* as statisticsApi from "@/services/api"` entrait en collision avec le nouvel import ; il est retiré.
+- 0 import entre fonctionnalités.
+
+### API
+- `documents.routes.ts` (5 062 lignes) monte maintenant 6 sous-routeurs contigus, dans l'ordre d'origine : catalog, verify, requests, bundles, crud, signing (de 127 à 1 457 lignes).
+  - Le nombre de routes est contrôlé (30 = 30).
+  - `TEMPLATE_SIGNING_ORDER` passe dans le service.
+- Commentaires de section : 21 en-têtes séparés de leur fonction par une ligne vide étaient restés dans les routes lors des extractions.
+  - Ils sont recopiés au-dessus des fonctions dans les services (dont 13 pour `documents`).
+  - Ils ne sont retirés des routes que lorsqu'ils n'y titrent plus rien.
+
+### Vérifications
+- `tsc` API et mobile : 0 erreur. Build API OK. Export Android/iOS OK.
+- Régression sur `syndycat_test` : 39/40, avec 128 routes × 9 profils.
+  - documents-library 75/75, documents-security 29/29, official-documents 13/13, journeys 135/135, scenario-e2e 48/48, idor 108/108.
+- Ordre des routes de documents vérifié en direct : `/summary`, `/deleted`, `/available-templates`, `/templates`, `/entities`, `/template-requests`, `/:id`, `/:id/signers`, `/:id/comments` → 200 avec des données.
+- Tests statiques mobile : 9/9, 369/369, 6/6. `login-transport` : 7/7.
+- Navigateur : 16 écrans des nouvelles fonctionnalités (syndic, membre, super admin), 0 erreur, endpoints propres à chaque écran appelés avec succès.
+  - Exception : `/coproprietes` n'appelle que `/me/contexts` au chargement.

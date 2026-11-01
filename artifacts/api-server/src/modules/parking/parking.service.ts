@@ -5,6 +5,7 @@ import { isSyndicateTeamRole } from "../../middleware/auth.js";
 import type { JwtPayload } from "../../middleware/auth.js";
 import { getUserBuildingIds } from "../../lib/scope.js";
 
+// ─── Access-control helpers ──────────────────────────────────────────────────
 /** Returns the set of building IDs the authenticated user is allowed to act on. */
 export async function getScopedBuildingIds(user: JwtPayload): Promise<string[]> {
   if (user.role === "super_admin") return []; // empty = "all"

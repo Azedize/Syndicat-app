@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { actionSupportsTable, actionParticipantsTable } from "@workspace/db/schema";
 import { eq, and, count, inArray } from "drizzle-orm";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 export function parseJson<T>(val: string, fallback: T): T {
   try { return JSON.parse(val) as T; } catch { return fallback; }
 }

@@ -2,6 +2,7 @@ export function routeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 export function safeJson(val: unknown, fallback?: unknown) {
   if (!val) return fallback ?? null;
   if (typeof val !== "string") return val;

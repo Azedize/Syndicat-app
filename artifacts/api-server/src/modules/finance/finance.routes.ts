@@ -37,7 +37,6 @@ import {
 } from "../../lib/treasury.js";
 import { METRIC_DEFINITIONS, ledgerFlows } from "../../lib/finance-metrics.js";
 
-
 /** Register types that are money in vs money out of the syndicate. */
 const INFLOW_TYPES = new Set(["cotisation", "recette", "revenue"]);
 

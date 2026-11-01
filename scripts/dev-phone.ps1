@@ -2,12 +2,6 @@
 # for networks where the phone cannot reach the PC (Wi-Fi client isolation).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\dev-phone.ps1
-#
-# 1. Starts the API on $ApiPort in its own window (or reuses one that answers /api/healthz).
-# 2. Opens two tunnels: API and Metro. Their URLs change on every run.
-# 3. Starts Expo with EXPO_PUBLIC_API_URL (API tunnel) and EXPO_PACKAGER_PROXY_URL
-#    (Metro tunnel), so the QR code and the bundle URLs use the public host.
-# Ctrl+C stops Expo and both tunnels. The API window stays open.
 
 param(
   [int]$ApiPort = 5000,
@@ -32,8 +26,18 @@ function Find-Cloudflared {
   throw "cloudflared introuvable. Installez-le : winget install --id Cloudflare.cloudflared -e"
 }
 
-function Test-Listening([int]$port) {
-  return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+function Stop-PortOwner([int]$port) {
+  $connections = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+  if ($connections) {
+    foreach ($conn in $connections) {
+      $procId = $conn.OwningProcess
+      if ($procId -and $procId -ne 0) {
+        Write-Host "Fermeture du processus PID $procId utilisant le port $port..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+      }
+    }
+    Start-Sleep -Seconds 1
+  }
 }
 
 function Test-Health([string]$url) {
@@ -49,7 +53,7 @@ function Wait-Until([scriptblock]$check, [int]$seconds, [string]$what) {
   throw "Delai depasse : $what"
 }
 
-# Tunnels left by a previous run of this script.
+# 1. Arret des anciens tunnels enregistres
 if (Test-Path $pidFile) {
   foreach ($id in Get-Content $pidFile) {
     $p = Get-Process -Id $id -ErrorAction SilentlyContinue
@@ -60,25 +64,19 @@ if (Test-Path $pidFile) {
 
 $cloudflared = Find-Cloudflared
 
-if (Test-Listening $MetroPort) {
-  throw "Le port $MetroPort est deja utilise (un autre Expo/Metro ?). Fermez-le puis relancez."
-}
+# 2. Fermeture automatique de tout ce qui tourne sur les ports API et Metro
+Write-Host "Nettoyage des anciens processus sur les ports $ApiPort et $MetroPort..." -ForegroundColor Cyan
+Stop-PortOwner $ApiPort
+Stop-PortOwner $MetroPort
 
-# --- API ---
+# 3. Demarrage propre du Backend API
 $localHealth = "http://localhost:$ApiPort/api/healthz"
-if (Test-Health $localHealth) {
-  Write-Host "API deja en marche sur le port $ApiPort : reutilisee." -ForegroundColor Yellow
-  Write-Host "  (Si elle date d'avant vos derniers changements, fermez-la et relancez ce script.)"
-} elseif (Test-Listening $ApiPort) {
-  throw "Le port $ApiPort est occupe par un processus qui ne repond pas a /api/healthz."
-} else {
-  Write-Host "Demarrage de l'API (nouvelle fenetre)..."
-  Start-Process powershell -WorkingDirectory $apiDir -ArgumentList "-NoExit", "-Command", "npm run dev"
-  Wait-Until { Test-Health $localHealth } 120 "l'API ne repond pas sur $localHealth"
-  Write-Host "API prete." -ForegroundColor Green
-}
+Write-Host "Demarrage du nouveau Backend API..." -ForegroundColor Green
+Start-Process powershell -WorkingDirectory $apiDir -ArgumentList "-NoExit", "-Command", "npm run dev"
+Wait-Until { Test-Health $localHealth } 120 "l'API ne repond pas sur $localHealth"
+Write-Host "API prete." -ForegroundColor Green
 
-# --- Tunnels ---
+# 4. Demarrage des Tunnels Cloudflare
 function Start-Tunnel([int]$port, [string]$name) {
   $log = Join-Path $logDir "$name.log"
   if (Test-Path $log) { Remove-Item $log -Force }
@@ -104,7 +102,6 @@ Write-Host "Ouverture des tunnels Cloudflare..."
 $apiTunnel = Start-Tunnel $ApiPort "api"
 $metroTunnel = Start-Tunnel $MetroPort "metro"
 
-# A new trycloudflare host can take a few seconds to resolve.
 Wait-Until { Test-Health "$apiTunnel/api/healthz" } 60 "le tunnel API ne repond pas ($apiTunnel/api/healthz)"
 Write-Host "Tunnel API verifie : $apiTunnel/api/healthz" -ForegroundColor Green
 
@@ -119,7 +116,7 @@ Write-Host " Journaux des tunnels : $logDir"
 Write-Host "=============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# --- Expo ---
+# 5. Demarrage d'Expo
 $env:EXPO_PUBLIC_API_URL = "$apiTunnel/api"
 $env:EXPO_PACKAGER_PROXY_URL = $metroTunnel
 $expoArgs = @("exec", "expo", "start", "--port", "$MetroPort")

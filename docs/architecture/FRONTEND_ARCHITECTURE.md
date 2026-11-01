@@ -26,7 +26,11 @@ app/ (routes)  ──▶  features/<f>/components, hooks  ──▶  features/<f
 | Chat, Réclamations, Parking (`features/chat`, `claims`, `parking`) | **Migré** (API) | `api.ts` + types |
 | Prestataires (`features/providers`) | **Migré** (API) | `api.ts` (`prestataires`, `contrats`, `travaux`) |
 | Abonnements (`features/subscriptions`) | **Migré** | `api.ts`, SubscriptionBanner |
-| Autres (auth, members, syndicates, content, statistics, organizations…) | À migrer | `services/api/index.ts` (781 lignes) |
+| Communauté (`features/community`) | **Migré** (API) | publications, annonces, actions, idées |
+| Organisations (`features/organizations`) | **Migré** (API) | syndicats, sociétés de syndic, copropriétés, portefeuille |
+| Statistiques (`features/statistics`) | **Migré** | statistiques, classements, SyndicateCard |
+| Annuaire (`features/directory`) | **Migré** (API) | membres, locataires, équipe |
+| Transverse | Reste dans `services/api/index.ts` (226 lignes) | auth, audit, content |
 
 `hooks/useNotificationBus.ts` reste partagé : les contextes Toast et Data l'utilisent aussi.
 

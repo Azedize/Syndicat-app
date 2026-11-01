@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CLAIM_CATEGORIES, CLAIM_PRIORITIES } from "../../lib/claims.js";
 
+// ─── List, board, record ──────────────────────────────────────────────────────
 export const listSchema = z.object({
   q: z.string().trim().max(100).optional(),
   status: z.string().max(200).optional(), // comma separated

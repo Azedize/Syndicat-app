@@ -7,6 +7,7 @@ export const PERIOD = z.string().refine((p) => !!periodRange(p), "Période inval
 
 export const CHARGE_TYPES = ["charges_courantes", "fonds_reserve", "appel_special"] as const;
 
+// ─── Keys ─────────────────────────────────────────────────────────────────────
 export const shareSchema = z
   .object({
     lotId: z.string().min(1),
@@ -34,6 +35,7 @@ export const createKeySchema = versionSchema.extend({
   purpose: z.string().trim().max(500).optional(),
 });
 
+// ─── Preview & confirmation ──────────────────────────────────────────────────
 export const sourceSchema = z.union([
   z.object({ type: z.literal("budget_line"), id: z.string().min(1), keyId: z.string().optional() }).strict(),
   z.object({ type: z.literal("expense"), id: z.string().min(1), keyId: z.string().optional() }).strict(),

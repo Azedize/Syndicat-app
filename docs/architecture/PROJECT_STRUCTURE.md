@@ -2,7 +2,7 @@
 
 État au 01/11/2026, après la quatrième étape de restructuration :
 - **API :** tous les domaines sont dans `src/modules/` (52 modules). `src/routes/` ne contient plus que `index.ts`.
-- **Mobile :** 10 fonctionnalités dans `features/`. Les endpoints des autres domaines restent dans `services/api/index.ts`.
+- **Mobile :** 14 fonctionnalités dans `features/`. `services/api/index.ts` ne garde que l'authentification, l'audit et le contenu transverse.
 Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
 
 ```text
@@ -15,6 +15,12 @@ zip-repl/
 │   │   │   └── *.tsx              Autres écrans (≈110)
 │   │   ├── features/              Fonctionnalités autonomes (cible de la migration)
 │   │   │   ├── chat/              api.ts (conversations, messages, réactions + types)
+│   │   │   ├── community/         api.ts (publications, annonces, actions, idées + types)
+│   │   │   ├── directory/         api.ts (membres, locataires, équipe du syndic + types)
+│   │   │   ├── organizations/     api.ts (syndicats, sociétés de syndic, copropriétés, portefeuille)
+│   │   │   ├── statistics/
+│   │   │   │   ├── api.ts         statistiques, classements (+ types)
+│   │   │   │   └── components/    SyndicateCard (tableau national)
 │   │   │   ├── claims/            api.ts (réclamations et incidents + types)
 │   │   │   ├── finances/
 │   │   │   │   ├── api.ts         finance, transparency, debtEscalations, reserveFund
@@ -49,8 +55,7 @@ zip-repl/
 │   │   │                          SidebarNav, StatCard, LanguageSwitcher…)
 │   │   ├── services/api/          Client HTTP
 │   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
-│   │   │   └── index.ts           Endpoints des autres domaines (781 lignes, 14 objets : auth, members,
-│   │   │                          syndicates, content, statistics, organizations…)
+│   │   │   └── index.ts           Endpoints transverses (226 lignes) : auth, audit, content
 │   │   ├── context/               Providers : Auth, Data, Theme, Language, Toast…
 │   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions, bus de notifications…)
 │   │   ├── constants/             Jetons de design (couleurs, espacements, typo, motion), menu
@@ -67,7 +72,9 @@ zip-repl/
 │       │   ├── modules/           52 modules métier : <domaine>/<domaine>.routes.ts (+ .service.ts,
 │       │   │                      .validation.ts, .access.ts, .html.ts selon le besoin)
 │       │   │   ├── subscriptions/ routes + service (statut, paiements, essai) + access (supervision)
-│       │   │   ├── documents/     routes (5 062 l.) + service (chargeurs de données, numérotation,
+│       │   │   ├── documents/     documents.routes.ts monte 6 sous-routeurs, dans l'ordre :
+│       │   │   │                  catalog, verify (public), requests, bundles, crud, signing
+│       │   │   │                  + service (chargeurs de données, numérotation, ordre de signature,
 │       │   │   │                  régénération signée) + html (page de vérification publique)
 │       │   │   ├── allocation/, claims/, expenses/, lots/   routes + service + validation (Zod)
 │       │   │   ├── auth/, budget/, chat/, elections/, marketplace/, pdf/, treasury/,

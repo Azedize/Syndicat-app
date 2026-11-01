@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
-import { locataires, type ApiTenantLease } from "@/services/api";
+import { locataires, type ApiTenantLease } from "@/features/directory/api";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
 

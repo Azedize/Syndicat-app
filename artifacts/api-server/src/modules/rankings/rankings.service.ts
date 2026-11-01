@@ -11,6 +11,7 @@ import {
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toCents } from "../../lib/treasury.js";
 
+// ─── Scoring helpers ──────────────────────────────────────────────────────────
 export async function computeScoreForSyndicate(
   syndicateId: string,
   month: number,

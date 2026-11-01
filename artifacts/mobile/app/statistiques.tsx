@@ -22,7 +22,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
 import FilterTabs from "@/components/FilterTabs";
 import { ErrorState, LoadingState } from "@/components/DataState";
-import { statistics, type PlatformStats } from "@/services/api";
+import { statistics, type PlatformStats } from "@/features/statistics/api";
 
 type Tab = "global" | "syndicats" | "finance" | "marketplace";
 

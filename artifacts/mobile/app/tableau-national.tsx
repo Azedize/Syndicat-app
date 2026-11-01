@@ -20,13 +20,13 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { statistics, type EnrichedSyndicate } from "@/services/api";
+import { statistics, type EnrichedSyndicate } from "@/features/statistics/api";
 import { chat as chatApi } from "@/features/chat/api";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import SyndicateCard, {
   type SyndicateCardData,
-} from "@/components/SyndicateCard";
+} from "@/features/statistics/components/SyndicateCard";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";

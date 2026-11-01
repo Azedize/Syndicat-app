@@ -39,7 +39,6 @@ import {
 } from "../../lib/finance-metrics.js";
 import { flowsIn, syndicateCurrency, lastNMonths } from "./statistics.service.js";
 
-
 /** Syndicate a statistics request is scoped to (null: the whole platform, super admin only). */
 function statisticsScope(req: any): string | null {
   syndicateWhere(req, syndicatesTable.id); // validates supervision / token scope

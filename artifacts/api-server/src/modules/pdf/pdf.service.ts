@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { syndicatesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 export function formatDate(d?: Date | string | null): string {
   if (!d) return "—";
   try {

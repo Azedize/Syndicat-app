@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
+import * as directoryApi from "@/features/directory/api";
 import * as organizationsApi from "@/features/organizations/api";
 import * as communityApi from "@/features/community/api";
 import * as governanceApi from "@/features/governance/api";
@@ -661,7 +662,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const LEDGER_READERS = ["syndicate_admin", "treasurer", "president", "committee_member"];
         const FINANCE_STAFF = ["syndicate_admin", "treasurer"];
         const results = await Promise.allSettled([
-          onlyFor(MEMBER_DIRECTORY, () => api.members.list()),
+          onlyFor(MEMBER_DIRECTORY, () => directoryApi.members.list()),
           governanceApi.elections.list(),
           // Tenants are not co-owners: the API refuses them the assemblies.
           role === "tenant"
@@ -1500,7 +1501,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const updateMemberStatus = (id: string, status: Member["status"]) => {
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, status } : m)));
-    return api.members.updateStatus(id, status).then(
+    return directoryApi.members.updateStatus(id, status).then(
       () => true,
       (e) => {
         onWriteFailed(e);

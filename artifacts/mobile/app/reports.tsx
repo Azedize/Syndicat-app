@@ -20,7 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import ScreenHeader from "@/components/ScreenHeader";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
-import * as statisticsApi from "@/services/api";
+import * as statisticsApi from "@/features/statistics/api";
 
 type Period = "month" | "quarter" | "year";
 

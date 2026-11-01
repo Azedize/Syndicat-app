@@ -84,6 +84,7 @@ export function referenceConflict(err: unknown): never {
   throw err;
 }
 
+// ─── Create ───────────────────────────────────────────────────────────────────
 export async function insertLot(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   input: z.infer<typeof createLotSchema>,

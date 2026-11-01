@@ -99,14 +99,12 @@ router.get("/expenses/:id", requireAuth, requireRoles(READ_ROLES), async (req, r
   }
 });
 
-
 const createExpenseSchema = expenseFields
   .extend({ draft: z.boolean().optional() })
   .refine((d) => !!d.supplierName || !!d.prestataireId, {
     message: "Le fournisseur est obligatoire",
     path: ["supplierName"],
   });
-
 
 router.post("/expenses", requireAuth, requireFinanceAccess, async (req, res) => {
   const parsed = createExpenseSchema.safeParse(req.body);

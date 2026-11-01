@@ -19,6 +19,7 @@ export const LOT_TYPES = [
 /** Types that are not on a floor of a building (floor is optional for them). */
 export const FLOORLESS_TYPES = new Set(["parking", "cave", "box", "terrain", "villa"]);
 
+// ─── Validation ───────────────────────────────────────────────────────────────
 export const referenceSchema = z
   .string()
   .trim()

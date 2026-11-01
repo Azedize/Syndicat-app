@@ -38,6 +38,11 @@ import {
   type InlineSignatureInfo,
 } from "../../lib/documentPdf.js";
 
+// ─── Workflow state machine ────────────────────────────────────────────────────
+// "rejected" and "expired" added on top of the original 7-state machine.
+// Spec's "Approved" state maps onto the pre-existing "validated" status —
+// kept as-is (not renamed) to avoid breaking existing consumers; approvedAt/
+// approvedBy are populated whenever a document transitions into "validated".
 export const VALID_STATUSES = [
   "draft",
   "generated",
@@ -79,6 +84,9 @@ export function buildVerifyUrl(token: string): string | undefined {
   return `${base.replace(/\/$/, "")}/api/documents/verify/${token}`;
 }
 
+// ─── Helper: atomic sequential document numbering (REG-2026-0001, PV-2026-0001…) ──
+// One counter row per (syndicateId, prefix, year); increments atomically via
+// INSERT ... ON CONFLICT DO UPDATE so concurrent generations never collide.
 export async function generateSequentialDocumentNumber(
   syndicateId: string | null | undefined,
   template: DocumentTemplate,
@@ -87,6 +95,7 @@ export async function generateSequentialDocumentNumber(
   return nextSequenceNumber(db, syndicateId || "global", prefix);
 }
 
+// ─── Helper: fetch full syndicate branding for PDF ────────────────────────────
 export async function getSyndicateInfo(
   syndicateId?: string | null,
 ): Promise<SyndicateInfo> {
@@ -151,6 +160,11 @@ export async function getSyndicateInfo(
   };
 }
 
+// ─── Helper: fetch real property/residence data for PDF injection ────────────
+// Pulls the syndicate's building(s) + lots to populate {{property.*}} variables
+// (name, address, city, totalBuildings, totalFloors, totalLots, totalSurfaceM2,
+// landRegistryReference). When buildingId is given, scopes to that building only;
+// otherwise aggregates across all buildings of the syndicate.
 export async function getPropertyInfo(
   syndicateId?: string | null,
   buildingId?: string | null,
@@ -214,6 +228,10 @@ export async function getPropertyInfo(
   };
 }
 
+// ─── Helper: fetch real office-holder identities for PDF injection ───────────
+// Pulls active conseil syndical members (président, vice-président, secrétaire,
+// trésorier) plus the syndicate_admin acting as gestionnaire, for
+// {{president.fullName}}, {{manager.phone}}, etc.
 export async function getOfficeHolders(
   syndicateId?: string | null,
 ): Promise<OfficeHolders | undefined> {
@@ -277,6 +295,7 @@ export async function getOfficeHolders(
   return Object.values(holders).some(Boolean) ? holders : undefined;
 }
 
+// ─── Entity loaders — load real DB data for entity-driven templates ────────────
 export async function getMeetingData(
   meetingId: string,
 ): Promise<Record<string, string>> {
@@ -584,6 +603,10 @@ export async function getElectionData(
   };
 }
 
+// ─── Financial dashboard KPI aggregator ────────────────────────────────────────
+// Pulls live aggregated metrics from appelsDeFondsTable, the journal (ledger_entries),
+// budgetsTable and transactionsTable and returns them as _kpi* keys so the PDF
+// template can render a real enterprise financial dashboard.
 export async function getFinancialDashboardData(
   syndicateId: string | null | undefined,
   buildingId?: string | null,
@@ -737,6 +760,10 @@ export async function getFinancialDashboardData(
   }
 }
 
+// ─── Per-lot charge aggregation for décompte des charges ──────────────────────
+// Sums actual appels de fonds for a specific lot (provisions versées) and
+// computes a per-lot share of the building expenses paid (journal) using
+// the lot's tantièmes ratio.
 export async function getDecompteChargesData(
   lotId: string,
   year?: string | null,
@@ -835,6 +862,7 @@ export async function getDecompteChargesData(
   }
 }
 
+// ─── Real invoice loader for facture template ──────────────────────────────────
 export async function getInvoiceData(
   invoiceId: string,
 ): Promise<Record<string, string>> {
@@ -878,6 +906,7 @@ export async function getInvoiceData(
   };
 }
 
+// ─── Attestation de Paiement — auto-calculate paid charges for a lot ─────────────
 export async function getAttestationPaiementData(
   lotId: string,
   periode?: string | null,
@@ -975,6 +1004,7 @@ export async function getAttestationPaiementData(
   }
 }
 
+// ─── Entity loader: tenantsTable → contrat_bail ──────────────────────────────
 export async function getTenantData(
   tenantId: string,
 ): Promise<Record<string, string>> {
@@ -1024,6 +1054,7 @@ export async function getTenantData(
   }
 }
 
+// ─── Entity loader: sinistresTable → sinistre ─────────────────────────────────
 export async function getSinistreData(
   sinistreId: string,
 ): Promise<Record<string, string>> {
@@ -1084,6 +1115,7 @@ export async function getSinistreData(
   }
 }
 
+// ─── Entity loader: travauxTable → travaux ────────────────────────────────────
 export async function getTravauxData(
   travauxId: string,
 ): Promise<Record<string, string>> {
@@ -1257,6 +1289,9 @@ export async function regenerateDocumentWithSignatures(
   return generated.fileUrl ?? null;
 }
 
+// ─── Document regeneration with inline signatures ─────────────────────────────
+// Called after signing so every signer's SVG trace appears inline in the document
+// body — not just on an appended page. Requires generationParams saved at creation.
 export interface GenerationParams {
   buildingId?: string | null;
   meetingId?: string | null;
@@ -1268,3 +1303,51 @@ export interface GenerationParams {
   memberName?: string | null;
   formFields?: Record<string, string>;
 }
+
+// Canonical signing order per template — defines who must sign and in
+// which order. Used by both GET /documents/:id/signers and the sign endpoint
+// to surface "who's turn is it?" without requiring a per-document config.
+export const TEMPLATE_SIGNING_ORDER: Record<
+  string,
+  Array<{ order: number; role: string; label: string }>
+> = {
+  pv: [
+    { order: 1, role: "syndicate_admin", label: "Secrétaire de séance" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  convocation: [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }],
+  // ── V1 production templates ──────────────────────────────────────────────────
+  attestation: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  attestation_paiement: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  attestation_residence: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+  ],
+  attestation_propriete: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  mise_en_demeure: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  appel_de_fonds: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  facture: [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
+  rapport_financier: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  contrat: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  decision: [{ order: 1, role: "syndicate_admin", label: "Président" }],
+};

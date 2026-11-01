@@ -6,7 +6,6 @@ import { requireAuth, requireRole, requireOperationalAccess } from "../../middle
 import { z } from "zod";
 import { lotHasOtherActiveTenancy, syncLotOccupancy } from "../../lib/units.js";
 
-
 const router = Router();
 
 function getMutationSyndicate(

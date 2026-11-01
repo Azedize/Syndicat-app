@@ -9,6 +9,9 @@ import {
 import { eq, or, and, inArray } from "drizzle-orm";
 import { type JwtPayload } from "../../middleware/auth.js";
 
+// ─── Role Communication Matrix ────────────────────────────────────────────────
+// Encodes "who can chat with whom" so it is enforced in one place instead of
+// scattered ad-hoc checks. See AUDIT_REPORT.md for the full rationale.
 export type Role = JwtPayload["role"];
 
 // ─── In-memory typing indicator state ────────────────────────────────────────
@@ -111,6 +114,7 @@ export function getTypingUsers(
   return active;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 export async function canAccessConversation(
   userId: string,
   syndicateId: string,
@@ -273,6 +277,7 @@ export async function addResponsibleToIncidentConversation(
   } as any);
 }
 
+// ─── Message enrichment helpers ──────────────────────────────────────────────
 /**
  * Filter and mask messages for a specific user:
  * - Removes messages the user deleted "for themselves" (deletedForUserIds).
@@ -300,6 +305,7 @@ export function enrichMessagesForUser(messages: any[], userId: string): any[] {
     });
 }
 
+// ─── Reactions helper ────────────────────────────────────────────────────────
 export async function loadReactionsByMessage(messageIds: string[], userId: string) {
   if (messageIds.length === 0)
     return new Map<string, { emoji: string; count: number; mine: boolean }[]>();

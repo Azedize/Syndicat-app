@@ -25,6 +25,7 @@ export type ProductRow = typeof productsTable.$inferSelect;
 
 export const PRIVATE_OBJECT_PATH = /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
 
+// ─── Auto-scan: prohibited words + spam detection ─────────────────────────────
 export const PROHIBITED_WORDS = [
   // Weapons
   "arme", "fusil", "pistolet", "couteau", "explosif", "munition",
@@ -47,6 +48,7 @@ export const SPAM_PATTERNS = [
   /whatsapp|telegram|signal/i, // External contact channels
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 export function parsePage(q: Record<string, string>) {
   const page = Math.max(1, parseInt(q.page ?? "1") || 1);
   const limit = Math.min(50, Math.max(1, parseInt(q.limit ?? "20") || 20));

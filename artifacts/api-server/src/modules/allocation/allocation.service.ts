@@ -104,6 +104,7 @@ export function requestsOf(inputs: any): SourceRequest[] {
   });
 }
 
+// ─── Drafts: edit, publish, delete ────────────────────────────────────────────
 export async function loadDraft(id: string, sid: string) {
   const [a] = await db.select().from(callsTable).where(and(eq(callsTable.id, id), eq(callsTable.syndicateId, sid)));
   if (!a) throw new FinanceError(404, "ALLOCATION_NOT_FOUND", "Appel de fonds introuvable");

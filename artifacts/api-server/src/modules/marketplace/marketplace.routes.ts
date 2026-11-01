@@ -82,8 +82,6 @@ async function getVisibleProductForUser(productId: string, user: NonNullable<Exp
   return PUBLIC_PRODUCT_STATUSES.has(product.status ?? "") ? product : null;
 }
 
-// ─── Auto-scan: prohibited words + spam detection ─────────────────────────────
-
 // ─── GET /products ─────────────────────────────────────────────────────────────
 // Cross-syndicate: approved products visible to all authenticated users.
 // Admins can filter by any status.

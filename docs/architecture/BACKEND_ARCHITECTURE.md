@@ -91,7 +91,11 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 | 4 | Stripe et ZimSend → `src/integrations/` | Fait |
 | 5 | Domaines ayant de la logique métier dans leurs routes | Fait pour 8 domaines (étape 3) |
 | 6 | Domaines restants, dont `documents` (6 673 lignes) | Fait : `routes/` ne contient plus que `index.ts` |
-| 7 | Découper les gros fichiers de routes par sous-domaine (`documents.routes.ts` 5 062 l., `budget.routes.ts`, `chat.routes.ts`) | À faire |
+| 7 | Découper les gros fichiers de routes par sous-domaine | Fait pour `documents` : 6 sous-routeurs de 127 à 1 457 lignes, montés dans l'ordre d'origine. À faire : `budget.routes.ts`, `elections.routes.ts`, `marketplace.routes.ts`, `chat.routes.ts` |
+
+**Découpage d'un routeur :** chaque sous-routeur est un bloc contigu du fichier d'origine. `documents.routes.ts` les monte dans le même ordre, car Express choisit la première route qui correspond. Par exemple, `/documents/summary` doit rester avant `/documents/:id`. Le nombre de routes est vérifié avant et après (30 = 30).
+
+**Commentaires de section :** lors des extractions, les en-têtes « // ─── … » séparés de leur fonction par une ligne vide étaient restés dans les routes. Ils ont été recopiés au-dessus des fonctions concernées dans les services (21 cas). Ils ne sont retirés des routes que lorsqu'ils n'y titrent plus rien.
 
 ## Points connus
 - `routes/documents.ts` (6 673 lignes) et `lib/documentPdf.ts` (5 609 lignes) sont les plus gros fichiers du dépôt.
