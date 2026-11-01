@@ -140,7 +140,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, { color: fgColor }]}
               value={password} onChangeText={(v) => { setPassword(v); setError(""); }}
-              secureTextEntry={!showPassword} autoComplete="password" textContentType="password"
+              secureTextEntry={!showPassword} autoCapitalize="none" autoCorrect={false} autoComplete="password" textContentType="password"
               placeholder={t("passwordPlaceholder")} placeholderTextColor={mutedColor}
               onFocus={() => setPassFocused(true)} onBlur={() => setPassFocused(false)}
               returnKeyType="done"

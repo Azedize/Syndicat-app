@@ -200,7 +200,7 @@ export default function ResetPasswordScreen() {
                   setNewPassword(v);
                   setError("");
                 }}
-                secureTextEntry={!showNew}
+                secureTextEntry={!showNew} autoCapitalize="none" autoCorrect={false}
                 placeholder={t("minCharsPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 onFocus={() => setFocusedField("newPassword")}
@@ -272,7 +272,7 @@ export default function ResetPasswordScreen() {
                   setConfirmPassword(v);
                   setError("");
                 }}
-                secureTextEntry={!showConfirm}
+                secureTextEntry={!showConfirm} autoCapitalize="none" autoCorrect={false}
                 placeholder={t("repeatPasswordPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 onFocus={() => setFocusedField("confirmPassword")}

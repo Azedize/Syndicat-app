@@ -368,7 +368,7 @@ export default function RegisterScreen() {
                 onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: "" })); }}
                 placeholder={t("authPasswordMin")}
                 placeholderTextColor={colors.mutedForeground}
-                secureTextEntry={!showPassword}
+                secureTextEntry={!showPassword} autoCapitalize="none" autoCorrect={false}
                 onFocus={() => setFocusedField("password")}
                 onBlur={() => setFocusedField(null)}
                 returnKeyType="next"
@@ -403,7 +403,7 @@ export default function RegisterScreen() {
                 onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: "" })); }}
                 placeholder={t("authConfirmPasswordPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
-                secureTextEntry={!showConfirm}
+                secureTextEntry={!showConfirm} autoCapitalize="none" autoCorrect={false}
                 onFocus={() => setFocusedField("confirmPassword")}
                 onBlur={() => setFocusedField(null)}
                 returnKeyType="done"
