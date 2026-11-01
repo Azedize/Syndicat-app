@@ -9,7 +9,7 @@
  * the suite does "by hand" are what a human would read outside the app: the
  * email / SMS verification codes and the invitation password sent by email.
  *
- * Usage (API running with SMTP disabled, see LOCAL_RUN_COMMANDS.md):
+ * Usage (API running with SMTP disabled, see docs/development/LOCAL_RUN_COMMANDS.md):
  *   API_BASE_URL=http://localhost:5055/api pnpm --filter @workspace/scripts run journeys:test
  *   KEEP_FIXTURES=1 …  keeps Hayat / Hadika and prints the credentials, to
  *                      replay the journeys by hand on a phone.

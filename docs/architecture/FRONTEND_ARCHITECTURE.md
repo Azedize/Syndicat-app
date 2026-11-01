@@ -46,7 +46,7 @@ Tests qui parcourent le code mobile : `i18n-test`, `routes-resolve-test` et `con
 | `subscriptions` | abonnements, plans, payment | SubscriptionBanner, `subscriptions` |
 
 ## Points connus à traiter
-- **`context/LanguageContext.tsx` (25 874 lignes)** : toutes les traductions sont dans le provider. Cible : `i18n/translations/<domaine>.ts` + un provider court. À faire en une étape dédiée (outil `addkeys` à adapter).
+- **Traductions :** sorties du provider (ADR-007). `i18n/translations.ts` contient le dictionnaire, `context/LanguageContext.tsx` ne fait plus que 135 lignes.
 - **`context/DataContext.tsx` (2 043 lignes)** : charge au démarrage des données de plusieurs domaines (marché, finances, chat). Cible : React Query par fonctionnalité.
 - **Deux clients HTTP** : `services/api/client.ts` (`request`) et `lib/api.ts` (`apiRequest`, utilisé par 66 fichiers) dupliquent l'envoi du jeton et le renouvellement. Ils ne sont pas fusionnés, car leurs erreurs n'ont pas la même forme :
   - `apiRequest` donne la priorité au champ `error` et expose `httpStatus`, `detail`, `action`, `phone` ;

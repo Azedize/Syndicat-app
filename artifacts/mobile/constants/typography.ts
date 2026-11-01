@@ -3,7 +3,7 @@ import type { TextStyle } from "react-native";
 /**
  * MIZAN type presets — one hierarchy for every screen.
  *
- * Two families (rationale in DESIGN_SYSTEM.md):
+ * Two families (rationale in docs/design/DESIGN_SYSTEM.md):
  *   - Fraunces (serif, editorial) for display, titles and hero amounts: the
  *     product voice, a residence ledger rather than a SaaS dashboard.
  *   - Inter for everything read at length (body, labels, tables).

@@ -15,7 +15,7 @@
    - `npx tsc --noEmit -p . --noUnusedLocals` (aucun nouvel avertissement dans les fichiers déplacés) ;
    - `npx expo export --platform android --platform ios` ;
    - les écrans dans le navigateur.
-5. Noter le changement dans `PROJECT_PROGRESS.md`.
+5. Noter le changement dans `docs/PROJECT_PROGRESS.md`.
 
 ## Migrer un domaine de l'API
 1. Créer `src/modules/<d>/` et y déplacer le fichier de routes **sans modifier le code des endpoints**.

@@ -139,18 +139,6 @@ const permissionsSchema = z.array(
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function getTemplateOrFail(id: string, res: import("express").Response) {
-  const [tmpl] = await db
-    .select()
-    .from(templateDefinitionsTable)
-    .where(eq(templateDefinitionsTable.id, id));
-  if (!tmpl) {
-    res.status(404).json({ error: "Template introuvable" });
-    return null;
-  }
-  return tmpl;
-}
-
 function getSupervisionSyndicate(
   req: import("express").Request,
   res: import("express").Response,

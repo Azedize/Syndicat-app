@@ -34,6 +34,7 @@ const files = [
   ...walk(path.join(ROOT, "artifacts/mobile/components")),
   ...walk(path.join(ROOT, "artifacts/mobile/constants")),
   ...walk(path.join(ROOT, "artifacts/mobile/context")),
+  ...walk(path.join(ROOT, "artifacts/mobile/i18n")),
   ...walk(path.join(ROOT, "artifacts/mobile/features")),
   ...walk(path.join(ROOT, "artifacts/mobile/services")),
   ...walk(path.join(ROOT, "artifacts/mobile/hooks")),
@@ -57,7 +58,7 @@ const privacy = readFileSync(path.join(ROOT, "artifacts/mobile/app/privacy.tsx")
 check("privacy page: details read from configuration, « à compléter » otherwise", privacy.includes("CONTACT.privacyEmail ??") && privacy.includes("CONTACT.legalEntity ??") && /à compléter/.test(privacy));
 const gs = readFileSync(path.join(ROOT, "artifacts/mobile/app/get-started.tsx"), "utf8");
 check("sign-up page: the contact link only appears when configured", /CONTACT_EMAIL \?/.test(gs));
-const doc = readFileSync(path.join(ROOT, "LOCAL_RUN_COMMANDS.md"), "utf8");
+const doc = readFileSync(path.join(ROOT, "docs/development/LOCAL_RUN_COMMANDS.md"), "utf8");
 check("the variables are documented", [...keys, "SUPPORT_EMAIL"].every((k) => doc.includes(k)));
 
 const failed = checks.filter((c) => !c.ok).length;

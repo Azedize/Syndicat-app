@@ -1,11 +1,5 @@
 import { db } from "@workspace/db";
-import {
-  conversationsTable,
-  messagesTable,
-  messageReactionsTable,
-  blockedUsersTable,
-  usersTable,
-} from "@workspace/db/schema";
+import { conversationsTable, messageReactionsTable, blockedUsersTable } from "@workspace/db/schema";
 import { eq, or, and, inArray } from "drizzle-orm";
 import { type JwtPayload } from "../../middleware/auth.js";
 
@@ -186,95 +180,6 @@ export function isVisibleToChatUser(
   } catch {
     return false;
   }
-}
-
-/**
- * Shared incident-conversation creation, called both from a manual endpoint
- * and automatically by the reclamations route when a grievance is filed.
- * Exported so other route modules can trigger it without importing the router.
- */
-export async function createIncidentConversation(params: {
-  incidentId: string;
-  syndicateId: string | null;
-  memberId: string | null;
-  memberName: string;
-  title: string;
-}): Promise<void> {
-  const { incidentId, syndicateId, memberId, memberName, title } = params;
-
-  // Anonymous grievances have no memberId — nothing to link a personal thread to,
-  // but syndicate admins should still see a moderation thread scoped to the syndicate.
-  const admins = syndicateId
-    ? await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(
-          and(
-            eq(usersTable.syndicateId, syndicateId),
-            eq(usersTable.role, "syndicate_admin"),
-          ),
-        )
-    : [];
-
-  const participantIds = new Set<string>(admins.map((a) => a.id));
-  if (memberId) participantIds.add(memberId);
-  if (participantIds.size === 0) return;
-
-  await db.insert(conversationsTable).values({
-    syndicateId: syndicateId ?? undefined,
-    convType: "incident",
-    isGroup: true,
-    name: `Incident · ${title}`.slice(0, 100),
-    participantIds: JSON.stringify([...participantIds]),
-    incidentId,
-    createdBy: memberId ?? undefined,
-    lastMessage: "Conversation d'incident créée",
-    lastMessageAt: new Date(),
-  } as any);
-}
-
-/**
- * When an admin/employee is assigned as responsible for an incident
- * (reclamation's `traitePar`), add them to the incident's chat thread so
- * they see the history and can respond directly — implements spec Phase 6
- * ("assign responsible employee/provider").
- */
-export async function addResponsibleToIncidentConversation(
-  incidentId: string,
-  responsibleUserId: string,
-): Promise<void> {
-  const [conv] = await db
-    .select()
-    .from(conversationsTable)
-    .where(
-      and(
-        eq(conversationsTable.incidentId, incidentId),
-        eq(conversationsTable.convType, "incident"),
-      ),
-    );
-  if (!conv) return;
-
-  let ids: string[] = [];
-  try {
-    ids = JSON.parse(conv.participantIds ?? "[]");
-  } catch {
-    /* ignore */
-  }
-  if (ids.includes(responsibleUserId)) return;
-  ids.push(responsibleUserId);
-
-  await db
-    .update(conversationsTable)
-    .set({ participantIds: JSON.stringify(ids) })
-    .where(eq(conversationsTable.id, conv.id));
-
-  await db.insert(messagesTable).values({
-    conversationId: conv.id,
-    senderId: responsibleUserId,
-    senderName: "Système",
-    text: "Un responsable a été assigné à cet incident.",
-    messageType: "text",
-  } as any);
 }
 
 // ─── Message enrichment helpers ──────────────────────────────────────────────

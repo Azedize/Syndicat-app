@@ -2,7 +2,7 @@
 
 Constats de sécurité et corrections, par date. Chaque entrée indique ce qui
 était exposé, ce qui a été changé et le test qui le vérifie. Les suites citées
-sont dans `scripts/src/` (commandes dans `LOCAL_RUN_COMMANDS.md`).
+sont dans `scripts/src/` (commandes dans `docs/development/LOCAL_RUN_COMMANDS.md`).
 
 ## 2026-10-18 — Documents et fichiers
 

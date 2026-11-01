@@ -1,6 +1,6 @@
 # Plan de génération des données de test
 
-Stratégie et volumes cibles par table (échelle `--scale 1`). Les volumes réels obtenus figurent dans `DATABASE_SEEDING_REPORT.md`.
+Stratégie et volumes cibles par table (échelle `--scale 1`). Les volumes réels obtenus figurent dans `docs/database/DATABASE_SEEDING_REPORT.md`.
 
 ## Principes
 

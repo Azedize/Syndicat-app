@@ -39,7 +39,7 @@
 - `artifacts/mobile/app/syndicate-setup.tsx`
 - `artifacts/mobile/services/api.ts`
 - `artifacts/api-server/src/routes/auth.ts`
-- `LOCAL_RUN_COMMANDS.md`
+- `docs/development/LOCAL_RUN_COMMANDS.md`
 - `artifacts/mobile/app/register.tsx`
 - `artifacts/mobile/context/LanguageContext.tsx`
 - `artifacts/api-server/src/lib/otp-retention.ts`
@@ -66,7 +66,7 @@
 - `artifacts/mobile/app/welcome.tsx`
 - `artifacts/mobile/package.json`
 - `pnpm-lock.yaml`
-- `PROJECT_PROGRESS.md`
+- `docs/PROJECT_PROGRESS.md`
 
 ### Validation
 - `pnpm db:status` passed.
@@ -453,7 +453,7 @@ période. Lignes de registre jamais comptabilisées (données héritées) marqu�
 
 ## 2026-10-18 — Documents : bibliothèque, audiences, téléchargement sécurisé
 
-Constats et corrections de sécurité détaillés dans `SECURITY_LOG.md`.
+Constats et corrections de sécurité détaillés dans `docs/security/SECURITY_LOG.md`.
 
 ### Base (migration `0008_document_library`)
 - `documents` : `source` (generated / upload), `visibility`, `description`,
@@ -516,7 +516,7 @@ audiences différentes. Résidents : documents publiés uniquement.
 Il n'y a pas d'application web séparée dans le dépôt : l'espace syndic et
 l'espace résident sont la même application Expo (Android / iOS), sur la même
 API. L'ancien module « réclamations » (RH, non cloisonné) est remplacé
-(voir `SECURITY_LOG.md`).
+(voir `docs/security/SECURITY_LOG.md`).
 
 ### Base (migration `0009_claims`)
 - `claims` : référence RCL-AAAA-NNNNNN par copropriété, catégorie, lieu,
@@ -794,7 +794,7 @@ confirmer par le syndic ou un juriste :
 
 ## 2026-10-19 — Bibliothèque documentaire résident et documents officiels
 
-Détail complet : `DOCUMENT_LIBRARY_DESIGN_PROGRESS.md`.
+Détail complet : `docs/design/DOCUMENT_LIBRARY_DESIGN_PROGRESS.md`.
 
 - Mobile : bibliothèque refaite (`app/bibliotheque.tsx`, `components/DocumentRow.tsx`),
   lecteur dédié `app/document-viewer.tsx` (PDF natif iOS, pdf.js paresseux
@@ -816,8 +816,8 @@ Détail complet : `DOCUMENT_LIBRARY_DESIGN_PROGRESS.md`.
 
 ## 2026-10-20 — Générateur de données de test (`seedgen`)
 
-Détail : `DATABASE_TABLES_INVENTORY.md`, `DATABASE_SEEDING_PLAN.md`,
-`DATABASE_SEEDING_GUIDE.md`, `DATABASE_SEEDING_REPORT.md`.
+Détail : `docs/database/DATABASE_TABLES_INVENTORY.md`, `docs/database/DATABASE_SEEDING_PLAN.md`,
+`docs/database/DATABASE_SEEDING_GUIDE.md`, `docs/database/DATABASE_SEEDING_REPORT.md`.
 
 - Inventaire des 127 tables lu dans le schéma réel (colonnes, clés, index,
   déclencheurs, volumes) ; ordre d’insertion par dépendances.
@@ -917,7 +917,7 @@ l’état initial). Pas de test sur appareil.
 
 ## 2026-10-20 — Réinitialisation et jeu de données de test avec vrais documents
 
-Détail : `DATABASE_SEEDING_GUIDE.md` (procédure), `DATABASE_SEEDING_REPORT.md`
+Détail : `docs/database/DATABASE_SEEDING_GUIDE.md` (procédure), `docs/database/DATABASE_SEEDING_REPORT.md`
 (résultats).
 
 - Procédure complète `seedgen run` (+ `--dry-run`) : environnement →
@@ -969,7 +969,7 @@ Corrections faites en route :
 
 ## 2026-10-21 — Audit technique complet
 
-Rapport : `AUDIT_2026-10-21.md` ; paiements : `PAYMENT_PROVIDERS.md`.
+Rapport : `docs/security/AUDIT_2026-10-21.md` ; paiements : `docs/integrations/PAYMENT_PROVIDERS.md`.
 État initial sauvegardé dans `../zip-repl-snapshots/` (code et base).
 
 - Sécurité / isolation : scan IDOR dynamique ajouté (`idor:test`, 113 / 113
@@ -992,7 +992,7 @@ Rapport : `AUDIT_2026-10-21.md` ; paiements : `PAYMENT_PROVIDERS.md`.
 
 ## 2026-10-21 — Identité « Riad au crépuscule » et refonte transversale
 
-Détail et justifications : `DESIGN_SYSTEM.md`.
+Détail et justifications : `docs/design/DESIGN_SYSTEM.md`.
 
 - **Marque :** MIZAN conservé après évaluation de 5 autres noms (Jiran et Sakina sont pris, Wasti, Riadly et Darna écartés). Nouveau symbole : une arche de riad et un fléau en laiton, généré depuis une source unique (`assets/brand/_build.mjs`). Icône iOS, icône adaptative Android, splash, icône de notification et favicon branchés dans `app.json` ; ils ne prennent effet qu'après une compilation native.
 - **Tokens :**
@@ -1031,7 +1031,7 @@ Vérifications :
 - `expo export` Android et iOS OK (9,7 Mo de bytecode Hermes par plateforme).
 - Nouveau test `design-tokens:test` : 44/44.
 - Captures de 106 routes (syndic, en clair) et de 16 routes (copropriétaire, en sombre), plus l'arabe en RTL, sur la version web, contre l'API locale et des comptes générés.
-- Fluidité mesurée sur la version web uniquement (voir `DESIGN_SYSTEM.md`, § 5).
+- Fluidité mesurée sur la version web uniquement (voir `docs/design/DESIGN_SYSTEM.md`, § 5).
 
 Non fait :
 - tests sur appareil ;
@@ -1199,7 +1199,7 @@ L'analyse a été présentée puis validée (« d'accord, commence étape par é
   - `inspect` : lecture seule ;
   - `marketplace` : ajout additif et idempotent.
 
-  Correspondance avec les opérations demandées : voir `DATABASE_SEEDING_GUIDE.md`.
+  Correspondance avec les opérations demandées : voir `docs/database/DATABASE_SEEDING_GUIDE.md`.
 
 ### Catalogue du marché
 - **Défaut de départ :** aucune résidence n'avait plus de 4 annonces visibles. La pagination et les filtres étaient donc impossibles à tester.
@@ -1273,7 +1273,7 @@ L'analyse a été présentée puis validée (« d'accord, commence étape par é
 - **Incident pendant la création :**
   - la première génération écrivait dans le dossier de fichiers de la base de travail (même graine, donc mêmes noms) ; 740 fichiers référencés ont été écrasés ;
   - restauration : 12 359 fichiers contrôlés octet par octet contre la sauvegarde ; 4 967 fichiers étrangers mis en quarantaine, pas supprimés ;
-  - garde-fou ajouté : un marqueur `.mizan-database` par dossier, et le générateur refuse d'écrire dans le dossier d'une autre base. Voir `SECURITY_LOG.md`.
+  - garde-fou ajouté : un marqueur `.mizan-database` par dossier, et le générateur refuse d'écrire dans le dossier d'une autre base. Voir `docs/security/SECURITY_LOG.md`.
 - **Défauts de `seed.ts` sur une base neuve :**
   - appels payés avec un montant payé à 0, et un appel « en validation » sans paiement déclaré ;
   - journaux d'e-mails « envoyés » vers des adresses `.test` ;
@@ -1331,7 +1331,7 @@ L'analyse a été présentée puis validée (« d'accord, commence étape par é
 ### 6. Requêtes refusées au démarrage
 - **Copropriétaire :** 6 refus passent à 0 (`/members`, `/finance/transactions`, `/finance/salaries`, `/finance/caisse`, `/invoices`, `/bons-livraison`). Le client ne les demande plus qu'aux rôles que le serveur autorise.
 - **Autres rôles :** `/payslips` (président, secrétaire, conseil, locataire) et `/meetings` (locataire) ne sont plus demandés. Désormais 0 refus pour chaque rôle de copropriété (mesure faite dans le navigateur).
-- **Super-administrateur :** `/publications` répondait 500 au lieu d'un refus ; corrigé (voir `SECURITY_LOG.md`).
+- **Super-administrateur :** `/publications` répondait 500 au lieu d'un refus ; corrigé (voir `docs/security/SECURITY_LOG.md`).
 
 ### 7. Statut des appels de fonds
 - **Contradiction :** `settlementStatus` (paiements) classait un appel échu et partiellement payé « partially_paid », mais la tâche horaire `markOverdueCalls` et `/budgets/…/refresh` le passaient « overdue ».
@@ -1407,7 +1407,7 @@ Appliquer les validations ci-dessus, puis tester sur un appareil réel.
   - marqueurs `.mizan-database` sur `uploads/` et `uploads-test/` ;
   - les deux API de test démarrent avec `OUTBOUND_DELIVERY=off` ;
   - seule l'API 5056 (base de test) a le profil de limites de test.
-- **Journaux :** `PROJECT_BUGS_LOG.md` et `PROJECT_TEST_LOG.md` n'existent pas. Le suivi reste dans ce fichier, `SECURITY_LOG.md` et `LOCAL_RUN_COMMANDS.md`.
+- **Journaux :** `PROJECT_BUGS_LOG.md` et `PROJECT_TEST_LOG.md` n'existent pas. Le suivi reste dans ce fichier, `docs/security/SECURITY_LOG.md` et `docs/development/LOCAL_RUN_COMMANDS.md`.
 
 ### Point 1 — Appels « en retard » partiellement payés : analysés, en attente de validation
 - **Audit en lecture seule** (`scripts/src/audits/overdue-partial-audit.ts`, transaction `READ ONLY`) : **1 489 cas confirmés**.
@@ -1877,3 +1877,36 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Ordre des routes du marché vérifié en direct :
   - `/products/pending`, `/products/moderation-queue`, `/stats`, `/products/my-promotions` → 200 ;
   - `/products/reported` → 404 (bogue ci-dessus).
+
+## 2026-11-01 — Décisions de restructuration appliquées (1 à 6 sur 7)
+
+- **`GET /products/reported` accessible :**
+  - elle est montée avant `/products/:id` (ADR-012) ;
+  - contrôle des routes masquées : 0 sur 533 ;
+  - en direct : super admin → 200 avec la liste, membre → 403.
+- **Statut d'abonnement aligné sur le blocage des écritures (ADR-010) :**
+  - `computeSubscriptionStatus` et `isReadOnly` dérivent de `isWritableSubscription` ;
+  - `/subscriptions/status` lit les mêmes lignes que le blocage ;
+  - 216 combinaisons vérifiées, 0 écart.
+  - Changements visibles :
+    - un abonnement `active` échu dans sa période de grâce s'affiche « expired » (les écritures étaient déjà refusées) ;
+    - « aucun abonnement » passe en lecture seule.
+- **Code mort supprimé (ADR-011) :** 8 fonctions, 452 lignes (chat ×2, documents ×5, template-studio ×1).
+- **`architecture_app.txt` supprimé (ADR-009).**
+- **Documentation rangée dans `docs/` (ADR-008) :**
+  - `PROJECT_PROGRESS.md` est maintenant ici ;
+  - chemins mis à jour dans `seedgen/cli.ts`, `contacts-config-test`, les commentaires du code et les liens ;
+  - nouveau `README.md` à la racine ;
+  - coquille corrigée dans `LOCAL_RUN_COMMANDS.md` (`cd artifactspi-server`).
+- **Traductions sorties du provider (ADR-007) :**
+  - `i18n/languages.ts` et `i18n/translations.ts` (~4 787 clés) ;
+  - `LanguageContext.tsx` passe de 25 874 à 135 lignes et ré-exporte les noms publics ;
+  - `i18n-test` lit le nouveau fichier ; `contacts-config-test` inspecte `i18n/`.
+- **Renommage `artifacts/` → `apps/` : pas encore fait.**
+  - La tentative a été refusée par Windows (« Permission denied »), car l'API du port 5000 et Expo du port 8081, lancés depuis des terminaux, utilisent le dossier.
+  - Rien n'a été déplacé. Le script de réécriture des chemins est prêt.
+
+### Vérifications
+- `tsc` API et mobile : 0 erreur. Build API OK. Export Android/iOS OK.
+- Régression sur `syndycat_test` : 39/40 (`election-audit` 29/30, règle non décidée).
+  - subscriptions-access 31/31, marketplace-moderation 22/22, i18n 9/9, contacts 6/6, journeys 135/135, notifications-i18n 16/16.

@@ -322,6 +322,54 @@ router.get("/products/my-promotions", requireAuth, async (req, res) => {
   }
 });
 
+// Registered before /products/:id, which would otherwise match "reported" as an id.
+// ─── GET /products/reported — admin: products with pending reports ─────────────
+
+router.get(
+  "/products/reported",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    const q = req.query as Record<string, string>;
+    const { page, limit, offset } = parsePage(q);
+    try {
+      // Products that have at least 1 pending report
+      const reportedIds = await db
+        .selectDistinct({ productId: productReportsTable.productId })
+        .from(productReportsTable)
+        .where(eq(productReportsTable.status, "pending"));
+
+      const ids = reportedIds.map((r) => r.productId).filter(Boolean) as string[];
+      if (!ids.length) {
+        res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } });
+        return;
+      }
+
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select({
+            product: productsTable,
+            reportCount: sql<number>`(select count(*) from product_reports where product_id = ${productsTable.id} and status = 'pending')`,
+          })
+          .from(productsTable)
+          .where(inArray(productsTable.id, ids))
+          .orderBy(desc(productsTable.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(productsTable).where(inArray(productsTable.id, ids)),
+      ]);
+
+      res.json({
+        data: rows.map((r) => ({ ...r.product, reportCount: Number(r.reportCount) })),
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // ─── GET /products/:id — detail + view count increment ───────────────────────
 
 router.get("/products/:id", requireAuth, async (req, res) => {

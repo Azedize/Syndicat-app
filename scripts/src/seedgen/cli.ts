@@ -5,12 +5,12 @@
  *
  *   inspect     environment, databases, volumes generated / not generated
  *               (read only)
- *   inventory   discover every table and write DATABASE_TABLES_INVENTORY.md
- *   plan        strategy and volumes per table (DATABASE_SEEDING_PLAN.md)
+ *   inventory   discover every table and write docs/database/DATABASE_TABLES_INVENTORY.md
+ *   plan        strategy and volumes per table (docs/database/DATABASE_SEEDING_PLAN.md)
  *   reference   check the reference data the generator relies on (plans)
  *   generate    generate a run (refused if this seed already exists)
  *   verify      integrity checks on the whole database
- *   report      volumes before/after + checks → DATABASE_SEEDING_REPORT.md
+ *   report      volumes before/after + checks → docs/database/DATABASE_SEEDING_REPORT.md
  *   cleanup     remove ONLY the data of the run of --seed
  *   backup      pg_dump of the database + copy of the generated files
  *   reset       remove EVERY generator run (all seeds) after a backup;
@@ -97,11 +97,11 @@ async function main() {
       await seedScenarios(seed, log);
       break;
     case "inventory":
-      writeFileSync(path.join(ROOT, "DATABASE_TABLES_INVENTORY.md"), inventoryMd(tables));
+      writeFileSync(path.join(ROOT, "docs/database/DATABASE_TABLES_INVENTORY.md"), inventoryMd(tables));
       log("→ DATABASE_TABLES_INVENTORY.md");
       break;
     case "plan":
-      writeFileSync(path.join(ROOT, "DATABASE_SEEDING_PLAN.md"), planMd(tables));
+      writeFileSync(path.join(ROOT, "docs/database/DATABASE_SEEDING_PLAN.md"), planMd(tables));
       log("→ DATABASE_SEEDING_PLAN.md");
       break;
     case "reference": {
@@ -122,7 +122,7 @@ async function main() {
     case "report": {
       const checks = await verifyDatabase(tables);
       const files = await checkFiles(predicates(tables, allRunsRoots(EMAIL_ROOT)));
-      writeFileSync(path.join(ROOT, "DATABASE_SEEDING_REPORT.md"), reportMd(tables, checks, files));
+      writeFileSync(path.join(ROOT, "docs/database/DATABASE_SEEDING_REPORT.md"), reportMd(tables, checks, files));
       printChecks(checks);
       log("→ DATABASE_SEEDING_REPORT.md");
       break;
@@ -307,9 +307,9 @@ async function runAll(tables: TableInfo[], database: string) {
   printFileCheck(files);
   step("8. Contrôles", `${checks.filter((c) => c.ok).length}/${checks.length} contrôles d'intégrité ; fichiers ${fileCheckOk(files) ? "OK" : "EN ÉCHEC"}`);
   // 9. report
-  writeFileSync(path.join(ROOT, "DATABASE_SEEDING_REPORT.md"), reportMd(after, checks, files, removed));
+  writeFileSync(path.join(ROOT, "docs/database/DATABASE_SEEDING_REPORT.md"), reportMd(after, checks, files, removed));
   writeFileSync(path.join(STATE_DIR, `pipeline-s${seed}.json`), JSON.stringify({ steps, durationSeconds: Math.round((Date.now() - t0) / 1000), fileStats: Object.fromEntries(fileStats), files }, null, 1));
-  step("9. Rapport", "DATABASE_SEEDING_REPORT.md");
+  step("9. Rapport", "docs/database/DATABASE_SEEDING_REPORT.md");
 }
 
 function printFileCheck(r: FileCheckReport) {
@@ -372,7 +372,7 @@ function planMd(tables: TableInfo[]): string {
   const lines = [
     "# Plan de génération des données de test",
     "",
-    "Stratégie et volumes cibles par table (échelle `--scale 1`). Les volumes réels obtenus figurent dans `DATABASE_SEEDING_REPORT.md`.",
+    "Stratégie et volumes cibles par table (échelle `--scale 1`). Les volumes réels obtenus figurent dans `docs/database/DATABASE_SEEDING_REPORT.md`.",
     "",
     "## Principes",
     "",
@@ -431,7 +431,7 @@ function reportMd(tables: TableInfo[], checks: CheckResult[], files?: FileCheckR
     "",
     `Contrôles d'intégrité : **${checks.length - failed.length}/${checks.length} réussis**.`,
     "",
-    `Utilisateurs générés : **${tables.find((t) => t.name === "users") && manifest?.generated?.users ? manifest.generated.users : "?"}** (comptes de test, domaine réservé ; voir DATABASE_SEEDING_GUIDE.md).`,
+    `Utilisateurs générés : **${tables.find((t) => t.name === "users") && manifest?.generated?.users ? manifest.generated.users : "?"}** (comptes de test, domaine réservé ; voir docs/database/DATABASE_SEEDING_GUIDE.md).`,
     "",
     "## Volumes par table",
     "",

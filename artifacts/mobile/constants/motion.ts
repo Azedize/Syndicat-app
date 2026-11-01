@@ -6,7 +6,7 @@ import { Easing } from "react-native-reanimated";
  * Things in MIZAN settle the way a balance beam settles: a quick move, one
  * soft overshoot, then rest. No bouncing loops, no motion that delays a task.
  *
- * Rules (DESIGN_SYSTEM.md, « Mouvement »):
+ * Rules (docs/design/DESIGN_SYSTEM.md, « Mouvement »):
  *   - Feedback (press, toggle) ≤ 150 ms; transitions ≤ 320 ms; the launch
  *     sequence is the only choreography longer than that (≈ 1.2 s) and never
  *     blocks: content is interactive while it plays.

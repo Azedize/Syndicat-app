@@ -8,6 +8,7 @@ import {
   subscriptionPaymentsTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
+import { isWritableSubscription } from "../../middleware/subscription.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -17,21 +18,12 @@ export function computeSubscriptionStatus(sub: {
   currentPeriodEnd: Date | null;
   gracePeriodEnd: Date | null;
 }) {
-  const now = new Date();
-  const status = sub.status ?? "trial";
-
-  if (status === "trial") {
-    if (sub.trialEndDate && now > sub.trialEndDate) return "expired";
-    return "trial";
-  }
-  if (status === "active") {
-    if (sub.currentPeriodEnd && now > sub.currentPeriodEnd) {
-      if (sub.gracePeriodEnd && now <= sub.gracePeriodEnd) return "grace";
-      return "expired";
-    }
-    return "active";
-  }
-  return status;
+  // The write gate (isWritableSubscription) is the rule: what is displayed is
+  // what the server allows. A writable row keeps its status (trial, active,
+  // grace); a non-writable one shows its explicit state, otherwise "expired".
+  if (isWritableSubscription(sub)) return sub.status as string;
+  if (sub.status === "suspended" || sub.status === "cancelled" || sub.status === "pending_payment") return sub.status;
+  return "expired";
 }
 
 export function getDaysRemaining(date: Date | null): number | null {
@@ -45,7 +37,8 @@ export function enrichSubscription(sub: any, plan: any) {
   const effectiveStatus = computeSubscriptionStatus(sub);
   const isExpired =
     effectiveStatus === "expired" || effectiveStatus === "suspended";
-  const isReadOnly = isExpired;
+  // Same rule as requireActiveSubscription.
+  const isReadOnly = !isWritableSubscription(sub);
   const isTrial = effectiveStatus === "trial";
   const isGrace = effectiveStatus === "grace";
 
@@ -98,7 +91,7 @@ export const PAYMENT_METHODS = [
     label: "Passerelle marocaine",
     // Not integrated: the provider (CMI or another acquirer) and its technical
     // specification (payment page, signed server notification) must be
-    // contracted first. See PAYMENT_PROVIDERS.md.
+    // contracted first. See docs/integrations/PAYMENT_PROVIDERS.md.
     configured: () => false,
     provider: "moroccan_gateway",
   },

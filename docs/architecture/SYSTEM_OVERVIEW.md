@@ -37,5 +37,5 @@ MIZAN est une application de gestion de copropriété (syndic, copropriétaires,
 - Dépendances entre modules : [MODULE_DEPENDENCIES.md](MODULE_DEPENDENCIES.md)
 - Décisions : [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md)
 - Règles de code : [../development/CODING_STANDARDS.md](../development/CODING_STANDARDS.md)
-- Lancer le projet : [../../LOCAL_RUN_COMMANDS.md](../../LOCAL_RUN_COMMANDS.md)
-- Sécurité : [../../SECURITY_LOG.md](../../SECURITY_LOG.md) ; base de données : [../../DATABASE_TABLES_INVENTORY.md](../../DATABASE_TABLES_INVENTORY.md)
+- Lancer le projet : [LOCAL_RUN_COMMANDS.md](../development/LOCAL_RUN_COMMANDS.md)
+- Sécurité : [SECURITY_LOG.md](../security/SECURITY_LOG.md) ; base de données : [DATABASE_TABLES_INVENTORY.md](../database/DATABASE_TABLES_INVENTORY.md)

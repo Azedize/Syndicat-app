@@ -1,5 +1,5 @@
 // Builds the brand SVG variants from one glyph. PNGs are rendered with
-// @resvg/resvg-js (see DESIGN_SYSTEM.md, « Régénérer les assets »).
+// @resvg/resvg-js (see docs/design/DESIGN_SYSTEM.md, « Régénérer les assets »).
 import fs from "fs";
 const defs = `<defs>
   <linearGradient id="nuit" x1="0" y1="0" x2="88" y2="88" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2B2475"/><stop offset="1" stop-color="#14113A"/></linearGradient>

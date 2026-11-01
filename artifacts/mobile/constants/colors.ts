@@ -15,7 +15,7 @@
  *   <status>      icons, indicators, strokes
  *   <status>Soft  tinted backgrounds (badges, banners)
  *   <status>Text  readable text on the soft background (WCAG AA ≥ 4.5:1,
- *                 measured — see DESIGN_SYSTEM.md)
+ *                 measured — see docs/design/DESIGN_SYSTEM.md)
  * A status is never conveyed by color alone: pair it with an icon and a label
  * (see components/ui/StatusBadge).
  */

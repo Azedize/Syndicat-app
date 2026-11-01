@@ -21,6 +21,7 @@ import { logger } from "../../lib/logger.js";
 import { serverAuditLog } from "../../lib/audit.js";
 
 import { computeSubscriptionStatus, getDaysRemaining, enrichSubscription, availablePaymentMethods, paymentMethodConfig, finalizeSuccessfulPayment, assignTrial } from "./subscriptions.service.js";
+import { isWritableSubscription } from "../../middleware/subscription.js";
 import { requireSubscriptionScope, requestedSyndicateId, assertSupervisedTarget, requireSupervisedTargetWhenProvided } from "./subscriptions.access.js";
 
 const router = Router();
@@ -318,7 +319,9 @@ router.get(
         return;
       }
 
-      const [row] = await db
+      // Same rows as requireActiveSubscription: a newer pending_payment row
+      // (plan change) does not hide a still-valid subscription.
+      const rows = await db
         .select({
           status: syndicateSubscriptionsTable.status,
           trialEndDate: syndicateSubscriptionsTable.trialEndDate,
@@ -328,12 +331,13 @@ router.get(
         .from(syndicateSubscriptionsTable)
         .where(eq(syndicateSubscriptionsTable.syndicateId, syndicateId))
         .orderBy(desc(syndicateSubscriptionsTable.createdAt))
-        .limit(1);
+        .limit(20);
 
-      if (!row) {
+      if (!rows.length) {
+        // Writes are refused without a subscription (requireActiveSubscription).
         res.json({
           data: {
-            isReadOnly: false,
+            isReadOnly: true,
             effectiveStatus: "no_subscription",
             daysRemaining: null,
           },
@@ -341,9 +345,9 @@ router.get(
         return;
       }
 
+      const row = rows.find((r) => isWritableSubscription(r)) ?? rows[0];
       const effectiveStatus = computeSubscriptionStatus(row as any);
-      const isReadOnly =
-        effectiveStatus === "expired" || effectiveStatus === "suspended";
+      const isReadOnly = !isWritableSubscription(row);
       const expiryDate =
         row.status === "trial" ? row.trialEndDate : row.currentPeriodEnd;
 

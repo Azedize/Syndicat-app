@@ -400,7 +400,7 @@ ne jamais utiliser le mot de passe principal du compte.
 
 Générateur reproductible (≈ 1 000 utilisateurs, 60 copropriétés, PDF et images
 réels). Guide complet, comptes de test, sauvegarde et restauration :
-`DATABASE_SEEDING_GUIDE.md`.
+`docs/database/DATABASE_SEEDING_GUIDE.md`.
 
 ```powershell
 pnpm --filter @workspace/scripts run seedgen -- run --dry-run   # plan, aucune écriture

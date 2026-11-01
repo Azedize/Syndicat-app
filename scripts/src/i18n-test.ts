@@ -28,7 +28,7 @@ const check = (name: string, ok: boolean, detail?: string) => {
 
 type Entry = Partial<Record<"fr" | "en" | "ar" | "es", string>>;
 function readDictionary(): Map<string, Entry> {
-  const file = path.join(MOBILE, "context/LanguageContext.tsx");
+  const file = path.join(MOBILE, "i18n/translations.ts");
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const dict = new Map<string, Entry>();
   const visit = (n: import("typescript").Node) => {

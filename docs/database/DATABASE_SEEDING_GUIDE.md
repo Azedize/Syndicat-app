@@ -2,8 +2,8 @@
 
 Générateur reproductible de données fictives pour la base **locale de
 développement**, avec de vrais fichiers PDF et images. Code :
-`scripts/src/seedgen/`. Inventaire : `DATABASE_TABLES_INVENTORY.md` ;
-stratégie : `DATABASE_SEEDING_PLAN.md` ; résultats : `DATABASE_SEEDING_REPORT.md`.
+`scripts/src/seedgen/`. Inventaire : `docs/database/DATABASE_TABLES_INVENTORY.md` ;
+stratégie : `docs/database/DATABASE_SEEDING_PLAN.md` ; résultats : `docs/database/DATABASE_SEEDING_REPORT.md`.
 
 ## Procédure complète (recommandée)
 
@@ -39,7 +39,7 @@ $env:API_BASE_URL = "http://localhost:5000/api"; pnpm --filter @workspace/script
 7. **Métadonnées** des fichiers (`storage_objects`, `documents`, colonnes de
    pièces jointes des objets métier).
 8. **Contrôles** — intégrité de la base (`verify`) et des fichiers (`files-check`).
-9. **Rapport** — `DATABASE_SEEDING_REPORT.md` et `scripts/.seedgen/pipeline-s<graine>.json`.
+9. **Rapport** — `docs/database/DATABASE_SEEDING_REPORT.md` et `scripts/.seedgen/pipeline-s<graine>.json`.
 
 Relancer `run` ne crée pas de doublon : le nettoyage retire d'abord l'ancien
 jeu, puis la même graine régénère le même jeu.
@@ -48,8 +48,8 @@ jeu, puis la même graine régénère le même jeu.
 
 | Commande | Effet |
 |---|---|
-| `seedgen -- inventory` | Découvre toutes les tables du schéma réel → `DATABASE_TABLES_INVENTORY.md` |
-| `seedgen -- plan` | Stratégie et volumes par table → `DATABASE_SEEDING_PLAN.md` |
+| `seedgen -- inventory` | Découvre toutes les tables du schéma réel → `docs/database/DATABASE_TABLES_INVENTORY.md` |
+| `seedgen -- plan` | Stratégie et volumes par table → `docs/database/DATABASE_SEEDING_PLAN.md` |
 | `seedgen -- reference` | Vérifie les données de référence utilisées (plans d'abonnement) |
 | `seedgen -- backup` | Sauvegarde seule (pg_dump + fichiers générés) |
 | `seedgen -- reset [--dry-run]` | Sauvegarde puis suppression de tous les lancements du générateur ; `--dry-run` affiche le détail par table sans rien modifier |
@@ -57,7 +57,7 @@ jeu, puis la même graine régénère le même jeu.
 | `seedgen -- cleanup --seed N` | Supprime uniquement le lancement de la graine N |
 | `seedgen -- verify` | Contrôles d'intégrité (code de sortie ≠ 0 en cas d'échec) |
 | `seedgen -- files-check` | Chaque fichier généré existe, a sa taille enregistrée et se décode |
-| `seedgen -- report` | Rapport complet → `DATABASE_SEEDING_REPORT.md` |
+| `seedgen -- report` | Rapport complet → `docs/database/DATABASE_SEEDING_REPORT.md` |
 | `seedgen:api [-- --seed N]` | Vérifications à travers l'API en marche |
 
 (Préfixe : `pnpm --filter @workspace/scripts run`.) Options : `--seed`
@@ -108,8 +108,8 @@ utilisez une base dédiée (par ex. `syndycat_test`) et `seedgen -- run`.
 
 ## Base de test isolée et garde-fous (2026-10-24)
 
-- **Base dédiée.** `syndycat_test` est créée et remplie par `scripts/src/testdb.ts` (voir `LOCAL_RUN_COMMANDS.md`, section 3 ter). Rien n'y est copié depuis `syndycat_global_cps`.
-- **Un dossier de fichiers par base.** Chaque dossier porte un marqueur `.mizan-database`. Le générateur refuse d'écrire dans le dossier d'une autre base, car la même graine produit les mêmes noms de fichiers : c'est ce qui a écrasé des fichiers le 2026-10-24, avant restauration (voir `SECURITY_LOG.md`).
+- **Base dédiée.** `syndycat_test` est créée et remplie par `scripts/src/testdb.ts` (voir `docs/development/LOCAL_RUN_COMMANDS.md`, section 3 ter). Rien n'y est copié depuis `syndycat_global_cps`.
+- **Un dossier de fichiers par base.** Chaque dossier porte un marqueur `.mizan-database`. Le générateur refuse d'écrire dans le dossier d'une autre base, car la même graine produit les mêmes noms de fichiers : c'est ce qui a écrasé des fichiers le 2026-10-24, avant restauration (voir `docs/security/SECURITY_LOG.md`).
 - **Domaine des comptes.** `TEST_EMAIL_ROOT` est défini en un seul endroit, `scripts/src/test-domain.ts`, et doit être un domaine réservé.
 - **Nouvelle commande `seedgen -- scenarios`.** Elle ajoute une résidence sans aucun document (au nom très long), avec son syndic et deux copropriétaires, ainsi que deux syndics inscrits sans résidence. Elle est idempotente (identifiants `scn-s<graine>-…`).
 - **Catalogue du marché.** Il couvre aussi l'espagnol. Les états d'annonce se limitent à ceux que l'API accepte (`neuf`, `bon`, `acceptable`, `mauvais`).

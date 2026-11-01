@@ -3,7 +3,7 @@
  * Community governance and residence operations platform.
  *
  * The single source of truth for brand identity tokens.
- * Rationale and usage rules: DESIGN_SYSTEM.md.
+ * Rationale and usage rules: docs/design/DESIGN_SYSTEM.md.
  */
 
 export const MIZAN = {

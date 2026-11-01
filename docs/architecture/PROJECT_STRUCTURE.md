@@ -57,6 +57,7 @@ zip-repl/
 │   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
 │   │   │   └── index.ts           Endpoints transverses (226 lignes) : auth, audit, content
 │   │   ├── context/               Providers : Auth, Data, Theme, Language, Toast…
+│   │   ├── i18n/                  languages.ts (langues, RTL), translations.ts (dictionnaire, 4 langues)
 │   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions, bus de notifications…)
 │   │   ├── constants/             Jetons de design (couleurs, espacements, typo, motion), menu
 │   │   ├── lib/                   Utilitaires sans UI (dates, médias, upload, transport de connexion)
@@ -110,11 +111,15 @@ zip-repl/
 │   ├── restart-test-apis.ps1      API de test 5055 / 5056
 │   └── dev-phone.ps1              API + tunnels Cloudflare + Expo pour un téléphone
 │
-├── docs/                          Documentation d'architecture et de développement
-│   ├── architecture/
-│   └── development/
+├── docs/                          Toute la documentation
+│   ├── PROJECT_PROGRESS.md        Journal de suivi des travaux
+│   ├── architecture/              Vue d'ensemble, structure, front, back, dépendances, décisions (ADR)
+│   ├── development/               Commandes locales, comptes de test, règles de code
+│   ├── database/                  Inventaire des tables, données de test (guide, plan, rapport)
+│   ├── security/                  Journal de sécurité, audit du 21/10/2026
+│   ├── design/                    Design system, bibliothèque de documents
+│   └── integrations/              Fournisseurs de paiement
 │
-├── *.md (racine)                  Journaux et guides existants (PROJECT_PROGRESS, SECURITY_LOG…)
 ├── .env, .env.example             Configuration (secrets : .env seulement, jamais commité)
 ├── pnpm-workspace.yaml            Paquets : artifacts/*, lib/*, scripts
 ├── tsconfig.base.json, tsconfig.json

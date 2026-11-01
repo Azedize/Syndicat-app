@@ -51,10 +51,7 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 
 **Duplication supprimée :** `jobs/election-reminders.ts` contenait une copie de la règle d'éligibilité au vote. Son commentaire disait qu'elle évitait d'importer la couche routes. Le job importe maintenant `getEligibleVoterIds` du service ; la logique est identique, ce qui a été vérifié ligne à ligne.
 
-**Code probablement mort, conservé en attendant votre décision.** Ces fonctions ne sont appelées nulle part, ni de façon statique ni de façon dynamique :
-- `chat.service.ts` : `createIncidentConversation`, `addResponsibleToIncidentConversation` ;
-- `documents.service.ts` : `getElectionData`, `getDecompteChargesData`, `getTenantData`, `getSinistreData`, `getTravauxData` ;
-- `template-studio.routes.ts` : `getTemplateOrFail`.
+**Code mort :** les 8 fonctions jamais appelées ont été supprimées le 01/11/2026 (voir ADR-011).
 
 ### Étape 4 : les autres domaines
 - **Avec service :** treasury, travaux, parking, governance, travaux-privatifs, organizations, actions, sinistres, attachments, rankings, workflows, fiches-juridiques, allocation (+ validation), auth, pdf, template-studio, stripe, storage, documents.
@@ -104,12 +101,8 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 
 **Preuve d'équivalence :** un script reconstitue l'ordre réel d'enregistrement de toute l'API (`routes/index.ts` → modules → sous-routeurs). Il donne **533 routes dans exactement le même ordre** qu'avant la restructuration (commit `5cd189f`).
 
-### Route inaccessible (bogue antérieur à la restructuration, non corrigé)
-`GET /products/reported` (signalements, administration du marché) est déclarée après `GET /products/:id`, qui l'intercepte. Elle répond « Produit introuvable » (404), constaté en direct.
-
-C'était déjà le cas au commit `5cd189f`. Les écrans `app/(tabs)/marketplace.tsx` et `app/admin/marketplace.tsx` appellent `marketplace.reported()` et sont donc touchés.
-
-Correction proposée, qui attend votre accord car elle change le comportement de l'API : monter cette route avant `/products/:id`. C'est la seule route masquée sur les 533.
+### Route anciennement inaccessible : `GET /products/reported` (corrigée, voir ADR-012)
+Elle était masquée par `GET /products/:id` depuis avant la restructuration. Elle est maintenant montée avant cette route, et le contrôle des routes masquées donne 0 sur 533.
 
 **Découpage d'un routeur :** chaque sous-routeur est un bloc contigu du fichier d'origine. `documents.routes.ts` les monte dans le même ordre, car Express choisit la première route qui correspond. Par exemple, `/documents/summary` doit rester avant `/documents/:id`. Le nombre de routes est vérifié avant et après (30 = 30).
 
@@ -118,9 +111,7 @@ Correction proposée, qui attend votre accord car elle change le comportement de
 ## Points connus
 - `routes/documents.ts` (6 673 lignes) et `lib/documentPdf.ts` (5 609 lignes) sont les plus gros fichiers du dépôt.
 - 147 variables ou imports jamais lus (`tsc --noUnusedLocals`).
-- **Incohérence de règle (non corrigée, décision métier) :** `computeSubscriptionStatus` (affichage) et `isWritableSubscription` (blocage d'écriture) ne calculent pas le statut de la même façon. Exemples :
-  - un abonnement « grace » dont la date de grâce est passée s'affiche « grace » mais les écritures sont refusées ;
-  - un essai sans date de fin s'affiche « trial » mais n'est pas inscriptible.
+- **Statut d'abonnement :** l'affichage est aligné sur la règle de blocage des écritures (ADR-010).
 - `lib/api-zod` ne contient qu'un schéma ; les validations Zod sont écrites dans 35 fichiers de routes.
 
 ## Tests liés à l'emplacement des fichiers
