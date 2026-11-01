@@ -25,7 +25,7 @@ import { Avatar, Button, Card, IconButton, ListItem, PageHeader, SearchField, Sh
 import TextField from "@/components/ui/TextField";
 import { TYPE } from "@/constants/typography";
 import { useToast } from "@/context/ToastContext";
-import { chat as chatApi } from "@/services/api";
+import { chat as chatApi } from "@/features/chat/api";
 import { apiRequest } from "@/lib/api";
 import { localDate } from "@/lib/localDate";
 

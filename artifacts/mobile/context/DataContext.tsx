@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
+import * as organizationsApi from "@/features/organizations/api";
+import * as communityApi from "@/features/community/api";
+import * as governanceApi from "@/features/governance/api";
+import * as chatApi from "@/features/chat/api";
+import * as financesApi from "@/features/finances/api";
 import * as documentsApi from "@/features/documents/api";
 import { marketplace as marketplaceApi } from "@/features/marketplace/api";
 import { notifications as notificationsApi } from "@/features/notifications/api";
@@ -657,26 +662,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const FINANCE_STAFF = ["syndicate_admin", "treasurer"];
         const results = await Promise.allSettled([
           onlyFor(MEMBER_DIRECTORY, () => api.members.list()),
-          api.elections.list(),
+          governanceApi.elections.list(),
           // Tenants are not co-owners: the API refuses them the assemblies.
           role === "tenant"
-            ? Promise.resolve({ data: [] as unknown[] } as unknown as Awaited<ReturnType<typeof api.meetings.list>>)
-            : api.meetings.list(role === "super_admin" ? { supervision: true } : undefined),
-          onlyFor(LEDGER_READERS, () => api.finance.transactions()),
-          onlyFor(FINANCE_STAFF, () => api.finance.salaries()),
-          onlyFor(FINANCE_STAFF, () => api.finance.caisse()),
-          onlyFor(FINANCE_STAFF, () => api.finance.invoices()),
-          onlyFor(FINANCE_STAFF, () => api.finance.bons()),
+            ? Promise.resolve({ data: [] as unknown[] } as unknown as Awaited<ReturnType<typeof governanceApi.meetings.list>>)
+            : governanceApi.meetings.list(role === "super_admin" ? { supervision: true } : undefined),
+          onlyFor(LEDGER_READERS, () => financesApi.finance.transactions()),
+          onlyFor(FINANCE_STAFF, () => financesApi.finance.salaries()),
+          onlyFor(FINANCE_STAFF, () => financesApi.finance.caisse()),
+          onlyFor(FINANCE_STAFF, () => financesApi.finance.invoices()),
+          onlyFor(FINANCE_STAFF, () => financesApi.finance.bons()),
           marketplaceApi.products(),
           marketplaceApi.orders(),
           marketplaceApi.reviews(),
-          api.chat.conversations(),
-          api.syndicates.list(),
+          chatApi.chat.conversations(),
+          organizationsApi.syndicates.list(),
           api.content.legalAlerts(),
           api.content.supportTickets(),
           api.content.cotisations(),
           notificationsApi.alerts(langRef.current),
-          api.publications.list(),
+          communityApi.publications.list(),
           notificationsApi.notificationPrefs(),
           // GET /subscriptions is super-admin only: other roles got a 403 on every launch.
           user?.role === "super_admin" ? api.content.subscriptions() : Promise.resolve({ data: [] as unknown[] }),
@@ -1415,7 +1420,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ),
     );
     const meeting = meetings.find((item) => item.id === id);
-    return api.meetings
+    return governanceApi.meetings
       .confirmAttendance(
         id,
         user?.role === "super_admin" ? meeting?.syndicateId : undefined,
@@ -1624,7 +1629,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const updateSyndicateStatus = (id: string, status: Syndicate["status"]) => {
     setSyndicates((p) => p.map((s) => (s.id === id ? { ...s, status } : s)));
-    return api.syndicates.update(id, { status }).then(
+    return organizationsApi.syndicates.update(id, { status }).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1683,7 +1688,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const refreshConversations = async () => {
     try {
-      const res = (await api.chat.conversations()) as { data: unknown[] };
+      const res = (await chatApi.chat.conversations()) as { data: unknown[] };
       if (res?.data?.length) setConversations(res.data.map(mapConversationRow));
     } catch {
       /* keep stale */
@@ -1694,12 +1699,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setConversations((p) =>
       p.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
     );
-    api.chat.markRead(conversationId).catch(() => {});
+    chatApi.chat.markRead(conversationId).catch(() => {});
   };
 
   const deleteConversation = (conversationId: string) => {
     setConversations((p) => p.filter((c) => c.id !== conversationId));
-    return api.chat.delete(conversationId).then(
+    return chatApi.chat.delete(conversationId).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1731,7 +1736,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : c,
       ),
     );
-    return api.chat.sendMessage(conversationId, text).then(
+    return chatApi.chat.sendMessage(conversationId, text).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1741,7 +1746,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addTransaction = (t: Transaction) => {
     setTransactions((p) => [t, ...p]);
-    return api.finance.addTransaction(t).then(
+    return financesApi.finance.addTransaction(t).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1761,7 +1766,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return p.map((tx) => (tx.id === id ? { ...tx, status } : tx));
     });
     try {
-      await api.finance.updateTransactionStatus(id, status);
+      await financesApi.finance.updateTransactionStatus(id, status);
     } catch (err: any) {
       // Rollback to original status
       if (originalStatus !== undefined) {
@@ -1781,7 +1786,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setPublications((p) =>
       p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)),
     );
-    return api.publications.like(id).then(
+    return communityApi.publications.like(id).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1791,7 +1796,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const addPublication = (pub: Publication) => {
     setPublications((p) => [pub, ...p]);
-    return api.publications.create(pub).then(
+    return communityApi.publications.create(pub).then(
       () => true,
       (e) => {
         onWriteFailed(e);
@@ -1801,7 +1806,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const createElection = (e: Election) => {
     setElections((p) => [e, ...p]);
-    api.elections.create(e).catch(() => {
+    governanceApi.elections.create(e).catch(() => {
       notificationBus.emit({
         type: "warning",
         message: "Élection créée localement — synchronisation en attente",
@@ -1883,7 +1888,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setInvoicesLoading(true);
     setInvoicesLoadError(false);
     try {
-      const res = (await api.finance.invoices()) as { data: unknown[] };
+      const res = (await financesApi.finance.invoices()) as { data: unknown[] };
       const rows = res?.data ?? [];
       setInvoices(rows.map(mapDbInvoice));
       setInvoicesLoadError(false);
@@ -1898,7 +1903,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addInvoice = async (input: InvoiceCreateInput): Promise<boolean> => {
     try {
-      const response = (await api.finance.addInvoice(input)) as {
+      const response = (await financesApi.finance.addInvoice(input)) as {
         data: unknown;
       };
       const created = mapDbInvoice(response.data);
@@ -1914,7 +1919,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Saved first, then listed with the server's id and number (BL-<year>-<n>):
   // a temporary id would make the next status change fail.
   const addBonLivraison = (bl: BonLivraison) =>
-    api.finance.addBon(bl).then(
+    financesApi.finance.addBon(bl).then(
       (res) => {
         const saved = (res as { data?: Partial<BonLivraison> & { id?: string } })?.data;
         const row = { ...bl, ...(saved ?? {}), items: bl.items, total: Number(saved?.total ?? bl.total) } as BonLivraison;
@@ -1933,7 +1938,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setBonsLivraison((p) =>
       p.map((bl) => (bl.id === id ? { ...bl, status } : bl)),
     );
-    return api.finance.updateBon(id, { status }).then(
+    return financesApi.finance.updateBon(id, { status }).then(
       () => true,
       (e) => {
         onWriteFailed(e);

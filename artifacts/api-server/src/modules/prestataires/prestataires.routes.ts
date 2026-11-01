@@ -1,0 +1,1226 @@
+import { Router } from "express";
+import { z } from "zod";
+import { db } from "@workspace/db";
+import {
+  prestatairesTable,
+  contratsPrestatairesTable,
+  travauxTable,
+  prestataireEvaluationsTable,
+  buildingsTable,
+} from "@workspace/db/schema";
+import {
+  eq,
+  and,
+  desc,
+  sql,
+  count,
+  inArray,
+} from "drizzle-orm";
+import { requireAuth, requireAdmin, isSyndicateTeamRole } from "../../middleware/auth.js";
+import { syndicateWhere, effectiveSyndicateId } from "../../lib/syndicate-filter.js";
+import { getUserBuildingIds, assertUserCanAccessBuilding } from "../../lib/scope.js";
+import { serverAuditLog } from "../../lib/audit.js";
+import { localToday } from "../../lib/charge-time.js";
+
+const router = Router();
+
+// ─── Prestataires ───────────────────────────────────────────────────────────
+
+// GET /prestataires
+router.get("/prestataires", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { buildingId, type, status } = req.query as Record<string, string>;
+
+    const conditions: any[] = [];
+
+    if (user.role === "member" || user.role === "tenant") {
+      const buildingIds = await getUserBuildingIds(user);
+      if (buildingIds.length === 0)
+        return void res.json({ data: [], total: 0 });
+      const providerIds = await db
+        .selectDistinct({ id: contratsPrestatairesTable.prestataireId })
+        .from(contratsPrestatairesTable)
+        .innerJoin(
+          buildingsTable,
+          eq(buildingsTable.id, contratsPrestatairesTable.buildingId),
+        )
+        .innerJoin(
+          prestatairesTable,
+          eq(prestatairesTable.id, contratsPrestatairesTable.prestataireId),
+        )
+        .where(
+          and(
+            inArray(contratsPrestatairesTable.buildingId, buildingIds),
+            eq(prestatairesTable.syndicateId, buildingsTable.syndicateId),
+          ),
+        );
+      const ids = providerIds.map((p) => p.id);
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
+      conditions.push(inArray(prestatairesTable.id, ids));
+    } else {
+      const sw = syndicateWhere(req, prestatairesTable.syndicateId);
+      if (sw) conditions.push(sw);
+    }
+
+    if (buildingId)
+      conditions.push(eq(prestatairesTable.buildingId, buildingId));
+    if (type) conditions.push(eq(prestatairesTable.type, type));
+    if (status) conditions.push(eq(prestatairesTable.status, status));
+
+    const rows = await db
+      .select()
+      .from(prestatairesTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(prestatairesTable.name);
+
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
+
+    // Batch-load contracts and open work-order counts to avoid N+1
+    const ids = rows.map((p) => p.id);
+    const [contracts, workCounts] = await Promise.all([
+      db
+        .select()
+        .from(contratsPrestatairesTable)
+        .where(inArray(contratsPrestatairesTable.prestataireId, ids)),
+      db
+        .select({ prestataireId: travauxTable.prestataireId, count: count() })
+        .from(travauxTable)
+        .where(
+          and(
+            inArray(travauxTable.prestataireId, ids),
+            sql`${travauxTable.status} NOT IN ('completed','cancelled')`,
+          ),
+        )
+        .groupBy(travauxTable.prestataireId),
+    ]);
+
+    const today = localToday();
+    const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const contractsByProvider = new Map<string, typeof contracts>();
+    for (const c of contracts) {
+      const list = contractsByProvider.get(c.prestataireId) ?? [];
+      list.push(c);
+      contractsByProvider.set(c.prestataireId, list);
+    }
+    const workCountMap = new Map(
+      workCounts.map((w) => [w.prestataireId, w.count]),
+    );
+
+    const enriched = rows.map((p) => {
+      const providerContracts = contractsByProvider.get(p.id) ?? [];
+      const activeContracts = providerContracts.filter(
+        (c) => c.status === "active",
+      );
+      const expiringContracts = activeContracts.filter(
+        (c) => c.endDate && c.endDate <= in30 && c.endDate >= today,
+      );
+      return {
+        ...p,
+        activeContracts: activeContracts.length,
+        openWorkOrders: workCountMap.get(p.id) ?? 0,
+        expiringContracts: expiringContracts.length,
+        contracts: providerContracts,
+      };
+    });
+
+    res.json({ data: enriched, total: enriched.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /prestataires/dashboard — super admin global stats
+router.get(
+  "/prestataires/dashboard",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const sw = syndicateWhere(req, prestatairesTable.syndicateId);
+
+      const providers = await db.select().from(prestatairesTable).where(sw);
+      const providerIds = providers.map((p) => p.id);
+
+      const contracts = providerIds.length
+        ? await db
+            .select()
+            .from(contratsPrestatairesTable)
+            .where(
+              inArray(contratsPrestatairesTable.prestataireId, providerIds),
+            )
+        : [];
+
+      const travauxRows = providerIds.length
+        ? await db
+            .select()
+            .from(travauxTable)
+            .where(inArray(travauxTable.prestataireId, providerIds))
+        : [];
+
+      const today = localToday();
+      const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      const contratsExpires = contracts.filter(
+        (c) => c.status === "expired",
+      ).length;
+      const contratsBientotExpires = contracts.filter(
+        (c) =>
+          c.status === "active" &&
+          c.endDate &&
+          c.endDate <= in30 &&
+          c.endDate >= today,
+      ).length;
+
+      const coutTotal = travauxRows.reduce(
+        (sum, t) => sum + Number(t.actualAmount ?? 0),
+        0,
+      );
+
+      const ranked = [...providers]
+        .filter((p) => p.rating !== null && Number(p.evaluationsCount ?? 0) > 0)
+        .sort((a, b) => Number(b.rating) - Number(a.rating));
+
+      res.json({
+        data: {
+          totalPrestataires: providers.length,
+          prestatairesActifs: providers.filter((p) => p.status === "active")
+            .length,
+          contratsExpires,
+          contratsBientotExpires,
+          totalInterventions: travauxRows.length,
+          coutTotal,
+          meilleursPrestataires: ranked.slice(0, 5),
+          moinsBonsPrestataires: ranked.slice(-5).reverse(),
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// GET /prestataires/:id
+// Access rules:
+//   super_admin  — unrestricted
+//   syndicate_admin — only providers belonging to their syndicate
+//   member / tenant — only providers linked to their building via an active contract
+router.get("/prestataires/:id", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    let p;
+    if (user.role === "super_admin" || isSyndicateTeamRole(user.role)) {
+      const targetSyndicateId = getScopedSyndicateId(req, res);
+      if (!targetSyndicateId) return;
+      [p] = await db
+        .select()
+        .from(prestatairesTable)
+        .where(
+          and(
+            eq(prestatairesTable.id, String(req.params.id)),
+            eq(prestatairesTable.syndicateId, targetSyndicateId),
+          ),
+        );
+    } else {
+      [p] = await db
+        .select()
+        .from(prestatairesTable)
+        .where(eq(prestatairesTable.id, String(req.params.id)));
+    }
+
+    if (!p) return void res.status(404).json({ error: "Not found" });
+
+    // ─── Syndicate / building isolation ──────────────────────────────────────
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+      if (
+        user.role === "syndicate_admin" ||
+        user.role === "president" ||
+        user.role === "treasurer" ||
+        user.role === "secretary" ||
+        user.role === "committee_member"
+      ) {
+        // Syndicate management may only view providers scoped to their syndicate.
+        if (p.syndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      } else {
+        // member / tenant: only providers associated with their building via a contract
+        const buildingIds = await getUserBuildingIds(user);
+        if (buildingIds.length === 0) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+        const [linked] = await db
+          .select({ id: contratsPrestatairesTable.id })
+          .from(contratsPrestatairesTable)
+          .where(
+            and(
+              eq(contratsPrestatairesTable.prestataireId, p.id),
+              inArray(contratsPrestatairesTable.buildingId, buildingIds),
+            ),
+          )
+          .limit(1);
+        if (!linked) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const isResident = user.role === "member" || user.role === "tenant";
+    const accessibleBuildingIds = isResident
+      ? await getUserBuildingIds(user)
+      : [];
+    if (isResident && accessibleBuildingIds.length === 0) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const [contracts, recentTravaux] = await Promise.all([
+      db
+        .select()
+        .from(contratsPrestatairesTable)
+        .where(
+          isResident
+            ? and(
+                eq(contratsPrestatairesTable.prestataireId, p.id),
+                inArray(
+                  contratsPrestatairesTable.buildingId,
+                  accessibleBuildingIds,
+                ),
+              )
+            : eq(contratsPrestatairesTable.prestataireId, p.id),
+        )
+        .orderBy(desc(contratsPrestatairesTable.createdAt)),
+      db
+        .select()
+        .from(travauxTable)
+        .where(
+          isResident
+            ? and(
+                eq(travauxTable.prestataireId, p.id),
+                inArray(travauxTable.buildingId, accessibleBuildingIds),
+              )
+            : eq(travauxTable.prestataireId, p.id),
+        )
+        .orderBy(desc(travauxTable.createdAt))
+        .limit(20),
+    ]);
+
+    const accessibleTravauxIds = recentTravaux.map((work) => work.id);
+    const evaluations =
+      isResident && accessibleTravauxIds.length === 0
+        ? []
+        : await db
+            .select()
+            .from(prestataireEvaluationsTable)
+            .where(
+              isResident
+                ? and(
+                    eq(prestataireEvaluationsTable.prestataireId, p.id),
+                    inArray(
+                      prestataireEvaluationsTable.travauxId,
+                      accessibleTravauxIds,
+                    ),
+                  )
+                : eq(prestataireEvaluationsTable.prestataireId, p.id),
+            )
+            .orderBy(desc(prestataireEvaluationsTable.createdAt))
+            .limit(20);
+
+    res.json({ ...p, contracts, recentTravaux, evaluations });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+const createPrestataireSchema = z.object({
+  name: z.string().min(1).max(200),
+  type: z.string().min(1).max(60),
+  contactName: z.string().max(200).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  address: z.string().max(300).optional(),
+  ice: z.string().max(30).optional(),
+  rc: z.string().max(30).optional(),
+  buildingId: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+  documentUrl: z
+    .string()
+    .min(1, "Un document (image ou PDF) justifiant le besoin est obligatoire"),
+});
+
+// POST /prestataires
+router.post("/prestataires", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = createPrestataireSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+  }
+  try {
+    const user = (req as any).user;
+    const syndicateId = effectiveSyndicateId(req, user.syndicateId);
+
+    // A provider may only be attached to a building in the same syndicate.
+    // Validate the parent row before inserting so a client cannot create a
+    // cross-tenant relationship that later bypasses provider-level filters.
+    if (parsed.data.buildingId) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, parsed.data.buildingId))
+        .limit(1);
+
+      if (!building) {
+        return void res.status(400).json({ error: "Bâtiment introuvable" });
+      }
+      if (building.syndicateId !== syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
+    const [p] = await db
+      .insert(prestatairesTable)
+      .values({
+        ...parsed.data,
+        syndicateId,
+      })
+      .returning();
+
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "prestataire",
+      entityId: p.id,
+      details: `Prestataire créé: ${p.name} (${p.type})`,
+    });
+
+    res.status(201).json(p);
+  } catch (e: any) {
+    console.error(e);
+    res.status(e?.status ?? 500).json({
+      error: e?.status ? e.message : "Server error",
+    });
+  }
+});
+
+function getScopedSyndicateId(req: any, res: any): string | null {
+  if (req.user?.role === "super_admin") {
+    const targetSyndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !targetSyndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return targetSyndicateId;
+  }
+  if (!req.user?.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return req.user.syndicateId;
+}
+
+async function findAdminScopedPrestataire(
+  req: any,
+  res: any,
+): Promise<any | null> {
+  const targetSyndicateId = getScopedSyndicateId(req, res);
+  if (!targetSyndicateId) return null;
+  const [prestataire] = await db
+    .select()
+    .from(prestatairesTable)
+    .where(
+      and(
+        eq(prestatairesTable.id, String(req.params.id)),
+        eq(prestatairesTable.syndicateId, targetSyndicateId),
+      ),
+    );
+  if (!prestataire) {
+    res.status(404).json({ error: "Not found" });
+    return null;
+  }
+  return prestataire;
+}
+
+async function findAdminScopedContract(
+  req: any,
+  res: any,
+  id: string,
+): Promise<any | null> {
+  const targetSyndicateId = getScopedSyndicateId(req, res);
+  if (!targetSyndicateId) return null;
+  const [row] = await db
+    .select({ contract: contratsPrestatairesTable })
+    .from(contratsPrestatairesTable)
+    .innerJoin(
+      buildingsTable,
+      eq(contratsPrestatairesTable.buildingId, buildingsTable.id),
+    )
+    .where(
+      and(
+        eq(contratsPrestatairesTable.id, id),
+        eq(buildingsTable.syndicateId, targetSyndicateId),
+      ),
+    )
+    .limit(1);
+  if (!row) {
+    res.status(404).json({ error: "Not found" });
+    return null;
+  }
+  return row.contract;
+}
+
+// PUT /prestataires/:id
+router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const existing = await findAdminScopedPrestataire(req, res);
+    if (!existing) return;
+
+    const allowed = [
+      "name",
+      "type",
+      "contactName",
+      "phone",
+      "email",
+      "address",
+      "ice",
+      "rc",
+      "status",
+      "notes",
+      "documentUrl",
+    ];
+    const updates: Record<string, any> = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+
+    const [updated] = await db
+      .update(prestatairesTable)
+      .set(updates)
+      .where(
+        and(
+          eq(prestatairesTable.id, String(req.params.id)),
+          eq(prestatairesTable.syndicateId, existing.syndicateId),
+        ),
+      )
+      .returning();
+
+    if (!updated) return void res.status(404).json({ error: "Not found" });
+
+    await serverAuditLog(req, {
+      action: "UPDATE",
+      entity: "prestataire",
+      entityId: updated.id,
+      details: `Prestataire modifié: ${updated.name}`,
+      syndicateId: updated.syndicateId ?? undefined,
+    });
+
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /prestataires/:id
+router.delete(
+  "/prestataires/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const existing = await findAdminScopedPrestataire(req, res);
+      if (!existing) return;
+
+      const [deleted] = await db
+        .delete(prestatairesTable)
+        .where(
+          and(
+            eq(prestatairesTable.id, String(req.params.id)),
+            eq(prestatairesTable.syndicateId, existing.syndicateId),
+          ),
+        )
+        .returning();
+
+      if (!deleted) return void res.status(404).json({ error: "Not found" });
+
+      await serverAuditLog(req, {
+        action: "DELETE",
+        entity: "prestataire",
+        entityId: deleted.id,
+        details: `Prestataire supprimé: ${deleted.name}`,
+        syndicateId: deleted.syndicateId ?? undefined,
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// ─── Evaluations ────────────────────────────────────────────────────────────
+
+const evaluationSchema = z.object({
+  travauxId: z.string().optional(),
+  quality: z.number().int().min(1).max(5),
+  speed: z.number().int().min(1).max(5),
+  communication: z.number().int().min(1).max(5),
+  price: z.number().int().min(1).max(5),
+  comment: z.string().max(1000).optional(),
+});
+
+// POST /prestataires/:id/evaluations — rate a provider after an intervention
+router.post(
+  "/prestataires/:id/evaluations",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = evaluationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
+    }
+    try {
+      const user = (req as any).user;
+      const { quality, speed, communication, price, comment, travauxId } =
+        parsed.data;
+      const average = (quality + speed + communication + price) / 4;
+
+      const prestataire = await findAdminScopedPrestataire(req, res);
+      if (!prestataire) return;
+
+      if (travauxId) {
+        const [workOrder] = await db
+          .select({ id: travauxTable.id })
+          .from(travauxTable)
+          .where(
+            and(
+              eq(travauxTable.id, travauxId),
+              eq(travauxTable.prestataireId, prestataire.id),
+            ),
+          )
+          .limit(1);
+        if (!workOrder) {
+          return void res
+            .status(400)
+            .json({ error: "Intervention introuvable pour ce prestataire" });
+        }
+      }
+
+      const [evaluation] = await db
+        .insert(prestataireEvaluationsTable)
+        .values({
+          prestataireId: String(req.params.id),
+          travauxId,
+          // The provider row was already verified against the supervision
+          // target / actor scope above; persist that verified scope rather than
+          // the actor's home scope (Super Admin has no home syndicate).
+          syndicateId: prestataire.syndicateId,
+          quality,
+          speed,
+          communication,
+          price,
+          average: average.toFixed(2),
+          comment,
+          ratedById: user.userId,
+          ratedByName: user.name,
+        })
+        .returning();
+
+      // Recompute the provider's running average rating
+      const allEvals = await db
+        .select({ average: prestataireEvaluationsTable.average })
+        .from(prestataireEvaluationsTable)
+        .where(
+          and(
+            eq(prestataireEvaluationsTable.prestataireId, prestataire.id),
+            eq(
+              prestataireEvaluationsTable.syndicateId,
+              prestataire.syndicateId,
+            ),
+          ),
+        );
+      const newAverage =
+        allEvals.reduce((sum, e) => sum + Number(e.average), 0) /
+        allEvals.length;
+
+      await db
+        .update(prestatairesTable)
+        .set({
+          rating: newAverage.toFixed(2),
+          evaluationsCount: allEvals.length,
+        })
+        .where(
+          and(
+            eq(prestatairesTable.id, prestataire.id),
+            eq(prestatairesTable.syndicateId, prestataire.syndicateId),
+          ),
+        );
+
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "prestataire_evaluation",
+        entityId: evaluation.id,
+        details: `Évaluation de ${prestataire.name}: ${average.toFixed(1)}/5`,
+        syndicateId: prestataire.syndicateId ?? undefined,
+      });
+
+      res.status(201).json({ data: evaluation, newRating: newAverage });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// GET /prestataires/ranking/top — best/worst rated providers
+router.get("/prestataires/ranking/top", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const sw = syndicateWhere(req, prestatairesTable.syndicateId);
+    const conditions = [sql`${prestatairesTable.evaluationsCount} > 0`];
+    if (sw) conditions.push(sw);
+
+    const rows = await db
+      .select()
+      .from(prestatairesTable)
+      .where(and(...conditions))
+      .orderBy(desc(prestatairesTable.rating));
+
+    res.json({ data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── Contracts ────────────────────────────────────────────────────────────
+
+// GET /contrats
+router.get("/contrats", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { buildingId, prestataireId, status } = req.query as Record<
+      string,
+      string
+    >;
+
+    const conditions: any[] = [];
+    let targetSyndicateId: string | undefined;
+
+    if (user.role === "super_admin") {
+      if (
+        req.query.supervision !== "true" ||
+        typeof req.query.syndicateId !== "string" ||
+        !req.query.syndicateId
+      ) {
+        return void res.status(403).json({
+          error: "La supervision et un syndicat cible sont requis.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+      targetSyndicateId = req.query.syndicateId;
+      conditions.push(eq(buildingsTable.syndicateId, targetSyndicateId));
+    } else {
+      if (!user.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+
+      const syndicateBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, user.syndicateId));
+      let visibleBuildingIds = syndicateBuildings.map(
+        (building) => building.id,
+      );
+
+      if (user.role === "member" || user.role === "tenant") {
+        const userBuildingIds = await getUserBuildingIds(user);
+        const visibleSet = new Set(visibleBuildingIds);
+        visibleBuildingIds = userBuildingIds.filter((id) => visibleSet.has(id));
+      }
+
+      if (visibleBuildingIds.length === 0)
+        return void res.json({ data: [], total: 0 });
+      conditions.push(
+        inArray(contratsPrestatairesTable.buildingId, visibleBuildingIds),
+      );
+    }
+
+    if (buildingId)
+      conditions.push(eq(contratsPrestatairesTable.buildingId, buildingId));
+    if (prestataireId)
+      conditions.push(
+        eq(contratsPrestatairesTable.prestataireId, prestataireId),
+      );
+    if (status) conditions.push(eq(contratsPrestatairesTable.status, status));
+
+    const rows = await db
+      .select({ contract: contratsPrestatairesTable })
+      .from(contratsPrestatairesTable)
+      .innerJoin(
+        buildingsTable,
+        eq(contratsPrestatairesTable.buildingId, buildingsTable.id),
+      )
+      .innerJoin(
+        prestatairesTable,
+        eq(contratsPrestatairesTable.prestataireId, prestatairesTable.id),
+      )
+      .where(
+        and(
+          ...conditions,
+          eq(prestatairesTable.syndicateId, buildingsTable.syndicateId),
+        ),
+      )
+      .orderBy(desc(contratsPrestatairesTable.createdAt));
+
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
+    const contracts = rows.map(({ contract }) => contract);
+
+    const providerIds = [...new Set(contracts.map((c) => c.prestataireId))];
+    const providers = await db
+      .select({
+        id: prestatairesTable.id,
+        name: prestatairesTable.name,
+        type: prestatairesTable.type,
+      })
+      .from(prestatairesTable)
+      .where(inArray(prestatairesTable.id, providerIds));
+    const providerMap = new Map(providers.map((p) => [p.id, p]));
+
+    const enriched = contracts.map((c) => ({
+      ...c,
+      prestataireNom: providerMap.get(c.prestataireId)?.name ?? "",
+      prestataireType: providerMap.get(c.prestataireId)?.type ?? "",
+    }));
+
+    res.json({ data: enriched, total: enriched.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+const createContractSchema = z.object({
+  prestataireId: z.string().min(1),
+  buildingId: z.string().min(1),
+  title: z.string().min(1).max(200),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  monthlyAmount: z.number().positive().optional(),
+  annualAmount: z.number().positive().optional(),
+  autoRenew: z.boolean().optional(),
+  documentUrl: z.string().min(1, "Le PDF du contrat est obligatoire"),
+  notes: z.string().max(2000).optional(),
+});
+
+// POST /contrats — the contract PDF is mandatory
+router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = createContractSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+  }
+  try {
+    const user = (req as any).user;
+    const targetSyndicateId =
+      user.role === "super_admin" ? req.query.syndicateId : user.syndicateId;
+    if (
+      user.role === "super_admin" &&
+      (req.query.supervision !== "true" ||
+        typeof targetSyndicateId !== "string" ||
+        !targetSyndicateId)
+    ) {
+      return void res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    if (!targetSyndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    }
+    const {
+      prestataireId,
+      buildingId,
+      title,
+      startDate,
+      endDate,
+      monthlyAmount,
+      annualAmount,
+      autoRenew,
+      documentUrl,
+      notes,
+    } = parsed.data;
+    try {
+      await assertUserCanAccessBuilding(user, buildingId);
+    } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const [[building], [provider]] = await Promise.all([
+      db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, buildingId))
+        .limit(1),
+      db
+        .select({ syndicateId: prestatairesTable.syndicateId })
+        .from(prestatairesTable)
+        .where(eq(prestatairesTable.id, prestataireId))
+        .limit(1),
+    ]);
+    if (!building || !provider) {
+      return void res
+        .status(400)
+        .json({ error: "Immeuble ou prestataire introuvable" });
+    }
+    if (building.syndicateId !== targetSyndicateId) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+    if (
+      !provider.syndicateId ||
+      provider.syndicateId !== building.syndicateId
+    ) {
+      return void res.status(403).json({
+        error:
+          "Le prestataire et l'immeuble doivent appartenir au même syndicat",
+      });
+    }
+
+    const [contract] = await db
+      .insert(contratsPrestatairesTable)
+      .values({
+        prestataireId,
+        buildingId,
+        title,
+        startDate,
+        endDate,
+        monthlyAmount,
+        annualAmount:
+          annualAmount ?? (monthlyAmount ? monthlyAmount * 12 : undefined),
+        autoRenew: autoRenew ?? false,
+        documentUrl,
+        notes,
+      } as any)
+      .returning();
+
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "contrat_prestataire",
+      entityId: contract.id,
+      details: `Contrat créé: ${title}`,
+    });
+
+    res.status(201).json(contract);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /contrats/:id — generic field edits (not for lifecycle transitions)
+router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const existing = await findAdminScopedContract(
+      req,
+      res,
+      String(req.params.id),
+    );
+    if (!existing) return;
+    try {
+      await assertUserCanAccessBuilding(user, existing.buildingId);
+    } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const allowed = [
+      "title",
+      "startDate",
+      "endDate",
+      "monthlyAmount",
+      "annualAmount",
+      "autoRenew",
+      "documentUrl",
+      "notes",
+    ];
+    const updates: Record<string, any> = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+
+    const [updated] = await db
+      .update(contratsPrestatairesTable)
+      .set(updates)
+      .where(
+        and(
+          eq(contratsPrestatairesTable.id, String(req.params.id)),
+          eq(contratsPrestatairesTable.buildingId, existing.buildingId),
+        ),
+      )
+      .returning();
+
+    if (!updated) return void res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /contrats/:id/renew — extends the contract, optionally with a new end date / PDF
+const renewSchema = z.object({
+  endDate: z.string().min(1, "La nouvelle date de fin est obligatoire"),
+  documentUrl: z.string().optional(),
+  monthlyAmount: z.number().positive().optional(),
+  annualAmount: z.number().positive().optional(),
+});
+router.post(
+  "/contrats/:id/renew",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = renewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
+    }
+    try {
+      const user = (req as any).user;
+      const existing = await findAdminScopedContract(
+        req,
+        res,
+        String(req.params.id),
+      );
+      if (!existing) return;
+      try {
+        await assertUserCanAccessBuilding(user, existing.buildingId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+
+      const { endDate, documentUrl, monthlyAmount, annualAmount } = parsed.data;
+
+      const [renewed] = await db
+        .insert(contratsPrestatairesTable)
+        .values({
+          prestataireId: existing.prestataireId,
+          buildingId: existing.buildingId,
+          title: existing.title,
+          startDate: existing.endDate ?? localToday(),
+          endDate,
+          monthlyAmount: monthlyAmount ?? existing.monthlyAmount,
+          annualAmount: annualAmount ?? existing.annualAmount,
+          autoRenew: existing.autoRenew,
+          documentUrl: documentUrl ?? existing.documentUrl,
+          renewedFromContractId: existing.id,
+          notes: existing.notes,
+        } as any)
+        .returning();
+
+      await db
+        .update(contratsPrestatairesTable)
+        .set({ status: "renewed" })
+        .where(
+          and(
+            eq(contratsPrestatairesTable.id, existing.id),
+            eq(contratsPrestatairesTable.buildingId, existing.buildingId),
+          ),
+        );
+
+      await serverAuditLog(req, {
+        action: "RENEW",
+        entity: "contrat_prestataire",
+        entityId: renewed.id,
+        details: `Contrat renouvelé: ${existing.title} (nouvelle échéance ${endDate})`,
+      });
+
+      res.status(201).json(renewed);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// POST /contrats/:id/suspend
+router.post(
+  "/contrats/:id/suspend",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const existing = await findAdminScopedContract(
+        req,
+        res,
+        String(req.params.id),
+      );
+      if (!existing) return;
+      try {
+        await assertUserCanAccessBuilding(user, existing.buildingId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+
+      const [updated] = await db
+        .update(contratsPrestatairesTable)
+        .set({ status: "suspended" })
+        .where(
+          and(
+            eq(contratsPrestatairesTable.id, String(req.params.id)),
+            eq(contratsPrestatairesTable.buildingId, existing.buildingId),
+          ),
+        )
+        .returning();
+      if (!updated) return void res.status(404).json({ error: "Not found" });
+
+      await serverAuditLog(req, {
+        action: "SUSPEND",
+        entity: "contrat_prestataire",
+        entityId: updated.id,
+        details: `Contrat suspendu: ${updated.title}`,
+      });
+
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// POST /contrats/:id/reactivate — undo a suspension
+router.post(
+  "/contrats/:id/reactivate",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const existing = await findAdminScopedContract(
+        req,
+        res,
+        String(req.params.id),
+      );
+      if (!existing) return;
+      try {
+        await assertUserCanAccessBuilding(user, existing.buildingId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+
+      const [updated] = await db
+        .update(contratsPrestatairesTable)
+        .set({ status: "active" })
+        .where(
+          and(
+            eq(contratsPrestatairesTable.id, String(req.params.id)),
+            eq(contratsPrestatairesTable.buildingId, existing.buildingId),
+          ),
+        )
+        .returning();
+      if (!updated) return void res.status(404).json({ error: "Not found" });
+
+      await serverAuditLog(req, {
+        action: "REACTIVATE",
+        entity: "contrat_prestataire",
+        entityId: updated.id,
+        details: `Contrat réactivé: ${updated.title}`,
+      });
+
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+// POST /contrats/:id/resilier — terminate for good
+const resilierSchema = z.object({
+  reason: z
+    .string()
+    .min(1, "Le motif de résiliation est obligatoire")
+    .max(1000),
+});
+router.post(
+  "/contrats/:id/resilier",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = resilierSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "Motif requis" });
+    }
+    try {
+      const user = (req as any).user;
+      const existing = await findAdminScopedContract(
+        req,
+        res,
+        String(req.params.id),
+      );
+      if (!existing) return;
+      try {
+        await assertUserCanAccessBuilding(user, existing.buildingId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+
+      const [updated] = await db
+        .update(contratsPrestatairesTable)
+        .set({
+          status: "terminated",
+          terminatedAt: new Date(),
+          terminationReason: parsed.data.reason,
+        })
+        .where(
+          and(
+            eq(contratsPrestatairesTable.id, String(req.params.id)),
+            eq(contratsPrestatairesTable.buildingId, existing.buildingId),
+          ),
+        )
+        .returning();
+      if (!updated) return void res.status(404).json({ error: "Not found" });
+
+      await serverAuditLog(req, {
+        action: "TERMINATE",
+        entity: "contrat_prestataire",
+        entityId: updated.id,
+        details: `Contrat résilié: ${updated.title} — ${parsed.data.reason}`,
+      });
+
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+export default router;

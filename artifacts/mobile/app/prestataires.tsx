@@ -12,7 +12,7 @@ import { useFormat } from "@/hooks/useFormat";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { pickAndUploadInvoice } from "@/lib/upload";
-import { prestataires as prestatairesApi } from "@/services/api";
+import { prestataires as prestatairesApi } from "@/features/providers/api";
 import EmptyState from "@/components/EmptyState";
 import ScreenHeader from "@/components/ScreenHeader";
 import RoleGuard from "@/components/RoleGuard";

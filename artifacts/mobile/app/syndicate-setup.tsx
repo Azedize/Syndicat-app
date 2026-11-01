@@ -26,7 +26,7 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { syndicates as syndicatesApi } from "@/services/api";
+import { syndicates as syndicatesApi } from "@/features/organizations/api";
 import { apiRequest } from "@/lib/api";
 import { localDate } from "@/lib/localDate";
 

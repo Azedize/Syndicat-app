@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
-import { organizations as orgApi, type CondominiumStatus, type MoneyByCurrency, type Portfolio, type PortfolioRow, type TeamRole } from "@/services/api";
+import { organizations as orgApi, type CondominiumStatus, type MoneyByCurrency, type Portfolio, type PortfolioRow, type TeamRole } from "@/features/organizations/api";
 import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";

@@ -1,0 +1,491 @@
+import { sendRouteError } from "../../lib/route-error.js";
+import { Router } from "express";
+import { z } from "zod";
+import { db } from "@workspace/db";
+import { organizationMembersTable, organizationsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
+import { requireAuth, requireRole, requireAdmin } from "../../middleware/auth.js";
+import { serverAuditLog } from "../../lib/audit.js";
+import { BankDetailsError, maskBankIdentifier, normaliseBankFields } from "../../lib/bank-details.js";
+import { sendTransactionalEmail } from "../../lib/email/emailService.js";
+import { syndicateCreatedTemplate } from "../../lib/email/templates.js";
+import { bustLogoCache } from "../../lib/documentPdf.js";
+import { assignTrial } from "../../modules/subscriptions/subscriptions.service.js";
+import { hasRecentlyVerifiedPhone } from "../../integrations/zimsend.service.js";
+
+const router = Router();
+
+// ─── GET /syndicates ───────────────────────────────────────────────────────────
+
+router.get("/syndicates", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    }
+    const rows =
+      user.role === "super_admin"
+        ? await db.select().from(syndicatesTable)
+        : await db
+            .select()
+            .from(syndicatesTable)
+            .where(eq(syndicatesTable.id, user.syndicateId ?? ""));
+    res.json({ data: rows });
+  } catch (err) {
+    sendRouteError(req, res, err);
+  }
+});
+
+// ─── GET /syndicates/:id ───────────────────────────────────────────────────────
+
+router.get("/syndicates/:id", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    const id = String(req.params.id) as string;
+    if (user.role !== "super_admin" && user.syndicateId !== id) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    const [syndicate] = await db
+      .select()
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, id));
+    if (!syndicate) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
+    res.json({ data: syndicate });
+  } catch (err) {
+    sendRouteError(req, res, err);
+  }
+});
+
+// ─── POST /syndicates ──────────────────────────────────────────────────────────
+
+// Legal form allowed values (UI display values stored as free text in DB)
+const LEGAL_FORM_VALUES = [
+  "Syndicat de Copropriété",
+  "Association",
+  "Coopérative",
+  "Syndicat Professionnel",
+  "Fédération",
+  "Union",
+  "Autre",
+] as const;
+
+// Moroccan phone: +212XXXXXXXXX or 0XXXXXXXXX (10 digits local)
+const MOROCCAN_PHONE_RE = /^(\+212|0)[0-9]{9}$/;
+
+// Registration number: flexible alphanumeric with dashes
+const REG_NUMBER_RE = /^[A-Za-z0-9\-\/\.]{3,50}$/;
+
+// ICE: 15 digits
+const ICE_RE = /^[0-9]{15}$/;
+
+// RC: alphanumeric 3-20 chars
+const RC_RE = /^[A-Za-z0-9\-\/\.]{3,20}$/;
+
+export const createSyndicateSchema = z.object({
+  // Identity
+  name: z.string().min(1, "Le nom est obligatoire").max(200),
+  abbreviation: z.string().min(1).max(20).optional(),
+  sector: z.string().min(1),
+  region: z.string().default(""),
+  mission: z.string().max(1000).optional(),
+  // Contact
+  email: z.string().email("Format email invalide").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .max(30)
+    .refine((v) => !v || MOROCCAN_PHONE_RE.test(v.replace(/\s/g, "")), {
+      message: "Format téléphone invalide (ex: +212600000000 ou 0600000000)",
+    })
+    .optional()
+    .or(z.literal("")),
+  website: z.string().url().optional().or(z.literal("")),
+  address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  country: z.string().max(100).default("Maroc"),
+  // Legal
+  legalForm: z.string().optional(),
+  registrationNumber: z
+    .string()
+    .refine((v) => !v || REG_NUMBER_RE.test(v), {
+      message: "Format numéro d'enregistrement invalide",
+    })
+    .optional()
+    .or(z.literal("")),
+  iceNumber: z
+    .string()
+    .refine((v) => !v || ICE_RE.test(v), {
+      message: "Le numéro ICE doit comporter 15 chiffres",
+    })
+    .optional()
+    .or(z.literal("")),
+  rcNumber: z
+    .string()
+    .refine((v) => !v || RC_RE.test(v), {
+      message: "Format numéro RC invalide",
+    })
+    .optional()
+    .or(z.literal("")),
+  foundingDate: z.string().optional(),
+  // Finance
+  cotisationAmount: z.string().optional(),
+  cotisationCycle: z
+    .enum(["monthly", "quarterly", "yearly"])
+    .default("monthly"),
+  // Branding
+  logoColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#2563EB"),
+  logoUrl: z.string().optional().or(z.literal("")),
+  // Banking
+  bankName: z.string().max(100).optional(),
+  bankIban: z.string().max(50).optional(),
+  bankBic: z.string().max(20).optional(),
+  // Optional: initial member count
+  membersCount: z.number().int().min(0).default(0),
+  // Optional: designate an existing user as admin
+  adminId: z.string().optional(),
+  // Optional (super admin): attach to an existing syndic company
+  organizationId: z.string().optional(),
+});
+
+router.post(
+  "/syndicates",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const result = createSyndicateSchema.safeParse(req.body);
+    if (!result.success) {
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.flatten() });
+      return;
+    }
+    try {
+      normaliseBankFields(result.data as Record<string, unknown>);
+    } catch (e) {
+      if (e instanceof BankDetailsError) return void res.status(400).json({ error: e.message, code: e.code });
+      throw e;
+    }
+    try {
+      const data = result.data;
+      const isSelfOnboarding = req.user!.role === "syndicate_admin";
+      if (isSelfOnboarding && req.user!.syndicateId) {
+        res.status(409).json({ error: "Vous êtes déjà rattaché à un syndicat" });
+        return;
+      }
+      // Self-service onboarding requires the syndicate's phone to have been
+      // verified by SMS OTP on this server — the mobile flow makes this step
+      // mandatory, and the server must not rely on the client's claim.
+      if (isSelfOnboarding) {
+        if (!data.phone || !(await hasRecentlyVerifiedPhone(data.phone))) {
+          res.status(403).json({
+            error: "Le numéro de téléphone du syndicat doit être vérifié par SMS.",
+            code: "PHONE_VERIFICATION_REQUIRED",
+          });
+          return;
+        }
+      }
+      const adminId = isSelfOnboarding ? req.user!.userId : data.adminId;
+
+      const [syndicate] = await db.transaction(async (tx) => {
+        if (adminId) {
+          const [admin] = await tx
+            .select({ id: usersTable.id })
+            .from(usersTable)
+            .where(
+              and(
+                eq(usersTable.id, adminId),
+                isSelfOnboarding
+                  ? eq(usersTable.role, "syndicate_admin")
+                  : eq(usersTable.role, "member"),
+                isNull(usersTable.syndicateId),
+              ),
+            )
+            .limit(1);
+          if (!admin) {
+            throw Object.assign(
+              new Error(
+                "L'administrateur doit être un membre actif non affecté à un syndicat",
+              ),
+              { status: 400 },
+            );
+          }
+        }
+
+        const insertValues: Record<string, unknown> = {
+          name: data.name,
+          abbreviation: data.abbreviation,
+          sector: data.sector,
+          region: data.region,
+          mission: data.mission,
+          email: data.email || undefined,
+          phone: data.phone || undefined,
+          website: data.website || undefined,
+          address: data.address,
+          city: data.city,
+          legalForm: data.legalForm,
+          registrationNumber: data.registrationNumber || undefined,
+          iceNumber: data.iceNumber || undefined,
+          rcNumber: data.rcNumber || undefined,
+          foundingDate: data.foundingDate,
+          cotisationAmount: data.cotisationAmount,
+          cotisationCycle: data.cotisationCycle,
+          logoColor: data.logoColor,
+          logoUrl: data.logoUrl || undefined,
+          bankName: data.bankName || undefined,
+          bankIban: data.bankIban || undefined,
+          bankBic: data.bankBic || undefined,
+          membersCount: data.membersCount,
+          adminId,
+          status: "active",
+        };
+        // The syndic company: a self-onboarding syndic founds their own
+        // company and becomes its administrator; a super admin may attach the
+        // condominium to an existing company.
+        let organizationId: string | null = data.organizationId ?? null;
+        if (organizationId) {
+          const [org] = await tx.select({ id: organizationsTable.id }).from(organizationsTable).where(eq(organizationsTable.id, organizationId));
+          if (!org || isSelfOnboarding) {
+            throw Object.assign(new Error("Société de syndic introuvable"), { status: 400 });
+          }
+        } else {
+          const [org] = await tx
+            .insert(organizationsTable)
+            .values({ name: data.name, email: data.email || undefined, phone: data.phone || undefined, city: data.city, createdBy: req.user!.userId })
+            .returning();
+          organizationId = org.id;
+          if (adminId) {
+            await tx.insert(organizationMembersTable).values({ organizationId, userId: adminId, role: "org_admin", grantedBy: req.user!.userId });
+          }
+        }
+        insertValues.organizationId = organizationId;
+
+        const [s] = await tx
+          .insert(syndicatesTable)
+          .values(insertValues as any)
+          .returning();
+
+        if (adminId) {
+          const linkResult = await tx
+            .update(usersTable)
+            .set({ syndicateId: s.id, role: "syndicate_admin" })
+            .where(
+              and(
+                eq(usersTable.id, adminId),
+                isSelfOnboarding
+                  ? eq(usersTable.role, "syndicate_admin")
+                  : eq(usersTable.role, "member"),
+                isNull(usersTable.syndicateId),
+              ),
+            )
+            .returning({ id: usersTable.id });
+          if (linkResult.length === 0) {
+            throw Object.assign(
+              new Error("L'administrateur a déjà été affecté à un syndicat"),
+              { status: 409 },
+            );
+          }
+        }
+
+        await assignTrial(s.id, tx);
+
+        return [s];
+      });
+
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "syndicate",
+        entityId: syndicate.id,
+        details: syndicate.name,
+        platformAction: true,
+      });
+
+      if (adminId) {
+        const [adminUser] = await db
+          .select({ email: usersTable.email, name: usersTable.name })
+          .from(usersTable)
+          .where(eq(usersTable.id, adminId));
+        if (adminUser) {
+          const { subject, html } = syndicateCreatedTemplate(
+            syndicate.name,
+            adminUser.name,
+          );
+          sendTransactionalEmail({
+            to: adminUser.email,
+            subject,
+            html,
+            template: "syndicate_created",
+            syndicateId: syndicate.id,
+            req,
+          }).catch(() => {});
+        }
+      }
+
+      res
+        .status(201)
+        .json({ data: syndicate, message: "Syndicat créé avec succès" });
+    } catch (err: any) {
+      req.log.error(err);
+      const status = typeof err?.status === "number" ? err.status : 500;
+      res.status(status).json({ error: err?.message ?? "Erreur serveur" });
+    }
+  },
+);
+
+// ─── PUT /syndicates/:id ───────────────────────────────────────────────────────
+
+const updateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  abbreviation: z.string().max(20).optional(),
+  sector: z.string().optional(),
+  region: z.string().optional(),
+  mission: z.string().max(1000).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(30).optional(),
+  website: z.string().url().optional().or(z.literal("")),
+  address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  country: z.string().max(100).optional(),
+  legalForm: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  iceNumber: z.string().optional(),
+  rcNumber: z.string().optional(),
+  foundingDate: z.string().optional(),
+  cotisationAmount: z.string().optional(),
+  cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
+  logoColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
+  logoUrl: z.string().optional().or(z.literal("")),
+  // Lifecycle changes go through POST /condominiums/:id/status (audited,
+  // with allowed transitions) — never through a plain update.
+  adminId: z.string().optional(),
+  // Banking — used on payment demands, invoices, and legal enforcement letters
+  bankName: z.string().max(100).optional(),
+  bankIban: z.string().max(50).optional(),
+  bankBic: z.string().max(20).optional(),
+});
+
+router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
+  const id = String(req.params.id) as string;
+  const user = req.user!;
+
+  if (user.role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error: "La supervision est requise pour modifier un syndicat.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
+
+  if (user.role === "syndicate_admin" && user.syndicateId !== id) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
+  }
+
+  // Syndicate admins may maintain operational/contact settings for their own
+  // syndicate, but lifecycle state and platform ownership stay under Super
+  // Admin control. Keeping these fields out of the accepted payload avoids
+  // silently persisting a client-provided platform mutation.
+  const schema =
+    user.role === "super_admin"
+      ? updateSchema
+      : updateSchema.omit({ adminId: true });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
+  const updateData = result.data as z.infer<typeof updateSchema>;
+  // Bank details are verified (RIB key, IBAN check digits, BIC) before anything is written.
+  let bankFields: string[];
+  try {
+    bankFields = normaliseBankFields(updateData as Record<string, unknown>);
+  } catch (e) {
+    if (e instanceof BankDetailsError) return void res.status(400).json({ error: e.message, code: e.code });
+    throw e;
+  }
+  try {
+    const [before] = bankFields.length
+      ? await db.select({ bankName: syndicatesTable.bankName, bankIban: syndicatesTable.bankIban, bankBic: syndicatesTable.bankBic }).from(syndicatesTable).where(eq(syndicatesTable.id, id))
+      : [undefined];
+    if (user.role === "super_admin" && updateData.adminId !== undefined) {
+      const [admin] = await db
+        .select({
+          id: usersTable.id,
+          role: usersTable.role,
+          syndicateId: usersTable.syndicateId,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, updateData.adminId))
+        .limit(1);
+      if (
+        !admin ||
+        admin.syndicateId !== id ||
+        admin.role !== "syndicate_admin"
+      ) {
+        res
+          .status(400)
+          .json({
+            error: "L'administrateur doit appartenir au syndicat cible",
+          });
+        return;
+      }
+    }
+
+    const [updated] = await db
+      .update(syndicatesTable)
+      .set(updateData)
+      .where(eq(syndicatesTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
+    // Bust logo cache so next PDF generation picks up the new logo immediately
+    if (updateData.logoUrl !== undefined && updated.logoUrl) {
+      bustLogoCache(updated.logoUrl);
+    }
+    // Managing syndicate settings/lifecycle is a normal Super Admin platform duty,
+    // not supervision of a syndicate_admin's day-to-day operations.
+    await serverAuditLog(req, {
+      action: "UPDATE",
+      entity: "syndicate",
+      entityId: id,
+      syndicateId: id,
+      platformAction: user.role === "super_admin",
+    });
+    if (bankFields.length && before) await auditBankChange(req, id, before, updated);
+    res.json({ data: updated, message: "Syndicat mis à jour" });
+  } catch (err) {
+    sendRouteError(req, res, err);
+  }
+});
+
+/**
+ * Financial configuration change: who, when, which fields — the account
+ * identifiers masked to their last four characters, never in full.
+ */
+async function auditBankChange(
+  req: Parameters<typeof serverAuditLog>[0],
+  syndicateId: string,
+  before: { bankName: string | null; bankIban: string | null; bankBic: string | null },
+  after: { bankName: string | null; bankIban: string | null; bankBic: string | null },
+) {
+  const changed: string[] = [];
+  if (before.bankName !== after.bankName) changed.push(`banque : « ${before.bankName ?? "—"} » → « ${after.bankName ?? "—"} »`);
+  if (before.bankIban !== after.bankIban) changed.push(`RIB/IBAN : ${maskBankIdentifier(before.bankIban) ?? "—"} → ${maskBankIdentifier(after.bankIban) ?? "—"}`);
+  if (before.bankBic !== after.bankBic) changed.push(`BIC : ${before.bankBic ?? "—"} → ${after.bankBic ?? "—"}`);
+  if (!changed.length) return;
+  await serverAuditLog(req, { action: "BANK_DETAILS_UPDATED", entity: "syndicate", entityId: syndicateId, syndicateId, details: changed.join(" ; ") });
+}
+
+export default router;

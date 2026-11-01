@@ -743,7 +743,7 @@ export class Generator {
         for (const u of r.sample(c.allUsers.filter((x) => x.role !== "tenant"), Math.min(c.allUsers.length, r.int(3, 15)))) b.add("meeting_attendees", { meeting_id: id, user_id: u.id });
         if (type.startsWith("ag")) {
           // Shares voted come from the lots' real tantièmes; the outcome follows
-          // the API's rule for each majority (routes/ag.ts).
+          // the API's rule for each majority (modules/ag/ag.routes.ts).
           const totalT = c.lots.reduce((s, l) => s + l.tantiemes, 0);
           for (let n = 1; n <= r.int(2, 5); n++) {
             const present = Math.round((totalT * r.int(45, 85)) / 100);

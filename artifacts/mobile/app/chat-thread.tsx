@@ -31,7 +31,7 @@ import {
 import { getApiBaseUrl, withFileTicket } from "@/services/api";
 import { useFileTicket } from "@/hooks/useFileTicket";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { chat as chatApi } from "@/services/api";
+import { chat as chatApi } from "@/features/chat/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";

@@ -23,7 +23,7 @@ import { useData, type ChatConversation } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { chat as chatApi } from "@/services/api";
+import { chat as chatApi } from "@/features/chat/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import { useToast } from "@/context/ToastContext";

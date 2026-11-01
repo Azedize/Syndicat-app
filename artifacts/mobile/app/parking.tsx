@@ -14,7 +14,7 @@ import { Button, Card, Chip, IconButton, SheetHeader, Skeleton, StatusBadge, Tex
 import { TYPE, FONT } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 import { captureAndUploadPhoto, pickAndUploadPhoto } from "@/lib/upload";
-import { parking } from "@/services/api";
+import { parking } from "@/features/parking/api";
 
 type Tab = "vehicles" | "violations" | "reservations";
 type FeatherName = keyof typeof Feather.glyphMap;

@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useFormat } from "@/hooks/useFormat";
-import { announcements, type ApiAnnouncement } from "@/services/api";
+import { announcements, type ApiAnnouncement } from "@/features/community/api";
 import { useToast } from "@/context/ToastContext";
 import EmptyState from "@/components/EmptyState";
 import ScreenHeader from "@/components/ScreenHeader";

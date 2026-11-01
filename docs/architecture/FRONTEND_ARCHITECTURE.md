@@ -21,7 +21,12 @@ app/ (routes)  ──▶  features/<f>/components, hooks  ──▶  features/<f
 | Marché (`features/marketplace`) | **Migré** | `api.ts`, `catalog.ts`, `components/ProductCard`, `ResidenceMarket`, `DiscoverDeck` |
 | Notifications (`features/notifications`) | **Migré** | `api.ts` (alertes, lecture, préférences, jeton push), `components/NotificationManager`, `hooks/usePushNotifications`, `tasks/backgroundNotifications` |
 | Documents (`features/documents`) | **Migré** | `api.ts` (`documents`, `library`, `templateRequests` + types), `documentFiles`, `documentMeta`, `pdfHtml`, 7 composants (assistant, lot, demandes, signature) |
-| Toutes les autres | À migrer | endpoints dans `services/api/index.ts`, composants dans `components/` |
+| Finances (`features/finances`) | **Migré** | `api.ts` (`finance`, `transparency`, `debtEscalations`, `reserveFund`), AllocationDetail, ExpenseDetailSheet, ObligationAccount |
+| Gouvernance (`features/governance`) | **Migré** (API) | `api.ts` (`elections`, `meetings`) |
+| Chat, Réclamations, Parking (`features/chat`, `claims`, `parking`) | **Migré** (API) | `api.ts` + types |
+| Prestataires (`features/providers`) | **Migré** (API) | `api.ts` (`prestataires`, `contrats`, `travaux`) |
+| Abonnements (`features/subscriptions`) | **Migré** | `api.ts`, SubscriptionBanner |
+| Autres (auth, members, syndicates, content, statistics, organizations…) | À migrer | `services/api/index.ts` (781 lignes) |
 
 `hooks/useNotificationBus.ts` reste partagé : les contextes Toast et Data l'utilisent aussi.
 

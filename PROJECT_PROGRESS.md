@@ -1791,3 +1791,36 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
   - syndic : 7 écrans de documents, appels `/documents*` réussis ;
   - membre : profil, bibliothèque ;
   - super admin : `template-studio` (`/template-studio/requests`, `templates`, `stats`).
+
+## 2026-11-01 — Restructuration, étape 4
+
+### API : tous les domaines en modules
+- 52 modules dans `src/modules/`. `src/routes/` ne contient plus que `index.ts`, qui enregistre les routeurs et applique le contrôle d'abonnement aux écritures.
+- Services sortis des routes pour : treasury, travaux, parking, governance, travaux-privatifs, organizations, actions, sinistres, attachments, rankings, workflows, fiches-juridiques, allocation (+ `allocation.validation.ts`), auth, pdf, template-studio, stripe, storage, documents.
+- `documents.ts` (6 673 lignes) est découpé en trois fichiers :
+  - `documents.routes.ts` (5 062 lignes) ;
+  - `documents.service.ts` : chargeurs de données des modèles, numérotation, régénération signée ;
+  - `documents.html.ts` : page publique de vérification.
+- 22 domaines sont déplacés sans service, car toutes leurs fonctions lisent `req`/`res`.
+- `storage` utilise `LOCAL_UPLOADS_DIR` de `lib/file-store.ts`, au lieu d'une copie identique.
+- Mesures : 0 cycle, 0 import entre modules, 30 services, 4 fichiers de validation.
+- Code probablement mort, conservé :
+  - `getElectionData`, `getDecompteChargesData`, `getTenantData`, `getSinistreData`, `getTravauxData` (documents) ;
+  - `getTemplateOrFail` (template-studio) ;
+  - les deux fonctions d'incident du chat.
+
+### Mobile : 6 fonctionnalités de plus (10 au total)
+- `finances` (finance, transparency, debtEscalations, reserveFund + 3 composants), `governance` (elections, meetings), `chat`, `claims`, `parking`, `providers` (prestataires, contrats, travaux), `subscriptions` (+ SubscriptionBanner).
+- `services/api/index.ts` passe de 2 928 lignes (avant restructuration) à 781.
+- Aucun import entre fonctionnalités. L'objet `travaux`, arrivé dans `parking` à cause de l'ordre des sections, a été remis dans `providers`.
+
+### Vérifications
+- `tsc` API et mobile : 0 erreur. Build API OK. Export Android/iOS OK.
+- Régression sur `syndycat_test` : 39/40, avec 128 routes × 9 profils.
+  - auth-security 44/44, documents-library 75/75, official-documents 13/13, finance-workflow 89/89, allocation 59/59, funds-calls 48/48, idor 108/108, rbac 35.
+  - Les 8 jobs démarrent, 0 erreur dans le journal.
+- Tests statiques mobile : i18n 9/9, routes-resolve 369/369, contacts 6/6. `login-transport` : 7/7.
+- Navigateur (syndic et membre) : 15 écrans des fonctionnalités migrées, 0 erreur de page, 0 réponse 5xx, endpoints propres à chaque écran appelés avec succès.
+- Page de vérification d'un document :
+  - un jeton inconnu donne bien la page « introuvable » (404) ;
+  - **le cas d'un jeton valide n'a pas été exécuté** : aucun document de la base de test n'a de jeton et aucune suite ne couvre ce cas.

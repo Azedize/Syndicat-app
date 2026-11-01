@@ -5,8 +5,7 @@
 index.ts ── jobs planifiés (lib/scheduler.ts)
    └── app.ts ── CORS, en-têtes de sécurité, limites de débit, JSON
           └── routes/index.ts ── requireActiveSubscription pour les écritures (sauf /subscriptions, /auth…)
-                 ├── modules/<domaine>/<domaine>.routes.ts   (domaines migrés)
-                 └── routes/<domaine>.ts                     (domaines à migrer)
+                 └── modules/<domaine>/<domaine>.routes.ts   (52 modules)
                         ├── middleware/auth.ts   requireAuth, requireRole, requireAdmin, requireSuperAdmin
                         ├── <domaine>.access.ts  périmètre (syndicat, supervision)
                         ├── <domaine>.service.ts règles métier, transactions
@@ -52,7 +51,19 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 
 **Duplication supprimée :** `jobs/election-reminders.ts` contenait une copie de la règle d'éligibilité au vote. Son commentaire disait qu'elle évitait d'importer la couche routes. Le job importe maintenant `getEligibleVoterIds` du service ; la logique est identique, ce qui a été vérifié ligne à ligne.
 
-**Code probablement mort, conservé :** `createIncidentConversation` et `addResponsibleToIncidentConversation` (`chat.service.ts`) sont exportées mais importées nulle part, ni de façon statique ni de façon dynamique. Elles sont gardées en attendant votre décision.
+**Code probablement mort, conservé en attendant votre décision.** Ces fonctions ne sont appelées nulle part, ni de façon statique ni de façon dynamique :
+- `chat.service.ts` : `createIncidentConversation`, `addResponsibleToIncidentConversation` ;
+- `documents.service.ts` : `getElectionData`, `getDecompteChargesData`, `getTenantData`, `getSinistreData`, `getTravauxData` ;
+- `template-studio.routes.ts` : `getTemplateOrFail`.
+
+### Étape 4 : les autres domaines
+- **Avec service :** treasury, travaux, parking, governance, travaux-privatifs, organizations, actions, sinistres, attachments, rankings, workflows, fiches-juridiques, allocation (+ validation), auth, pdf, template-studio, stripe, storage, documents.
+- **`documents`** (6 673 lignes) est découpé en trois fichiers :
+  - `documents.routes.ts` (5 062 lignes) ;
+  - `documents.service.ts` : chargeurs de données des modèles, numérotation, régénération avec signatures ;
+  - `documents.html.ts` : la page publique de vérification.
+- **`storage`** importe `LOCAL_UPLOADS_DIR` de `lib/file-store.ts` au lieu d'en avoir une copie. L'expression était identique et dépend de l'environnement, pas de l'emplacement du fichier.
+- **Routes seules**, car toutes leurs fonctions lisent `req`/`res` : actes, ag, audit, buildings, content, email, escalation, finance, finance-building, health, ideas, locataires, me, meetings, members, prestataires, publications, reclamations, syndicates, team, transparency, users.
 
 ## `jobs/` et `integrations/`
 | Dossier | Fichiers | Démarré par |
@@ -79,7 +90,8 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 | 3 | Jobs de `lib/` → `src/jobs/` | Fait (7 fichiers) |
 | 4 | Stripe et ZimSend → `src/integrations/` | Fait |
 | 5 | Domaines ayant de la logique métier dans leurs routes | Fait pour 8 domaines (étape 3) |
-| 6 | Domaines restants : treasury, prestataires, travaux, parking, governance, auth, content, pdf, template-studio, documents (6 673 lignes)… | À faire : 41 fichiers dans `routes/` |
+| 6 | Domaines restants, dont `documents` (6 673 lignes) | Fait : `routes/` ne contient plus que `index.ts` |
+| 7 | Découper les gros fichiers de routes par sous-domaine (`documents.routes.ts` 5 062 l., `budget.routes.ts`, `chat.routes.ts`) | À faire |
 
 ## Points connus
 - `routes/documents.ts` (6 673 lignes) et `lib/documentPdf.ts` (5 609 lignes) sont les plus gros fichiers du dépôt.

@@ -21,10 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import {
-  announcements as announcementsApi,
-  type ApiAnnouncement,
-} from "@/services/api";
+import { announcements as announcementsApi, type ApiAnnouncement } from "@/features/community/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";

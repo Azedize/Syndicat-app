@@ -13,7 +13,7 @@ import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { pickAndUploadPdf } from "@/lib/upload";
-import { ApiContrat, ApiEvaluation, ApiPrestataire, ApiTravail, contrats, prestataires } from "@/services/api";
+import { ApiContrat, ApiEvaluation, ApiPrestataire, ApiTravail, contrats, prestataires } from "@/features/providers/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 const TYPE_LABELS: Record<string, string> = {

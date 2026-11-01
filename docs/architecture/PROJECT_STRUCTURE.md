@@ -1,8 +1,8 @@
 # Structure du projet
 
-État au 01/11/2026, après la troisième étape de restructuration :
-- mobile : Marché, Notifications, Documents ;
-- API : 11 modules métier, plus les jobs et les intégrations.
+État au 01/11/2026, après la quatrième étape de restructuration :
+- **API :** tous les domaines sont dans `src/modules/` (52 modules). `src/routes/` ne contient plus que `index.ts`.
+- **Mobile :** 10 fonctionnalités dans `features/`. Les endpoints des autres domaines restent dans `services/api/index.ts`.
 Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
 
 ```text
@@ -14,6 +14,17 @@ zip-repl/
 │   │   │   ├── admin/             Écrans super admin
 │   │   │   └── *.tsx              Autres écrans (≈110)
 │   │   ├── features/              Fonctionnalités autonomes (cible de la migration)
+│   │   │   ├── chat/              api.ts (conversations, messages, réactions + types)
+│   │   │   ├── claims/            api.ts (réclamations et incidents + types)
+│   │   │   ├── finances/
+│   │   │   │   ├── api.ts         finance, transparency, debtEscalations, reserveFund
+│   │   │   │   └── components/    AllocationDetail, ExpenseDetailSheet, ObligationAccount
+│   │   │   ├── governance/        api.ts (élections, assemblées)
+│   │   │   ├── parking/           api.ts (places, véhicules, infractions, visiteurs + types)
+│   │   │   ├── providers/         api.ts (prestataires, contrats, travaux + types)
+│   │   │   ├── subscriptions/
+│   │   │   │   ├── api.ts         Formules et abonnement du syndicat
+│   │   │   │   └── components/    SubscriptionBanner
 │   │   │   ├── marketplace/
 │   │   │   │   ├── api.ts         Endpoints du marché
 │   │   │   │   ├── catalog.ts     Catégories, états, libellés
@@ -34,10 +45,12 @@ zip-repl/
 │   │   │   ├── theme/             ThemeSwitcher, ThemeSwitchingArea
 │   │   │   ├── brand/             Logo, marque, en-tête d'authentification
 │   │   │   ├── signature/         Illustration de résidence
-│   │   │   └── *.tsx              Composants encore à ranger (documents, finances…)
+│   │   │   └── *.tsx              Composants transverses (DataState, EmptyState, FormSheet, RoleGuard,
+│   │   │                          SidebarNav, StatCard, LanguageSwitcher…)
 │   │   ├── services/api/          Client HTTP
 │   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
-│   │   │   └── index.ts           Endpoints des domaines pas encore migrés
+│   │   │   └── index.ts           Endpoints des autres domaines (781 lignes, 14 objets : auth, members,
+│   │   │                          syndicates, content, statistics, organizations…)
 │   │   ├── context/               Providers : Auth, Data, Theme, Language, Toast…
 │   │   ├── hooks/                 Hooks transverses (couleurs, format, permissions, bus de notifications…)
 │   │   ├── constants/             Jetons de design (couleurs, espacements, typo, motion), menu
@@ -51,26 +64,17 @@ zip-repl/
 │       ├── src/
 │       │   ├── index.ts           Démarrage : port, jobs planifiés
 │       │   ├── app.ts             Express : CORS, sécurité, limites, routes
-│       │   ├── modules/           Modules métier (cible de la migration)
-│       │   │   ├── subscriptions/
-│       │   │   │   ├── subscriptions.routes.ts    Endpoints HTTP
-│       │   │   │   ├── subscriptions.service.ts   Statut, moyens de paiement, finalisation, essai
-│       │   │   │   └── subscriptions.access.ts    Périmètre (syndicat, supervision)
-│       │   │   ├── budget/
-│       │   │   │   ├── budget.routes.ts           Budgets, appels de fonds, paiements, reçus
-│       │   │   │   └── budget.service.ts          reconcileBudgetAmounts, resolveOwnerUserId
-│       │   │   ├── document-library/
-│       │   │   │   ├── document-library.routes.ts Dépôt, liste, téléchargement, versions, archivage
-│       │   │   │   └── document-library.service.ts assertDeletable (pièce justificative)
-│       │   │   ├── chat/          routes + service (accès aux conversations, blocages, saisie, réactions)
-│       │   │   ├── claims/        routes + service (visibilité, événements, filtres) + validation
-│       │   │   ├── elections/     routes + service (éligibilité, clôture, publication des résultats)
-│       │   │   ├── expenses/      routes + service (contrôles des références, approbateurs) + validation
-│       │   │   ├── lots/          routes + service (périmètre, impayés, création) + validation
-│       │   │   ├── marketplace/   routes + service (périmètre du catalogue, masquage, modération auto)
-│       │   │   ├── organigramme/  routes + service (rôles, libellés, permissions)
-│       │   │   └── statistics/    routes + service (flux, devise, périodes)
-│       │   ├── routes/            Endpoints des domaines pas encore migrés (41) + index.ts
+│       │   ├── modules/           52 modules métier : <domaine>/<domaine>.routes.ts (+ .service.ts,
+│       │   │                      .validation.ts, .access.ts, .html.ts selon le besoin)
+│       │   │   ├── subscriptions/ routes + service (statut, paiements, essai) + access (supervision)
+│       │   │   ├── documents/     routes (5 062 l.) + service (chargeurs de données, numérotation,
+│       │   │   │                  régénération signée) + html (page de vérification publique)
+│       │   │   ├── allocation/, claims/, expenses/, lots/   routes + service + validation (Zod)
+│       │   │   ├── auth/, budget/, chat/, elections/, marketplace/, pdf/, treasury/,
+│       │   │   │   template-studio/, stripe/, storage/, parking/, travaux/, …   routes + service
+│       │   │   └── actes/, ag/, audit/, buildings/, content/, finance/, members/, users/, …
+│       │   │                      routes seules (leurs fonctions lisent req/res)
+│       │   ├── routes/index.ts    Enregistre les 52 routeurs ; contrôle d'abonnement des écritures
 │       │   ├── jobs/              Tâches planifiées : échéances (contrats, mandats, documents),
 │       │   │                      rappels (élections, abonnements), rétention (documents, OTP)
 │       │   ├── integrations/      Fournisseurs externes : stripe/ (client, webhook), zimsend (SMS)

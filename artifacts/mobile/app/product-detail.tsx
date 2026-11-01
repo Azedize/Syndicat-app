@@ -21,7 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
-import { chat } from "@/services/api";
+import { chat } from "@/features/chat/api";
 import { marketplace } from "@/features/marketplace/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { crossPlatformShadow } from "@/lib/shadow";

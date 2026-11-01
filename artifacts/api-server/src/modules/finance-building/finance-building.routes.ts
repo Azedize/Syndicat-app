@@ -1,0 +1,437 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import {
+  buildingsTable,
+  appelsDeFondsTable,
+  travauxTable,
+  budgetsTable,
+  budgetLinesTable,
+  prestatairesTable,
+  contratsPrestatairesTable,
+  lotsTable,
+  syndicatesTable,
+  appelPaymentsTable,
+} from "@workspace/db/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import { isSyndicateTeamRole, requireAuth, requireRole } from "../../middleware/auth.js";
+import { moneySum, moneyDiff } from "../../lib/treasury.js";
+
+const router = Router();
+
+// GET /finance/buildings — list buildings with quick stats (admin only)
+// Treasurer needs building-level finance stats to prepare the budget.
+router.get(
+  "/finance/buildings",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin", "treasurer"),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+
+      // Financial data across syndicates is a supervision action. Check this
+      // before resolving buildings so the list does not disclose platform-wide
+      // financial records without an explicit supervision boundary.
+      const supervisedSyndicateId =
+        user.role === "super_admin" && typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : "";
+
+      if (
+        user.role === "super_admin" &&
+        (req.query.supervision !== "true" || !supervisedSyndicateId)
+      ) {
+        return void res.status(403).json({
+          error:
+            "La supervision et le syndicat cible sont requis pour accéder aux finances d'un syndicat.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+
+      // Every non-super-admin finance user must have a syndicate scope in JWT.
+      if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+
+      if (user.role === "super_admin") {
+        const [targetSyndicate] = await db
+          .select({ id: syndicatesTable.id })
+          .from(syndicatesTable)
+          .where(eq(syndicatesTable.id, supervisedSyndicateId))
+          .limit(1);
+        if (!targetSyndicate) {
+          return void res
+            .status(404)
+            .json({ error: "Syndicat cible introuvable" });
+        }
+      }
+
+      const buildings = await db
+        .select()
+        .from(buildingsTable)
+        .where(
+          eq(
+            buildingsTable.syndicateId,
+            user.role === "super_admin"
+              ? supervisedSyndicateId
+              : user.syndicateId!,
+          ),
+        );
+
+      if (buildings.length === 0) return void res.json({ data: [] });
+
+      // Batch-load all appels for all buildings (no N+1)
+      const bldIds = buildings.map((b) => b.id);
+      const allAppels = await db
+        .select({
+          buildingId: appelsDeFondsTable.buildingId,
+          amount: appelsDeFondsTable.amount,
+          amountPaid: appelsDeFondsTable.amountPaid,
+          status: appelsDeFondsTable.status,
+        })
+        .from(appelsDeFondsTable)
+        .where(inArray(appelsDeFondsTable.buildingId, bldIds));
+
+      // Group by buildingId
+      const appelsByBuilding = new Map<string, typeof allAppels>();
+      for (const a of allAppels) {
+        const list = appelsByBuilding.get(a.buildingId) ?? [];
+        list.push(a);
+        appelsByBuilding.set(a.buildingId, list);
+      }
+
+      const enriched = buildings.map((b) => {
+        const appels = (appelsByBuilding.get(b.id) ?? []).filter((a) => a.status !== "cancelled");
+        const totalDu = moneySum(appels.map((a) => a.amount));
+        const totalEncaisse = moneySum(appels.map((a) => a.amountPaid));
+        const tauxRecouvrement =
+          totalDu > 0 ? Math.round((totalEncaisse / totalDu) * 100) : 0;
+        return {
+          id: b.id,
+          name: b.name,
+          city: b.city,
+          totalLots: b.totalLots,
+          tauxRecouvrement,
+          totalEncaisse: Math.round(totalEncaisse),
+          totalDu: Math.round(totalDu),
+        };
+      });
+
+      res.json({ data: enriched });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// GET /finance/building/:id — full financial dashboard data (admin only)
+router.get(
+  "/finance/building/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin", "treasurer"),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const buildingId = String(req.params.id);
+
+      // A Super Admin may inspect a syndicate's financial dashboard only in
+      // explicit supervision mode with a declared target syndicate. Check this
+      // before resolving the building so the endpoint does not disclose whether
+      // an ID exists outside that target.
+      const supervisedSyndicateId =
+        user.role === "super_admin" && typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : "";
+      if (
+        user.role === "super_admin" &&
+        (req.query.supervision !== "true" || !supervisedSyndicateId)
+      ) {
+        return void res.status(403).json({
+          error:
+            "La supervision et le syndicat cible sont requis pour accéder aux finances d'un syndicat.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+
+      const [building] = await db
+        .select()
+        .from(buildingsTable)
+        .where(
+          user.role === "super_admin"
+            ? and(
+                eq(buildingsTable.id, buildingId),
+                eq(buildingsTable.syndicateId, supervisedSyndicateId),
+              )
+            : eq(buildingsTable.id, buildingId),
+        );
+
+      if (!building)
+        return void res.status(404).json({ error: "Immeuble introuvable" });
+
+      // Syndicate isolation: non-super_admin can only access their own syndicate's buildings.
+      if (user.role !== "super_admin") {
+        if (!user.syndicateId) {
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        }
+        if (building.syndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+
+      // Fetch everything in parallel
+      const [appels, travaux, budgets, lots, prestataires, contrats] =
+        await Promise.all([
+          db
+            .select()
+            .from(appelsDeFondsTable)
+            .where(eq(appelsDeFondsTable.buildingId, buildingId)),
+          db
+            .select()
+            .from(travauxTable)
+            .where(eq(travauxTable.buildingId, buildingId)),
+          db
+            .select()
+            .from(budgetsTable)
+            .where(eq(budgetsTable.buildingId, buildingId)),
+          db
+            .select()
+            .from(lotsTable)
+            .where(eq(lotsTable.buildingId, buildingId)),
+          db
+            .select()
+            .from(prestatairesTable)
+            .where(eq(prestatairesTable.buildingId, buildingId)),
+          db
+            .select()
+            .from(contratsPrestatairesTable)
+            .where(
+              and(
+                eq(contratsPrestatairesTable.buildingId, buildingId),
+                eq(contratsPrestatairesTable.status, "active"),
+              ),
+            ),
+        ]);
+
+      // Approved budget (most recent)
+      const approvedBudget =
+        budgets.find((b) => b.status === "approved") ?? budgets[0] ?? null;
+
+      // Budget lines for approved budget
+      const budgetLines = approvedBudget
+        ? await db
+            .select()
+            .from(budgetLinesTable)
+            .where(eq(budgetLinesTable.budgetId, approvedBudget.id))
+        : [];
+
+      // ── Appels stats ─────────────────────────────────────────────────────
+      // Cancelled calls are not owed. "Paid" is what validated payments
+      // covered (partial payments included); the rest is outstanding.
+      const owedAppels = appels.filter((a) => a.status !== "cancelled");
+      const paidOf = (a: (typeof appels)[number]) => Number(a.amountPaid ?? 0);
+      const outstandingOf = (a: (typeof appels)[number]) => moneyDiff(a.amount, a.amountPaid);
+      const isOverdue = (a: (typeof appels)[number]) => a.status === "overdue";
+      const isPending = (a: (typeof appels)[number]) =>
+        ["pending", "partially_paid", "pending_validation", "rejected"].includes(a.status ?? "");
+
+      const totalMontantDu = moneySum(owedAppels.map((a) => a.amount));
+      const totalEncaisse = owedAppels.reduce((s, a) => s + paidOf(a), 0);
+      const totalImpaye = owedAppels.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
+      const totalEnAttente = owedAppels.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
+      const tauxRecouvrement =
+        totalMontantDu > 0
+          ? Math.round((totalEncaisse / totalMontantDu) * 100)
+          : 0;
+
+      const fondsReserveCollecte = owedAppels
+        .filter((a) => a.type === "fonds_reserve")
+        .reduce((s, a) => s + paidOf(a), 0);
+
+      // Collections from the journal (same definition as the treasury): the
+      // receipt counts in the month it was posted, a later reversal counts
+      // negatively in the month of the reversal.
+      const appelIds = owedAppels.map((a) => a.id);
+      const collected = (await db.execute(sql`
+        SELECT to_char(le.entry_date, 'YYYY-MM') AS month,
+               SUM(CASE WHEN le.source_type = 'reversal' THEN -le.amount ELSE le.amount END) AS amount
+        FROM ledger_entries le
+        LEFT JOIN ledger_entries o ON o.id = le.reverses_entry_id
+        WHERE le.building_id = ${buildingId}
+          AND (le.source_type = 'appel_payment' OR (le.source_type = 'reversal' AND o.source_type = 'appel_payment'))
+        GROUP BY 1
+      `)) as unknown as { month: string; amount: string }[];
+      const collectedByMonth = new Map(collected.map((c) => [c.month, Number(c.amount)]));
+      const withHistory = appelIds.length
+        ? await db
+            .selectDistinct({ appelId: appelPaymentsTable.appelId })
+            .from(appelPaymentsTable)
+            .where(inArray(appelPaymentsTable.appelId, appelIds))
+        : [];
+      const appelsWithHistory = new Set(withHistory.map((p) => p.appelId));
+
+      // ── Monthly history (last 6 months) ──────────────────────────────────
+      const now = new Date();
+      const monthlyHistory = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        const label = d.toLocaleDateString("fr-MA", {
+          month: "short",
+          year: "2-digit",
+        });
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const prefix = `${y}-${m}`;
+
+        // Calls settled before the payment history existed only carry paidDate.
+        const legacyPaid = owedAppels
+          .filter((a) => a.status === "paid" && a.paidDate?.startsWith(prefix))
+          .filter((a) => !appelsWithHistory.has(a.id))
+          .reduce((s, a) => s + paidOf(a), 0);
+        const paid = legacyPaid + (collectedByMonth.get(prefix) ?? 0);
+
+        const due = owedAppels
+          .filter((a) => a.dueDate?.startsWith(prefix))
+          .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+
+        return { label, paid: Math.round(paid), due: Math.round(due) };
+      });
+
+      // ── Period stats table ────────────────────────────────────────────────
+      const periods = [...new Set(owedAppels.map((a) => a.period))].sort();
+      const periodStats = periods.map((period) => {
+        const pa = owedAppels.filter((a) => a.period === period);
+        const paid = pa.reduce((s, a) => s + paidOf(a), 0);
+        const overdue = pa.filter(isOverdue).reduce((s, a) => s + outstandingOf(a), 0);
+        const pending = pa.filter(isPending).reduce((s, a) => s + outstandingOf(a), 0);
+        const total = moneySum(pa.map((a) => a.amount));
+        return {
+          period,
+          paid: Math.round(paid),
+          overdue: Math.round(overdue),
+          pending: Math.round(pending),
+          total: Math.round(total),
+          rate: total > 0 ? Math.round((paid / total) * 100) : 0,
+        };
+      });
+
+      // ── Budget lines by category ──────────────────────────────────────────
+      const budgetByCategory = budgetLines.reduce<Record<string, number>>(
+        (acc, bl) => {
+          acc[bl.category] =
+            (acc[bl.category] ?? 0) + Number(bl.amountAnnual ?? 0);
+          return acc;
+        },
+        {},
+      );
+
+      // ── Travaux stats ─────────────────────────────────────────────────────
+      const activeTravaux = travaux.filter(
+        (t) => t.status === "in_progress" || t.status === "scheduled",
+      );
+      const doneTravaux = travaux.filter((t) => t.status === "completed");
+
+      // ── Lots ──────────────────────────────────────────────────────────────
+      const lotsOccupes = lots.filter((l) => l.status === "occupied").length;
+
+      // ── Contrats charges ──────────────────────────────────────────────────
+      const chargesContrats = contrats.reduce(
+        (s, c) => s + Number(c.annualAmount ?? 0),
+        0,
+      );
+
+      res.json({
+        data: {
+          building: {
+            id: building.id,
+            name: building.name,
+            address: building.address,
+            city: building.city,
+            totalLots: building.totalLots,
+            totalFloors: building.totalFloors,
+          },
+          summary: {
+            totalMontantDu: Math.round(totalMontantDu),
+            totalEncaisse: Math.round(totalEncaisse),
+            totalImpaye: Math.round(totalImpaye),
+            totalEnAttente: Math.round(totalEnAttente),
+            tauxRecouvrement,
+            fondsReserveCollecte: Math.round(fondsReserveCollecte),
+            budgetAnnuel: approvedBudget
+              ? Math.round(Number(approvedBudget.totalAmount ?? 0))
+              : 0,
+            chargesAnnuelles: approvedBudget
+              ? Math.round(Number(approvedBudget.chargesAmount ?? 0))
+              : 0,
+            fondsReserveBudget: approvedBudget
+              ? Math.round(Number(approvedBudget.fondsReserve ?? 0))
+              : 0,
+          },
+          lots: {
+            total: lots.length,
+            occupes: lotsOccupes,
+            vacants: lots.length - lotsOccupes,
+            tauxOccupation:
+              lots.length > 0
+                ? Math.round((lotsOccupes / lots.length) * 100)
+                : 0,
+          },
+          periodStats,
+          monthlyHistory,
+          budgetByCategory,
+          travaux: {
+            total: travaux.length,
+            enCours: activeTravaux.length,
+            termines: doneTravaux.length,
+            budgetEstime: Math.round(
+              moneySum(travaux.map((t) => t.estimatedAmount)),
+            ),
+            depenseReelle: Math.round(
+              moneySum(doneTravaux.map((t) => t.actualAmount)),
+            ),
+            urgents: travaux.filter(
+              (t) => t.priority === "urgent" && t.status !== "completed",
+            ).length,
+            items: activeTravaux.slice(0, 5).map((t) => ({
+              id: t.id,
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+              estimatedAmount: t.estimatedAmount,
+              startDate: t.startDate,
+            })),
+          },
+          prestataires: {
+            total: prestataires.length,
+            actifs: prestataires.filter((p) => p.status === "active").length,
+            chargesContrats: Math.round(chargesContrats),
+            contrats: contrats.slice(0, 6).map((c) => {
+              const p = prestataires.find((pr) => pr.id === c.prestataireId);
+              return {
+                title: c.title,
+                prestataireName: p?.name ?? "—",
+                type: p?.type ?? "—",
+                monthlyAmount: c.monthlyAmount,
+                annualAmount: c.annualAmount,
+                endDate: c.endDate,
+              };
+            }),
+          },
+          appelsDeFonds: {
+            total: appels.length,
+            paid: owedAppels.filter((a) => a.status === "paid").length,
+            overdue: owedAppels.filter(isOverdue).length,
+            pending: owedAppels.filter(isPending).length,
+          },
+        },
+      });
+    } catch (e) {
+      req.log.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+export default router;

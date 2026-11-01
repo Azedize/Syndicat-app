@@ -57,11 +57,16 @@ Mesures faites le 31/10/2026 avec un analyseur d'imports (imports statiques, `re
 - 0 cycle ; 0 import d'une fonctionnalité vers une autre (les 15 imports `features → features` sont internes).
 - `app → services` : 54 → 43 ; `components → services` : 7 → 1 ; `app → features` : 34.
 
-## API après l'étape 3 (120 fichiers)
-- 0 cycle ; 0 import entre modules ; 0 import `lib → routes` ; 0 import `routes → routes` hors `routes/index.ts`.
-- 11 modules, 41 fichiers encore dans `routes/`.
-- `routes → modules` : 15 (services partagés, ex. `allocation` → `budget.service`).
-- `jobs → modules` : 1 (`election-reminders` → `elections.service`).
+## API après l'étape 4 (141 fichiers)
+- 0 cycle ; 0 import entre modules (les 42 imports `modules → modules` sont internes : routes → service, validation…).
+- 52 modules ; `routes/` ne contient que `index.ts`, qui importe les 52 routeurs.
+- `modules → lib` : 213 ; `modules → middleware` : 55 ; `modules → integrations` : 4.
+- `jobs → modules` : 1 (`election-reminders` → `elections.service`) ; `integrations → modules` : 1 (webhook Stripe → abonnements).
+
+## Mobile après l'étape 4 (231 fichiers)
+- 10 fonctionnalités ; 0 import entre fonctionnalités.
+- `app → features` : 50 ; `app → services` : 54 au départ → 34 ; `components → services` : 7 → 0.
+- `context → features` : 6 (DataContext charge encore au démarrage des données de plusieurs fonctionnalités).
 
 ## Graphe simplifié
 ```text

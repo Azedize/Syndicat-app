@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
-import { elections as electionsApi } from "@/services/api";
+import { elections as electionsApi } from "@/features/governance/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface Mandate {

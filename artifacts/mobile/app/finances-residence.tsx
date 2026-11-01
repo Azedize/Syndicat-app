@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/DataState";
-import ExpenseDetailSheet from "@/components/ExpenseDetailSheet";
+import ExpenseDetailSheet from "@/features/finances/components/ExpenseDetailSheet";
 import ScreenHeader from "@/components/ScreenHeader";
 import { BalanceMeter, Card, ListItem, SectionHeader, StatusBadge } from "@/components/ui";
 import { RADIUS, SPACING } from "@/constants/spacing";

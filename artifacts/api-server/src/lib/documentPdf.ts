@@ -788,7 +788,7 @@ function t(key: string, lang: DocumentLanguage): string {
 
 /**
  * Encodes a QR pointing at the real, environment-portable public verification URL
- * built by the caller (routes/documents.ts) from the document's verificationToken —
+ * built by the caller (modules/documents/documents.routes.ts) from the document's verificationToken —
  * never a hardcoded domain. Falls back to a bare documentNumber-based marker only
  * when no verification URL could be constructed (e.g. no domain available at all),
  * so the QR still communicates the reference rather than silently disappearing.

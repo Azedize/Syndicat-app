@@ -26,7 +26,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
-import { elections as electionsApi } from "@/services/api";
+import { elections as electionsApi } from "@/features/governance/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
 import { ErrorState, LoadingState } from "@/components/DataState";
 

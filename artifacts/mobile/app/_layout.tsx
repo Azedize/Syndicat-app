@@ -21,7 +21,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { NotificationManager } from "@/features/notifications/components/NotificationManager";
 import { SidebarNav } from "@/components/SidebarNav";
-import SubscriptionBanner from "@/components/SubscriptionBanner";
+import SubscriptionBanner from "@/features/subscriptions/components/SubscriptionBanner";
 import { ToastContainer } from "@/components/ToastContainer";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ActivityProvider } from "@/context/ActivityContext";
