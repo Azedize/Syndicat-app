@@ -23,10 +23,10 @@ import {
   toDocumentError,
   type DocumentFileErrorCode,
   type LocalDocumentFile,
-} from "@/lib/documentFiles";
-import { categoryLabel, categoryStyle, formatLabel, previewKind, sizeLabel } from "@/lib/documentMeta";
-import { buildImageHtml, buildPdfHtml } from "@/lib/pdfHtml";
-import { library, type LibraryDocument } from "@/services/api";
+} from "@/features/documents/documentFiles";
+import { categoryLabel, categoryStyle, formatLabel, previewKind, sizeLabel } from "@/features/documents/documentMeta";
+import { buildImageHtml, buildPdfHtml } from "@/features/documents/pdfHtml";
+import { library, type LibraryDocument } from "@/features/documents/api";
 
 type Phase =
   | { kind: "meta" }

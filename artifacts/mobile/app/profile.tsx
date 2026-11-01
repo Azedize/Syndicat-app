@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MemberDocumentRequest from "@/components/MemberDocumentRequest";
+import MemberDocumentRequest from "@/features/documents/components/MemberDocumentRequest";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";

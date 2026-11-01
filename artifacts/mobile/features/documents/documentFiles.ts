@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { library } from "@/services/api";
+import { library } from "./api";
 
 /**
  * Secure local handling of library files.

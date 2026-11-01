@@ -155,7 +155,7 @@ export default function DocumentBundleModal({
   const loadEntities = async () => {
     setEntitiesLoading(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const type = bundleType === "recovery" ? "members" : "lots";
       const res = await docsApi.entities(type);
       setEntities((res.data as EntityItem[]) ?? []);
@@ -183,7 +183,7 @@ export default function DocumentBundleModal({
     setGenerating(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       let docs: Array<{ title: string; documentNumber: string }> = [];
 
       if (bundleType === "recovery") {

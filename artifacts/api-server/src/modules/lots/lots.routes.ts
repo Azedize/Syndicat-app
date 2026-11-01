@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -12,23 +12,56 @@ import {
   documentsTable,
   lotOwnershipsTable,
   auditLogsTable,
-  vehiclesTable,
-  parkingSpotsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, asc, sql, count, inArray, isNull, isNotNull, or, ilike, type SQL } from "drizzle-orm";
-import { requireAuth, isSyndicateTeamRole, type JwtPayload } from "../middleware/auth.js";
-import { getUserLotIds } from "../lib/scope.js";
-import { serverAuditLog } from "../lib/audit.js";
-import { getPagination } from "../lib/paginate.js";
-import { FinanceError, fromCents, isoDateSchema, sendFinanceError, toCents, uniqueViolation, moneyDiff } from "../lib/treasury.js";
+import {
+  eq,
+  and,
+  desc,
+  asc,
+  sql,
+  count,
+  inArray,
+  isNull,
+  isNotNull,
+  or,
+  ilike,
+  type SQL,
+} from "drizzle-orm";
+import { requireAuth, isSyndicateTeamRole } from "../../middleware/auth.js";
+import { getUserLotIds } from "../../lib/scope.js";
+import { serverAuditLog } from "../../lib/audit.js";
+import { getPagination } from "../../lib/paginate.js";
+import {
+  FinanceError,
+  fromCents,
+  isoDateSchema,
+  sendFinanceError,
+  toCents,
+  moneyDiff,
+} from "../../lib/treasury.js";
 import {
   chargesOfPersonSql,
   currentOwnersOf,
-  currentOwnershipSql,
   memberIdsOf,
   syncMainOwner,
   todayIso,
-} from "../lib/units.js";
+} from "../../lib/units.js";
+import {
+  loadScopedLot,
+  assertBuildingOfSyndicate,
+  outstandingOf,
+  firstIssue,
+  assertMembersOfSyndicate,
+  referenceConflict,
+  insertLot,
+} from "./lots.service.js";
+import {
+  LOT_TYPES,
+  FLOORLESS_TYPES,
+  ownersSchema,
+  lotFieldsSchema,
+  createLotSchema,
+} from "./lots.validation.js";
 
 /**
  * Units (lots) of the syndicate: register, ownership (co-owners, shares,
@@ -49,23 +82,6 @@ const router = Router();
 
 const REGISTER_EDITORS = ["syndicate_admin", "secretary"];
 const OWNERSHIP_MANAGERS = ["syndicate_admin"];
-
-export const LOT_TYPES = [
-  "appartement",
-  "duplex",
-  "studio",
-  "villa",
-  "bureau",
-  "commerce",
-  "local",
-  "parking",
-  "cave",
-  "box",
-  "terrain",
-  "autre",
-] as const;
-/** Types that are not on a floor of a building (floor is optional for them). */
-const FLOORLESS_TYPES = new Set(["parking", "cave", "box", "terrain", "villa"]);
 
 // ─── Scope helpers ────────────────────────────────────────────────────────────
 
@@ -89,130 +105,7 @@ function requireRoles(req: Request, roles: string[]): void {
   if (!roles.includes(role)) throw new FinanceError(403, "FORBIDDEN", "Action réservée au syndic");
 }
 
-/** Loads a lot of the scoped syndicate (404 for anything else — no existence leak). */
-async function loadScopedLot(lotId: string, syndicateId: string, forUpdate?: Pick<typeof db, "select">) {
-  const executor = forUpdate ?? db;
-  const query = executor
-    .select({ lot: lotsTable, syndicateId: buildingsTable.syndicateId, buildingName: buildingsTable.name })
-    .from(lotsTable)
-    .innerJoin(buildingsTable, eq(buildingsTable.id, lotsTable.buildingId))
-    .where(and(eq(lotsTable.id, lotId), eq(buildingsTable.syndicateId, syndicateId)));
-  const [row] = forUpdate ? await (query as any).for("update", { of: lotsTable }) : await query;
-  if (!row) throw new FinanceError(404, "LOT_NOT_FOUND", "Lot introuvable");
-  return row as { lot: typeof lotsTable.$inferSelect; syndicateId: string; buildingName: string };
-}
-
-async function assertBuildingOfSyndicate(buildingId: string, syndicateId: string) {
-  const [b] = await db
-    .select({ id: buildingsTable.id })
-    .from(buildingsTable)
-    .where(and(eq(buildingsTable.id, buildingId), eq(buildingsTable.syndicateId, syndicateId)));
-  if (!b) throw new FinanceError(404, "BUILDING_NOT_FOUND", "Immeuble introuvable dans ce syndicat");
-}
-
-/** Outstanding amount of a lot's calls, by debtor (owner at issue time). */
-async function outstandingOf(lotId: string) {
-  const rows = await db
-    .select({
-      ownerId: appelsDeFondsTable.ownerId,
-      ownerName: membersTable.name,
-      due: sql<string>`SUM(${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid})`,
-      underReview: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} = 'pending_validation')::int`,
-    })
-    .from(appelsDeFondsTable)
-    .leftJoin(membersTable, eq(membersTable.id, appelsDeFondsTable.ownerId))
-    .where(
-      and(
-        eq(appelsDeFondsTable.lotId, lotId),
-        sql`${appelsDeFondsTable.status} NOT IN ('paid', 'cancelled')`,
-      ),
-    )
-    .groupBy(appelsDeFondsTable.ownerId, membersTable.name);
-  const byDebtor = rows
-    .map((r) => ({ memberId: r.ownerId, name: r.ownerName, due: fromCents(toCents(r.due)) }))
-    .filter((r) => toCents(r.due) > 0);
-  return {
-    total: fromCents(byDebtor.reduce((s, r) => s + toCents(r.due), 0)),
-    underReview: rows.reduce((s, r) => s + (r.underReview ?? 0), 0),
-    byDebtor,
-  };
-}
-
 // ─── Validation ───────────────────────────────────────────────────────────────
-
-const referenceSchema = z
-  .string()
-  .trim()
-  .min(1, "La référence du lot est obligatoire")
-  .max(30, "Référence trop longue (30 caractères maximum)")
-  .regex(/^[\p{L}\p{N}][\p{L}\p{N} ._/-]*$/u, "Référence invalide (lettres, chiffres, espace, . _ / -)");
-const positiveDecimal = z
-  .union([z.number(), z.string().trim()])
-  .transform((v) => Number(String(v).replace(",", ".")))
-  .refine((v) => Number.isFinite(v) && v > 0 && v < 1_000_000, { message: "Surface invalide" });
-const shareSchema = z
-  .union([z.number(), z.string().trim()])
-  .transform((v) => Math.round(Number(String(v).replace(",", ".")) * 100))
-  .refine((c) => Number.isInteger(c) && c > 0 && c <= 10000, { message: "Quote-part invalide (0 < part ≤ 100 %)" });
-const ownersSchema = z
-  .array(z.object({ memberId: z.string().min(1), sharePercent: shareSchema }))
-  .min(1, "Au moins un propriétaire")
-  .max(20)
-  .refine((list) => new Set(list.map((o) => o.memberId)).size === list.length, { message: "Propriétaire en double" })
-  .refine((list) => list.reduce((s, o) => s + o.sharePercent, 0) === 10000, {
-    message: "Les quotes-parts des propriétaires doivent totaliser 100 %",
-  });
-
-const lotFieldsSchema = z.object({
-  number: referenceSchema,
-  type: z.enum(LOT_TYPES, { errorMap: () => ({ message: "Type de lot invalide" }) }).default("appartement"),
-  floor: z.number().int().min(-10).max(200).nullable().optional(),
-  surfaceM2: positiveDecimal.nullable().optional(),
-  surfaceCadastrale: positiveDecimal.nullable().optional(),
-  titreFoncier: z.string().trim().max(60).nullable().optional(),
-  tantiemes: z.number().int().min(0, "Tantièmes invalides").max(1_000_000),
-  description: z.string().trim().max(2000).nullable().optional(),
-});
-
-const createLotSchema = lotFieldsSchema
-  .extend({
-    buildingId: z.string().min(1, "L'immeuble est obligatoire"),
-    // Either a list of co-owners with shares, or a single owner (100 %).
-    owners: ownersSchema.optional(),
-    ownerId: z.string().min(1).optional(),
-    ownershipStartDate: isoDateSchema.optional(),
-    status: z.enum(["occupied", "vacant"]).optional(),
-  })
-  .strict()
-  .superRefine((d, ctx) => {
-    if (!FLOORLESS_TYPES.has(d.type) && (d.floor === undefined || d.floor === null)) {
-      ctx.addIssue({ code: "custom", path: ["floor"], message: "L'étage est obligatoire pour ce type de lot" });
-    }
-    if (d.owners && d.ownerId) ctx.addIssue({ code: "custom", path: ["owners"], message: "owners ou ownerId, pas les deux" });
-  });
-
-function firstIssue(err: z.ZodError) {
-  const i = err.issues[0];
-  return { error: i?.message ?? "Données invalides", field: i?.path?.join("."), code: "INVALID_LOT" };
-}
-
-async function assertMembersOfSyndicate(memberIds: string[], syndicateId: string) {
-  if (memberIds.length === 0) return;
-  const rows = await db
-    .select({ id: membersTable.id })
-    .from(membersTable)
-    .where(and(inArray(membersTable.id, memberIds), eq(membersTable.syndicateId, syndicateId)));
-  if (rows.length !== new Set(memberIds).size) {
-    throw new FinanceError(400, "FOREIGN_REFERENCE", "Propriétaire introuvable dans ce syndicat");
-  }
-}
-
-function referenceConflict(err: unknown): never {
-  if (uniqueViolation(err)?.includes("lots_building_number")) {
-    throw new FinanceError(409, "LOT_REFERENCE_EXISTS", "Un lot actif porte déjà cette référence dans cet immeuble");
-  }
-  throw err;
-}
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
@@ -519,58 +412,6 @@ router.get("/lots/:id", requireAuth, async (req, res) => {
 });
 
 // ─── Create ───────────────────────────────────────────────────────────────────
-
-async function insertLot(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  input: z.infer<typeof createLotSchema>,
-  syndicateId: string,
-  userId: string,
-) {
-  const owners = input.owners ?? (input.ownerId ? [{ memberId: input.ownerId, sharePercent: 10000 }] : []);
-  // Serialize creations in a building: the reference check and the insert
-  // cannot interleave (the unique index is the final guard).
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"lots:" + input.buildingId}))`);
-  let lot;
-  try {
-    [lot] = await tx
-      .insert(lotsTable)
-      .values({
-        number: input.number,
-        type: input.type,
-        floor: input.floor ?? null,
-        surfaceM2: input.surfaceM2 != null ? input.surfaceM2.toFixed(2) : null,
-        surfaceCadastrale: input.surfaceCadastrale != null ? input.surfaceCadastrale.toFixed(2) : null,
-        titreFoncier: input.titreFoncier ?? null,
-        tantiemes: input.tantiemes,
-        buildingId: input.buildingId,
-        status: input.status ?? (owners.length ? "occupied" : "vacant"),
-        description: input.description ?? null,
-        updatedAt: new Date(),
-      })
-      .returning();
-  } catch (err) {
-    referenceConflict(err);
-  }
-  if (owners.length) {
-    await tx.insert(lotOwnershipsTable).values(
-      owners.map((o) => ({
-        syndicateId,
-        lotId: lot.id,
-        memberId: o.memberId,
-        sharePercent: fromCents(o.sharePercent),
-        startDate: input.ownershipStartDate ?? todayIso(),
-        createdBy: userId,
-      })),
-    );
-    await syncMainOwner(tx, lot.id);
-  }
-  await tx
-    .update(buildingsTable)
-    .set({ totalLots: sql`${buildingsTable.totalLots} + 1` })
-    .where(eq(buildingsTable.id, input.buildingId));
-  const [fresh] = await tx.select().from(lotsTable).where(eq(lotsTable.id, lot.id));
-  return fresh;
-}
 
 router.post("/lots", requireAuth, async (req, res) => {
   try {

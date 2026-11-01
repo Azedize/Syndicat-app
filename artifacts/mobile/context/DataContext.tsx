@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
+import * as documentsApi from "@/features/documents/api";
 import { marketplace as marketplaceApi } from "@/features/marketplace/api";
 import { notifications as notificationsApi } from "@/features/notifications/api";
 import { notificationBus } from "@/hooks/useNotificationBus";
@@ -684,7 +685,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // Own payslips (member) or the syndicate's (admin, treasurer); the
           // platform reads them per condominium, in supervision only.
           onlyFor(["member", "syndicate_admin", "treasurer"], () => api.content.payslips()),
-          api.documents.list(),
+          documentsApi.documents.list(),
         ]);
 
         if (cancelled) return;
@@ -1564,7 +1565,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const refreshDocuments = async () => {
     setDocumentsLoading(true);
     try {
-      const res = await api.documents.list();
+      const res = await documentsApi.documents.list();
       const rows = (res as { data: unknown[] }).data ?? [];
       setDocuments(
         rows.map((r: unknown) => {

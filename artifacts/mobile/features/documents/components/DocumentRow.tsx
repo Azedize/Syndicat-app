@@ -7,8 +7,8 @@ import { FONT, TYPE } from "@/constants/typography";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useFormat } from "@/hooks/useFormat";
-import { categoryLabel, categoryStyle, formatIcon, formatLabel, isRecentlyPublished, sizeLabel } from "@/lib/documentMeta";
-import type { LibraryDocument } from "@/services/api";
+import { categoryLabel, categoryStyle, formatIcon, formatLabel, isRecentlyPublished, sizeLabel } from "../documentMeta";
+import type { LibraryDocument } from "../api";
 
 interface DocumentRowProps {
   doc: LibraryDocument;

@@ -339,7 +339,7 @@ export default function TemplateRequestModal({
     setSubmitting(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       await docsApi.templateRequests.create({
         title: title.trim(),
         category,

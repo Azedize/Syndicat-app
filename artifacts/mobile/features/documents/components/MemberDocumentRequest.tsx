@@ -188,7 +188,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
     setStep(2);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       // Run autofill and (if needed) payment cert check in parallel
       const loads: Promise<any>[] = [docsApi.autofill()];
       if (tpl.requiresBalance) loads.push(docsApi.paymentCertificateCheck());
@@ -216,7 +216,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
     setSubmitting(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const res = await docsApi.request({
         templateId: selectedTpl.id,
         category:   selectedTpl.category as any,

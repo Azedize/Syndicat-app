@@ -9,15 +9,15 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { LibraryUploadError, pickLibraryFile, sendLibraryFile, type PickedFile } from "@/lib/upload";
-import { library, type DocVisibility, type LibraryDocument } from "@/services/api";
+import { library, type DocVisibility, type LibraryDocument } from "@/features/documents/api";
 import ScreenHeader from "@/components/ScreenHeader";
-import DocumentRow from "@/components/DocumentRow";
+import DocumentRow from "@/features/documents/components/DocumentRow";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import { Chip, SearchField, SectionHeader, Skeleton, StatusBadge, toneColors } from "@/components/ui";
 import { TYPE } from "@/constants/typography";
-import { toDocumentError, type DocumentFileErrorCode } from "@/lib/documentFiles";
-import { categoryLabel, categoryStyle, formatLabel, isRecentlyPublished } from "@/lib/documentMeta";
+import { toDocumentError, type DocumentFileErrorCode } from "@/features/documents/documentFiles";
+import { categoryLabel, categoryStyle, formatLabel, isRecentlyPublished } from "@/features/documents/documentMeta";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
 /**

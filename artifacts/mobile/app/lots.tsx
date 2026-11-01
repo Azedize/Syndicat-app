@@ -28,7 +28,7 @@ import { Card, SearchField, Skeleton, StatusBadge, toneColors, type StatusTone }
 import { TYPE } from "@/constants/typography";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
-// Unit types accepted by the API (routes/lots.ts LOT_TYPES).
+// Unit types accepted by the API (modules/lots/lots.validation.ts LOT_TYPES).
 const CREATE_TYPES = ["appartement", "duplex", "studio", "villa", "bureau", "commerce", "local", "parking", "cave", "box", "terrain", "autre"];
 const FLOORLESS = new Set(["parking", "cave", "box", "terrain", "villa"]);
 const L_STR = {

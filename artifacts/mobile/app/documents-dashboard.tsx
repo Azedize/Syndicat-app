@@ -112,7 +112,7 @@ export default function DocumentsDashboard() {
     setSummaryLoading(true);
     setSummaryError(false);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const [res, all] = await Promise.all([docsApi.summary("generated"), docsApi.summary("upload")]);
       setLibraryTotal(((all as { data?: { total?: number } })?.data?.total) ?? 0);
       if ((res as { data?: Summary })?.data) {

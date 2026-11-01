@@ -26,7 +26,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
-import { type ApiTemplateRequest, templateRequests as apiRequests } from "@/services/api";
+import { type ApiTemplateRequest, templateRequests as apiRequests } from "@/features/documents/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

@@ -5,13 +5,11 @@ import {
   membersTable,
   syndicatesTable,
   cotisationsTable,
-  transactionsTable,
   ledgerEntriesTable,
   unionActionsTable,
   supportTicketsTable,
   usersTable,
   electionsTable,
-  paymentProofsTable,
   buildingsTable,
   lotsTable,
   tenantsTable,
@@ -20,34 +18,27 @@ import {
   meetingsTable,
   appelsDeFondsTable,
 } from "@workspace/db/schema";
-import { eq, and, or, count, sum, gte, lt, desc, sql, inArray } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
-import { syndicateWhere } from "../lib/syndicate-filter.js";
+import {
+  eq,
+  and,
+  count,
+  gte,
+  desc,
+  sql,
+  inArray,
+} from "drizzle-orm";
+import { requireAuth, requireRole } from "../../middleware/auth.js";
+import { syndicateWhere } from "../../lib/syndicate-filter.js";
+import { fromCents, toCents } from "../../lib/treasury.js";
+import {
+  METRIC_DEFINITIONS,
+  cashBalances,
+  collectionRate,
+  ledgerFlows,
+  ymd,
+} from "../../lib/finance-metrics.js";
+import { flowsIn, syndicateCurrency, lastNMonths } from "./statistics.service.js";
 
-import { fromCents, toCents } from "../lib/treasury.js";
-import { METRIC_DEFINITIONS, cashBalances, collectionRate, ledgerFlows, ymd } from "../lib/finance-metrics.js";
-
-/**
- * Income / expenses of one currency from ledgerFlows rows, in currency units
- * (2 decimals). Charts and counters below all use the journal, never the
- * operations register, so they agree with the treasury screens.
- */
-function flowsIn(rows: { currency: string; income: number; expenses: number }[], currency: string) {
-  let income = 0;
-  let expenses = 0;
-  for (const r of rows) {
-    if (r.currency !== currency) continue;
-    income += r.income;
-    expenses += r.expenses;
-  }
-  return { income: Number(fromCents(income)), expenses: Number(fromCents(expenses)) };
-}
-
-async function syndicateCurrency(syndicateId: string | null): Promise<string> {
-  if (!syndicateId) return "MAD";
-  const [row] = await db.select({ currency: syndicatesTable.currency }).from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId));
-  return row?.currency ?? "MAD";
-}
 
 /** Syndicate a statistics request is scoped to (null: the whole platform, super admin only). */
 function statisticsScope(req: any): string | null {
@@ -130,38 +121,6 @@ async function resolveScopedSyndicateId(req: any): Promise<string> {
     });
   }
   return syndicateId;
-}
-
-// Helper: last N months as { label, from, to }
-function lastNMonths(n: number) {
-  const months: { label: string; key: string; from: Date; to: Date }[] = [];
-  const FR_MONTHS = [
-    "Jan",
-    "Fév",
-    "Mar",
-    "Avr",
-    "Mai",
-    "Jun",
-    "Jul",
-    "Aoû",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Déc",
-  ];
-  const now = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const from = new Date(d.getFullYear(), d.getMonth(), 1);
-    const to = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-    months.push({
-      label: FR_MONTHS[d.getMonth()],
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      from,
-      to,
-    });
-  }
-  return months;
 }
 
 // ─── Platform-wide statistics (super_admin only) ──────────────────────────────

@@ -1726,3 +1726,43 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Déplacer les documents de la racine vers `docs/`.
 - Supprimer `architecture_app.txt` (1,5 million de lignes).
 - Aligner les deux règles de statut d'abonnement.
+
+## 2026-10-31 — Restructuration, étape 2
+
+### API
+- `routes/budget.ts` devient `modules/budget/` :
+  - `budget.routes.ts` pour les endpoints ;
+  - `budget.service.ts` pour `reconcileBudgetAmounts` et `resolveOwnerUserId`.
+- `routes/document-library.ts` devient `modules/document-library/` (`assertDeletable` dans le service).
+- Plus aucun fichier de routes n'importe un autre fichier de routes, et `lib/` n'importe plus aucune route.
+- 7 jobs passent de `lib/` à `src/jobs/` : contract-expiry, document-expiry, document-retention, election-reminders, mandate-expiry, otp-retention, subscription-reminders.
+- Stripe (client et webhook) et ZimSend passent dans `src/integrations/`.
+- Tous les imports sont réécrits par résolution des chemins. Les 8 jobs démarrent, sans erreur dans le journal.
+
+### Mobile
+- Nouvelle fonctionnalité `features/notifications/` :
+  - `api.ts` : alertes, lecture, préférences et jeton push, sortis de `content` ;
+  - `components/NotificationManager`, `hooks/usePushNotifications`, `tasks/backgroundNotifications`.
+- Le dossier `tasks/` vide est retiré. `hooks/useNotificationBus` reste partagé.
+
+### Tests corrigés (couverture perdue en silence)
+- `no-server-error-test` ne lisait que `src/routes/`. Après le déplacement des abonnements, il contrôlait 119 routes au lieu de 128.
+  - Il parcourt maintenant tout `src/`.
+  - Il échoue s'il trouve moins de 128 routes.
+- `budget-totals-test` importe le service ; un import impossible est maintenant un échec (c'était un saut silencieux).
+- `i18n-test`, `routes-resolve-test` et `contacts-config-test` incluent `features/`.
+- `election-audit-test` : le contrôle `S9.closing_soon_reminder_code` était écrit `true` en dur. Il lit maintenant `jobs/election-reminders.ts` et vérifie les seuils et la déduplication.
+
+### Vérifications
+- `tsc` : API, mobile et scripts à 0 erreur. Build API OK.
+- Export natif Android/iOS OK ; la tâche de fond est présente dans le bundle Android.
+- Régression sur `syndycat_test` : 39/40, avec `no-server-error` à 128 routes × 9 profils.
+- `election-audit` : 29/30. Le seul échec est la règle d'élection de remplacement non décidée.
+- Navigateur, notifications :
+  - alertes chargées en `?lang=fr` et préférences chargées ;
+  - l'appui sur une alerte non lue envoie `PUT /alerts/:id/read` → 200 ;
+  - 0 erreur de page.
+
+### Non fait
+- `S9.transitions_no_error` reste un `true` écrit en dur dans `election-audit-test` : le corriger demande de collecter les réponses 500 des scénarios précédents.
+- Fusion des deux clients HTTP du mobile (formes d'erreur différentes, 66 fichiers).

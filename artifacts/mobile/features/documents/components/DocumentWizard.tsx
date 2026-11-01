@@ -28,7 +28,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
+import SignaturePad, { type SignaturePadHandle } from "./SignaturePad";
 import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     setTemplatesLoading(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const res = await docsApi.templates();
       const filtered = res.data.filter((t) => t.category === catKey);
       setTemplates(filtered);
@@ -335,7 +335,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       (async () => {
         setAutofillLoading(true);
         try {
-          const { documents: docsApi } = await import("@/services/api");
+          const { documents: docsApi } = await import("../api");
           const res = await docsApi.autofill();
           setAutofillData(res.data);
           const mi = res.data.memberInfo;
@@ -358,7 +358,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         ? (async () => {
             setEntityLoading(true);
             try {
-              const { documents: docsApi } = await import("@/services/api");
+              const { documents: docsApi } = await import("../api");
               const res = await docsApi.entities(entityConfig.type);
               setEntityItems(res.data);
             } catch {
@@ -386,7 +386,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     setPreviewLoading(true);
     goToStep(4);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const res = await docsApi.preview({
         templateId: selectedTpl.id,
         memberName: fields["memberName"] || undefined,
@@ -407,7 +407,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     setError(null);
     goToStep(5);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const body: Record<string, unknown> = {
         title:      fields["title"]     || selectedTpl.name,
         category:   selectedCat,
@@ -515,7 +515,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     setSigning(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       await docsApi.sign(generatedDocId, sigSvgRef.current || undefined);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       goToStep(7);
@@ -533,7 +533,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     setPublishing(true);
     setError(null);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       await docsApi.update(generatedDocId, { status: "published" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete(generatedDocId);

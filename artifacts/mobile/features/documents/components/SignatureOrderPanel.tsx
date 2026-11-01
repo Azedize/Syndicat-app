@@ -74,7 +74,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
     setLoading(true);
     setError(false);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("../api");
       const res = await docsApi.signers(documentId);
       setData(res.data);
     } catch {

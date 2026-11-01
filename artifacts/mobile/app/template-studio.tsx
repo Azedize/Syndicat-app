@@ -31,7 +31,7 @@ import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
 import { apiRequest as libApiRequest } from "@/lib/api";
 import { crossPlatformShadow } from "@/lib/shadow";
-import { templateRequests as requestsApi, type ApiTemplateRequest } from "@/services/api";
+import { templateRequests as requestsApi, type ApiTemplateRequest } from "@/features/documents/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

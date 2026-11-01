@@ -37,14 +37,14 @@ import { MIZAN } from "@/constants/brand";
 import FilterChips from "@/components/FilterChips";
 import SignaturePad, {
   type SignaturePadHandle,
-} from "@/components/SignaturePad";
-import DocumentWizard from "@/components/DocumentWizard";
-import MemberDocumentRequest from "@/components/MemberDocumentRequest";
-import TemplateRequestModal from "@/components/TemplateRequestModal";
-import SignatureOrderPanel from "@/components/SignatureOrderPanel";
+} from "@/features/documents/components/SignaturePad";
+import DocumentWizard from "@/features/documents/components/DocumentWizard";
+import MemberDocumentRequest from "@/features/documents/components/MemberDocumentRequest";
+import TemplateRequestModal from "@/features/documents/components/TemplateRequestModal";
+import SignatureOrderPanel from "@/features/documents/components/SignatureOrderPanel";
 import DocumentBundleModal, {
   type BundleType,
-} from "@/components/DocumentBundleModal";
+} from "@/features/documents/components/DocumentBundleModal";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -956,7 +956,7 @@ export default function DocumentsScreen() {
   const handlePreview = async (doc: Document) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = await docsApi.downloadUrl(doc.id);
       let signedUrl = (res as any).url as string | undefined;
       if (signedUrl) {
@@ -1008,7 +1008,7 @@ export default function DocumentsScreen() {
     progressAnim.setValue(0);
 
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = await docsApi.downloadUrl(doc.id);
       const signedUrl = (res as any).url as string | undefined;
       const filename = (res as any).filename as string | undefined;
@@ -1155,7 +1155,7 @@ export default function DocumentsScreen() {
     setEditContent("");
     setShowEdit(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = (await docsApi.get(doc.id)) as {
         data: Record<string, unknown>;
       };
@@ -1178,7 +1178,7 @@ export default function DocumentsScreen() {
     if (!selected || sigEmpty || signing) return;
     setSigning(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.sign(selected.id, sigSvgRef.current || undefined);
       updateDocument(selected.id, { status: "signed" as Document["status"] });
       logActivity({
@@ -1226,7 +1226,7 @@ export default function DocumentsScreen() {
     }
     setSavingEdit(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.update(selected.id, {
         title: editTitle.trim(),
         content: editContent,
@@ -1274,7 +1274,7 @@ export default function DocumentsScreen() {
     if (!selected || workflowBusy) return;
     setWorkflowBusy(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.update(selected.id, { status: newStatus });
       updateDocument(selected.id, { status: newStatus as Document["status"] });
       setSelected((s) =>
@@ -1340,7 +1340,7 @@ export default function DocumentsScreen() {
     if (!selected || workflowBusy || !rejectReason.trim()) return;
     setWorkflowBusy(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.update(selected.id, {
         status: "rejected",
         rejectionReason: rejectReason.trim(),
@@ -1388,7 +1388,7 @@ export default function DocumentsScreen() {
             setSelected(null);
             deleteDocument(docId);
             try {
-              const { documents: docsApi } = await import("@/services/api");
+              const { documents: docsApi } = await import("@/features/documents/api");
               await docsApi.delete(docId);
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,
@@ -1422,7 +1422,7 @@ export default function DocumentsScreen() {
     setShowVersions(true);
     setVersionsLoading(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = (await docsApi.versions(selected.id)) as {
         data: typeof versions;
       };
@@ -1442,7 +1442,7 @@ export default function DocumentsScreen() {
     setShowComments(true);
     setCommentsLoading(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = await docsApi.comments(selected.id);
       setComments((res.data ?? []).filter((c) => !c.isDeleted));
     } catch {
@@ -1456,7 +1456,7 @@ export default function DocumentsScreen() {
     if (!selected || !commentText.trim() || postingComment) return;
     setPostingComment(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.addComment(selected.id, commentText.trim());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCommentText("");
@@ -1488,7 +1488,7 @@ export default function DocumentsScreen() {
         onPress: async () => {
           setDeletingComment(commentId);
           try {
-            const { documents: docsApi } = await import("@/services/api");
+            const { documents: docsApi } = await import("@/features/documents/api");
             await docsApi.deleteComment(selected.id, commentId);
             setComments((prev) => prev.filter((c) => c.id !== commentId));
             showToast({
@@ -1518,7 +1518,7 @@ export default function DocumentsScreen() {
     setShowQR(true);
     setQrLoading(true);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = await docsApi.qrCode(selected.id);
       setQrDataUrl(res.qrDataUrl ?? null);
     } catch {
@@ -1540,7 +1540,7 @@ export default function DocumentsScreen() {
           onPress: async () => {
             setRestoringVersion(versionId);
             try {
-              const { documents: docsApi } = await import("@/services/api");
+              const { documents: docsApi } = await import("@/features/documents/api");
               await docsApi.restoreVersion(selected.id, versionId);
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,

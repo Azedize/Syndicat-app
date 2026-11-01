@@ -1,9 +1,11 @@
 import { db } from "@workspace/db";
-import { electionsTable, voteReceiptsTable, usersTable, membersTable, lotsTable, tenantsTable } from "@workspace/db/schema";
+import { electionsTable, voteReceiptsTable } from "@workspace/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { createAlert, sendPushToUsers } from "../lib/notify.js";
 import { logger } from "../lib/logger.js";
 import { scheduleJob } from "../lib/scheduler.js";
+// Same eligibility rule as the voting endpoints.
+import { getEligibleVoterIds } from "../modules/elections/elections.service.js";
 
 /** Reminder thresholds, in whole days remaining before an election's voting closes. */
 const THRESHOLDS = [3, 1];
@@ -14,40 +16,6 @@ function daysUntil(dateStr: string): number {
   const end = new Date(dateStr);
   end.setHours(0, 0, 0, 0);
   return Math.round((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/** Duplicated locally (rather than imported from routes/elections.ts) to keep the
- *  scheduler decoupled from route-layer code — same eligibility logic as isUserEligible(). */
-async function getEligibleVoterIds(syndicateId: string, buildingId: string | null, tenantsCanVote: boolean): Promise<string[]> {
-  const memberRows = await db.select().from(membersTable).where(eq(membersTable.syndicateId, syndicateId));
-  let eligibleEmails = memberRows.map((m) => m.email);
-
-  if (buildingId) {
-    const ownerIds = memberRows.map((m) => m.id);
-    const lots = ownerIds.length
-      ? await db.select().from(lotsTable).where(and(eq(lotsTable.buildingId, buildingId), inArray(lotsTable.ownerId, ownerIds)))
-      : [];
-    const ownersInBuilding = new Set(lots.map((l) => l.ownerId));
-    eligibleEmails = memberRows.filter((m) => ownersInBuilding.has(m.id)).map((m) => m.email);
-  }
-
-  let eligibleUsers = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "member" as const), inArray(usersTable.email, eligibleEmails.length ? eligibleEmails : [""])));
-
-  if (tenantsCanVote) {
-    const tenantConditions = [eq(tenantsTable.syndicateId, syndicateId), eq(tenantsTable.status, "active")];
-    if (buildingId) tenantConditions.push(eq(tenantsTable.buildingId, buildingId));
-    const tenantRows = await db.select().from(tenantsTable).where(and(...tenantConditions));
-    const tenantEmails = tenantRows.map((t) => t.email).filter((e): e is string => !!e);
-    const tenantUsers = tenantEmails.length
-      ? await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "tenant" as const), inArray(usersTable.email, tenantEmails)))
-      : [];
-    eligibleUsers = [...eligibleUsers, ...tenantUsers];
-  }
-
-  return eligibleUsers.map((u) => u.id);
 }
 
 /**

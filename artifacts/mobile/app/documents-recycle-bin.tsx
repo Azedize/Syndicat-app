@@ -151,7 +151,7 @@ export default function DocumentsRecycleBin() {
     setLoading(true);
     setLoadError(false);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       const res = (await docsApi.deleted({ search: q })) as {
         data: DeletedDoc[];
       };
@@ -171,7 +171,7 @@ export default function DocumentsRecycleBin() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBusyId(doc.id);
     try {
-      const { documents: docsApi } = await import("@/services/api");
+      const { documents: docsApi } = await import("@/features/documents/api");
       await docsApi.restore(doc.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setItems((prev) => prev.filter((d) => d.id !== doc.id));
@@ -208,7 +208,7 @@ export default function DocumentsRecycleBin() {
           onPress: async () => {
             setBusyId(doc.id);
             try {
-              const { documents: docsApi } = await import("@/services/api");
+              const { documents: docsApi } = await import("@/features/documents/api");
               await docsApi.purge(doc.id);
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,

@@ -1,4 +1,4 @@
-import { purgeDocumentCache } from "@/lib/documentFiles";
+import { purgeDocumentCache } from "@/features/documents/documentFiles";
 import {
   Inter_400Regular,
   Inter_500Medium,
