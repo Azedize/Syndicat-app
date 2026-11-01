@@ -91,7 +91,25 @@ Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, er
 | 4 | Stripe et ZimSend → `src/integrations/` | Fait |
 | 5 | Domaines ayant de la logique métier dans leurs routes | Fait pour 8 domaines (étape 3) |
 | 6 | Domaines restants, dont `documents` (6 673 lignes) | Fait : `routes/` ne contient plus que `index.ts` |
-| 7 | Découper les gros fichiers de routes par sous-domaine | Fait pour `documents` : 6 sous-routeurs de 127 à 1 457 lignes, montés dans l'ordre d'origine. À faire : `budget.routes.ts`, `elections.routes.ts`, `marketplace.routes.ts`, `chat.routes.ts` |
+| 7 | Découper les gros fichiers de routes par sous-domaine | Fait pour 5 modules (voir ci-dessous) |
+
+### Sous-routeurs
+| Module | Sous-routeurs, dans l'ordre de montage | Fichiers de soutien |
+|---|---|---|
+| documents | catalog, verify (public), requests, bundles, crud, signing | service, html |
+| budget | budgets, appels (appels de fonds, paiements, reçus), debts (relances, fonds de réserve, retards) | service, validation, access |
+| elections | read, setup (création, transitions), candidates (candidatures, campagne), voting (vote, pouvoirs), results (résultats, mandats) | service, access |
+| marketplace | catalog (lectures), listings (annonces, modération, favoris, commentaires, réservation), sellers (réputation, stats, signalements, promotions), shop (panier, commandes, avis, alias) | service |
+| chat | conversations, messages, safety (blocage, signalement) | service, access |
+
+**Preuve d'équivalence :** un script reconstitue l'ordre réel d'enregistrement de toute l'API (`routes/index.ts` → modules → sous-routeurs). Il donne **533 routes dans exactement le même ordre** qu'avant la restructuration (commit `5cd189f`).
+
+### Route inaccessible (bogue antérieur à la restructuration, non corrigé)
+`GET /products/reported` (signalements, administration du marché) est déclarée après `GET /products/:id`, qui l'intercepte. Elle répond « Produit introuvable » (404), constaté en direct.
+
+C'était déjà le cas au commit `5cd189f`. Les écrans `app/(tabs)/marketplace.tsx` et `app/admin/marketplace.tsx` appellent `marketplace.reported()` et sont donc touchés.
+
+Correction proposée, qui attend votre accord car elle change le comportement de l'API : monter cette route avant `/products/:id`. C'est la seule route masquée sur les 533.
 
 **Découpage d'un routeur :** chaque sous-routeur est un bloc contigu du fichier d'origine. `documents.routes.ts` les monte dans le même ordre, car Express choisit la première route qui correspond. Par exemple, `/documents/summary` doit rester avant `/documents/:id`. Le nombre de routes est vérifié avant et après (30 = 30).
 

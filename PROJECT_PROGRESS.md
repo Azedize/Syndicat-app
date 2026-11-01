@@ -1849,3 +1849,31 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Tests statiques mobile : 9/9, 369/369, 6/6. `login-transport` : 7/7.
 - Navigateur : 16 écrans des nouvelles fonctionnalités (syndic, membre, super admin), 0 erreur, endpoints propres à chaque écran appelés avec succès.
   - Exception : `/coproprietes` n'appelle que `/me/contexts` au chargement.
+
+## 2026-11-01 — Restructuration, étape 6 : sous-routeurs
+
+### API
+- **budget :** budgets, appels, debts.
+  - Les schémas Zod partent dans `budget.validation.ts`, le périmètre (`isSyndicateScoped`, `resolveSupervisedChargeSyndicate`) dans `budget.access.ts`, les constantes de statut dans le service.
+- **elections :** read, setup, candidates, voting, results.
+  - Contrôles d'accès dans `elections.access.ts`, `MAX_PROXIES_PER_GRANTEE` dans le service.
+- **marketplace :** catalog, listings, sellers, shop.
+  - `MODERATION_TRANSITIONS` et `getVisibleProductForUser` passent dans le service.
+- **chat :** conversations, messages, safety.
+  - `hasChatSyndicateScope` passe dans `chat.access.ts`.
+- **Équivalence prouvée :** l'ordre d'enregistrement reconstitué de toute l'API donne 533 routes, dans le même ordre qu'au commit `5cd189f` (avant restructuration).
+- **Une note perdue lors du découpage de `documents`** (renvoi vers `document-library` pour `GET /documents`) a été restaurée. L'outil de découpage conserve maintenant les commentaires situés avant la première section.
+
+### Bogue antérieur trouvé (non corrigé, à décider)
+- `GET /products/reported` est masquée par `GET /products/:id` et répond 404 « Produit introuvable » (vérifié en direct, déjà vrai au commit `5cd189f`).
+- Les écrans d'administration du marché (`app/(tabs)/marketplace.tsx`, `app/admin/marketplace.tsx`) appellent cette route.
+- C'est la seule route masquée sur les 533.
+
+### Vérifications
+- `tsc` : 0 erreur. Build API OK.
+- Régression sur `syndycat_test` : 39/40, avec 128 routes × 9 profils.
+  - funds-calls 48/48, finance-workflow 89/89, budget-totals 19/19, marketplace 24 + 20 + 22, journeys 135/135, scenario-e2e 48/48, rbac 35.
+  - `election-audit` : 29/30 (règle non décidée).
+- Ordre des routes du marché vérifié en direct :
+  - `/products/pending`, `/products/moderation-queue`, `/stats`, `/products/my-promotions` → 200 ;
+  - `/products/reported` → 404 (bogue ci-dessus).

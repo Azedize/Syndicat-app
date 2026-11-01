@@ -76,6 +76,11 @@ zip-repl/
 │       │   │   │                  catalog, verify (public), requests, bundles, crud, signing
 │       │   │   │                  + service (chargeurs de données, numérotation, ordre de signature,
 │       │   │   │                  régénération signée) + html (page de vérification publique)
+│       │   │   ├── budget/        budget.routes.ts monte budgets, appels, debts
+│       │   │   │                  + service + validation + access
+│       │   │   ├── elections/     5 sous-routeurs (read, setup, candidates, voting, results) + service + access
+│       │   │   ├── marketplace/   4 sous-routeurs (catalog, listings, sellers, shop) + service
+│       │   │   ├── chat/          3 sous-routeurs (conversations, messages, safety) + service + access
 │       │   │   ├── allocation/, claims/, expenses/, lots/   routes + service + validation (Zod)
 │       │   │   ├── auth/, budget/, chat/, elections/, marketplace/, pdf/, treasury/,
 │       │   │   │   template-studio/, stripe/, storage/, parking/, travaux/, …   routes + service

@@ -3,7 +3,6 @@ import { membersTable, usersTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { fromCents, toCents } from "../../lib/treasury.js";
 
-
 /**
  * Budget amounts, in cents. The convention used by the execution report, the
  * calls for funds and the charge allocation: the budget lines detail the
@@ -65,3 +64,24 @@ export async function resolveOwnerUserId(
     .limit(1);
   return viaMember?.id ?? null;
 }
+
+/** Statuses from which a co-owner may declare a payment. */
+export const PAYABLE_STATUSES = ["pending", "overdue", "rejected", "partially_paid"] as const;
+
+/** Journal category of a call-for-funds payment, by call type. */
+export const APPEL_LEDGER_CATEGORY: Record<string, string> = {
+  charges_courantes: "charges_copropriete",
+  fonds_reserve: "fonds_reserve",
+  appel_special: "appel_special",
+};
+
+export function periodsPerYear(period: string): number {
+  if (/^\d{4}-Q[1-4]$/.test(period)) return 4;
+  if (/^\d{4}-\d{2}$/.test(period)) return 12;
+  return 1;
+}
+
+/** Budget lifecycle: draft → submitted → approved (by AG) → closed. */
+export const PRE_APPROVAL_BUDGET_STATUSES: string[] = ["draft", "submitted"];
+
+export const APPROVED_BUDGET_STATUSES: string[] = ["approved", "closed"];

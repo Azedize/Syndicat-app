@@ -1,7 +1,6 @@
-import { sql } from "drizzle-orm";
+import { sql, eq, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { productsTable, syndicatesTable, storageObjectsTable } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
 
 /**
  * Listing categories: the stored value is the French label; listings created
@@ -226,4 +225,34 @@ export function autoScan(title: string, description: string): { flagged: boolean
     }
   }
   return { flagged: false };
+}
+
+/**
+ * Listing moderation (2026-10-24).
+ *  - Who: the platform (super_admin, every residence) and the syndic of the
+ *    residence (syndicate_admin, its own listings only).
+ *  - What: the transitions below, nothing else. A reserved or sold listing is
+ *    never put back on sale by a moderation action.
+ *  - Why: a refusal or a request for changes always carries a reason the
+ *    seller reads; every decision is kept in the audit trail.
+ *  - Promotion (feature / boost) stays a platform decision.
+ */
+export const MODERATION_TRANSITIONS: Record<"approve" | "reject" | "request_modification", { from: string[]; to: string }> = {
+  approve: { from: ["pending_review"], to: "approved" },
+  request_modification: { from: ["pending_review"], to: "modification_requested" },
+  // A published listing can also be withdrawn (with a reason).
+  reject: { from: ["pending_review", "modification_requested", "approved"], to: "rejected" },
+};
+
+export async function getVisibleProductForUser(productId: string, user: NonNullable<Express.Request["user"]>) {
+  const [product] = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.id, productId))
+    .limit(1);
+
+  if (!product) return null;
+  if (isAdmin(user.role) || product.sellerId === user.userId) return product;
+  if (!(await listingOpenTo(user, product))) return null;
+  return PUBLIC_PRODUCT_STATUSES.has(product.status ?? "") ? product : null;
 }

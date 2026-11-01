@@ -23,6 +23,7 @@ import signingRouter from "./documents.signing.routes.js";
 
 // Order matters: Express matches routes in registration order.
 const router = Router();
+// GET /documents (search, filters, pagination): see modules/document-library/document-library.routes.ts
 router.use(catalogRouter);
 router.use(verifyRouter);
 router.use(requestsRouter);

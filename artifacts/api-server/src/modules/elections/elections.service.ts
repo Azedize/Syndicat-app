@@ -267,3 +267,7 @@ export const MANDATE_ROLE_BY_TYPE: Record<string, string[]> = {
   building_representative: ["building_representative"],
   special: ["committee_member"],
 };
+
+/** A member may hold at most this many proxies (own vote + delegated votes) — prevents
+ *  concentration of voting power in a single hand (common condo-syndic governance rule). */
+export const MAX_PROXIES_PER_GRANTEE = 2;
