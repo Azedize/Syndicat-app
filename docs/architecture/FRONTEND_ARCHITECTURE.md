@@ -20,6 +20,7 @@ app/ (routes)  ──▶  features/<f>/components, hooks  ──▶  features/<f
 |---|---|---|
 | Marché (`features/marketplace`) | **Migré** | `api.ts`, `catalog.ts`, `components/ProductCard`, `ResidenceMarket`, `DiscoverDeck` |
 | Notifications (`features/notifications`) | **Migré** | `api.ts` (alertes, lecture, préférences, jeton push), `components/NotificationManager`, `hooks/usePushNotifications`, `tasks/backgroundNotifications` |
+| Documents (`features/documents`) | **Migré** | `api.ts` (`documents`, `library`, `templateRequests` + types), `documentFiles`, `documentMeta`, `pdfHtml`, 7 composants (assistant, lot, demandes, signature) |
 | Toutes les autres | À migrer | endpoints dans `services/api/index.ts`, composants dans `components/` |
 
 `hooks/useNotificationBus.ts` reste partagé : les contextes Toast et Data l'utilisent aussi.
@@ -30,7 +31,6 @@ Tests qui parcourent le code mobile : `i18n-test`, `routes-resolve-test` et `con
 | Fonctionnalité cible | Écrans (`app/`) | Composants et endpoints à déplacer |
 |---|---|---|
 | `settings` | settings, profile, change-password, email-change | LanguageSwitcher, `auth.updateProfile`… |
-| `documents` | documents, bibliotheque, document-viewer, pdf-viewer, documents-dashboard, documents-recycle-bin | DocumentRow, DocumentWizard, DocumentBundleModal, MemberDocumentRequest, TemplateRequestModal, `documents`, `library`, `templateRequests` |
 | `finances` | charges, paiements, tresorerie, budget-previsionnel, releves, repartition, tableau-bord-financier, finances-residence, cotisations, invoices, portefeuille | AllocationDetail, ExpenseDetailSheet, ObligationAccount, BalanceLine/Meter (restent dans `ui`), `finance`, `reserveFund`, `debtEscalations` |
 | `governance` | elections, meetings, assemblee-generale, pv, elected-members, governance | `elections`, `meetings` |
 | `chat` | chat, chat-thread, messagerie-interne | `chat` |

@@ -53,9 +53,15 @@ Mesures faites le 31/10/2026 avec un analyseur d'imports (imports statiques, `re
 | routes → integrations | 3 |
 | integrations → modules | 1 (webhook Stripe → service d'abonnement) |
 
-## Mobile, après la migration du Marché et des Notifications (223 fichiers)
-- 0 cycle ; 0 import d'une fonctionnalité vers une autre (les 7 imports `features → features` sont internes).
-- `app → services` : 54 → 49 ; `components → services` : 7 → 6. Les écrans du marché importent `features/marketplace/api`.
+## Mobile, après la migration du Marché, des Notifications et des Documents (224 fichiers)
+- 0 cycle ; 0 import d'une fonctionnalité vers une autre (les 15 imports `features → features` sont internes).
+- `app → services` : 54 → 43 ; `components → services` : 7 → 1 ; `app → features` : 34.
+
+## API après l'étape 3 (120 fichiers)
+- 0 cycle ; 0 import entre modules ; 0 import `lib → routes` ; 0 import `routes → routes` hors `routes/index.ts`.
+- 11 modules, 41 fichiers encore dans `routes/`.
+- `routes → modules` : 15 (services partagés, ex. `allocation` → `budget.service`).
+- `jobs → modules` : 1 (`election-reminders` → `elections.service`).
 
 ## Graphe simplifié
 ```text

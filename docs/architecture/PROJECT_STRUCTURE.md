@@ -1,8 +1,8 @@
 # Structure du projet
 
-État au 31/10/2026, après la deuxième étape de restructuration :
-- mobile : Marché, Notifications ;
-- API : Abonnements, Budget, Bibliothèque de documents, jobs, intégrations.
+État au 01/11/2026, après la troisième étape de restructuration :
+- mobile : Marché, Notifications, Documents ;
+- API : 11 modules métier, plus les jobs et les intégrations.
 Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
 
 ```text
@@ -18,6 +18,12 @@ zip-repl/
 │   │   │   │   ├── api.ts         Endpoints du marché
 │   │   │   │   ├── catalog.ts     Catégories, états, libellés
 │   │   │   │   └── components/    ProductCard, ResidenceMarket, DiscoverDeck
+│   │   │   ├── documents/
+│   │   │   │   ├── api.ts         Documents générés, bibliothèque, demandes de modèles (+ types)
+│   │   │   │   ├── documentFiles.ts, documentMeta.ts, pdfHtml.ts   Ouverture, libellés, lecteur PDF
+│   │   │   │   └── components/    DocumentRow, DocumentWizard, DocumentBundleModal,
+│   │   │   │                      MemberDocumentRequest, TemplateRequestModal,
+│   │   │   │                      SignatureOrderPanel, SignaturePad
 │   │   │   └── notifications/
 │   │   │       ├── api.ts         Alertes, lecture, préférences, jeton push
 │   │   │       ├── components/    NotificationManager (pont bus → toasts)
@@ -53,10 +59,18 @@ zip-repl/
 │       │   │   ├── budget/
 │       │   │   │   ├── budget.routes.ts           Budgets, appels de fonds, paiements, reçus
 │       │   │   │   └── budget.service.ts          reconcileBudgetAmounts, resolveOwnerUserId
-│       │   │   └── document-library/
-│       │   │       ├── document-library.routes.ts Dépôt, liste, téléchargement, versions, archivage
-│       │   │       └── document-library.service.ts assertDeletable (pièce justificative)
-│       │   ├── routes/            Endpoints des domaines pas encore migrés (49) + index.ts
+│       │   │   ├── document-library/
+│       │   │   │   ├── document-library.routes.ts Dépôt, liste, téléchargement, versions, archivage
+│       │   │   │   └── document-library.service.ts assertDeletable (pièce justificative)
+│       │   │   ├── chat/          routes + service (accès aux conversations, blocages, saisie, réactions)
+│       │   │   ├── claims/        routes + service (visibilité, événements, filtres) + validation
+│       │   │   ├── elections/     routes + service (éligibilité, clôture, publication des résultats)
+│       │   │   ├── expenses/      routes + service (contrôles des références, approbateurs) + validation
+│       │   │   ├── lots/          routes + service (périmètre, impayés, création) + validation
+│       │   │   ├── marketplace/   routes + service (périmètre du catalogue, masquage, modération auto)
+│       │   │   ├── organigramme/  routes + service (rôles, libellés, permissions)
+│       │   │   └── statistics/    routes + service (flux, devise, périodes)
+│       │   ├── routes/            Endpoints des domaines pas encore migrés (41) + index.ts
 │       │   ├── jobs/              Tâches planifiées : échéances (contrats, mandats, documents),
 │       │   │                      rappels (élections, abonnements), rétention (documents, OTP)
 │       │   ├── integrations/      Fournisseurs externes : stripe/ (client, webhook), zimsend (SMS)

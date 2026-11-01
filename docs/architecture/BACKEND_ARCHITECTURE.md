@@ -36,6 +36,24 @@ Les couches ne sont ajoutées que si le domaine le justifie (pas de dépôt « r
 - `document-library.service.ts` : `assertDeletable` (une pièce justificative ne se supprime pas), utilisé aussi par `routes/documents.ts`.
 - Plus aucun fichier de routes n'importe un autre fichier de routes (hors `routes/index.ts`, qui les enregistre).
 
+### Modules de l'étape 3
+| Module | Service : ce qui en est sorti | Validation |
+|---|---|---|
+| organigramme | `roleColor`, `roleLabel`, `rolePermissions` | — |
+| statistics | `flowsIn`, `syndicateCurrency`, `lastNMonths` | — |
+| expenses | `loadScopedExpense`, `checkExpenseReferences`, `alertApprovers`, `otherApprovers` | `expenseFields`, `ExpenseRefs` |
+| claims | `loadVisible`, `assertFresh`, `addEvent`, `view`, `checkUploads`, `filters`, `OPEN_SQL` | `listSchema` |
+| lots | `loadScopedLot`, `outstandingOf`, `insertLot`, contrôles de syndicat et de référence | `LOT_TYPES` et la chaîne des schémas de lot |
+| elections | `getEligibleVoterIds`, `isUserEligible`, `enrichElections`, `closeElectionVoting`, `publishElectionResults` | — |
+| chat | accès aux conversations, blocages, état de saisie, enrichissement des messages | — |
+| marketplace | périmètre du catalogue, `listingOpenTo`, `forViewer` (masquage), `autoScan` | — |
+
+Les fonctions qui lisent `req` ou écrivent dans `res` (périmètre du jeton, erreurs HTTP) restent dans les routes.
+
+**Duplication supprimée :** `jobs/election-reminders.ts` contenait une copie de la règle d'éligibilité au vote. Son commentaire disait qu'elle évitait d'importer la couche routes. Le job importe maintenant `getEligibleVoterIds` du service ; la logique est identique, ce qui a été vérifié ligne à ligne.
+
+**Code probablement mort, conservé :** `createIncidentConversation` et `addResponsibleToIncidentConversation` (`chat.service.ts`) sont exportées mais importées nulle part, ni de façon statique ni de façon dynamique. Elles sont gardées en attendant votre décision.
+
 ## `jobs/` et `integrations/`
 | Dossier | Fichiers | Démarré par |
 |---|---|---|
@@ -60,7 +78,8 @@ Les couches ne sont ajoutées que si le domaine le justifie (pas de dépôt « r
 | 2 | `assertDeletable` → `modules/document-library/document-library.service.ts` | Fait |
 | 3 | Jobs de `lib/` → `src/jobs/` | Fait (7 fichiers) |
 | 4 | Stripe et ZimSend → `src/integrations/` | Fait |
-| 5 | Domaines par taille croissante : parking, ideas, publications… puis finance, treasury, documents | À faire : 47 fichiers de routes sur 49 accèdent directement à la base |
+| 5 | Domaines ayant de la logique métier dans leurs routes | Fait pour 8 domaines (étape 3) |
+| 6 | Domaines restants : treasury, prestataires, travaux, parking, governance, auth, content, pdf, template-studio, documents (6 673 lignes)… | À faire : 41 fichiers dans `routes/` |
 
 ## Points connus
 - `routes/documents.ts` (6 673 lignes) et `lib/documentPdf.ts` (5 609 lignes) sont les plus gros fichiers du dépôt.

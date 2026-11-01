@@ -10,10 +10,10 @@
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
+  
   Modal,
   Platform,
   ScrollView,

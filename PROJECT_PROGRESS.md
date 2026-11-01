@@ -1766,3 +1766,28 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 ### Non fait
 - `S9.transitions_no_error` reste un `true` écrit en dur dans `election-audit-test` : le corriger demande de collecter les réponses 500 des scénarios précédents.
 - Fusion des deux clients HTTP du mobile (formes d'erreur différentes, 66 fichiers).
+
+## 2026-11-01 — Restructuration, étape 3
+
+### API : 8 modules de plus (11 au total)
+- Nouveaux modules : organigramme, statistics, expenses, claims, lots, elections, chat, marketplace.
+- Dans chaque module, les routes gardent ce qui touche `req`/`res`. Les fonctions sans HTTP vont dans `<module>.service.ts`, et les schémas Zod partagés dans `<module>.validation.ts` (expenses, claims, lots).
+- Mesures : 0 import entre modules, 0 import `routes → routes` hors `index.ts`, 0 cycle. Il reste 41 fichiers dans `routes/`.
+- `jobs/election-reminders.ts` utilise maintenant `getEligibleVoterIds` du service, au lieu d'une copie de la même règle (comparée ligne à ligne : identique).
+- Code probablement mort, conservé : `createIncidentConversation` et `addResponsibleToIncidentConversation` ne sont importées nulle part.
+
+### Mobile : fonctionnalité Documents
+- `features/documents/api.ts` regroupe `documents`, `library` et `templateRequests`, avec leurs types, sortis de `services/api/index.ts`.
+- `documentFiles`, `documentMeta` et `pdfHtml` (anciennement dans `lib/`) rejoignent la fonctionnalité, ainsi que 7 composants : DocumentRow, DocumentWizard, DocumentBundleModal, MemberDocumentRequest, TemplateRequestModal, SignatureOrderPanel, SignaturePad.
+- 31 imports dynamiques `await import("@/services/api")` sont redirigés vers la fonctionnalité ; ils restent dynamiques.
+
+### Vérifications
+- `tsc` : API et mobile à 0 erreur. Build API OK. Export natif Android/iOS OK. `login-transport` : 7/7.
+- Régression sur `syndycat_test` (avant le changement mobile, qui ne touche pas l'API) : 39/40, `no-server-error` à 128 routes.
+  - Suites des domaines déplacés toutes vertes : claims 65/65, units 65/65, marketplace 24 + 20 + 22, expense-governance 22/22, budget-totals 19/19, journeys 135/135, scenario-e2e 48/48, idor 108/108.
+  - `election-audit` : 29/30 (règle d'élection de remplacement non décidée).
+- Après la migration Documents : i18n 9/9, routes-resolve 369/369, contacts-config 6/6.
+- Navigateur, 0 erreur de page et 0 réponse 5xx :
+  - syndic : 7 écrans de documents, appels `/documents*` réussis ;
+  - membre : profil, bibliothèque ;
+  - super admin : `template-studio` (`/template-studio/requests`, `templates`, `stats`).
