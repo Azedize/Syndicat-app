@@ -285,10 +285,13 @@ router.post(
         target: "admin",
       }).catch(() => {});
 
+      // The answer says whether the invitation really left: never a success it cannot prove.
+      let invitationEmail: "sent" | "not_sent" | undefined;
       if (temporaryPassword) {
         const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
         const { subject, html } = welcomeTemplate(member!.name, "member", loginUrl, temporaryPassword);
-        sendTransactionalEmail({ to: email, subject, html, template: "welcome", syndicateId, req }).catch(() => {});
+        const sent = await sendTransactionalEmail({ to: email, subject, html, template: "welcome", syndicateId, req });
+        invitationEmail = sent.ok ? "sent" : "not_sent";
       }
 
       res
@@ -296,9 +299,12 @@ router.post(
         .json({
           data: member!,
           invited: !!temporaryPassword,
+          ...(invitationEmail ? { invitationEmail } : {}),
           ...(accountNotice ? { accountNotice } : {}),
           message: temporaryPassword
-            ? "Membre ajouté — invitation envoyée par email"
+            ? invitationEmail === "sent"
+              ? "Membre ajouté — invitation envoyée par email"
+              : "Membre ajouté — l'e-mail d'invitation n'a pas pu être envoyé. La personne peut choisir son mot de passe avec « Mot de passe oublié »."
             : accountNotice ?? "Membre ajouté avec succès",
         });
     } catch (err) {

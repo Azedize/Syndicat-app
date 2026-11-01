@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { initialEmailStatus, isReservedEmail, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
 import bcrypt from "bcryptjs";
-import { randomBytes, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -17,6 +17,7 @@ import {
   gt,
   isNull,
   desc,
+  sql,
 } from "drizzle-orm";
 import {
   requireAuth,
@@ -27,7 +28,7 @@ import {
   BCRYPT_COST,
 } from "../../middleware/auth.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
-import { passwordResetTemplate } from "../../lib/email/templates.js";
+import { emailLang, passwordChangedTemplate, passwordResetCodeTemplate, verificationCodeTemplate } from "../../lib/email/templates.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { listContexts, resolveContextRole } from "../../lib/access.js";
 import {
@@ -38,29 +39,6 @@ import {
   REFRESH_TOKEN_TTL_MS,
 } from "./auth.service.js";
 
-/**
- * Sends a password reset email via the centralized EmailService (real Gmail SMTP,
- * retry-on-failure, and email_logs/audit trail — see lib/email/emailService.ts).
- */
-async function sendPasswordResetEmail(
-  email: string,
-  name: string,
-  token: string,
-  req: any,
-) {
-  const resetUrl = process.env.APP_URL
-    ? `${process.env.APP_URL}/reset-password?token=${token}`
-    : `[APP_URL not set] token=${token}`;
-
-  const { subject, html } = passwordResetTemplate(name, resetUrl);
-  await sendTransactionalEmail({
-    to: email,
-    subject,
-    html,
-    template: "password_reset",
-  });
-  req.log.info({ to: email }, "Password reset email dispatched");
-}
 
 const router = Router();
 
@@ -610,23 +588,31 @@ router.put("/profile", requireAuth, async (req, res) => {
 });
 
 // ─── Forgot Password ─────────────────────────────────────────────────────────
-// Always returns 200 to prevent user enumeration attacks.
+// Sends a six-digit code by email (same policy as the sign-up code: bcrypt hash,
+// 10 minutes, 5 attempts, 5 codes per hour and address). Always answers the same
+// way, whether or not the address belongs to an account (no enumeration).
+
+const RESET_CODE_PURPOSE = "password_reset";
+const RESET_CODE_TTL_MIN = 10;
+const RESET_CODE_MAX_ATTEMPTS = 5;
+const RESET_GENERIC_ANSWER = {
+  message: "Si un compte actif utilise cette adresse, un code de réinitialisation vient d'y être envoyé.",
+  expiresIn: RESET_CODE_TTL_MIN * 60,
+};
+// Compared against when no code exists, so that both cases take the same time.
+const DUMMY_CODE_HASH = bcrypt.hashSync("000000-timing", 8);
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
 });
 
 router.post("/auth/forgot-password", async (req, res) => {
   const result = forgotPasswordSchema.safeParse(req.body);
   if (!result.success) {
-    // Still return 200 — don't reveal validation state
-    res.json({
-      message:
-        "Si cet email existe, un lien de réinitialisation vous a été envoyé.",
-    });
+    res.json(RESET_GENERIC_ANSWER);
     return;
   }
-  const email = result.data.email.trim().toLowerCase();
+  const email = result.data.email.toLowerCase();
 
   try {
     const [user] = await db
@@ -635,42 +621,44 @@ router.post("/auth/forgot-password", async (req, res) => {
       .where(eq(usersTable.email, email));
 
     if (user && user.status === "active") {
-      // Invalidate any existing unexpired tokens for this user
-      await db
-        .update(passwordResetTokensTable)
-        .set({ usedAt: new Date() })
-        .where(
-          and(
-            eq(passwordResetTokensTable.userId, user.id),
-            isNull(passwordResetTokensTable.usedAt),
-          ),
-        );
+      if (!(await checkOtpRate(email, RESET_CODE_PURPOSE))) {
+        req.log.warn({ userId: user.id }, "Password reset code limit reached");
+      } else {
+        // A new code replaces every earlier one (codes and legacy reset links).
+        const now = new Date();
+        await db
+          .update(otpTokensTable)
+          .set({ usedAt: now } as any)
+          .where(and(eq(otpTokensTable.email, email), eq(otpTokensTable.purpose, RESET_CODE_PURPOSE), isNull(otpTokensTable.usedAt)));
+        await db
+          .update(passwordResetTokensTable)
+          .set({ usedAt: now })
+          .where(and(eq(passwordResetTokensTable.userId, user.id), isNull(passwordResetTokensTable.usedAt)));
 
-      // Generate a cryptographically secure token (64 hex chars = 256 bits)
-      const token = randomBytes(32).toString("hex");
-      const expiresAt = new Date(
-        Date.now() + Number(process.env.RESET_TOKEN_EXPIRY_MS ?? 3_600_000), // default 1 hour
-      );
+        const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+        await db.insert(otpTokensTable).values({
+          email,
+          codeHash: await bcrypt.hash(code, 8),
+          purpose: RESET_CODE_PURPOSE,
+          expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MIN * 60_000),
+        } as any);
 
-      await db.insert(passwordResetTokensTable).values({
-        userId: user.id,
-        token: hashToken(token), // the raw token only travels in the email
-        expiresAt,
-      });
-
-      try {
-        await sendPasswordResetEmail(user.email, user.name, token, req);
-      } catch (emailErr) {
-        // Don't fail the request if email sending fails — log and continue
-        req.log.error(emailErr, "Failed to send password reset email");
+        const lang = emailLang(user.language);
+        const tpl = passwordResetCodeTemplate(user.name, code, RESET_CODE_TTL_MIN, lang);
+        const sent = await sendTransactionalEmail({
+          to: user.email,
+          subject: tpl.subject,
+          html: tpl.html,
+          text: tpl.text,
+          lang,
+          template: "password_reset",
+          syndicateId: user.syndicateId,
+        });
+        if (!sent.ok) req.log.error({ userId: user.id, error: sent.error, skipped: sent.skipped }, "Password reset code not sent");
       }
     }
 
-    // Always return the same response to prevent enumeration
-    res.json({
-      message:
-        "Si cet email existe, un lien de réinitialisation vous a été envoyé.",
-    });
+    res.json(RESET_GENERIC_ANSWER);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -678,13 +666,62 @@ router.post("/auth/forgot-password", async (req, res) => {
 });
 
 // ─── Reset Password ───────────────────────────────────────────────────────────
+// { email, code, newPassword }. The 64-character token of the former e-mail link
+// ({ token, newPassword }) is still accepted until those links expire.
 
-const resetPasswordSchema = z.object({
-  token: z.string().min(64).max(64),
-  newPassword: z
-    .string()
-    .min(8, "Le mot de passe doit contenir au moins 8 caractères"),
-});
+const resetPasswordSchema = z.union([
+  z.object({
+    email: z.string().trim().email(),
+    code: z.string().trim().regex(/^\d{6}$/, "Le code comporte 6 chiffres"),
+    newPassword: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  }),
+  z.object({
+    token: z.string().min(64).max(64),
+    newPassword: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  }),
+]);
+
+const RESET_CODE_INVALID = {
+  code: "RESET_CODE_INVALID",
+  error: "Code incorrect ou expiré. Vérifiez le code ou demandez-en un nouveau.",
+};
+
+/** Sets the new password, closes every session, and sends the security notice. */
+async function applyNewPassword(
+  user: typeof usersTable.$inferSelect,
+  newPassword: string,
+  consume: (tx: any, now: Date) => Promise<void>,
+) {
+  const now = new Date();
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+  await db.transaction(async (tx) => {
+    // A reset also clears temporary credentials.
+    await tx
+      .update(usersTable)
+      .set({ passwordHash, mustChangePassword: false, updatedAt: now })
+      .where(eq(usersTable.id, user.id));
+    await consume(tx, now);
+    // Every open session ends: a reset usually means the old password leaked.
+    await tx
+      .update(refreshTokensTable)
+      .set({ revokedAt: now })
+      .where(and(eq(refreshTokensTable.userId, user.id), isNull(refreshTokensTable.revokedAt)));
+  });
+  // After the commit only: the notice must never announce a change that failed.
+  const lang = emailLang(user.language);
+  const tpl = passwordChangedTemplate(user.name, now, lang);
+  void sendTransactionalEmail({
+    to: user.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    lang,
+    template: "password_changed",
+    syndicateId: user.syndicateId,
+  });
+}
+
+const RESET_DONE = { message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter." };
 
 router.post("/auth/reset-password", async (req, res) => {
   const result = resetPasswordSchema.safeParse(req.body);
@@ -693,11 +730,72 @@ router.post("/auth/reset-password", async (req, res) => {
     res.status(400).json({ error: msg });
     return;
   }
-  const { token, newPassword } = result.data;
 
   try {
     const now = new Date();
 
+    if ("code" in result.data) {
+      const { code, newPassword } = result.data;
+      const email = result.data.email.toLowerCase();
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+      const [otp] = user && user.status === "active"
+        ? await db
+            .select()
+            .from(otpTokensTable)
+            .where(
+              and(
+                eq(otpTokensTable.email, email),
+                eq(otpTokensTable.purpose, RESET_CODE_PURPOSE),
+                isNull(otpTokensTable.usedAt),
+                gt(otpTokensTable.expiresAt, now),
+              ),
+            )
+            .orderBy(desc(otpTokensTable.createdAt))
+            .limit(1)
+        : [];
+
+      if (!user || !otp) {
+        await bcrypt.compare(code, DUMMY_CODE_HASH);
+        res.status(400).json(RESET_CODE_INVALID);
+        return;
+      }
+
+      // Count the attempt before comparing, so parallel guesses cannot exceed the limit.
+      const [counted] = await db
+        .update(otpTokensTable)
+        .set({ attempts: sql`${otpTokensTable.attempts} + 1` } as any)
+        .where(and(eq(otpTokensTable.id, otp.id), isNull(otpTokensTable.usedAt)))
+        .returning({ attempts: otpTokensTable.attempts });
+      if (!counted || (counted.attempts ?? 0) > RESET_CODE_MAX_ATTEMPTS) {
+        // Too many guesses: this code is dead, a new one must be requested.
+        await db.update(otpTokensTable).set({ usedAt: now } as any).where(eq(otpTokensTable.id, otp.id));
+        res.status(429).json({
+          code: "RESET_CODE_LOCKED",
+          error: "Trop de tentatives incorrectes. Demandez un nouveau code.",
+        });
+        return;
+      }
+
+      if (!(await bcrypt.compare(code, otp.codeHash))) {
+        res.status(400).json(RESET_CODE_INVALID);
+        return;
+      }
+
+      await applyNewPassword(user, newPassword, async (tx, at) => {
+        // Single use: the update only succeeds while the code is still unused.
+        const used = await tx
+          .update(otpTokensTable)
+          .set({ usedAt: at })
+          .where(and(eq(otpTokensTable.id, otp.id), isNull(otpTokensTable.usedAt)))
+          .returning({ id: otpTokensTable.id });
+        if (!used.length) throw Object.assign(new Error("code already used"), { resetCodeUsed: true });
+      });
+      res.json(RESET_DONE);
+      return;
+    }
+
+    // Former e-mail link (64-character token).
+    const { token, newPassword } = result.data;
     const [resetToken] = await db
       .select()
       .from(passwordResetTokensTable)
@@ -708,7 +806,6 @@ router.post("/auth/reset-password", async (req, res) => {
           gt(passwordResetTokensTable.expiresAt, now),
         ),
       );
-
     if (!resetToken) {
       res.status(400).json({
         code: "RESET_TOKEN_INVALID_OR_EXPIRED",
@@ -716,12 +813,7 @@ router.post("/auth/reset-password", async (req, res) => {
       });
       return;
     }
-
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, resetToken.userId));
-
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, resetToken.userId));
     if (!user || user.status !== "active") {
       res.status(400).json({
         code: "RESET_ACCOUNT_UNAVAILABLE",
@@ -729,38 +821,25 @@ router.post("/auth/reset-password", async (req, res) => {
       });
       return;
     }
-
-    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
-
-    await db.transaction(async (tx) => {
-      // Update the user's password (a reset also clears temporary credentials)
-      await tx
-        .update(usersTable)
-        .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
-        .where(eq(usersTable.id, user.id));
-
-      // Mark the token as used (one-time use)
-      await tx
+    await applyNewPassword(user, newPassword, async (tx, at) => {
+      const used = await tx
         .update(passwordResetTokensTable)
-        .set({ usedAt: now })
-        .where(eq(passwordResetTokensTable.id, resetToken.id));
-
-      // Revoke all existing refresh tokens for security
-      await tx
-        .update(refreshTokensTable)
-        .set({ revokedAt: now })
-        .where(eq(refreshTokensTable.userId, user.id));
+        .set({ usedAt: at })
+        .where(and(eq(passwordResetTokensTable.id, resetToken.id), isNull(passwordResetTokensTable.usedAt)))
+        .returning({ id: passwordResetTokensTable.id });
+      if (!used.length) throw Object.assign(new Error("token already used"), { resetCodeUsed: true });
     });
-
-    res.json({
-      message:
-        "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
-    });
-  } catch (err) {
+    res.json(RESET_DONE);
+  } catch (err: any) {
+    if (err?.resetCodeUsed) {
+      res.status(400).json(RESET_CODE_INVALID);
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
 
 // ─── POST /auth/otp/send ─────────────────────────────────────────────────────
 router.post("/auth/otp/send", async (req, res) => {
@@ -792,22 +871,9 @@ router.post("/auth/otp/send", async (req, res) => {
       expiresAt,
     } as any);
 
-    const subject = "Votre code de vérification MIZAN";
-    const html = `
-      <div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;border-radius:12px;border:1px solid #E2E8F0;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <div style="width:56px;height:56px;background:#EFF6FF;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;">
-            <span style="font-size:24px;">🔐</span>
-          </div>
-        </div>
-        <h2 style="color:#0A1628;font-size:22px;margin:0 0 8px;text-align:center;">Vérifiez votre email</h2>
-        <p style="color:#64748B;font-size:14px;text-align:center;margin:0 0 28px;">Utilisez ce code pour finaliser la création de votre compte MIZAN.</p>
-        <div style="background:#EFF6FF;border:2px solid #2563EB;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
-          <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#2563EB;">${code}</span>
-        </div>
-        <p style="color:#94A3B8;font-size:12px;text-align:center;margin:0;">Ce code expire dans <strong>10 minutes</strong>. Ne le partagez avec personne.</p>
-      </div>`;
-    const result = await sendTransactionalEmail({ to: em, subject, html, template: "otp" });
+    const lang = emailLang(req.headers["accept-language"]);
+    const tpl = verificationCodeTemplate("signup", code, 10, lang);
+    const result = await sendTransactionalEmail({ to: em, subject: tpl.subject, html: tpl.html, text: tpl.text, lang, template: "otp" });
     if (!result.ok) {
       res.status(502).json({ error: "Le service email est indisponible. Réessayez plus tard." });
       return;

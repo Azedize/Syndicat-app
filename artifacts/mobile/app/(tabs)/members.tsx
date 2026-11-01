@@ -121,7 +121,7 @@ export default function MembersScreen() {
     if (!newName.trim() || submittingMember) return;
     setSubmittingMember(true);
     try {
-      const { data } = await apiRequest<{ data: any }>("/members", "POST", {
+      const res = await apiRequest<{ data: any; invited?: boolean; invitationEmail?: "sent" | "not_sent" }>("/members", "POST", {
         name: newName.trim(),
         email: newEmail.trim(),
         phone: newPhone.trim(),
@@ -129,6 +129,7 @@ export default function MembersScreen() {
         joinDate: localDate(),
         inviteToApp: inviteToApp && !!newEmail.trim(),
       });
+      const data = res.data;
       const member: Member = {
         id: data.id,
         name: data.name,
@@ -143,12 +144,18 @@ export default function MembersScreen() {
       addMember(member);
       setShowAdd(false);
       setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession(""); setInviteToApp(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({
-        type: "success",
-        title: t("success"),
-        message: data.invited ? `${member.name} — ${t("memberInvitedMessage")}` : `${member.name} — ${t("memberAdded") ?? "ajouté"}`,
-      });
+      if (res.invited && res.invitationEmail === "not_sent") {
+        // Member and account saved, but the invitation e-mail did not leave.
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showToast({ type: "warning", title: t("inviteEmailNotSentTitle"), message: `${member.name} — ${t("inviteEmailNotSentMessage")}` });
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast({
+          type: "success",
+          title: t("success"),
+          message: res.invited ? `${member.name} — ${t("memberInvitedMessage")}` : `${member.name} — ${t("memberAdded") ?? "ajouté"}`,
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("errorGeneric");
       showToast({ type: "error", title: t("error"), message: msg });

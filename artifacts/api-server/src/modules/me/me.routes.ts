@@ -42,6 +42,7 @@ import { getUserLotIds } from "../../lib/scope.js";
 import { z } from "zod";
 import { isReservedEmail, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
+import { emailChangedNoticeTemplate, emailLang, verificationCodeTemplate } from "../../lib/email/templates.js";
 /**
  * Data-subject rights (Loi 09-08 / CNDP): the right of access.
  *
@@ -315,7 +316,7 @@ router.post("/me/email-change/request", requireAuth, async (req, res) => {
   const user = req.user!;
   try {
     if (isReservedEmail(email)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
-    const [current] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, user.userId));
+    const [current] = await db.select({ email: usersTable.email, language: usersTable.language }).from(usersTable).where(eq(usersTable.id, user.userId));
     if (current && current.email.toLowerCase() === email) {
       return void res.status(400).json({ error: "C'est déjà votre adresse actuelle.", code: "EMAIL_UNCHANGED" });
     }
@@ -338,12 +339,16 @@ router.post("/me/email-change/request", requireAuth, async (req, res) => {
       purpose: emailChangePurpose(user.userId),
       expiresAt: new Date(Date.now() + 10 * 60_000),
     } as any);
+    const lang = emailLang(current?.language ?? req.headers["accept-language"]);
+    const tpl = verificationCodeTemplate("email_change", code, 10, lang);
     const sent = await sendTransactionalEmail({
       to: email,
-      subject: "Confirmez votre adresse e-mail MIZAN",
+      subject: tpl.subject,
       template: "email_change",
       req,
-      html: `<p>Voici votre code de confirmation :</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>Il expire dans 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>`,
+      html: tpl.html,
+      text: tpl.text,
+      lang,
     });
     if (!sent.ok) {
       return void res.status(502).json({ error: "Le code n'a pas pu être envoyé. Réessayez plus tard.", code: "EMAIL_SEND_FAILED" });
@@ -385,7 +390,7 @@ router.post("/me/email-change/confirm", requireAuth, async (req, res) => {
     }
 
     const result = await db.transaction(async (tx) => {
-      const [me] = await tx.select({ email: usersTable.email, syndicateId: usersTable.syndicateId }).from(usersTable).where(eq(usersTable.id, user.userId));
+      const [me] = await tx.select({ email: usersTable.email, syndicateId: usersTable.syndicateId, name: usersTable.name, language: usersTable.language }).from(usersTable).where(eq(usersTable.id, user.userId));
       if (!me) throw Object.assign(new Error("Compte introuvable"), { status: 404 });
       const [taken] = await tx.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.email}) = ${email}`).limit(1);
       if (taken) throw Object.assign(new Error("Cette adresse est déjà utilisée par un autre compte."), { status: 409, code: "EMAIL_TAKEN" });
@@ -415,7 +420,7 @@ router.post("/me/email-change/confirm", requireAuth, async (req, res) => {
         council = (await tx.update(conseilSyndicalTable).set({ email }).where(and(inArray(conseilSyndicalTable.syndicateId, syndicateIds), sql`lower(${conseilSyndicalTable.email}) = ${old}`)).returning({ id: conseilSyndicalTable.id })).length;
       }
       await tx.update(otpTokensTable).set({ usedAt: new Date() } as any).where(eq(otpTokensTable.id, token.id));
-      return { old, members, tenants, council };
+      return { old, members, tenants, council, name: me.name, language: me.language, syndicateId: me.syndicateId };
     });
 
     await serverAuditLog(req, {
@@ -424,6 +429,12 @@ router.post("/me/email-change/confirm", requireAuth, async (req, res) => {
       entityId: user.userId,
       details: `Adresse confirmée par code ; fiches mises à jour : ${result.members} copropriétaire(s), ${result.tenants} locataire(s), ${result.council} conseil.`,
     });
+    // After the commit: tell the former address, so a hijacked account does not go unnoticed.
+    if (!isReservedEmail(result.old)) {
+      const lang = emailLang(result.language);
+      const notice = emailChangedNoticeTemplate(result.name, email, new Date(), lang);
+      void sendTransactionalEmail({ to: result.old, subject: notice.subject, html: notice.html, text: notice.text, lang, template: "email_changed_notice", syndicateId: result.syndicateId, req });
+    }
     // The access token still carries the old address: the client renews its
     // session (refresh re-reads the account) before going on.
     res.json({ data: { email, emailStatus: "verified", linked: { members: result.members, tenants: result.tenants, council: result.council } }, refreshRequired: true });

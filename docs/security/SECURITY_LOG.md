@@ -197,3 +197,11 @@ Constat sans correction : `seed.ts` contient une adresse `@gmail.com` (`sara.bou
 - **Analyse :** les 14 entrées ne contiennent plus aucun secret utilisable. Les codes sont expirés ou consommés, et les comptes destinataires des invitations ont été supprimés.
 - **Copies :** des copies existent dans les sauvegardes locales `scripts/.seedgen/backups/` (hors Git), qu'il faut protéger ou purger selon la politique de conservation.
 - **Expurgation :** préparée et éprouvée sur une copie restaurée. **Non exécutée sur la base de travail sans validation.**
+
+## 2026-11-01 — Réinitialisation du mot de passe par code
+- Code à 6 chiffres (`crypto.randomInt`), chiffré en bcrypt, 10 minutes, usage unique.
+- Protection contre les essais en série : 5 essais par code, compteur incrémenté en base avant la comparaison.
+- Limites : 5 codes par heure et par adresse, plus la limite par IP des routes d'identification.
+- Pas d'énumération : réponse et durée identiques pour une adresse inconnue ; même refus pour un mauvais code ou une adresse inconnue.
+- Toutes les sessions sont révoquées après une réinitialisation. L'avis « mot de passe modifié » est envoyé après la validation en base.
+- Le code n'est jamais journalisé : le corps des e-mails `password_reset` n'est pas conservé, et l'erreur d'envoi est journalisée sans le code.

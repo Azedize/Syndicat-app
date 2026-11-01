@@ -1910,3 +1910,83 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - `tsc` API et mobile : 0 erreur. Build API OK. Export Android/iOS OK.
 - Régression sur `syndycat_test` : 39/40 (`election-audit` 29/30, règle non décidée).
   - subscriptions-access 31/31, marketplace-moderation 22/22, i18n 9/9, contacts 6/6, journeys 135/135, notifications-i18n 16/16.
+
+## 2026-11-01 — Réinitialisation du mot de passe : code non reçu (corrigé)
+
+### Cause exacte
+- `APP_URL` n'est pas défini dans `.env`. Le « lien » de l'e-mail valait `[APP_URL not set] token=…`.
+- `passwordResetTemplate` n'arrivait pas à analyser cette adresse : le bloc « code » était omis et l'e-mail ne contenait qu'un bouton au lien invalide. L'utilisateur recevait un e-mail **sans code utilisable**.
+- Même avec `APP_URL`, l'app demandait de coller un jeton de 64 caractères.
+- Preuve (`email_logs`) : la seule demande enregistrée, le 01/11 à 16:13 UTC vers le compte concerné, a été **acceptée par Gmail** (`250 2.0.0 OK`). L'envoi n'était donc pas en cause, c'est le contenu qui l'était.
+
+### Correction
+- **Code à 6 chiffres** (`crypto.randomInt`), conservé chiffré (bcrypt) dans `otp_tokens` (usage `password_reset`). C'est la politique déjà utilisée pour l'inscription :
+  - 10 minutes de validité ;
+  - 5 essais au maximum, compteur incrémenté avant la comparaison ;
+  - 5 codes par heure et par adresse, en plus de la limite par IP existante ;
+  - un nouveau code annule les précédents (codes et anciens liens) ;
+  - usage unique garanti en base (une double utilisation simultanée ne réussit qu'une fois).
+- **Pas d'énumération :** même réponse et même temps de traitement pour une adresse inconnue ; même refus pour un mauvais code ou une adresse inconnue.
+- **Après réinitialisation :** toutes les sessions (refresh tokens) sont révoquées. Un avis « mot de passe modifié » est envoyé après la validation en base, jamais avant.
+- **Ancien jeton de lien (64 caractères) :** encore accepté jusqu'à son expiration.
+- **E-mails :**
+  - modèles en français, anglais, arabe et espagnol (arabe de droite à gauche), dans la langue du compte ;
+  - version texte jointe à chaque e-mail ;
+  - expéditeur affiché « MIZAN » ;
+  - pied de page et slogan traduits.
+- **Mobile :**
+  - l'e-mail est transmis à l'écran du code ;
+  - champ code à 6 chiffres (clavier numérique, remplissage automatique), bouton « Renvoyer un code » ;
+  - messages d'erreur précis, textes mis à jour en 4 langues.
+
+### Vérifications
+- Nouvelle suite `password-reset-test` : 28/28. Elle couvre :
+  - adresse inconnue et adresse connue (même réponse) ;
+  - code chiffré, expiration à 10 minutes ;
+  - mauvais code, blocage après 5 essais, code expiré ;
+  - remplacement par un nouveau code ;
+  - réussite : nouveau mot de passe accepté, ancien refusé ;
+  - sessions fermées, réutilisation refusée, concurrence ;
+  - limite de 5 codes par heure.
+- Interface (Expo web + API de test) :
+  - « Vérifiez vos emails » affiché, code créé en base, e-mail prérempli ;
+  - mauvais code : message affiché ;
+  - bon code : écran de succès ;
+  - connexion avec le nouveau mot de passe → 200, avec l'ancien → 401 ;
+  - 0 erreur de page.
+- SMTP Gmail : connexion, STARTTLS et authentification vérifiés, sans envoi.
+- Régression : 40/41 (`election-audit` 29/30, règle non décidée).
+
+### Non vérifié
+- L'arrivée en boîte de réception d'un e-mail réel avec le nouveau modèle : aucun envoi réel n'a été fait sans votre accord.
+- Le fonctionnement sur téléphone.
+
+## 2026-11-01 — Audit des e-mails (phase 4) et premières corrections Android (phase 7)
+
+### E-mails
+- **Plus de succès fictif pour les invitations.**
+  - Avant : `POST /members` répondait « invitation envoyée par email » et `POST /team/invite` « Invitation envoyée » sans attendre l'envoi.
+  - Maintenant, les deux routes (et `POST /users`) attendent le résultat et renvoient `invitationEmail: "sent" | "not_sent"`. En cas d'échec, le message renvoie vers « Mot de passe oublié ».
+- **Mobile :**
+  - avertissement si l'invitation n'est pas partie ;
+  - bogue corrigé dans `members.tsx`, qui lisait `data.invited` au lieu de `invited` à la racine de la réponse : le message « invitation envoyée » n'apparaissait jamais ;
+  - type `team.invite` corrigé (il annonçait un `tempPassword` jamais renvoyé).
+- **Codes de vérification** (inscription, changement d'adresse) : nouveau modèle en 4 langues (`verificationCodeTemplate`), au lieu de HTML écrit à la main en français seulement.
+- **Changement d'adresse :** l'ancienne adresse est maintenant prévenue (`email_changed_notice`) après la validation en base. La nouvelle adresse y est en partie masquée.
+- **Langue :** l'app envoie la langue choisie (`Accept-Language`) avec chaque requête (module `i18n/current.ts`). Le serveur écrit les codes dans cette langue, ou dans la langue enregistrée pour le compte.
+- **Mise en page :** l'espacement entre lettres est supprimé pour l'arabe (il cassait les liaisons du slogan).
+- **Restent en français seulement :** l'e-mail de bienvenue, l'invitation d'équipe et la création de syndicat. La langue du destinataire n'est pas connue à la création du compte.
+- **Risque signalé, non modifié :** l'invitation envoie un mot de passe temporaire par e-mail. Il doit être changé à la première connexion. Une activation par code serait plus sûre (à décider).
+
+### Android et Google Play (vérifié dans la documentation officielle)
+- **Niveau d'API visé :** depuis le 31/08/2026, les nouvelles apps et mises à jour doivent viser l'API 36. React Native 0.88 vise l'API 36 (compilation avec l'API 37, minimum API 24) : conforme.
+- **`app.json` :**
+  - `versionCode: 1` ;
+  - `SCHEDULE_EXACT_ALARM` retirée et bloquée, avec `USE_EXACT_ALARM` (aucune alarme exacte ni notification locale planifiée dans le code) ;
+  - schéma de liens `mobile` remplacé par `mizan` (il n'était référencé nulle part).
+- **Suppression de compte :** exigée par Google (chemin dans l'app et page web). Elle n'existe pas encore et demande une décision sur les données conservées.
+
+### Vérifications
+- Régression : 41/42 (`election-audit`, règle non décidée). Nouvelle suite `invitation-email` : 6/6.
+- Suites comptes et e-mails : 24/24, 44/44, 28/28, 14/14, 7/7, 135/135.
+- Mobile : `tsc` 0 erreur, export Android OK, `login-transport` 7/7.

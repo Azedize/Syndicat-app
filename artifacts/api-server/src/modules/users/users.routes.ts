@@ -292,16 +292,16 @@ router.post(
         loginUrl,
         temporaryPassword,
       );
-      sendTransactionalEmail({
+      const sent = await sendTransactionalEmail({
         to: created.email,
         subject,
         html,
         template: "welcome",
         syndicateId: created.syndicateId,
         req,
-      }).catch(() => {});
+      });
 
-      res.status(201).json({ data: created });
+      res.status(201).json({ data: created, invitationEmail: sent.ok ? "sent" : "not_sent" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

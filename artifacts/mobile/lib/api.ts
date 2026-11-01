@@ -1,4 +1,5 @@
 import { getApiBaseUrl, getToken, refreshAccessToken } from "../services/api";
+import { requestLanguage } from "@/i18n/current";
 
 export async function apiRequest<T = any>(
   path: string,
@@ -15,6 +16,7 @@ export async function apiRequest<T = any>(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "Accept-Language": requestLanguage(),
     Accept: "application/json",
     ...extraHeaders,
   };

@@ -12,6 +12,7 @@ import { Alert, I18nManager, Platform } from "react-native";
 
 import { LANG_OPTIONS, type LangCode, type LangOption } from "@/i18n/languages";
 import { TRANSLATIONS } from "@/i18n/translations";
+import { setRequestLanguage } from "@/i18n/current";
 
 // Re-exported so existing imports from this module keep working.
 export { LANG_OPTIONS };
@@ -109,6 +110,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     LANG_OPTIONS.find((o) => o.code === lang) ?? LANG_OPTIONS[0];
   const isRTL = currentOption.rtl;
   lastLanguage = lang;
+  setRequestLanguage(lang);
 
   // Web: the page declares its language and direction (screen readers, the
   // browser's own RTL handling) and its title follows the language.

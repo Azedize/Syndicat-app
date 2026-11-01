@@ -218,13 +218,20 @@ export default function TeamInviteScreen() {
     if (!form.skip && form.name.trim()) {
       setInviting(true);
       try {
-        await teamApi.invite({
+        const res = await teamApi.invite({
           name: form.name.trim(),
           email: form.email.trim().toLowerCase(),
           phone: form.phone.trim() || undefined,
           role: role.id,
         });
         setInvited((prev) => [...prev, role.id]);
+        if (res.invitationEmail === "not_sent") {
+          // The account exists, but nobody received its temporary password.
+          setInviting(false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          Alert.alert(t("inviteEmailNotSentTitle"), t("inviteEmailNotSentMessage"), [{ text: t("teamInviteContinue"), onPress: () => goNext() }]);
+          return;
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         Alert.alert(

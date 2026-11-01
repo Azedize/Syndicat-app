@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { isTunnelHost, resolveApiBaseUrl } from "@/lib/login-transport";
+import { requestLanguage } from "@/i18n/current";
 
 const TOKEN_KEY = "@syndycat_token";
 const REFRESH_TOKEN_KEY = "@syndycat_refresh_token";
@@ -249,6 +250,7 @@ export async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "Accept-Language": requestLanguage(),
     ...(options.headers as Record<string, string>),
   };
 

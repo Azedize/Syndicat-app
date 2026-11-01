@@ -317,7 +317,8 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
       .from(syndicatesTable)
       .where(eq(syndicatesTable.id, syndicateId));
 
-    // Send invitation email (best-effort)
+    // Send invitation email (best-effort); the answer says whether it left.
+    let invitationEmail: "sent" | "not_sent" = "not_sent";
     try {
       const { subject, html } = teamInvitationTemplate(
         name,
@@ -326,12 +327,14 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
         syndicate?.name ?? "votre syndicat",
         tempPassword,
       );
-      await sendTransactionalEmail({
+      const sent = await sendTransactionalEmail({
         to: emailLower,
         subject,
         html,
         template: "team_invitation",
+        syndicateId,
       });
+      if (sent.ok) invitationEmail = "sent";
     } catch (emailErr) {
       req.log.warn(emailErr, "Failed to send team invitation email");
     }
@@ -340,7 +343,10 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
     const { passwordHash: _, ...safeUser } = newUser;
     res.status(201).json({
       data: safeUser,
-      message: "Invitation envoyée",
+      invitationEmail,
+      message: invitationEmail === "sent"
+        ? "Invitation envoyée"
+        : "Compte créé — l'e-mail d'invitation n'a pas pu être envoyé. La personne peut choisir son mot de passe avec « Mot de passe oublié ».",
     });
   } catch (err) {
     req.log.error(err);

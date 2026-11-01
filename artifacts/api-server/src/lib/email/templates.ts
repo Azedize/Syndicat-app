@@ -11,11 +11,29 @@ const BRAND_BLUE  = "#1F5EFF";   // MIZAN blue — action color, buttons
 const BRAND_COLOR = BRAND_BLUE;  // legacy alias kept for button() helper
 
 /** Shared branded shell every email body gets wrapped in. */
-export function wrapEmail(preheader: string, bodyHtml: string): string {
+export type EmailLang = "fr" | "en" | "ar" | "es";
+
+const FOOTER: Record<EmailLang, string> = {
+  fr: "Cet email a été envoyé automatiquement par la plateforme MIZAN — Gouvernance &amp; gestion des résidences.<br/>Ne répondez pas directement à ce message.",
+  en: "This email was sent automatically by the MIZAN platform — residence governance &amp; management.<br/>Please do not reply to this message.",
+  ar: "أُرسلت هذه الرسالة تلقائيًا من منصة ميزان لتسيير وإدارة الإقامات.<br/>يُرجى عدم الرد على هذه الرسالة.",
+  es: "Este correo fue enviado automáticamente por la plataforma MIZAN — gobernanza y gestión de residencias.<br/>No responda a este mensaje.",
+};
+
+const TAGLINE: Record<EmailLang, string> = {
+  fr: "GOUVERNANCE &amp; GESTION DES RÉSIDENCES",
+  en: "RESIDENCE GOVERNANCE &amp; MANAGEMENT",
+  ar: "تسيير وإدارة الإقامات",
+  es: "GOBERNANZA Y GESTIÓN DE RESIDENCIAS",
+};
+
+export function wrapEmail(preheader: string, bodyHtml: string, lang: EmailLang = "fr"): string {
+  const dir = lang === "ar" ? "rtl" : "ltr";
+  const align = lang === "ar" ? "right" : "left";
   return `
   <!DOCTYPE html>
-  <html lang="fr">
-    <body style="margin:0;padding:0;background:#EFF6FF;font-family:Helvetica,Arial,sans-serif;">
+  <html lang="${lang}" dir="${dir}">
+    <body dir="${dir}" style="margin:0;padding:0;background:#EFF6FF;font-family:Helvetica,Arial,sans-serif;text-align:${align};">
       <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</span>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EFF6FF;padding:28px 0;">
         <tr>
@@ -37,7 +55,7 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                             </td>
                             <td style="vertical-align:middle;">
                               <div style="color:#ffffff;font-size:22px;font-weight:900;letter-spacing:3px;font-family:Helvetica,Arial,sans-serif;">MIZAN</div>
-                              <div style="color:#8DB2FF;font-size:10px;font-weight:600;letter-spacing:2px;margin-top:2px;font-family:Helvetica,Arial,sans-serif;">GOUVERNANCE &amp; GESTION DES RÉSIDENCES</div>
+                              <div style="color:#8DB2FF;font-size:10px;font-weight:600;letter-spacing:${lang === "ar" ? "0" : "2px"};margin-top:2px;font-family:Helvetica,Arial,sans-serif;">${TAGLINE[lang]}</div>
                             </td>
                           </tr>
                         </table>
@@ -64,8 +82,7 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                       <td>
                         <p style="margin:0 0 4px 0;color:#2563EB;font-size:11px;font-weight:700;letter-spacing:1px;">MIZAN</p>
                         <p style="margin:0;color:#64748B;font-size:10px;line-height:1.5;">
-                          Cet email a été envoyé automatiquement par la plateforme MIZAN — Gouvernance &amp; gestion des résidences.<br/>
-                          Ne répondez pas directement à ce message.
+                          ${FOOTER[lang]}
                         </p>
                       </td>
                     </tr>
@@ -91,6 +108,128 @@ function button(url: string, label: string): string {
 export interface EmailTemplate {
   subject: string;
   html: string;
+  /** Plain-text alternative; derived from the HTML when absent. */
+  text?: string;
+  lang?: EmailLang;
+}
+
+/** A language MIZAN supports, from a stored preference (users.language) or a header. */
+export function emailLang(value: string | null | undefined): EmailLang {
+  const v = (value ?? "").slice(0, 2).toLowerCase();
+  return v === "en" || v === "ar" || v === "es" ? v : "fr";
+}
+
+const RESET_CODE_COPY: Record<EmailLang, { subject: string; hello: (n: string) => string; intro: string; label: string; expiry: (m: number) => string; ignore: string; never: string; sign: string }> = {
+  fr: {
+    subject: "Votre code de réinitialisation MIZAN",
+    hello: (n) => `Bonjour ${n},`,
+    intro: "Vous avez demandé à réinitialiser le mot de passe de votre compte MIZAN. Saisissez ce code dans l'application :",
+    label: "Code de réinitialisation",
+    expiry: (m) => `Ce code expire dans <strong>${m} minutes</strong> et ne peut être utilisé qu'une seule fois.`,
+    ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe actuel reste valable.",
+    never: "MIZAN ne vous demandera jamais ce code par téléphone ou par message.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    subject: "Your MIZAN password reset code",
+    hello: (n) => `Hello ${n},`,
+    intro: "You asked to reset the password of your MIZAN account. Enter this code in the app:",
+    label: "Reset code",
+    expiry: (m) => `This code expires in <strong>${m} minutes</strong> and can only be used once.`,
+    ignore: "If you did not make this request, ignore this email: your current password stays valid.",
+    never: "MIZAN will never ask you for this code by phone or message.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    subject: "رمز إعادة تعيين كلمة المرور في ميزان",
+    hello: (n) => `مرحبًا ${n}،`,
+    intro: "طلبتَ إعادة تعيين كلمة مرور حسابك في ميزان. أدخل هذا الرمز في التطبيق:",
+    label: "رمز إعادة التعيين",
+    expiry: (m) => `تنتهي صلاحية هذا الرمز بعد <strong>${m} دقائق</strong> ولا يُستخدم إلا مرة واحدة.`,
+    ignore: "إذا لم تكن صاحب هذا الطلب، تجاهل هذه الرسالة: كلمة مرورك الحالية تبقى صالحة.",
+    never: "لن تطلب منك ميزان هذا الرمز أبدًا عبر الهاتف أو الرسائل.",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    subject: "Su código para restablecer la contraseña de MIZAN",
+    hello: (n) => `Hola ${n}:`,
+    intro: "Ha solicitado restablecer la contraseña de su cuenta MIZAN. Introduzca este código en la aplicación:",
+    label: "Código de restablecimiento",
+    expiry: (m) => `Este código caduca en <strong>${m} minutos</strong> y solo puede usarse una vez.`,
+    ignore: "Si no ha realizado esta solicitud, ignore este correo: su contraseña actual sigue siendo válida.",
+    never: "MIZAN nunca le pedirá este código por teléfono o mensaje.",
+    sign: "— El equipo de MIZAN",
+  },
+};
+
+/** Six-digit password reset code (the code travels only in this email). */
+export function passwordResetCodeTemplate(name: string, code: string, minutes: number, lang: EmailLang = "fr"): EmailTemplate {
+  const c = RESET_CODE_COPY[lang];
+  const strip = (s: string) => s.replace(/<[^>]+>/g, "");
+  return {
+    lang,
+    subject: c.subject,
+    html: `
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.hello(name))}</p>
+      <p style="margin:0 0 20px 0;">${c.intro}</p>
+      <div style="margin:0 0 20px 0;padding:18px 20px;background:#EFF6FF;border:2px solid ${BRAND_BLUE};border-radius:12px;text-align:center;">
+        <div style="font-size:11px;letter-spacing:1px;color:#475569;text-transform:uppercase;margin-bottom:6px;">${c.label}</div>
+        <div dir="ltr" style="font-size:34px;font-weight:700;letter-spacing:10px;color:${BRAND_BLUE};font-family:'Courier New',monospace;">${code}</div>
+      </div>
+      <p style="margin:0 0 12px 0;">${c.expiry(minutes)}</p>
+      <p style="margin:0 0 12px 0;color:#475569;">${c.ignore}</p>
+      <p style="margin:0 0 16px 0;color:#475569;font-size:12px;">${c.never}</p>
+      <p style="margin:0;">${c.sign}</p>`,
+    text: [c.hello(name), "", c.intro, "", `${c.label} : ${code}`, "", strip(c.expiry(minutes)), "", c.ignore, c.never, "", c.sign].join("\n"),
+  };
+}
+
+const PASSWORD_CHANGED_COPY: Record<EmailLang, { subject: string; hello: (n: string) => string; body: (d: string) => string; notYou: string; sign: string }> = {
+  fr: {
+    subject: "Votre mot de passe MIZAN a été modifié",
+    hello: (n) => `Bonjour ${n},`,
+    body: (d) => `Le mot de passe de votre compte MIZAN a été réinitialisé le ${d}. Toutes vos sessions ouvertes ont été fermées.`,
+    notYou: "Si vous n'êtes pas à l'origine de ce changement, réinitialisez immédiatement votre mot de passe depuis l'application et contactez votre syndic.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    subject: "Your MIZAN password was changed",
+    hello: (n) => `Hello ${n},`,
+    body: (d) => `The password of your MIZAN account was reset on ${d}. All your open sessions have been signed out.`,
+    notYou: "If you did not make this change, reset your password from the app right away and contact your property manager.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    subject: "تم تغيير كلمة مرور حسابك في ميزان",
+    hello: (n) => `مرحبًا ${n}،`,
+    body: (d) => `أُعيد تعيين كلمة مرور حسابك في ميزان بتاريخ ${d}. وقد أُغلقت جميع جلساتك المفتوحة.`,
+    notYou: "إذا لم تقم بهذا التغيير، أعد تعيين كلمة المرور فورًا من التطبيق وتواصل مع وكيل الإقامة.",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    subject: "Se ha cambiado su contraseña de MIZAN",
+    hello: (n) => `Hola ${n}:`,
+    body: (d) => `La contraseña de su cuenta MIZAN se restableció el ${d}. Se han cerrado todas sus sesiones abiertas.`,
+    notYou: "Si no ha realizado este cambio, restablezca su contraseña desde la aplicación de inmediato y contacte con su administrador.",
+    sign: "— El equipo de MIZAN",
+  },
+};
+
+/** Security notice after a password reset (contains no secret). */
+export function passwordChangedTemplate(name: string, when: Date, lang: EmailLang = "fr"): EmailTemplate {
+  const c = PASSWORD_CHANGED_COPY[lang];
+  const locale = { fr: "fr-FR", en: "en-GB", ar: "ar-MA", es: "es-ES" }[lang];
+  const d = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Casablanca" }).format(when);
+  return {
+    lang,
+    subject: c.subject,
+    html: `
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.hello(name))}</p>
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.body(d))}</p>
+      <p style="margin:0 0 16px 0;color:#475569;">${escapeHtml(c.notYou)}</p>
+      <p style="margin:0;">${c.sign}</p>`,
+    text: [c.hello(name), "", c.body(d), "", c.notYou, "", c.sign].join("\n"),
+  };
 }
 
 // Suppress unused warning — BRAND_NAVY used in wrapEmail above
@@ -123,6 +262,117 @@ export function passwordResetTemplate(name: string, resetUrl: string): EmailTemp
       ${tokenBlock}
       <p>Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas effectué cette demande, ignorez cet email.</p>
       <p>— L'équipe MIZAN</p>`,
+  };
+}
+
+type CodeKind = "signup" | "email_change";
+const VERIFY_COPY: Record<EmailLang, { subject: Record<CodeKind, string>; intro: Record<CodeKind, string>; label: string; expiry: (m: number) => string; ignore: string; never: string; sign: string }> = {
+  fr: {
+    subject: { signup: "Votre code de vérification MIZAN", email_change: "Confirmez votre nouvelle adresse e-mail MIZAN" },
+    intro: { signup: "Utilisez ce code pour finaliser la création de votre compte MIZAN :", email_change: "Utilisez ce code pour confirmer cette adresse comme nouvelle adresse de votre compte MIZAN :" },
+    label: "Code de vérification",
+    expiry: (m) => `Ce code expire dans <strong>${m} minutes</strong> et ne peut être utilisé qu'une seule fois.`,
+    ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.",
+    never: "MIZAN ne vous demandera jamais ce code par téléphone ou par message.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    subject: { signup: "Your MIZAN verification code", email_change: "Confirm your new MIZAN e-mail address" },
+    intro: { signup: "Use this code to finish creating your MIZAN account:", email_change: "Use this code to confirm this address as the new address of your MIZAN account:" },
+    label: "Verification code",
+    expiry: (m) => `This code expires in <strong>${m} minutes</strong> and can only be used once.`,
+    ignore: "If you did not make this request, ignore this email.",
+    never: "MIZAN will never ask you for this code by phone or message.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    subject: { signup: "رمز التحقق الخاص بك في ميزان", email_change: "أكّد عنوان بريدك الإلكتروني الجديد في ميزان" },
+    intro: { signup: "استخدم هذا الرمز لإتمام إنشاء حسابك في ميزان:", email_change: "استخدم هذا الرمز لتأكيد هذا العنوان كعنوان جديد لحسابك في ميزان:" },
+    label: "رمز التحقق",
+    expiry: (m) => `تنتهي صلاحية هذا الرمز بعد <strong>${m} دقائق</strong> ولا يُستخدم إلا مرة واحدة.`,
+    ignore: "إذا لم تكن صاحب هذا الطلب، تجاهل هذه الرسالة.",
+    never: "لن تطلب منك ميزان هذا الرمز أبدًا عبر الهاتف أو الرسائل.",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    subject: { signup: "Su código de verificación de MIZAN", email_change: "Confirme su nueva dirección de correo de MIZAN" },
+    intro: { signup: "Use este código para terminar de crear su cuenta MIZAN:", email_change: "Use este código para confirmar esta dirección como la nueva de su cuenta MIZAN:" },
+    label: "Código de verificación",
+    expiry: (m) => `Este código caduca en <strong>${m} minutos</strong> y solo puede usarse una vez.`,
+    ignore: "Si no ha realizado esta solicitud, ignore este correo.",
+    never: "MIZAN nunca le pedirá este código por teléfono o mensaje.",
+    sign: "— El equipo de MIZAN",
+  },
+};
+
+/** Six-digit code to verify an address (sign-up, or a new address for an account). */
+export function verificationCodeTemplate(kind: CodeKind, code: string, minutes: number, lang: EmailLang = "fr"): EmailTemplate {
+  const c = VERIFY_COPY[lang];
+  const strip = (s: string) => s.replace(/<[^>]+>/g, "");
+  return {
+    lang,
+    subject: c.subject[kind],
+    html: `
+      <p style="margin:0 0 20px 0;">${c.intro[kind]}</p>
+      <div style="margin:0 0 20px 0;padding:18px 20px;background:#EFF6FF;border:2px solid ${BRAND_BLUE};border-radius:12px;text-align:center;">
+        <div style="font-size:11px;letter-spacing:1px;color:#475569;text-transform:uppercase;margin-bottom:6px;">${c.label}</div>
+        <div dir="ltr" style="font-size:34px;font-weight:700;letter-spacing:10px;color:${BRAND_BLUE};font-family:'Courier New',monospace;">${code}</div>
+      </div>
+      <p style="margin:0 0 12px 0;">${c.expiry(minutes)}</p>
+      <p style="margin:0 0 12px 0;color:#475569;">${c.ignore}</p>
+      <p style="margin:0 0 16px 0;color:#475569;font-size:12px;">${c.never}</p>
+      <p style="margin:0;">${c.sign}</p>`,
+    text: [c.intro[kind], "", `${c.label} : ${code}`, "", strip(c.expiry(minutes)), "", c.ignore, c.never, "", c.sign].join("\n"),
+  };
+}
+
+const EMAIL_CHANGED_COPY: Record<EmailLang, { subject: string; hello: (n: string) => string; body: (to: string, d: string) => string; notYou: string; sign: string }> = {
+  fr: {
+    subject: "L'adresse e-mail de votre compte MIZAN a été modifiée",
+    hello: (n) => `Bonjour ${n},`,
+    body: (to, d) => `Le ${d}, l'adresse e-mail de votre compte MIZAN a été remplacée par ${to}. Les prochains emails de MIZAN seront envoyés à cette nouvelle adresse.`,
+    notYou: "Si vous n'êtes pas à l'origine de ce changement, contactez immédiatement votre syndic : quelqu'un a peut-être accès à votre compte.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    subject: "The e-mail address of your MIZAN account was changed",
+    hello: (n) => `Hello ${n},`,
+    body: (to, d) => `On ${d}, the e-mail address of your MIZAN account was changed to ${to}. Future MIZAN emails will go to this new address.`,
+    notYou: "If you did not make this change, contact your property manager right away: someone may have access to your account.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    subject: "تم تغيير عنوان البريد الإلكتروني لحسابك في ميزان",
+    hello: (n) => `مرحبًا ${n}،`,
+    body: (to, d) => `بتاريخ ${d}، تم استبدال عنوان البريد الإلكتروني لحسابك في ميزان بالعنوان ${to}. ستُرسل رسائل ميزان القادمة إلى هذا العنوان الجديد.`,
+    notYou: "إذا لم تقم بهذا التغيير، تواصل فورًا مع وكيل الإقامة: قد يكون شخص ما قد وصل إلى حسابك.",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    subject: "Se ha cambiado la dirección de correo de su cuenta MIZAN",
+    hello: (n) => `Hola ${n}:`,
+    body: (to, d) => `El ${d}, la dirección de correo de su cuenta MIZAN se cambió por ${to}. Los próximos correos de MIZAN se enviarán a esta nueva dirección.`,
+    notYou: "Si no ha realizado este cambio, contacte de inmediato con su administrador: alguien podría tener acceso a su cuenta.",
+    sign: "— El equipo de MIZAN",
+  },
+};
+
+/** Sent to the former address once an address change is committed (contains no secret). */
+export function emailChangedNoticeTemplate(name: string, newEmail: string, when: Date, lang: EmailLang = "fr"): EmailTemplate {
+  const c = EMAIL_CHANGED_COPY[lang];
+  const locale = { fr: "fr-FR", en: "en-GB", ar: "ar-MA", es: "es-ES" }[lang];
+  const d = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Casablanca" }).format(when);
+  // Partly masked: enough to recognise it, not enough to harvest it.
+  const masked = newEmail.replace(/^(.{2})[^@]*(@.*)$/, "$1•••$2");
+  return {
+    lang,
+    subject: c.subject,
+    html: `
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.hello(name))}</p>
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.body(masked, d))}</p>
+      <p style="margin:0 0 16px 0;color:#475569;">${escapeHtml(c.notYou)}</p>
+      <p style="margin:0;">${c.sign}</p>`,
+    text: [c.hello(name), "", c.body(masked, d), "", c.notYou, "", c.sign].join("\n"),
   };
 }
 

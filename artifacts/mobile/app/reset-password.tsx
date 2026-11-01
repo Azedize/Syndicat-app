@@ -23,9 +23,14 @@ export default function ResetPasswordScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{ token?: string; email?: string }>();
+  // A former e-mail link carries a 64-character token; the e-mail now carries a 6-digit code.
+  const legacyToken = typeof params.token === "string" && params.token.length === 64 ? params.token : "";
 
-  const [token, setToken] = useState(params.token ?? "");
+  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
+  const [token, setToken] = useState("");
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -39,8 +44,11 @@ export default function ResetPasswordScreen() {
   const confirmPasswordRef = useRef<TextInputInstance>(null);
 
   const validate = () => {
-    if (!token.trim()) return t("codeRequired");
-    if (token.trim().length !== 64) return t("codeLength");
+    if (!legacyToken) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t("resetEmailRequired");
+      if (!token.trim()) return t("codeRequired");
+      if (!/^\d{6}$/.test(token.trim())) return t("codeLength");
+    }
     if (!newPassword) return t("newPasswordRequired");
     if (newPassword.length < 8) return t("newPasswordTooShort");
     if (newPassword !== confirmPassword) return t("passwordsMismatch");
@@ -77,24 +85,50 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     setError("");
+    setNotice("");
     setLinkInvalid(false);
     try {
-      await authApi.resetPassword(token.trim(), newPassword);
+      await authApi.resetPassword(
+        legacyToken ? { token: legacyToken } : { email: email.trim().toLowerCase(), code: token.trim() },
+        newPassword,
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
     } catch (err: any) {
-      const invalidLink =
-        err?.code === "RESET_TOKEN_INVALID_OR_EXPIRED" ||
-        /expired|expir|invalide|invalid/i.test(String(err?.message ?? ""));
-      if (invalidLink) {
+      if (err?.code === "RESET_CODE_INVALID") {
+        // Wrong or expired code: the user can retype it or ask for a new one.
+        setError(t("resetCodeInvalid"));
+      } else if (err?.code === "RESET_CODE_LOCKED" || err?.code === "RESET_TOKEN_INVALID_OR_EXPIRED") {
         setLinkInvalid(true);
         setError("");
+      } else if (err?.status === 400 && err?.message) {
+        setError(String(err.message));
       } else {
         setError(t("resetPasswordError"));
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    const em = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      setError(t("resetEmailRequired"));
+      return;
+    }
+    setResending(true);
+    setError("");
+    try {
+      await authApi.forgotPassword(em);
+    } catch {
+      // Same answer either way (no account enumeration).
+    } finally {
+      setResending(false);
+      setLinkInvalid(false);
+      setToken("");
+      setNotice(t("resetCodeResent"));
     }
   };
 
@@ -128,42 +162,83 @@ export default function ResetPasswordScreen() {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            {/* Token */}
-            <MizanFormField
-              label={t("resetCodeLabel")}
-              icon="hash"
-              focused={focusedField === "token"}
-              error={
-                error === t("codeRequired") || error === t("codeLength")
-                  ? error
-                  : undefined
-              }
-            >
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.tokenInput,
-                  { color: colors.foreground },
-                ]}
-                value={token}
-                onChangeText={(v) => {
-                  setToken(v);
-                  setError("");
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder={t("pasteCodePlaceholder")}
-                placeholderTextColor={colors.mutedForeground}
-                onFocus={() => setFocusedField("token")}
-                onBlur={() => setFocusedField(null)}
-                returnKeyType="next"
-                onSubmitEditing={() => newPasswordRef.current?.focus()}
-                accessibilityLabel={t("resetCodeLabel")}
-              />
-            </MizanFormField>
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              {t("copyFromEmailHint")}
-            </Text>
+            {!legacyToken ? (
+              <>
+                {/* Account e-mail */}
+                <MizanFormField
+                  label={t("emailAddress")}
+                  icon="mail"
+                  focused={focusedField === "email"}
+                  error={error === t("resetEmailRequired") ? error : undefined}
+                >
+                  <TextInput
+                    style={[styles.input, { color: colors.foreground }]}
+                    value={email}
+                    onChangeText={(v) => {
+                      setEmail(v);
+                      setError("");
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                    placeholder={t("emailPlaceholder")}
+                    placeholderTextColor={colors.mutedForeground}
+                    onFocus={() => setFocusedField("email")}
+                    onBlur={() => setFocusedField(null)}
+                    returnKeyType="next"
+                    accessibilityLabel={t("emailAddress")}
+                    testID="reset-email"
+                  />
+                </MizanFormField>
+
+                {/* Six-digit code */}
+                <MizanFormField
+                  label={t("resetCodeLabel")}
+                  icon="hash"
+                  focused={focusedField === "token"}
+                  error={
+                    error === t("codeRequired") || error === t("codeLength") || error === t("resetCodeInvalid")
+                      ? error
+                      : undefined
+                  }
+                >
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.tokenInput,
+                      { color: colors.foreground },
+                    ]}
+                    value={token}
+                    onChangeText={(v) => {
+                      setToken(v.replace(/\D/g, "").slice(0, 6));
+                      setError("");
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                    placeholder={t("pasteCodePlaceholder")}
+                    placeholderTextColor={colors.mutedForeground}
+                    onFocus={() => setFocusedField("token")}
+                    onBlur={() => setFocusedField(null)}
+                    returnKeyType="next"
+                    onSubmitEditing={() => newPasswordRef.current?.focus()}
+                    accessibilityLabel={t("resetCodeLabel")}
+                    testID="reset-code"
+                  />
+                </MizanFormField>
+                <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+                  {t("copyFromEmailHint")}
+                </Text>
+                {notice ? (
+                  <Text style={[styles.hint, { color: colors.success }]} accessibilityLiveRegion="polite">
+                    {notice}
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
 
             {/* New password */}
             <MizanFormField
@@ -283,7 +358,7 @@ export default function ResetPasswordScreen() {
               />
             </MizanFormField>
 
-            {error ? (
+            {error && ![t("resetEmailRequired"), t("codeRequired"), t("codeLength"), t("resetCodeInvalid"), t("newPasswordRequired"), t("newPasswordTooShort"), t("passwordsMismatch")].includes(error) ? (
               <View
                 style={[
                   styles.errorBox,
@@ -334,9 +409,11 @@ export default function ResetPasswordScreen() {
 
             <TouchableOpacity
               style={styles.secondaryLink}
-              onPress={() => router.push("/forgot-password")}
+              onPress={legacyToken ? () => router.push("/forgot-password") : resendCode}
+              disabled={resending}
               accessibilityRole="button"
-              accessibilityLabel={t("requestNewLink")}
+              accessibilityLabel={t("resendResetCode")}
+              testID="reset-resend"
             >
               <Text
                 style={[
@@ -346,7 +423,7 @@ export default function ResetPasswordScreen() {
               >
                 {t("noCode")}
                 <Text style={{ color: colors.tint }}>
-                  {t("requestNewLink")}
+                  {resending ? "…" : t("resendResetCode")}
                 </Text>
               </Text>
             </TouchableOpacity>
@@ -377,7 +454,7 @@ export default function ResetPasswordScreen() {
             </Text>
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.replace("/forgot-password" as any)}
+              onPress={legacyToken ? () => router.replace("/forgot-password" as any) : resendCode}
               accessibilityRole="button"
               accessibilityLabel={t("requestNewLink")}
             >

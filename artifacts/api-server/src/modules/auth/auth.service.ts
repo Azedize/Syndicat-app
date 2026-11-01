@@ -41,7 +41,7 @@ export async function issueRefreshToken(userId: string, contextSyndicateId?: str
 }
 
 // ─── Durable OTP rate limit (per email, 5 sends/hour) ────────────────────────
-export async function checkOtpRate(email: string): Promise<boolean> {
+export async function checkOtpRate(email: string, purpose = "email_verification"): Promise<boolean> {
   const since = new Date(Date.now() - 3600_000);
   const [{ value }] = await db
     .select({ value: count() })
@@ -49,7 +49,7 @@ export async function checkOtpRate(email: string): Promise<boolean> {
     .where(
       and(
         eq(otpTokensTable.email, email),
-        eq(otpTokensTable.purpose, "email_verification"),
+        eq(otpTokensTable.purpose, purpose),
         gt(otpTokensTable.createdAt, since),
       ),
     );

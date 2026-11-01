@@ -14,7 +14,7 @@ import { isReservedEmail } from "./deliverability.js";
 import type { Request } from "express";
 import { logger } from "../logger.js";
 import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "../outbound.js";
-import { wrapEmail } from "./templates.js";
+import { wrapEmail, type EmailLang } from "./templates.js";
 
 /** Templates whose body holds a secret: never stored, never re-sent from the log. */
 export const SECRET_TEMPLATES = new Set(["password_reset", "otp", "email_change", "welcome", "team_invitation"]);
@@ -81,6 +81,31 @@ export interface SendEmailOptions {
   syndicateId?: string | null;
   /** When available, attributes the email-log audit entry to the acting user. */
   req?: Request;
+  /** Language of the shell (footer, reading direction). Default: French. */
+  lang?: EmailLang;
+  /** Plain-text alternative; derived from the HTML when absent. */
+  text?: string;
+}
+
+/** "MIZAN <address>" unless SMTP_FROM already carries a display name. */
+function fromHeader(): string | undefined {
+  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER;
+  if (!from || from.includes("<")) return from;
+  const name = (process.env.SMTP_FROM_NAME ?? "MIZAN").replace(/["\r\n]/g, "");
+  return `"${name}" <${from}>`;
+}
+
+/** Plain-text alternative of an HTML body (clients and spam filters expect one). */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, "$2 ($1)")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export interface SendEmailResult {
@@ -113,7 +138,8 @@ async function undeliverableReason(to: string): Promise<string | null> {
  * not have their own operation fail because email delivery had a problem.
  */
 export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<SendEmailResult> {
-  const html = wrapEmail(opts.subject, opts.html);
+  const html = wrapEmail(opts.subject, opts.html, opts.lang);
+  const text = opts.text ?? htmlToText(opts.html);
 
   const [log] = await db
     .insert(emailLogsTable)
@@ -158,10 +184,11 @@ export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<Se
     try {
       const transporter = await getTransporter();
       const info = await transporter.sendMail({
-        from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+        from: fromHeader(),
         to: opts.to,
         subject: opts.subject,
         html,
+        text,
       });
       await finalizeLog(log.id, "sent", null, attempt - 1, providerReceipt(info));
       await auditEmail(opts, "sent");
@@ -269,10 +296,11 @@ export async function retryEmailLog(logId: string): Promise<SendEmailResult> {
     try {
       const transporter = await getTransporter();
       const info = await transporter.sendMail({
-        from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+        from: fromHeader(),
         to: log.recipient,
         subject: log.subject,
         html: log.bodyHtml,
+        text: htmlToText(log.bodyHtml),
       });
       await finalizeLog(log.id, "sent", null, (log.retryCount ?? 0) + attempt, providerReceipt(info));
       return { ok: true, logId: log.id };

@@ -113,8 +113,9 @@ export const team = {
         name: string;
         email: string;
         role: string;
-        tempPassword: string;
       };
+      /** Whether the invitation e-mail really left (the temporary password is never returned). */
+      invitationEmail: "sent" | "not_sent";
       message: string;
     }>("/team/invite", {
       method: "POST",

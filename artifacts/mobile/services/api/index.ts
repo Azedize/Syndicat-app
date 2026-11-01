@@ -112,12 +112,13 @@ export const auth = {
       false,
     ),
 
-  resetPassword: (token: string, newPassword: string) =>
+  /** { email, code } from the reset e-mail, or { token } from a former reset link. */
+  resetPassword: (proof: { email: string; code: string } | { token: string }, newPassword: string) =>
     request<{ message: string }>(
       "/auth/reset-password",
       {
         method: "POST",
-        body: JSON.stringify({ token, newPassword }),
+        body: JSON.stringify({ ...proof, newPassword }),
       },
       false,
     ),

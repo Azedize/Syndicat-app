@@ -147,7 +147,7 @@ export default function ForgotPasswordScreen() {
 
             <TouchableOpacity
               style={styles.secondaryLink}
-              onPress={() => router.push("/reset-password")}
+              onPress={() => router.push({ pathname: "/reset-password", params: { email: email.trim().toLowerCase() } })}
               accessibilityRole="button"
               accessibilityLabel={t("resetWithCode")}
             >
@@ -196,7 +196,7 @@ export default function ForgotPasswordScreen() {
 
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push("/reset-password")}
+              onPress={() => router.push({ pathname: "/reset-password", params: { email: email.trim().toLowerCase() } })}
               accessibilityRole="button"
               accessibilityLabel={t("enterResetCode")}
             >
