@@ -69,6 +69,13 @@ async function main() {
   report(Boolean(app.extra?.eas?.projectId), "projet EAS", app.extra?.eas?.projectId ?? "absent : à créer avec le compte Expo du propriétaire");
   report(existsSync(join(MOBILE, app.android?.googleServicesFile ?? "google-services.json")), "configuration Firebase présente");
 
+  console.log("— Informations légales");
+  // The privacy screen shows « à compléter » without these two values.
+  for (const name of ["EXPO_PUBLIC_LEGAL_ENTITY", "EXPO_PUBLIC_PRIVACY_EMAIL"]) {
+    const value = process.env[name] || eas.build?.production?.env?.[name];
+    report(Boolean(value?.trim()), name, value?.trim() ? "" : "absent : la politique de confidentialité afficherait « à compléter »");
+  }
+
   console.log("— Android");
   report(app.android?.allowBackup === false, "sauvegarde automatique Android coupée");
   const manifest = execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], {
