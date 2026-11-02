@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MIZAN — Gouvernance résidentielle",
+    "name": "MIZAN",
     "slug": "mobile",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -16,7 +16,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.syndycatglobalcps.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "package": "com.syndycatglobalcps.app",
@@ -51,7 +56,9 @@
       [
         "expo-image-picker",
         {
-          "microphonePermission": false
+          "microphonePermission": false,
+          "cameraPermission": "MIZAN uses the camera only when you take a photo: payment proof, complaint, document.",
+          "photosPermission": "MIZAN uses your photos only when you choose an image to attach: payment proof, complaint, document."
         }
       ],
       [
@@ -80,6 +87,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "locales": {
+      "fr": "./locales/fr.json",
+      "en": "./locales/en.json",
+      "ar": "./locales/ar.json",
+      "es": "./locales/es.json"
     }
   }
 }

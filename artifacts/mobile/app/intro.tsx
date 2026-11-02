@@ -13,6 +13,7 @@ import { MIZAN } from "@/constants/brand";
 import { DURATION, STAGGER, STAGGER_MAX } from "@/constants/motion";
 import { RADIUS, SPACING } from "@/constants/spacing";
 import { displayFace, FONT } from "@/constants/typography";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
@@ -205,6 +206,7 @@ export default function IntroScreen() {
   const { isDark, toggle } = useTheme();
   const colors = useColors();
   const { t, lang, isRTL } = useLanguage();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const c = COPY[(lang as Lang) in COPY ? (lang as Lang) : "fr"];
   const ar = lang === "ar";
@@ -212,7 +214,9 @@ export default function IntroScreen() {
 
   const openStart = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    router.push("/get-started");
+    // Replayed from Settings by a signed-in user: back to the app, not to the sign-up.
+    if (user) router.replace("/(tabs)" as any);
+    else router.push("/get-started");
   };
 
   return (

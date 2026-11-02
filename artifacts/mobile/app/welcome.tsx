@@ -17,6 +17,7 @@ import { displayFace, FONT } from "@/constants/typography";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { setFirstLaunchStage } from "@/lib/firstLaunch";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { ThemeToggleButton } from "@/components/theme/ThemeSwitcher";
 
@@ -53,6 +54,8 @@ export default function WelcomeScreen() {
   const hPad = 22;
 
   const tap = (fn: () => void, strong = false) => () => {
+    // The user has seen the welcome page: later launches open the sign-in screen.
+    setFirstLaunchStage("done");
     if (Platform.OS !== "web") {
       (strong ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium) : Haptics.selectionAsync()).catch(() => {});
     }

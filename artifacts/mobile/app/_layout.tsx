@@ -29,6 +29,7 @@ import { DataProvider } from "@/context/DataContext";
 import { FavoritesProvider } from "@/context/FavoritesContext";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
+import { publicHome, setFirstLaunchStage } from "@/lib/firstLaunch";
 import { SearchProvider } from "@/context/SearchContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -100,12 +101,12 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
     // Screens accessible without authentication
-    const PUBLIC_ROUTES = new Set(["index", "login", "forgot-password", "reset-password", "welcome", "intro", "plans", "get-started", "register", "email-verify", "privacy", "cgu"]);
+    const PUBLIC_ROUTES = new Set(["index", "first-launch", "login", "forgot-password", "reset-password", "welcome", "intro", "plans", "get-started", "register", "email-verify", "privacy", "cgu"]);
     const inAuthGroup = PUBLIC_ROUTES.has(segments[0] as string);
     // The root route is the public MIZAN welcome page. It owns the
     // unauthenticated landing experience instead of briefly opening the tabs.
     if (!user && !inAuthGroup && segments[0] !== undefined) {
-      router.replace("/welcome");
+      publicHome().then((home) => router.replace(home));
     } else if (user?.mustChangePassword && (segments[0] as string) !== "change-password") {
       // Temporary (invitation) credentials: the API refuses everything else
       // until the password is changed, so do not show the app shell.
@@ -114,6 +115,11 @@ function AuthGate() {
       router.replace("/(tabs)/" as any);
     }
   }, [user, isLoading, segments]);
+
+  // A signed-in user has been through the presentation: signing out leads to the sign-in screen.
+  useEffect(() => {
+    if (user) setFirstLaunchStage("done");
+  }, [user?.id]);
 
   const inAuthRoute = segments[0] === "login" ||
     (segments[0] as string) === "change-password" ||

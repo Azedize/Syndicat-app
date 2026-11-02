@@ -1,0 +1,5 @@
+{
+  "CFBundleDisplayName": "MIZAN",
+  "NSCameraUsageDescription": "MIZAN uses the camera only when you take a photo: payment proof, complaint, document.",
+  "NSPhotoLibraryUsageDescription": "MIZAN uses your photos only when you choose an image to attach: payment proof, complaint, document."
+}

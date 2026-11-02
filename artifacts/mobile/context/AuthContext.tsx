@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiRequest } from "@/lib/api";
+import { PUSH_TOKEN_KEY } from "@/lib/permissionFlow";
 import React, {
   createContext,
   useCallback,
@@ -213,13 +215,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      // Before the session ends: this phone must stop receiving this account's notifications.
+      const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+      if (pushToken) await apiRequest("/users/push-token", "DELETE", { pushToken }).catch(() => {});
       const rt = await getRefreshToken();
       if (rt) {
         await authApi.logout(rt).catch(() => {});
       }
     } catch {}
     await clearAllTokens();
-    await AsyncStorage.multiRemove(["@syndycat_user", "@syndycat_demo_email"]);
+    await AsyncStorage.multiRemove(["@syndycat_user", "@syndycat_demo_email", PUSH_TOKEN_KEY]);
     setTokenState(null);
     setUser(null);
   }, []);

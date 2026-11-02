@@ -1,0 +1,5 @@
+{
+  "CFBundleDisplayName": "MIZAN",
+  "NSCameraUsageDescription": "يستخدم MIZAN الكاميرا فقط عندما تلتقط صورة: إثبات دفع أو شكوى أو وثيقة.",
+  "NSPhotoLibraryUsageDescription": "يستخدم MIZAN صورك فقط عندما تختار صورة لإرفاقها: إثبات دفع أو شكوى أو وثيقة."
+}

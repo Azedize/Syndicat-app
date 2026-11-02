@@ -21,6 +21,7 @@ import { router } from "expo-router";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { publicHome } from "@/lib/firstLaunch";
 import type { UserRole } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -39,7 +40,7 @@ export default function RoleGuard({ allow, children, redirectTo = "/" }: RoleGua
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      router.replace("/welcome");
+      publicHome().then((home) => router.replace(home));
     } else if (!authorized) {
       router.replace(redirectTo as any);
     }

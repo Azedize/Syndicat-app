@@ -12,6 +12,7 @@ import {
   and,
   count,
   desc,
+  ne,
 } from "drizzle-orm";
 import { requireAuth, requireRole, BCRYPT_COST } from "../../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
@@ -431,6 +432,25 @@ router.put(
   },
 );
 
+// At sign-out. Only this phone's token: signing out of an old phone keeps the newer one.
+router.delete("/users/push-token", requireAuth, async (req, res) => {
+  const result = z.object({ pushToken: z.string().min(1) }).safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Token invalide" });
+    return;
+  }
+  try {
+    await db
+      .update(usersTable)
+      .set({ pushToken: null })
+      .where(and(eq(usersTable.id, req.user!.userId), eq(usersTable.pushToken, result.data.pushToken)));
+    res.json({ message: "Token retiré" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 router.delete(
   "/users/:id",
   requireAuth,
@@ -486,10 +506,17 @@ router.put("/users/push-token", requireAuth, async (req, res) => {
     return;
   }
   try {
-    await db
-      .update(usersTable)
-      .set({ pushToken: result.data.pushToken })
-      .where(eq(usersTable.id, req.user!.userId));
+    await db.transaction(async (tx) => {
+      // A phone belongs to the account signed in on it: the previous account stops receiving on it.
+      await tx
+        .update(usersTable)
+        .set({ pushToken: null })
+        .where(and(eq(usersTable.pushToken, result.data.pushToken), ne(usersTable.id, req.user!.userId)));
+      await tx
+        .update(usersTable)
+        .set({ pushToken: result.data.pushToken })
+        .where(eq(usersTable.id, req.user!.userId));
+    });
     res.json({ message: "Token enregistré" });
   } catch (err) {
     req.log.error(err);

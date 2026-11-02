@@ -359,8 +359,6 @@ export default function MyShopScreen() {
   // ─── Promotion helpers ────────────────────────────────────────────────
 
   const pickSponsorProof = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: false, quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
@@ -456,8 +454,6 @@ export default function MyShopScreen() {
 
   const pickProductImage = async () => {
     if (imageLocalUris.length >= 5) { Alert.alert(t("warning"), shopText("maximumPhotos", lang)); return; }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, quality: 0.75 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;

@@ -70,6 +70,8 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith("/auth/")) return next();
   // Deleting one's account never depends on the condominium's subscription.
   if (req.path === "/account-deletion" || req.path === "/me/account/delete") return next();
+  // Nor does signing out on a phone.
+  if (req.path === "/users/push-token") return next();
   // Billing recovery must remain available when a subscription is expired,
   // cancelled, or awaiting payment; otherwise the customer cannot renew or
   // retry the payment that would restore access.

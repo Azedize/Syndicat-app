@@ -1,5 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { ensureCameraPermission } from "./permissions";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";
 import { getApiBaseUrl, getToken } from "@/services/api";
@@ -138,8 +139,7 @@ export async function pickAndUploadPhoto(onProgress?: UploadProgressCallback): P
 
 /** Opens the camera, captures a photo, and uploads it. Returns UploadResult, or undefined on cancel/permission denied. */
 export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== "granted") return undefined;
+  if (!(await ensureCameraPermission())) return undefined;
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ["images"],
     quality: 0.8,

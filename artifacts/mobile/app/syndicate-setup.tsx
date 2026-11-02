@@ -1,4 +1,5 @@
 import { Feather } from "@/components/ui/Feather";
+import { ensureCameraPermission } from "@/lib/permissions";
 import { uploadFileUri } from "@/lib/upload";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -882,16 +883,13 @@ function SyndicateSetupScreenInner() {
       let result: ImagePicker.ImagePickerResult;
 
       if (source === "camera") {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return;
+        if (!(await ensureCameraPermission())) return;
         result = await ImagePicker.launchCameraAsync({
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.7,
         });
       } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) return;
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
           allowsEditing: true,

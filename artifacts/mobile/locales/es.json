@@ -1,0 +1,5 @@
+{
+  "CFBundleDisplayName": "MIZAN",
+  "NSCameraUsageDescription": "MIZAN usa la cámara solo cuando usted toma una foto: justificante de pago, reclamación, documento.",
+  "NSPhotoLibraryUsageDescription": "MIZAN usa sus fotos solo cuando usted elige una imagen para adjuntar: justificante de pago, reclamación, documento."
+}

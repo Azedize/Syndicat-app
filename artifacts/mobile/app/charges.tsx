@@ -38,6 +38,7 @@ import { TYPE } from "@/constants/typography";
 import { useCallStatus } from "@/hooks/useCallStatus";
 import { ErrorState } from "@/components/DataState";
 import { ticketedUrl } from "@/services/api";
+import { ensureCameraPermission } from "@/lib/permissions";
 import { uploadFileUri } from "@/lib/upload";
 
 // Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
@@ -312,14 +313,7 @@ function ChargesScreenInner() {
 
   const pickProofImage = async (source: "camera" | "library") => {
     try {
-      const perm =
-        source === "camera"
-          ? await ImagePicker.requestCameraPermissionsAsync()
-          : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(t("error"), t("permissionDeniedMessage"));
-        return;
-      }
+      if (source === "camera" && !(await ensureCameraPermission())) return;
       const result =
         source === "camera"
           ? await ImagePicker.launchCameraAsync({ quality: 0.7 })

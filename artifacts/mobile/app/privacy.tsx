@@ -52,7 +52,7 @@ export default function PrivacyScreen() {
         <View style={[s.legalBadge, { backgroundColor: "#13976C15", borderColor: "#13976C30" }]}>
           <Feather name="lock" size={14} color="#13976C" />
           <Text style={[s.legalBadgeText, { color: isDark ? "#7FE3B8" : "#13976C" }]}>
-            MIZAN s'engage à protéger vos données personnelles conformément à la loi marocaine 09-08 et au RGPD européen.
+            MIZAN protège vos données personnelles. Ce texte est en cours de validation juridique (loi marocaine 09-08).
           </Text>
         </View>
 

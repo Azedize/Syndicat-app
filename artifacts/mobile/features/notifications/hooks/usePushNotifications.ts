@@ -11,6 +11,7 @@
  *   ✅ Closed-app notifications (FCM native + background task)
  *   ✅ Tap / response navigation
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { router } from "expo-router";
@@ -19,6 +20,8 @@ import * as Device from "expo-device";
 import { notificationBus } from "@/hooks/useNotificationBus";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
+import { PUSH_TOKEN_KEY, shouldOfferPush } from "@/lib/permissionFlow";
+import { confirmDialog, say } from "@/lib/permissions";
 
 // ─── Android Notification Channels ───────────────────────────────────────────
 
@@ -125,6 +128,51 @@ function handleNotificationTap(
   }
 }
 
+// ─── Permission and device token ──────────────────────────────────────────
+
+type NotificationsModule = typeof import("expo-notifications");
+
+const PUSH_OFFERED_KEY = "@mizan_push_offered";
+
+const requestPushPermission = (Notifications: NotificationsModule) =>
+  Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowBadge: true, allowSound: true } });
+
+/** Sends this device's token to the server, and remembers it so signing out can remove it. */
+async function registerPushToken(Notifications: NotificationsModule): Promise<void> {
+  let pushToken: string;
+  try {
+    pushToken = (await Notifications.getExpoPushTokenAsync()).data;
+  } catch (err) {
+    console.warn("[Push] getExpoPushTokenAsync échoué:", err);
+    return;
+  }
+  try {
+    await apiRequest("/users/push-token", "PUT", { pushToken, platform: Platform.OS });
+    await AsyncStorage.setItem(PUSH_TOKEN_KEY, pushToken);
+  } catch (err) {
+    console.warn("[Push] Échec enregistrement token:", err);
+  }
+}
+
+export type PushPermissionAction = "none" | "ask" | "settings";
+
+/** What Settings can offer. « none »: already allowed, or no push on this runtime (Expo Go, simulator). */
+export async function getPushPermissionAction(): Promise<PushPermissionAction> {
+  if (Platform.OS === "web" || Constants.appOwnership === "expo" || !Device.isDevice) return "none";
+  const Notifications = await import("expo-notifications");
+  const state = await Notifications.getPermissionsAsync();
+  if (state.granted) return "none";
+  return state.canAskAgain ? "ask" : "settings";
+}
+
+/** From Settings, at the user's request. */
+export async function enablePushNotifications(): Promise<boolean> {
+  const Notifications = await import("expo-notifications");
+  const { granted } = await requestPushPermission(Notifications);
+  if (granted) await registerPushToken(Notifications);
+  return granted;
+}
+
 // ─── Main hook ────────────────────────────────────────────────────────────────
 
 export function usePushNotifications() {
@@ -140,6 +188,7 @@ export function usePushNotifications() {
     initialized.current = true;
 
     let receivedSub: { remove(): void } | null = null;
+    let tokenSub: { remove(): void } | null = null;
     let responseSub: { remove(): void } | null = null;
 
     (async () => {
@@ -175,71 +224,25 @@ export function usePushNotifications() {
           console.log("[Push] Android channels créés:", CHANNELS.map((c) => c.id));
         }
 
-        // ── Request permissions ───────────────────────────────────────────
-        const { status: existingStatus } =
-          await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== "granted") {
-          const { status } = await Notifications.requestPermissionsAsync({
-            ios: {
-              allowAlert: true,
-              allowBadge: true,
-              allowSound: true,
-            },
-          });
-          finalStatus = status;
+        // ── Permission: explained once, then asked. The rest of the app never depends on it ──
+        const permission = await Notifications.getPermissionsAsync();
+        let granted = permission.granted;
+        if (shouldOfferPush(permission, (await AsyncStorage.getItem(PUSH_OFFERED_KEY)) !== null)) {
+          await AsyncStorage.setItem(PUSH_OFFERED_KEY, "1");
+          const accepted = await confirmDialog(say("permPushTitle"), say("permPushWhy"), say("permContinue"), say("permNotNow"));
+          if (accepted) granted = (await requestPushPermission(Notifications)).granted;
         }
+        if (granted) await registerPushToken(Notifications);
 
-        if (finalStatus !== "granted") {
-          console.warn("[Push] Permission refusée — notifications désactivées");
-          return;
-        }
-
-        // ── Get FCM device token (native — direct Firebase) ───────────────
-        let fcmToken: string | null = null;
-        try {
-          const deviceToken = await Notifications.getDevicePushTokenAsync();
-          fcmToken = deviceToken.data as string;
-          console.log("[Push] FCM device token obtenu");
-        } catch (err) {
-          console.warn("[Push] getDevicePushTokenAsync échoué:", err);
-        }
-
-        // ── Get Expo push token (Expo Push Service wrapper) ───────────────
-        let expoPushToken: string | null = null;
-        try {
-          const tokenData = await Notifications.getExpoPushTokenAsync();
-          expoPushToken = tokenData.data;
-          console.log("[Push] Expo push token obtenu");
-        } catch (err) {
-          console.warn("[Push] getExpoPushTokenAsync échoué (normal en Expo Go):", err);
-        }
-
-        // ── Register token(s) with the API ────────────────────────────────
-        if (fcmToken || expoPushToken) {
-          try {
-            await apiRequest(
-              "/users/push-token",
-              "PUT",
-              {
-                pushToken: expoPushToken ?? fcmToken,
-                fcmToken: fcmToken ?? undefined,
-                platform: Platform.OS,
-              },
-              authToken
-            );
-            console.log("[Push] Token(s) enregistrés sur le serveur");
-          } catch (err) {
-            console.warn("[Push] Échec enregistrement token:", err);
-          }
-        }
+        // The system can replace the device token at any time.
+        tokenSub = Notifications.addPushTokenListener(() => {
+          registerPushToken(Notifications).catch(() => {});
+        });
 
         // ── Listener: notification received while app is FOREGROUNDED ─────
         receivedSub = Notifications.addNotificationReceivedListener(
           (notification) => {
             const { title, body, data } = notification.request.content;
-            console.log("[Push] Notification reçue (foreground):", title, body);
 
             if (title || body) {
               notificationBus.emit({
@@ -260,7 +263,6 @@ export function usePushNotifications() {
           (response) => {
             const data = (response.notification.request.content.data ??
               {}) as Record<string, string>;
-            console.log("[Push] Notification tappée:", data);
             handleNotificationTap(data);
           }
         );
@@ -271,7 +273,6 @@ export function usePushNotifications() {
         if (lastResponse) {
           const data = (lastResponse.notification.request.content.data ??
             {}) as Record<string, string>;
-          console.log("[Push] App lancée depuis notification:", data);
           handleNotificationTap(data);
         }
 
@@ -283,6 +284,7 @@ export function usePushNotifications() {
 
     return () => {
       receivedSub?.remove();
+      tokenSub?.remove();
       responseSub?.remove();
       initialized.current = false;
     };

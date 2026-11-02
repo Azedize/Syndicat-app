@@ -2,10 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import Constants from "expo-constants";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   Platform,
   ScrollView,
@@ -25,6 +26,11 @@ import { useColors } from "@/hooks/useColors";
 import ScreenHeader from "@/components/ScreenHeader";
 import { Avatar, Button, Card, Chip, ListItem, SectionHeader, StatusBadge } from "@/components/ui";
 import { TYPE } from "@/constants/typography";
+import {
+  enablePushNotifications,
+  getPushPermissionAction,
+  type PushPermissionAction,
+} from "@/features/notifications/hooks/usePushNotifications";
 import { apiRequest } from "@/lib/api";
 import { resolveAvatarUrl } from "@/lib/avatarUrl";
 import { useFileTicket } from "@/hooks/useFileTicket";
@@ -63,6 +69,27 @@ export default function SettingsScreen() {
   const channelValue = (channel: "push" | "email" | "inApp") =>
     notificationPreferences.length > 0 &&
     notificationPreferences.every((preference) => preference[channel]);
+
+  // The phone's own authorization: refreshed when the user comes back from the system settings.
+  const [pushAction, setPushAction] = useState<PushPermissionAction>("none");
+  const refreshPushAction = useCallback(() => {
+    getPushPermissionAction().then(setPushAction).catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshPushAction();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshPushAction();
+    });
+    return () => sub.remove();
+  }, [refreshPushAction]);
+  const handlePushPermission = async () => {
+    if (pushAction === "settings") {
+      await Linking.openSettings().catch(() => {});
+      return;
+    }
+    await enablePushNotifications().catch(() => {});
+    refreshPushAction();
+  };
 
   const handleNotificationToggle = async (
     channel: "push" | "email" | "inApp",
@@ -181,6 +208,17 @@ export default function SettingsScreen() {
             ) : notificationPreferencesLoadError && notificationPreferences.length === 0 ? (
               <ListItem icon="alert-circle" iconTone="danger" title={t("settingsNotificationsUnavailable")} trailing={<Button label={t("settingsNotificationsRetry")} size="sm" variant="ghost" onPress={refreshNotificationPreferences} />} divider />
             ) : null}
+            {pushAction !== "none" ? (
+              <ListItem
+                icon="bell-off"
+                iconTone="danger"
+                title={t("permPushOffTitle")}
+                subtitle={t(pushAction === "ask" ? "permPushOffAsk" : "permPushOffSettings")}
+                chevron
+                divider
+                onPress={handlePushPermission}
+              />
+            ) : null}
             {(
               [
                 ["push", "smartphone", t("pushNotifications"), t("pushNotificationsSub")],
@@ -205,6 +243,13 @@ export default function SettingsScreen() {
                 }
               />
             ))}
+          </Card>
+        </View>
+
+        {/* Presentation, replayed on request */}
+        <View style={styles.group}>
+          <Card padding="none">
+            <ListItem icon="play-circle" title={t("flReplay")} subtitle={t("flReplaySub")} chevron onPress={() => router.push("/intro")} />
           </Card>
         </View>
 

@@ -93,6 +93,15 @@ async function main() {
   report(unwanted.length === 0, "aucune permission inutile", unwanted.join(", "));
   console.log(`          permissions déclarées par l'application : ${[...kept].map((p) => p.replace("android.permission.", "")).join(", ")}`);
 
+  console.log("— iOS");
+  report(/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/.test(app.ios?.bundleIdentifier ?? ""), "identifiant iOS", app.ios?.bundleIdentifier);
+  report(/^\d+$/.test(app.ios?.buildNumber ?? ""), "numéro de build", app.ios?.buildNumber);
+  for (const [code, path] of Object.entries<string>(app.locales ?? {})) {
+    const strings = JSON.parse(readFileSync(join(MOBILE, path), "utf8"));
+    report(Boolean(strings.NSCameraUsageDescription && strings.NSPhotoLibraryUsageDescription), `textes d'autorisation (${code})`);
+  }
+  report(existsSync(join(MOBILE, app.ios?.googleServicesFile ?? "GoogleService-Info.plist")), "configuration Firebase iOS présente");
+
   console.log("— Secrets");
   const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n");
   const signing = tracked.filter((f) => SIGNING_FILES.test(f));
