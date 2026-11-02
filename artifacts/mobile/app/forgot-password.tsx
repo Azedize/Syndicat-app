@@ -48,9 +48,9 @@ export default function ForgotPasswordScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSent(true);
     } catch {
-      // Still show success — the API always returns 200 to prevent enumeration
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSent(true);
+      // The API answers 200 for any address: an error here means the request never arrived.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(t("resetRequestFailed"));
     } finally {
       setLoading(false);
     }

@@ -89,6 +89,8 @@ const CREDENTIAL_ENDPOINTS = [
   "/api/auth/otp",
   "/api/auth/sms",
   "/api/auth/verify-phone",
+  "/api/account-deletion",
+  "/api/me/account/delete",
 ];
 
 const LIMITS = rateLimitProfile();

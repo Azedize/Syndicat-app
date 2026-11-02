@@ -84,10 +84,17 @@ async function main() {
   // ── Password recovery, without a mailbox ──
   const [subject] = await q<{ id: string; email: string; password_hash: string }>(
     `SELECT id, email, password_hash FROM users WHERE email LIKE $1 AND status = 'active' AND role = 'member' ORDER BY email DESC LIMIT 1`, [TEST_EMAIL_LIKE]);
+  // Earlier runs must not count against the limit of codes per hour.
+  await q(`DELETE FROM otp_tokens WHERE email = $1 AND purpose = 'password_reset'`, [subject.email]);
   const logsBefore = (await q<{ n: number }>(`SELECT count(*)::int AS n FROM email_logs`))[0].n;
   const forgot = await post("/auth/forgot-password", { email: subject.email });
   const unknown = await post("/auth/forgot-password", { email: `inconnu@nowhere.${TEST_EMAIL_ROOT}` });
   check("forgot-password: same answer for an existing and an unknown address", forgot.status === 200 && unknown.status === 200 && forgot.body?.message === unknown.body?.message);
+  // The route answers first and issues the code afterwards: wait for that step, which also cancels older links.
+  for (let i = 0; i < 50; i++) {
+    if ((await q<{ n: number }>(`SELECT count(*)::int AS n FROM email_logs`))[0].n > logsBefore) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
   const [log] = await q<any>(`SELECT status, error_message, body_html FROM email_logs WHERE recipient = $1 AND template = 'password_reset' ORDER BY created_at DESC LIMIT 1`, [subject.email]);
   check("the reset message to a test address is not attempted (skipped)", log?.status === "skipped", `${log?.status} ${log?.error_message ?? ""}`);
   check("the reset link is not kept in the e-mail log", log && log.body_html === null);

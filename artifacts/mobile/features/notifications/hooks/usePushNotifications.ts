@@ -211,7 +211,7 @@ export function usePushNotifications() {
         try {
           const tokenData = await Notifications.getExpoPushTokenAsync();
           expoPushToken = tokenData.data;
-          console.log("[Push] Expo push token obtenu:", expoPushToken);
+          console.log("[Push] Expo push token obtenu");
         } catch (err) {
           console.warn("[Push] getExpoPushTokenAsync échoué (normal en Expo Go):", err);
         }

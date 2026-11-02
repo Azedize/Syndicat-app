@@ -202,6 +202,17 @@ Constat sans correction : `seed.ts` contient une adresse `@gmail.com` (`sara.bou
 - Code à 6 chiffres (`crypto.randomInt`), chiffré en bcrypt, 10 minutes, usage unique.
 - Protection contre les essais en série : 5 essais par code, compteur incrémenté en base avant la comparaison.
 - Limites : 5 codes par heure et par adresse, plus la limite par IP des routes d'identification.
-- Pas d'énumération : réponse et durée identiques pour une adresse inconnue ; même refus pour un mauvais code ou une adresse inconnue.
-- Toutes les sessions sont révoquées après une réinitialisation. L'avis « mot de passe modifié » est envoyé après la validation en base.
+- Pas d'énumération : réponse identique pour une adresse inconnue (durée identique seulement depuis le correctif du 02/11/2026) ; même refus pour un mauvais code ou une adresse inconnue.
+- Les jetons de renouvellement sont révoqués après une réinitialisation. Un jeton d'accès déjà émis reste utilisable jusqu'à 15 minutes si le compte reste actif (voir l'entrée du 02/11/2026). L'avis « mot de passe modifié » est envoyé après la validation en base.
 - Le code n'est jamais journalisé : le corps des e-mails `password_reset` n'est pas conservé, et l'erreur d'envoi est journalisée sans le code.
+
+## 2026-11-02 — Suppression de compte, durée de réponse, dépendances
+
+- **Correction d'une affirmation fausse du 01/11 :** `/auth/forgot-password` attendait l'envoi SMTP. La durée de réponse révélait donc si l'adresse existait. La route répond maintenant avant toute recherche et traite la demande ensuite (test de durée dans `password-reset-test`).
+- **Correction d'une affirmation fausse du 01/11 :** « toutes les sessions sont fermées » était inexact. Seuls les jetons de renouvellement sont révoqués.
+- **Risque ouvert :** un jeton d'accès déjà émis reste valable jusqu'à 15 minutes après une réinitialisation si le compte reste actif. Le fermer demande une colonne en base, à valider.
+- **Suppression de compte :** mot de passe exigé, sessions révoquées, données personnelles anonymisées, compte refusé ensuite sur toutes les routes (`ACCOUNT_DISABLED`). Les écritures comptables sont conservées.
+- **Faux succès corrigé :** en cas d'erreur réseau, « Mot de passe oublié » affichait une réussite.
+- **Android :** `RECORD_AUDIO` et `SYSTEM_ALERT_WINDOW` bloquées, sauvegarde automatique coupée (`allowBackup: false`).
+- **Dépendances :** faille critique `proxy-addr` corrigée (elle concernait le calcul de l'IP derrière le proxy, donc les limites de débit). Mises à jour de `body-parser`, `multer`, `compression`, `axios`, `follow-redirects`, `ip-address`, `fast-xml-parser`, `nodemailer` 10.
+- **Risque ouvert :** `zod` 3 a une faille haute de consommation mémoire, corrigée seulement en version 4 (56 fichiers à migrer). Le corps des requêtes reste limité à 2 Mo.

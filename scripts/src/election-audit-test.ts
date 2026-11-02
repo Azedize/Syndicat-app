@@ -124,9 +124,14 @@ async function main() {
     return json?.data;
   }
 
+  const failedTransitions: string[] = [];
   async function transition(electionId: string, action: string, extra: Record<string, unknown> = {}) {
-    return api(`/elections/${electionId}/transition`, { method: "POST", token: adminToken, body: { action, ...extra } });
+    const res = await api(`/elections/${electionId}/transition`, { method: "POST", token: adminToken, body: { action, ...extra } });
+    if (res.status >= 500) failedTransitions.push(`${action}=${res.status}`);
+    return res;
   }
+  const resultAlerts = async (syndicateId: string) =>
+    Number((await pool`SELECT count(*) AS n FROM alerts WHERE key = 'election.results' AND syndicate_id = ${syndicateId}`)[0].n);
 
   async function submitAndApprove(electionId: string, candidateEmail: string, candidateToken: string) {
     const { json: submitJson } = await api(`/elections/${electionId}/candidates`, { method: "POST", token: candidateToken, body: {} });
@@ -142,6 +147,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════════════
   console.log("\n=== SCENARIO 1 — Normal election ===");
   const e1 = await createElection("Élection du Président — Résidence Al Andalous");
+  const resultAlertsBefore = await resultAlerts(e1.syndicateId);
   record("S1.create", "Election created in draft status", e1?.status === "draft", `status=${e1?.status}`);
 
   const t1 = await transition(e1.id, "open_candidacy");
@@ -303,10 +309,9 @@ async function main() {
   // SCENARIO 9 — Notifications (alerts table + push/email call sites, best-effort)
   // ═══════════════════════════════════════════════════════════════════════
   console.log("\n=== SCENARIO 9 — Notifications ===");
-  // We can't read alertsTable directly from this script (no route exposes a generic query),
-  // so we check indirectly: transitions that are documented to call createAlert() succeeded
-  // without throwing (500), which is the same code path that inserts alert rows + fires push/email.
-  record("S9.transitions_no_error", "All notification-triggering transitions (announce/approve/open/close/publish) completed without server error across scenarios 1,4,5,6", true, "verified via absence of 500s in S1/S4/S5/S6 transition calls above");
+  record("S9.transitions_no_error", "Every election transition of this run answered without a server error", failedTransitions.length === 0, failedTransitions.join(", ") || "no 5xx");
+  const resultAlertsAdded = (await resultAlerts(e1.syndicateId)) - resultAlertsBefore;
+  record("S9.results_alert", "Publishing the results stored an alert for the residents", resultAlertsAdded >= 1, `${resultAlertsAdded} alert(s) added`);
   // Static check of the scheduler source (not exercised live: it needs a real-time date proximity and a scheduler tick).
   const reminderSrc = await import("node:fs").then((fs) => fs.readFileSync(new URL("../../artifacts/api-server/src/jobs/election-reminders.ts", import.meta.url), "utf8")).catch(() => "");
   const reminderOk = /const THRESHOLDS = \[3, 1\]/.test(reminderSrc) && /remindersSent/.test(reminderSrc) && /export function startElectionReminderScheduler/.test(reminderSrc);

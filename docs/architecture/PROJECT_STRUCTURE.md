@@ -1,7 +1,7 @@
 # Structure du projet
 
 État au 01/11/2026, après la quatrième étape de restructuration :
-- **API :** tous les domaines sont dans `src/modules/` (52 modules). `src/routes/` ne contient plus que `index.ts`.
+- **API :** tous les domaines sont dans `src/modules/` (53 modules). `src/routes/` ne contient plus que `index.ts`.
 - **Mobile :** 14 fonctionnalités dans `features/`. `services/api/index.ts` ne garde que l'authentification, l'audit et le contenu transverse.
 Les dossiers générés (`node_modules`, `dist`, `.expo`, `uploads*`, `scripts/.seedgen`) ne sont pas du code source et ne sont pas réorganisés.
 
@@ -70,7 +70,7 @@ zip-repl/
 │       ├── src/
 │       │   ├── index.ts           Démarrage : port, jobs planifiés
 │       │   ├── app.ts             Express : CORS, sécurité, limites, routes
-│       │   ├── modules/           52 modules métier : <domaine>/<domaine>.routes.ts (+ .service.ts,
+│       │   ├── modules/           53 modules métier : <domaine>/<domaine>.routes.ts (+ .service.ts,
 │       │   │                      .validation.ts, .access.ts, .html.ts selon le besoin)
 │       │   │   ├── subscriptions/ routes + service (statut, paiements, essai) + access (supervision)
 │       │   │   ├── documents/     documents.routes.ts monte 6 sous-routeurs, dans l'ordre :

@@ -87,3 +87,11 @@ Huit fonctions jamais appelées (vérifié dans l'API, le mobile et les scripts,
 Elle était déclarée après `GET /products/:id`, qui l'interceptait (404 « Produit introuvable », déjà le cas au commit `5cd189f`). Elle est maintenant montée juste avant `/products/:id`, dans `marketplace.catalog.routes.ts`. Le contrôle des routes masquées donne 533 routes et 0 masquée.
 
 Vérifié en direct : le super admin reçoit la liste des annonces signalées (200), un membre est refusé (403).
+
+## ADR-013 — Suppression de compte par anonymisation (acceptée, 02/11/2026)
+
+**Contexte :** Google Play exige une suppression de compte dans l'app et par un lien web public. Les écritures de la copropriété doivent rester justes après le départ d'un copropriétaire.
+
+**Décision (choix du propriétaire) :** le compte est anonymisé et les écritures comptables sont conservées. Les données personnelles et les fichiers du compte sont effacés. La ligne `users` reste, sans donnée personnelle, car d'autres tables la référencent.
+
+**Conséquences :** le dernier administrateur d'une copropriété et les administrateurs de la plateforme ne peuvent pas se supprimer eux-mêmes. La durée légale de conservation n'a pas été vérifiée par un juriste : la politique de confidentialité doit être validée avant publication.

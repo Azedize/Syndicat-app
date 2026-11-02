@@ -280,6 +280,7 @@ export default function SettingsScreen() {
         </View>
 
         <Button label={t("logout")} icon="log-out" variant="secondary" fullWidth onPress={handleLogout} style={{ borderColor: colors.danger + "55" }} />
+        <Button label={t("delTitle")} icon="trash-2" variant="ghost" fullWidth onPress={() => router.push("/delete-account" as any)} />
       </ScrollView>
     </ThemeSwitchingArea>
   );

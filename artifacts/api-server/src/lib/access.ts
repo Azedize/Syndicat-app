@@ -147,6 +147,7 @@ const LIFECYCLE_EXEMPT = [
   /^\/api\/me\/terms-acceptances$/,
   /^\/api\/me\/data-export$/,
   /^\/api\/me\/email-change\/(request|confirm)$/,
+  /^\/api\/me\/account\/delete$/,
 ];
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 

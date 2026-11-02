@@ -433,7 +433,7 @@ router.post("/me/email-change/confirm", requireAuth, async (req, res) => {
     if (!isReservedEmail(result.old)) {
       const lang = emailLang(result.language);
       const notice = emailChangedNoticeTemplate(result.name, email, new Date(), lang);
-      void sendTransactionalEmail({ to: result.old, subject: notice.subject, html: notice.html, text: notice.text, lang, template: "email_changed_notice", syndicateId: result.syndicateId, req });
+      sendTransactionalEmail({ to: result.old, subject: notice.subject, html: notice.html, text: notice.text, lang, template: "email_changed_notice", syndicateId: result.syndicateId, req }).catch(() => {});
     }
     // The access token still carries the old address: the client renews its
     // session (refresh re-reads the account) before going on.

@@ -59,7 +59,7 @@ Mesures faites le 31/10/2026 avec un analyseur d'imports (imports statiques, `re
 
 ## API après l'étape 4 (141 fichiers)
 - 0 cycle ; 0 import entre modules (les 42 imports `modules → modules` sont internes : routes → service, validation…).
-- 52 modules ; `routes/` ne contient que `index.ts`, qui importe les 52 routeurs.
+- 53 modules ; `routes/` ne contient que `index.ts`, qui importe les 53 routeurs.
 - `modules → lib` : 213 ; `modules → middleware` : 55 ; `modules → integrations` : 4.
 - `jobs → modules` : 1 (`election-reminders` → `elections.service`) ; `integrations → modules` : 1 (webhook Stripe → abonnements).
 

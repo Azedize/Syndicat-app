@@ -33,8 +33,11 @@
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.USE_EXACT_ALARM"
-      ]
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -45,6 +48,12 @@
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-notifications",
         {

@@ -589,12 +589,13 @@ router.put("/profile", requireAuth, async (req, res) => {
 
 // ─── Forgot Password ─────────────────────────────────────────────────────────
 // Sends a six-digit code by email (same policy as the sign-up code: bcrypt hash,
-// 10 minutes, 5 attempts, 5 codes per hour and address). Always answers the same
-// way, whether or not the address belongs to an account (no enumeration).
+// 10 minutes, 5 attempts, 5 codes per hour and address). The answer is the same
+// and immediate whether or not the address belongs to an account (no enumeration).
 
 const RESET_CODE_PURPOSE = "password_reset";
 const RESET_CODE_TTL_MIN = 10;
 const RESET_CODE_MAX_ATTEMPTS = 5;
+const RESET_CODES_PER_HOUR = 5;
 const RESET_GENERIC_ANSWER = {
   message: "Si un compte actif utilise cette adresse, un code de réinitialisation vient d'y être envoyé.",
   expiresIn: RESET_CODE_TTL_MIN * 60,
@@ -606,63 +607,65 @@ const forgotPasswordSchema = z.object({
   email: z.string().trim().email(),
 });
 
-router.post("/auth/forgot-password", async (req, res) => {
-  const result = forgotPasswordSchema.safeParse(req.body);
-  if (!result.success) {
-    res.json(RESET_GENERIC_ANSWER);
+/** Creates and sends a code. Runs after the answer: nothing observable depends on the account. */
+async function issueResetCode(email: string, log: { warn: (o: object, m: string) => void; error: (o: object, m: string) => void }) {
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!user || user.status !== "active") return;
+
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const codeHash = await bcrypt.hash(code, 8);
+  // One request at a time per address: the hourly limit and "one open code" hold under parallel requests.
+  const issued = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${email}))`);
+    const since = new Date(Date.now() - 3600_000);
+    const [{ recent }] = await tx
+      .select({ recent: sql<number>`count(*)::int` })
+      .from(otpTokensTable)
+      .where(and(eq(otpTokensTable.email, email), eq(otpTokensTable.purpose, RESET_CODE_PURPOSE), gt(otpTokensTable.createdAt, since)));
+    if (recent >= RESET_CODES_PER_HOUR) return false;
+    // A new code replaces every earlier one (codes and legacy reset links).
+    const now = new Date();
+    await tx
+      .update(otpTokensTable)
+      .set({ usedAt: now } as any)
+      .where(and(eq(otpTokensTable.email, email), eq(otpTokensTable.purpose, RESET_CODE_PURPOSE), isNull(otpTokensTable.usedAt)));
+    await tx
+      .update(passwordResetTokensTable)
+      .set({ usedAt: now })
+      .where(and(eq(passwordResetTokensTable.userId, user.id), isNull(passwordResetTokensTable.usedAt)));
+    await tx.insert(otpTokensTable).values({
+      email,
+      codeHash,
+      purpose: RESET_CODE_PURPOSE,
+      expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MIN * 60_000),
+    } as any);
+    return true;
+  });
+  if (!issued) {
+    log.warn({ userId: user.id }, "Password reset code limit reached");
     return;
   }
-  const email = result.data.email.toLowerCase();
 
-  try {
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email));
+  const lang = emailLang(user.language);
+  const tpl = passwordResetCodeTemplate(user.name, code, RESET_CODE_TTL_MIN, lang);
+  const sent = await sendTransactionalEmail({
+    to: user.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    lang,
+    template: "password_reset",
+    syndicateId: user.syndicateId,
+  });
+  if (!sent.ok) log.error({ userId: user.id, error: sent.error, skipped: sent.skipped }, "Password reset code not sent");
+}
 
-    if (user && user.status === "active") {
-      if (!(await checkOtpRate(email, RESET_CODE_PURPOSE))) {
-        req.log.warn({ userId: user.id }, "Password reset code limit reached");
-      } else {
-        // A new code replaces every earlier one (codes and legacy reset links).
-        const now = new Date();
-        await db
-          .update(otpTokensTable)
-          .set({ usedAt: now } as any)
-          .where(and(eq(otpTokensTable.email, email), eq(otpTokensTable.purpose, RESET_CODE_PURPOSE), isNull(otpTokensTable.usedAt)));
-        await db
-          .update(passwordResetTokensTable)
-          .set({ usedAt: now })
-          .where(and(eq(passwordResetTokensTable.userId, user.id), isNull(passwordResetTokensTable.usedAt)));
-
-        const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-        await db.insert(otpTokensTable).values({
-          email,
-          codeHash: await bcrypt.hash(code, 8),
-          purpose: RESET_CODE_PURPOSE,
-          expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MIN * 60_000),
-        } as any);
-
-        const lang = emailLang(user.language);
-        const tpl = passwordResetCodeTemplate(user.name, code, RESET_CODE_TTL_MIN, lang);
-        const sent = await sendTransactionalEmail({
-          to: user.email,
-          subject: tpl.subject,
-          html: tpl.html,
-          text: tpl.text,
-          lang,
-          template: "password_reset",
-          syndicateId: user.syndicateId,
-        });
-        if (!sent.ok) req.log.error({ userId: user.id, error: sent.error, skipped: sent.skipped }, "Password reset code not sent");
-      }
-    }
-
-    res.json(RESET_GENERIC_ANSWER);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
+router.post("/auth/forgot-password", (req, res) => {
+  const result = forgotPasswordSchema.safeParse(req.body);
+  // Answered before any lookup: the delay of an SMTP send would reveal that the account exists.
+  res.json(RESET_GENERIC_ANSWER);
+  if (!result.success) return;
+  issueResetCode(result.data.email.toLowerCase(), req.log).catch((err) => req.log.error(err, "Password reset code failed"));
 });
 
 // ─── Reset Password ───────────────────────────────────────────────────────────
@@ -710,7 +713,7 @@ async function applyNewPassword(
   // After the commit only: the notice must never announce a change that failed.
   const lang = emailLang(user.language);
   const tpl = passwordChangedTemplate(user.name, now, lang);
-  void sendTransactionalEmail({
+  sendTransactionalEmail({
     to: user.email,
     subject: tpl.subject,
     html: tpl.html,
@@ -718,7 +721,7 @@ async function applyNewPassword(
     lang,
     template: "password_changed",
     syndicateId: user.syndicateId,
-  });
+  }).catch(() => {});
 }
 
 const RESET_DONE = { message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter." };

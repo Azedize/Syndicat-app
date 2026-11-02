@@ -39,3 +39,7 @@ yarn-error.*
 .vercel
 
 .env
+
+# Android signing and Google Play publishing
+*.keystore
+google-play-service-account*.json

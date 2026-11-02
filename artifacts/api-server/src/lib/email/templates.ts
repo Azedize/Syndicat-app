@@ -376,6 +376,57 @@ export function emailChangedNoticeTemplate(name: string, newEmail: string, when:
   };
 }
 
+const ACCOUNT_DELETED_COPY: Record<EmailLang, { subject: string; hello: (n: string) => string; body: string; kept: string; notYou: string; sign: string }> = {
+  fr: {
+    subject: "Votre compte MIZAN a été supprimé",
+    hello: (n) => `Bonjour ${n},`,
+    body: "Votre compte MIZAN a été supprimé à votre demande : vous ne pouvez plus vous y connecter et vos données personnelles de compte ont été effacées.",
+    kept: "Restent conservés, au titre des obligations de la copropriété : votre fiche tenue par le syndic, les écritures financières, les votes et les documents signés.",
+    notYou: "Si vous n'êtes pas à l'origine de cette suppression, contactez immédiatement votre syndic.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    subject: "Your MIZAN account has been deleted",
+    hello: (n) => `Hello ${n},`,
+    body: "Your MIZAN account has been deleted at your request: you can no longer sign in and your personal account data has been erased.",
+    kept: "Kept under the condominium's obligations: your record held by the property manager, financial records, votes and signed documents.",
+    notYou: "If you did not request this deletion, contact your property manager right away.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    subject: "تم حذف حسابك في ميزان",
+    hello: (n) => `مرحبًا ${n}،`,
+    body: "تم حذف حسابك في ميزان بناءً على طلبك: لم يعد بإمكانك تسجيل الدخول وقد مُحيت بيانات حسابك الشخصية.",
+    kept: "تبقى محفوظة بموجب التزامات الإقامة: بطاقتك لدى وكيل الإقامة والسجلات المالية والتصويتات والوثائق الموقعة.",
+    notYou: "إذا لم تطلب هذا الحذف، تواصل فورًا مع وكيل الإقامة.",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    subject: "Su cuenta MIZAN ha sido eliminada",
+    hello: (n) => `Hola ${n}:`,
+    body: "Su cuenta MIZAN ha sido eliminada a petición suya: ya no puede iniciar sesión y se han borrado sus datos personales de la cuenta.",
+    kept: "Se conservan, por las obligaciones de la comunidad: su ficha en poder del administrador, los registros financieros, los votos y los documentos firmados.",
+    notYou: "Si no ha solicitado esta eliminación, contacte de inmediato con su administrador.",
+    sign: "— El equipo de MIZAN",
+  },
+};
+
+/** Last message to the address of a deleted account (contains no secret). */
+export function accountDeletedTemplate(name: string, lang: EmailLang = "fr"): EmailTemplate {
+  const c = ACCOUNT_DELETED_COPY[lang];
+  return {
+    lang,
+    subject: c.subject,
+    html: `
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.hello(name))}</p>
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.body)}</p>
+      <p style="margin:0 0 12px 0;">${escapeHtml(c.kept)}</p>
+      <p style="margin:0 0 16px 0;color:#475569;">${escapeHtml(c.notYou)}</p>
+      <p style="margin:0;">${c.sign}</p>`,
+    text: [c.hello(name), "", c.body, "", c.kept, "", c.notYou, "", c.sign].join("\n"),
+  };
+}
+
 export function welcomeTemplate(name: string, role: string, loginUrl?: string, temporaryPassword?: string): EmailTemplate {
   const roleLabel: Record<string, string> = {
     super_admin: "Administrateur plateforme",

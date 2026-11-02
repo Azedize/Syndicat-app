@@ -31,6 +31,7 @@ import ideasRouter from "../modules/ideas/ideas.routes.js";
 import transparencyRouter from "../modules/transparency/transparency.routes.js";
 import rankingsRouter from "../modules/rankings/rankings.routes.js";
 import teamRouter from "../modules/team/team.routes.js";
+import accountRouter from "../modules/account/account.routes.js";
 import subscriptionsRouter from "../modules/subscriptions/subscriptions.routes.js";
 import parkingRouter from "../modules/parking/parking.routes.js";
 import escalationRouter from "../modules/escalation/escalation.routes.js";
@@ -67,6 +68,8 @@ const router: IRouter = Router();
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
   if (req.path.startsWith("/auth/")) return next();
+  // Deleting one's account never depends on the condominium's subscription.
+  if (req.path === "/account-deletion" || req.path === "/me/account/delete") return next();
   // Billing recovery must remain available when a subscription is expired,
   // cancelled, or awaiting payment; otherwise the customer cannot renew or
   // retry the payment that would restore access.
@@ -79,6 +82,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(accountRouter);
 router.use(membersRouter);
 router.use(usersRouter);
 router.use(syndicatesRouter);

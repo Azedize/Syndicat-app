@@ -17,7 +17,7 @@ import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "../outbound.
 import { wrapEmail, type EmailLang } from "./templates.js";
 
 /** Templates whose body holds a secret: never stored, never re-sent from the log. */
-export const SECRET_TEMPLATES = new Set(["password_reset", "otp", "email_change", "welcome", "team_invitation"]);
+export const SECRET_TEMPLATES = new Set(["password_reset", "otp", "email_change", "welcome", "team_invitation", "account_deleted"]);
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = [500, 1500]; // delay before attempt 2 and attempt 3

@@ -122,13 +122,16 @@ export default function ResetPasswordScreen() {
     setError("");
     try {
       await authApi.forgotPassword(em);
-    } catch {
-      // Same answer either way (no account enumeration).
-    } finally {
-      setResending(false);
       setLinkInvalid(false);
       setToken("");
       setNotice(t("resetCodeResent"));
+    } catch {
+      // The API answers 200 for any address: an error here means the request never arrived.
+      setLinkInvalid(false);
+      setNotice("");
+      setError(t("resetRequestFailed"));
+    } finally {
+      setResending(false);
     }
   };
 

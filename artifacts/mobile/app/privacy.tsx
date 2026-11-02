@@ -100,7 +100,7 @@ export default function PrivacyScreen() {
 
         <Section title="5. Durée de conservation" isDark={isDark}>
           <P isDark={isDark}>
-            Vos données de compte sont conservées tant que votre compte est actif. Leur suppression ou leur anonymisation après la fermeture du compte se fait sur demande (voir « Vos droits ») ; la durée exacte de conservation après fermeture doit être fixée par l'exploitant.
+            Vos données de compte sont conservées tant que votre compte est actif. Vous pouvez supprimer votre compte à tout moment dans Paramètres, ou sur la page web de suppression de compte. La suppression efface immédiatement vos données de compte (nom, adresse e-mail, téléphone, CIN, profession, photo, sessions), vos véhicules, favoris, annonces en cours et le contenu de vos messages. Restent conservés, au titre des obligations de la copropriété : votre fiche de copropriétaire ou de locataire tenue par le syndic, les écritures financières, les bulletins de vote, les signatures de documents, le registre du conseil syndical et le journal d'audit de sécurité.
           </P>
           <P isDark={isDark}>
             Les documents de la copropriété ont une durée de conservation par catégorie (par exemple 10 ans pour les documents financiers et juridiques, 5 ans pour les procès-verbaux), à l'issue de laquelle ils sont archivés puis purgés. Les écritures comptables et les paiements ne sont pas supprimés.

@@ -5,7 +5,7 @@
 index.ts ── jobs planifiés (lib/scheduler.ts)
    └── app.ts ── CORS, en-têtes de sécurité, limites de débit, JSON
           └── routes/index.ts ── requireActiveSubscription pour les écritures (sauf /subscriptions, /auth…)
-                 └── modules/<domaine>/<domaine>.routes.ts   (52 modules)
+                 └── modules/<domaine>/<domaine>.routes.ts   (53 modules)
                         ├── middleware/auth.ts   requireAuth, requireRole, requireAdmin, requireSuperAdmin
                         ├── <domaine>.access.ts  périmètre (syndicat, supervision)
                         ├── <domaine>.service.ts règles métier, transactions

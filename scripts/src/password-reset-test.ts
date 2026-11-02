@@ -39,6 +39,8 @@ async function plantCode(email: string, code: string, expiresInMs = 10 * 60_000)
              VALUES (${email}, ${await bcrypt.hash(code, 8)}, 'password_reset', ${new Date(Date.now() + expiresInMs).toISOString()})`;
   return code;
 }
+// POST /auth/forgot-password answers first and creates the code just after.
+const settle = () => new Promise((r) => setTimeout(r, 1200));
 const wrongCode = (code: string) => String((Number(code) + 1) % 1_000_000).padStart(6, "0");
 
 async function main() {
@@ -60,6 +62,7 @@ async function main() {
     const known = await call("POST", "/auth/forgot-password", { email: email.toUpperCase() });
     check("unknown e-mail: 200 with the generic answer", unknown.status === 200 && !!unknown.body?.message, String(unknown.status));
     check("known e-mail: exactly the same answer (no enumeration)", known.status === 200 && JSON.stringify(known.body) === JSON.stringify(unknown.body));
+    await settle();
     const issued = await codes(email);
     check("a reset code is stored for the account (address normalised)", issued.length === 1, `${issued.length} code(s)`);
     check("the code is stored hashed (bcrypt), never in clear", /^\$2[aby]\$/.test(issued[0]?.code_hash ?? "") && !/^\d{6}$/.test(issued[0]?.code_hash ?? ""));
@@ -69,6 +72,22 @@ async function main() {
     check("the e-mail is logged without its body (it holds the code)", !!log && log.body_html === null, log?.status);
     const unknownCodes = await pool`SELECT count(*)::int n FROM otp_tokens WHERE email = 'personne.inconnue@s20261019.seedgen.mizan.test'` as any[];
     check("nothing is stored for an unknown address", unknownCodes[0].n === 0);
+
+    // 2b. The answer does not wait for the code or the e-mail: same delay for both.
+    const timed = async (address: string) => { const t0 = performance.now(); await call("POST", "/auth/forgot-password", { email: address }); return performance.now() - t0; };
+    const samples: { known: number; unknown: number }[] = [];
+    await pool`DELETE FROM otp_tokens WHERE email = ${email} AND purpose = 'password_reset'`;
+    for (let i = 0; i < 3; i++) samples.push({ known: await timed(email), unknown: await timed("personne.inconnue@s20261019.seedgen.mizan.test") });
+    const worst = Math.max(...samples.map((x) => Math.abs(x.known - x.unknown)));
+    check("known and unknown addresses are answered in the same time (under 100 ms apart)", worst < 100, `${worst.toFixed(0)} ms`);
+    await settle();
+    // Parallel requests: the per-address lock keeps exactly one open code.
+    await pool`DELETE FROM otp_tokens WHERE email = ${email} AND purpose = 'password_reset'`;
+    await Promise.all([1, 2, 3, 4].map(() => call("POST", "/auth/forgot-password", { email })));
+    await settle();
+    const parallel = await codes(email);
+    check("parallel requests leave exactly one open code", parallel.filter((c) => !c.used_at).length === 1 && parallel.length <= 5, `${parallel.filter((c) => !c.used_at).length} ouvert(s) sur ${parallel.length}`);
+    await pool`DELETE FROM otp_tokens WHERE email = ${email} AND purpose = 'password_reset'`;
 
     // 3. Wrong code: refused, attempt counted, nothing changed.
     let code = await plantCode(email, "482913");
@@ -104,6 +123,7 @@ async function main() {
     await pool`DELETE FROM otp_tokens WHERE email = ${email} AND purpose = 'password_reset'`;
     code = await plantCode(email, "918273");
     await call("POST", "/auth/forgot-password", { email });
+    await settle();
     const replaced = await call("POST", "/auth/reset-password", { email, code, newPassword: NEW_PASSWORD });
     check("a new request invalidates the previous code", replaced.status === 400 && replaced.body?.code === "RESET_CODE_INVALID");
     const open = (await codes(email)).filter((c) => !c.used_at);
@@ -131,6 +151,7 @@ async function main() {
     await pool`DELETE FROM otp_tokens WHERE email = ${email} AND purpose = 'password_reset'`;
     const answers = [];
     for (let i = 0; i < 6; i++) answers.push(await call("POST", "/auth/forgot-password", { email }));
+    await settle();
     const stored = (await codes(email)).length;
     check("at most 5 codes per hour for one address", stored === 5, `${stored} code(s)`);
     check("the 6th request still gets the generic answer", answers[5].status === 200 && JSON.stringify(answers[5].body) === JSON.stringify(unknown.body));
