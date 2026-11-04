@@ -52,6 +52,8 @@ const PAIRS: Array<[string, string, number]> = [
   ["tint", "background", 4.5],
   ["tint", "card", 4.5],
   ["tint", "primarySoft", 4.5],
+  ["tabActive", "surface", 4.5],
+  ["textMuted", "surface", 4.5],
   // Primary used as link text on the page: AA in light; large-text level in dark (documented).
   ["primary", "background", 3],
   ["primary", "card", 3],

@@ -2027,3 +2027,13 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Exports JavaScript Android et iOS réussis.
 - **Non fait :** build Android ou iOS, téléphone réel, iPhone, notifications réelles, essai bouton par bouton de chaque écran.
 
+## 2026-11-04 — Barre de navigation en verre
+
+- Nouveau composant `components/navigation/GlassTabBar.tsx`, extrait de `app/(tabs)/_layout.tsx`. Routes, titres, conditions par rôle et badge inchangés. Même hauteur : les écrans n'ont pas changé.
+- Couleurs ajoutées aux deux thèmes dans `constants/colors.ts` (`tabActive`, `tabGlow`, `tabIndicator`, `glass*`).
+- iOS : vrai flou avec `BlurView`. Android : fond à 97 %, car un flou réel demanderait d'envelopper chaque écran dans un `BlurTargetView`.
+- Indicateur glissant, fondu des icônes, pression, apparition de la barre, fondu entre onglets.
+- Défaut corrigé pendant l'essai : en arabe, l'indicateur sortait de la barre (il suivait `I18nManager` au lieu de la langue).
+- Vérifié sur émulateur Android (API 37), dans Expo Go : syndic, membre, super admin ; clair et sombre en français, clair en arabe ; 320 dp en arabe. Non vérifié : iOS, téléphone réel, sombre et arabe ensemble, mesure de performance.
+- Signalé, non modifié : sur l'accueil en arabe, le titre de section « الأولويات » est coupé sous la bannière.
+
