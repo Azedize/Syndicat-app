@@ -13,11 +13,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
+import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { getToken } from "@/services/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface AuditLog {
@@ -46,10 +46,35 @@ const ACTION_CONFIG: Record<string, { color: string; icon: keyof typeof Feather.
 };
 
 function getActionConfig(action: string) {
-  return ACTION_CONFIG[action] ?? { color: "#6A6680", icon: "activity" as const };
+  return ACTION_CONFIG[action.toLowerCase()] ?? { color: "#6A6680", icon: "activity" as const };
 }
 
 const ACTION_LABELS: Record<string, Record<LangCode, string>> = {
+  payment_submitted: { fr: "Paiement déclaré", en: "Payment declared", ar: "تم التصريح بأداء", es: "Pago declarado" },
+  payment_approved: { fr: "Paiement validé", en: "Payment validated", ar: "تم التحقق من الأداء", es: "Pago validado" },
+  payment_rejected: { fr: "Paiement rejeté", en: "Payment rejected", ar: "تم رفض الأداء", es: "Pago rechazado" },
+  claim_created: { fr: "Réclamation déposée", en: "Complaint submitted", ar: "تم إيداع شكاية", es: "Reclamación presentada" },
+  meeting_created: { fr: "Réunion créée", en: "Meeting created", ar: "تم إنشاء اجتماع", es: "Reunión creada" },
+  document_uploaded: { fr: "Document ajouté", en: "Document added", ar: "تمت إضافة وثيقة", es: "Documento añadido" },
+  member_updated: { fr: "Membre modifié", en: "Member updated", ar: "تم تعديل العضو", es: "Miembro modificado" },
+  expense_approved: { fr: "Dépense approuvée", en: "Expense approved", ar: "تمت الموافقة على مصروف", es: "Gasto aprobado" },
+  create: { fr: "Création", en: "Created", ar: "إنشاء", es: "Creación" },
+  update: { fr: "Modification", en: "Updated", ar: "تعديل", es: "Modificación" },
+  data_export: { fr: "Export de données", en: "Data export", ar: "تصدير البيانات", es: "Exportación de datos" },
+  submit_candidacy: { fr: "Candidature déposée", en: "Candidacy submitted", ar: "تم إيداع ترشيح", es: "Candidatura presentada" },
+  validate_candidacy: { fr: "Candidature validée", en: "Candidacy validated", ar: "تم التحقق من الترشيح", es: "Candidatura validada" },
+  withdraw_candidacy: { fr: "Candidature retirée", en: "Candidacy withdrawn", ar: "تم سحب الترشيح", es: "Candidatura retirada" },
+  transition_open_candidacy: { fr: "Candidatures ouvertes", en: "Candidacies opened", ar: "فتح باب الترشيح", es: "Candidaturas abiertas" },
+  transition_start_campaign: { fr: "Campagne ouverte", en: "Campaign started", ar: "انطلاق الحملة", es: "Campaña iniciada" },
+  transition_open_voting: { fr: "Vote ouvert", en: "Voting opened", ar: "فتح التصويت", es: "Votación abierta" },
+  close_voting: { fr: "Vote clos", en: "Voting closed", ar: "إغلاق التصويت", es: "Votación cerrada" },
+  publish_results: { fr: "Résultats publiés", en: "Results published", ar: "نشر النتائج", es: "Resultados publicados" },
+  generate_appels: { fr: "Appels de fonds générés", en: "Calls for funds generated", ar: "إصدار طلبات المساهمة", es: "Derramas generadas" },
+  lots_imported: { fr: "Lots importés", en: "Lots imported", ar: "استيراد الوحدات", es: "Lotes importados" },
+  email_sent: { fr: "E-mail envoyé", en: "E-mail sent", ar: "تم إرسال بريد", es: "Correo enviado" },
+  email_failed: { fr: "E-mail non envoyé", en: "E-mail not sent", ar: "تعذر إرسال البريد", es: "Correo no enviado" },
+  condominium_status_changed: { fr: "Statut de la copropriété modifié", en: "Condominium status changed", ar: "تم تغيير وضعية الملكية المشتركة", es: "Estado de la comunidad modificado" },
+  account_deleted: { fr: "Compte supprimé", en: "Account deleted", ar: "تم حذف الحساب", es: "Cuenta eliminada" },
   vote: { fr: "Vote enregistré", en: "Vote recorded", ar: "تم تسجيل التصويت", es: "Voto registrado" },
   pay_cotisation: { fr: "Cotisation payée", en: "Contribution paid", ar: "تم دفع الاشتراك", es: "Cuota pagada" },
   approve_member: { fr: "Membre approuvé", en: "Member approved", ar: "تمت الموافقة على العضو", es: "Miembro aprobado" },
@@ -92,7 +117,7 @@ function formatDate(iso: string, lang: LangCode) {
 }
 
 function actionLabel(action: string, lang: LangCode) {
-  return ACTION_LABELS[action]?.[lang] ?? action.replace(/_/g, " ");
+  return ACTION_LABELS[action.toLowerCase()]?.[lang] ?? action.replace(/_/g, " ").toLowerCase();
 }
 
 export default function JournalAuditScreen() {
@@ -120,13 +145,7 @@ function JournalAuditScreenInner() {
   const fetchLogs = useCallback(async () => {
     try {
       setLoadError(false);
-      const token = await getToken();
-      const baseUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
-      const resp = await fetch(`${baseUrl}/audit`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await apiRequest<{ data: AuditLog[] }>("/audit");
       setLogs(data.data ?? []);
     } catch {
       setLoadError(true);
@@ -242,7 +261,7 @@ function JournalAuditScreenInner() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                      <Text style={[styles.actionLabel, { color: colors.foreground }]}>{actionLabel(log.action, lang)}</Text>
                     <View style={[styles.entityBadge, { backgroundColor: cfg.color + "15" }]}>
-                      <Text style={[styles.entityText, { color: cfg.color }]}>{log.entity}</Text>
+                      <Text style={[styles.entityText, { color: cfg.color }]}>{log.entity.replace(/_/g, " ")}</Text>
                     </View>
                   </View>
                   <Text style={[styles.userName, { color: colors.mutedForeground }]}>

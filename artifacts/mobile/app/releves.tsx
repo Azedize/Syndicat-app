@@ -323,7 +323,10 @@ function RelevesInner() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accountId) return;
+    if (!accountId) {
+      setRows([]);
+      return;
+    }
     setError(false);
     try {
       setRows((await apiRequest<{ data: any[] }>(`/treasury/accounts/${accountId}/statements`)).data ?? []);

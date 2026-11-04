@@ -156,7 +156,6 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       conditions.push(eq(appelsDeFondsTable.lotId, lotId));
     }
 
-    if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
 
@@ -172,6 +171,9 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       conditions.push(chargesOfPersonSql(await memberIdsOf(user)));
     }
 
+    // The totals describe the whole account: a status filter only narrows the list below them.
+    const statsWhere = conditions.length ? and(...conditions) : undefined;
+    if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     const where = conditions.length ? and(...conditions) : undefined;
 
     const [rows, [stats]] = await Promise.all([
@@ -191,7 +193,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
           overdue: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount} - ${appelsDeFondsTable.amountPaid}) FILTER (WHERE ${appelsDeFondsTable.status} = 'overdue'), 0)`,
         })
         .from(appelsDeFondsTable)
-        .where(where),
+        .where(statsWhere),
     ]);
 
     // Human-readable context for the mobile cards (lot number instead of an
@@ -213,8 +215,20 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     const lotNumber = new Map(lotRows.map((l) => [l.id, l.number]));
     const buildingName = new Map(buildingRows.map((b) => [b.id, b.name]));
     const ownerName = new Map(ownerRows.map((o) => [o.id, o.name]));
+    // What was declared and awaits validation: a partial payment is less than the amount of the call.
+    const awaitingIds = rows.filter((r) => r.status === "pending_validation").map((r) => r.id);
+    const declaredRows = awaitingIds.length
+      ? await db
+          .select({ appelId: appelPaymentsTable.appelId, amount: appelPaymentsTable.amount })
+          .from(appelPaymentsTable)
+          .where(and(inArray(appelPaymentsTable.appelId, awaitingIds), eq(appelPaymentsTable.status, "pending")))
+          .orderBy(desc(appelPaymentsTable.createdAt))
+      : [];
+    const declaredAmount = new Map<string, string>();
+    for (const d of declaredRows) if (!declaredAmount.has(d.appelId)) declaredAmount.set(d.appelId, d.amount);
     const data = rows.map((r) => ({
       ...r,
+      declaredAmount: declaredAmount.get(r.id) ?? null,
       lotNumber: lotNumber.get(r.lotId) ?? null,
       buildingName: buildingName.get(r.buildingId) ?? null,
       ownerName: r.ownerId ? (ownerName.get(r.ownerId) ?? null) : null,
@@ -964,7 +978,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
         // Header band
         {
           canvas: [
-            { type: "rect", x: -40, y: -60, w: 595, h: 80, color: "#1e40af" },
+            { type: "rect", x: 0, y: 0, w: 595.28, h: 112, color: "#1e40af" },
           ],
           absolutePosition: { x: 0, y: 0 },
         },
@@ -976,7 +990,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
         {
           text: "REÇU DE PAIEMENT",
           style: { font: FONT, fontSize: 12, color: "#bfdbfe" },
-          margin: [0, 0, 0, 30],
+          margin: [0, 0, 0, 44],
         },
         // Receipt number + date
         {
@@ -986,6 +1000,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                 {
                   text: "Référence du reçu",
                   style: { font: FONT, fontSize: 8, color: "#64748b" },
+                  margin: [0, 0, 0, 4],
                 },
                 {
                   text: receipt.number,
@@ -1003,6 +1018,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                 {
                   text: "Date de paiement",
                   style: { font: FONT, fontSize: 8, color: "#64748b" },
+                  margin: [0, 0, 0, 4],
                   alignment: "right",
                 },
                 {
@@ -1031,6 +1047,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
                         color: "#64748b",
                         alignment: "center",
                       },
+                      margin: [0, 0, 0, 8],
                     },
                     {
                       text: `${amountFmt} MAD`,

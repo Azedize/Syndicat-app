@@ -70,6 +70,12 @@ for (const f of walk(join(ROOT, "mobile"))) {
 }
 
 const problems: string[] = [];
+// The API address is resolved in one place: elsewhere it breaks with the production configuration.
+for (const f of walk(join(ROOT, "mobile"))) {
+  const where = relative(join(ROOT, "mobile"), f).split("\\").join("/");
+  if (where === "services/api/client.ts" || where === "lib/login-transport.ts") continue;
+  if (/EXPO_PUBLIC_(DOMAIN|API_URL|API_PORT)/.test(readFileSync(f, "utf8"))) problems.push(`API address built outside services/api/client.ts: ${where}`);
+}
 let checked = 0;
 for (const c of calls) {
   // A query string written as a template is not part of the path; template-studio adds its own /api.

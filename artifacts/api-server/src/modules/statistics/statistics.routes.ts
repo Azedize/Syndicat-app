@@ -568,7 +568,7 @@ router.get(
           name: sy.name,
           region: sy.region ?? "National",
           sector: sy.sector ?? "",
-          members: sy.membersCount ?? syMembers.length,
+          members: syMembers.length,
           activeMembers,
           cotisationRate,
           balance,
@@ -581,7 +581,7 @@ router.get(
         };
       });
 
-      res.json({ data: enriched });
+      res.json({ data: [...enriched].sort((a, b) => b.members - a.members) });
     } catch (err) {
       respondWithStatisticsError(req, res, err);
     }

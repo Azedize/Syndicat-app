@@ -2568,10 +2568,10 @@ export const TRANSLATIONS: Translations = {
     es: "Ejercicio",
   },
   budgetExecutionNote: {
-    fr: "Exécution sur 5 mois (janv–mai)",
-    en: "5-month execution (Jan–May)",
-    ar: "تنفيذ على مدى 5 أشهر (يناير–ماي)",
-    es: "Ejecución de 5 meses (ene–may)",
+    fr: "Situation à ce jour — exercice {year}",
+    en: "Position to date — {year} financial year",
+    ar: "الوضعية إلى غاية اليوم — السنة المالية {year}",
+    es: "Situación a día de hoy — ejercicio {year}",
   },
   budgetLoadingTitle: {
     fr: "Chargement du budget",
@@ -25974,5 +25974,29 @@ export const TRANSLATIONS: Translations = {
     en: "Reason for the suspension (at least 3 characters)",
     ar: "سبب التعليق (3 أحرف على الأقل)",
     es: "Motivo de la suspensión (3 caracteres como mínimo)",
+  },
+  validatePaymentTitle: {
+    fr: "Valider ce paiement ?",
+    en: "Validate this payment?",
+    ar: "هل تريد التحقق من هذا الأداء؟",
+    es: "¿Validar este pago?",
+  },
+  validatePaymentMessage: {
+    fr: "{amount} déclarés pour le lot {lot}. Vérifiez le justificatif : un reçu et une écriture comptable seront créés.",
+    en: "{amount} declared for lot {lot}. Check the proof: a receipt and an accounting entry will be created.",
+    ar: "تم التصريح بمبلغ {amount} للوحدة {lot}. تحقق من الإثبات: سيتم إنشاء وصل وقيد محاسبي.",
+    es: "{amount} declarados para el lote {lot}. Compruebe el justificante: se crearán un recibo y un asiento contable.",
+  },
+  paymentValidatedToast: {
+    fr: "Paiement validé, reçu émis.",
+    en: "Payment validated, receipt issued.",
+    ar: "تم التحقق من الأداء وإصدار الوصل.",
+    es: "Pago validado, recibo emitido.",
+  },
+  paymentDeclaredAmount: {
+    fr: "{amount} déclarés",
+    en: "{amount} declared",
+    ar: "{amount} مصرح به",
+    es: "{amount} declarados",
   },
 };

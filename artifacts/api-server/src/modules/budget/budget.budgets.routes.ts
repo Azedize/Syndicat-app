@@ -120,8 +120,14 @@ router.get("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
       allChargeStats.map((s) => [s.budgetId, s]),
     );
 
+    const buildingRows = await db
+      .select({ id: buildingsTable.id, name: buildingsTable.name })
+      .from(buildingsTable)
+      .where(inArray(buildingsTable.id, [...new Set(rows.map((b) => b.buildingId))]));
+    const buildingName = new Map(buildingRows.map((b) => [b.id, b.name]));
     const enriched = rows.map((b) => ({
       ...b,
+      buildingName: buildingName.get(b.buildingId) ?? null,
       lines: linesByBudget.get(b.id) ?? [],
       chargeStats: chargeStatsByBudget.get(b.id) ?? {
         collected: 0,

@@ -75,6 +75,28 @@ async function main() {
     const syndicList = await call("GET", "/syndicates", undefined, liveSyndic);
     check("a syndic sees only their own condominium, without the platform's list", syndicList.body?.data?.length === 1 && syndicList.body.data[0].adminName === undefined);
 
+    // Charges: the totals describe the account, whichever status filter the list shows.
+    const allCharges = await call("GET", "/appels-de-fonds", undefined, liveSyndic);
+    const paidCharges = await call("GET", "/appels-de-fonds?status=paid", undefined, liveSyndic);
+    check("a status filter narrows the list", allCharges.status === 200 && paidCharges.status === 200 && (paidCharges.body?.data ?? []).every((a: any) => a.status === "paid"));
+    check("a status filter does not change the totals", JSON.stringify(allCharges.body?.stats) === JSON.stringify(paidCharges.body?.stats), JSON.stringify(paidCharges.body?.stats));
+
+    // A call awaiting validation shows what was declared, which a partial payment makes lower than the call.
+    const awaiting = await call("GET", "/appels-de-fonds?status=pending_validation", undefined, liveSyndic);
+    const firstAwaiting = (awaiting.body?.data ?? [])[0];
+    if (firstAwaiting) {
+      const [pendingPayment] = (await pool`SELECT amount FROM appel_payments WHERE appel_id = ${firstAwaiting.id} AND status = 'pending' ORDER BY created_at DESC LIMIT 1`) as any[];
+      check("a call awaiting validation carries the declared amount", firstAwaiting.declaredAmount === pendingPayment?.amount, `${firstAwaiting.declaredAmount} / ${pendingPayment?.amount}`);
+    } else {
+      check("a call awaiting validation carries the declared amount", false, "no such call in the seeded condominium");
+    }
+    const notAwaiting = (paidCharges.body?.data ?? [])[0];
+    check("other calls carry no declared amount", !notAwaiting || notAwaiting.declaredAmount === null);
+
+    // Budgets: each one names its building, the screen offers them all.
+    const budgets = await call("GET", "/budgets", undefined, liveSyndic);
+    check("each budget names its building", budgets.status === 200 && (budgets.body?.data ?? []).length > 0 && budgets.body.data.every((b: any) => typeof b.buildingName === "string"), String(budgets.body?.data?.length));
+
     // Invoice: same call as the « send » button.
     const [invoice] = (await pool`
       INSERT INTO invoices (id, syndicate_id, reference, type, recipient, amount, status, date, due_date)

@@ -84,6 +84,7 @@ type Appel = {
   amount: number;
   amountPaid: number;
   remaining: number;
+  declaredAmount?: number | null;
   lotNumber?: string | null;
   buildingName?: string | null;
   ownerName?: string | null;
@@ -274,6 +275,7 @@ function ChargesScreenInner() {
             amount: Number(a.amount) || 0,
             amountPaid: Number(a.amountPaid) || 0,
             remaining: Number(a.remaining ?? a.amount) || 0,
+            declaredAmount: a.declaredAmount == null ? null : Number(a.declaredAmount),
           })),
         );
         if (data.stats) {
@@ -456,6 +458,20 @@ function ChargesScreenInner() {
     }
   };
 
+  // Validating issues a receipt and a ledger entry: the amount actually declared is shown first.
+  const confirmApprove = (appel: Appel) => {
+    if (approvingId) return;
+    const amount = formatMAD(appel.declaredAmount ?? appel.remaining, lang);
+    Alert.alert(
+      t("validatePaymentTitle"),
+      t("validatePaymentMessage").replace("{amount}", amount).replace("{lot}", appel.lotNumber ?? "—"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("validateLabel"), onPress: () => handleApprove(appel.id) },
+      ],
+    );
+  };
+
   const handleApprove = async (id: string) => {
     if (approvingId) return;
     setApprovingId(id);
@@ -467,6 +483,7 @@ function ChargesScreenInner() {
         token,
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: t("success"), message: t("paymentValidatedToast") });
     } catch (e: any) {
       // e.g. no treasury account configured, payment already processed
       Alert.alert(t("error"), e?.message || t("paymentValidationFailed"));
@@ -661,6 +678,7 @@ function ChargesScreenInner() {
                       <Feather name="clock" size={14} color={colors.info} />
                       <Text style={[TYPE.caption, { color: colors.infoText, flex: 1 }]}>
                         {t("inProgressPayment")} — {getPaymentMethodLabel(appel.paymentMethod)}
+                        {appel.declaredAmount != null ? ` — ${t("paymentDeclaredAmount").replace("{amount}", formatMAD(appel.declaredAmount, lang))}` : ""}
                       </Text>
                       {isAdmin && appel.proofUrl ? (
                         <Pressable onPress={() => openProof(appel)} hitSlop={8} style={styles.inlineLink} accessibilityRole="button">
@@ -703,7 +721,7 @@ function ChargesScreenInner() {
                           style={{ flexGrow: 1, minWidth: 150 }}
                           disabled={!!approvingId && approvingId !== appel.id}
                           loading={approvingId === appel.id}
-                          onPress={() => handleApprove(appel.id)}
+                          onPress={() => confirmApprove(appel)}
                         />
                       </>
                     ) : null}

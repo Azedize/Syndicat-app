@@ -185,7 +185,8 @@ function ReportsScreenInner() {
     new Intl.NumberFormat(locale, {
       style: "currency",
       currency: "MAD",
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
 
   const handleExport = (reportLabel: string) => {

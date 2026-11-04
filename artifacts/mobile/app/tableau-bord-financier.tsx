@@ -650,11 +650,12 @@ function fmtMAD(n: number, lang: LangCode): string {
       style: "currency",
       currency: "MAD",
       currencyDisplay: "code",
-      maximumFractionDigits: 0,
-    }).format(Math.round(n));
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
   } catch {
     // Absolute fallback — manual thousands grouping
-    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " MAD";
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " MAD";
   }
 }
 

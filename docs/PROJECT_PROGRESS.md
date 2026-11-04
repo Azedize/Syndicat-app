@@ -2048,3 +2048,21 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - **Retiré :** 3 lignes « Non disponible » des paramètres (biométrie, double authentification, verrouillage automatique), `createElection` (code mort qui annonçait une synchronisation inexistante), `meetings.get` (route inexistante, jamais appelé).
 - Le titre coupé signalé sur l'accueil en arabe n'est pas un défaut : la capture tombait pendant l'arrivée des données.
 
+## 2026-11-04 — Parcours financier complet sur Android
+
+Vérifié sur émulateur Android (Expo Go), base de test : déclaration d'un paiement partiel de 20,25 MAD avec photo, validation par le syndic, reçu `REC-2026-000367`, écriture `JRN-2026-000390`, reste dû 30,32 MAD ; rejet d'un autre paiement (motif obligatoire, ni reçu ni écriture).
+
+**Corrigé :**
+- Totaux de `GET /appels-de-fonds` : le filtre de statut les modifiait. « À payer » affichait « Reste à payer 0,00 » pour un membre qui devait 960,58 MAD.
+- Validation d'un paiement : le syndic voyait le montant de l'appel, pas le montant déclaré, et validait sans confirmation. L'API renvoie `declaredAmount` ; l'écran l'affiche et demande confirmation.
+- Budget prévisionnel : l'écran ouvrait le premier budget de la liste (brouillon futur vide). Sélecteur exercice · bâtiment, ouverture sur l'exercice en cours.
+- Note « Exécution sur 5 mois (janv–mai) » écrite en dur : remplacée.
+- Journal d'audit : l'adresse de l'API était construite à la main (`https://undefined/api` en production) et les libellés ne correspondaient pas aux actions du serveur.
+- Montants sans centimes dans Paiements, Budget, Rapports et Tableau de bord financier. `tableau-national` reste arrondi (vue d'ensemble de la plateforme).
+- Reçu PDF : bandeau hors page, nom de la résidence invisible, libellés superposés.
+- Nombre de membres des statistiques : calculé sur les fiches, plus sur le compteur stocké.
+
+**Parcours des écrans sur Android (syndic) :** 93 sur 98 sans anomalie. Les 5 autres : 4 demandent un identifiant que le lien direct ne donne pas ; le journal d'audit est corrigé. Ce parcours ne touche aucun bouton.
+
+**Remarque :** deux écrans s'appellent « Documents » : `documents` (générés) et `bibliotheque` (fichiers importés).
+

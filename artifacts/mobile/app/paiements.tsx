@@ -94,10 +94,11 @@ function formatMAD(amount: number, lang: "fr" | "en" | "ar" | "es"): string {
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency: "MAD",
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(Number.isFinite(amount) ? amount : 0);
   } catch {
-    return `${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString()} MAD`;
+    return `${(Number.isFinite(amount) ? amount : 0).toFixed(2)} MAD`;
   }
 }
 

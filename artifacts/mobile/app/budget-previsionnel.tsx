@@ -24,6 +24,7 @@ import RoleGuard from "@/components/RoleGuard";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import ScreenHeader from "@/components/ScreenHeader";
+import FilterChips from "@/components/FilterChips";
 import { IconButton } from "@/components/ui";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -41,7 +42,17 @@ interface LigneBudget {
 
 // Income categories used to split budget lines from the API
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", maximumFractionDigits: 0 }).format(n) + " MAD";
+/** The exercise in progress, approved first; a future draft must not hide it. */
+function defaultBudget<T extends { year: number; status: string }>(list: T[]): T {
+  const year = new Date().getFullYear();
+  const current = list.filter((b) => Number(b.year) <= year);
+  const pool = current.length ? current : list;
+  const latest = Math.max(...pool.map((b) => Number(b.year)));
+  const sameYear = pool.filter((b) => Number(b.year) === latest);
+  return sameYear.find((b) => b.status !== "draft") ?? sameYear[0];
+}
+
+const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + " MAD";
 const pct = (realise: number, prevu: number) => prevu > 0 ? Math.min(100, Math.round((realise / prevu) * 100)) : 0;
 
 // Le budget prévisionnel est accessible aux administrateurs et au trésorier (gestion)
@@ -70,6 +81,8 @@ function BudgetPrevisionnelScreenInner() {
   const [depenses, setDepenses] = useState<LigneBudget[]>([]);
   const [annee, setAnnee] = useState("2026");
   const [budgetId, setBudgetId] = useState<string | null>(null);
+  const [budgets, setBudgets] = useState<{ id: string; year: number; buildingName: string | null; status: string }[]>([]);
+  const [chosenId, setChosenId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -84,7 +97,8 @@ function BudgetPrevisionnelScreenInner() {
         const { data } = await apiRequest<{ data: any[] }>("/budgets");
         if (cancelled) return;
         if (!data || data.length === 0) return;
-        const budget = data[0];
+        setBudgets(data);
+        const budget = data.find((b) => b.id === chosenId) ?? defaultBudget(data);
         setBudgetId(budget.id ?? null);
         if (budget.year) setAnnee(String(budget.year));
         // Planned vs actual comes from the server: paid expenses per budget
@@ -132,7 +146,7 @@ function BudgetPrevisionnelScreenInner() {
     };
     loadBudget();
     return () => { cancelled = true; };
-  }, [reloadKey]);
+  }, [reloadKey, chosenId]);
 
   // Local aliases so existing JSX references still resolve
   const RECETTES = recettes;
@@ -256,6 +270,13 @@ function BudgetPrevisionnelScreenInner() {
           />
         }
       />
+      {budgets.length > 1 ? (
+        <FilterChips
+          options={budgets.map((b) => ({ key: b.id, label: `${b.year}${b.buildingName ? ` · ${b.buildingName.split(" — ").pop()}` : ""}` }))}
+          value={budgetId ?? ""}
+          onChange={setChosenId}
+        />
+      ) : null}
 
       {/* KPI strip */}
       <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -329,7 +350,7 @@ function BudgetPrevisionnelScreenInner() {
                   <Text style={[styles.execPct, { color: colors.danger }]}>{pct(totalDepensesRealise, totalDepensesPrevu)}%</Text>
                 </View>
               </View>
-             <Text style={[styles.execNote, { color: colors.mutedForeground }]}>{t("budgetExecutionNote")} {ANNEE}</Text>
+             <Text style={[styles.execNote, { color: colors.mutedForeground }]}>{t("budgetExecutionNote").replace("{year}", ANNEE)} {ANNEE}</Text>
             </View>
 
             {/* Category summary */}
