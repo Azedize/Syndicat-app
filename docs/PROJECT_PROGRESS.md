@@ -1990,3 +1990,40 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Régression : 41/42 (`election-audit`, règle non décidée). Nouvelle suite `invitation-email` : 6/6.
 - Suites comptes et e-mails : 24/24, 44/44, 28/28, 14/14, 7/7, 135/135.
 - Mobile : `tsc` 0 erreur, export Android OK, `login-transport` 7/7.
+
+## 2026-11-02 — Application mobile seule, premier lancement, permissions
+
+### Corrections d'affirmations précédentes
+- « Même durée de réponse » sur « Mot de passe oublié » était faux : corrigé ce jour.
+- « Toutes les sessions sont fermées » était inexact : seuls les jetons de renouvellement sont révoqués.
+
+### Web retiré
+- Aucune application web séparée n'existait. Retirés de l'app Expo : bloc `web`, `react-dom`, `react-native-web`, `SidebarNav`, `server/serve.js`, `scripts/build.js`, page d'accueil statique, favicon.
+- `platforms: ["ios", "android"]`.
+- Conservé : l'API sert deux pages publiques exigées par les boutiques (`/api/account-deletion`, `/api/legal/privacy`).
+- Reste : 116 branches `Platform.OS === "web"` dans 90 fichiers. Le code mort est retiré du fichier final par Metro.
+- Conséquence : le contrôle automatique des écrans dans un navigateur n'est plus possible. Les essais d'interface passent par l'émulateur.
+
+### Premier lancement et permissions
+- Nouvel écran de langue, puis page d'accueil. Les lancements suivants ouvrent la connexion (`lib/firstLaunch.ts`). « Revoir la présentation » dans les paramètres.
+- Appareil photo : explication, puis demande, puis lien vers les réglages si bloqué (`lib/permissions.ts`). Galerie : sélecteur du système, sans permission.
+- Notifications : proposées une fois, avec explication. Ligne dans les paramètres si elles sont coupées.
+- iOS : textes d'autorisation en 4 langues (`locales/`), numéro de build.
+
+### Défauts trouvés sur l'émulateur Android
+- **Envoi de fichiers impossible sur téléphone :** `fetch` d'Expo refuse `{ uri, name, type }`. Corrigé (`nativeFilePart`).
+- **Attente sans fin sur un réseau bloqué :** aucune limite de temps sur les requêtes. Ajout de `lib/fetchTimeout.ts` (30 s, 120 s pour les envois).
+- **Erreur au passage en arabe :** `applyScriptFonts` modifiait un style gelé. Corrigé.
+
+### Autres corrections
+- Jeton de notification retiré à la déconnexion, et réservé à un seul compte (`push-token-test`).
+- Failles `proxy-addr` (critique) et 57 hautes corrigées. Reste `zod` 3 (haute).
+- Contrôle de publication : `release:check`. 4 points bloquants à ce jour.
+- Deux tests échouaient au hasard depuis le correctif de durée (`email-accounts`, `account-deletion`) : ils attendent maintenant l'étape différée.
+
+### Vérifications
+- Régression : 43/44 (`election-audit` 30/31, règle non décidée).
+- Émulateur Android (API 37), dans Expo Go, pas sur un fichier de production : premier lancement français et arabe, connexion, réclamation avec photo jusqu'en base, refus et blocage de l'appareil photo, thème sombre, déconnexion.
+- Exports JavaScript Android et iOS réussis.
+- **Non fait :** build Android ou iOS, téléphone réel, iPhone, notifications réelles, essai bouton par bouton de chaque écran.
+

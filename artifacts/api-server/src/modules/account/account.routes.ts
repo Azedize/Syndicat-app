@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { emailLang, type EmailLang } from "../../lib/email/templates.js";
 import { deleteAccount, type DeleteRefusal } from "./account.service.js";
+import { PRIVACY_SECTIONS } from "./privacy-text.js";
 
 const router = Router();
 
@@ -156,6 +157,24 @@ ${notice ? `<p class="notice ${notice.kind}" role="status">${esc(notice.text)}</
 ${form}
 </main></body></html>`;
 }
+
+/** Public link required by Google Play and the App Store. The text is the app's own screen. */
+router.get("/legal/privacy", (_req, res) => {
+  const fill = (html: string) =>
+    html
+      .replace(/\{\{LEGAL_ENTITY\}\}/g, esc(process.env.LEGAL_ENTITY?.trim() || "[raison sociale de l'exploitant — à compléter]"))
+      .replace(/\{\{PRIVACY_EMAIL\}\}/g, esc(process.env.PRIVACY_EMAIL?.trim() || "[adresse à compléter]"));
+  const body = PRIVACY_SECTIONS.map(
+    (section) =>
+      `<h2>${section.title}</h2>` +
+      section.blocks.map((b) => (b.list ? `<ul><li>${fill(b.html)}</li></ul>` : `<p>${fill(b.html)}</p>`)).join(""),
+  ).join("");
+  res
+    .type("html")
+    .send(
+      `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MIZAN — Politique de confidentialité</title><style>:root{color-scheme:light dark}body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:0 auto;padding:24px 16px}h1{font-size:26px}h2{font-size:18px;margin-top:28px}ul{margin:4px 0;padding-inline-start:22px}</style></head><body><h1>Politique de confidentialité de MIZAN</h1>${body}</body></html>`,
+    );
+});
 
 router.get("/account-deletion", (req, res) => {
   res.type("html").send(page(langOf(req)));

@@ -1,5 +1,6 @@
 import { getApiBaseUrl, getToken, refreshAccessToken } from "../services/api";
 import { requestLanguage } from "@/i18n/current";
+import { fetchWithTimeout } from "./fetchTimeout";
 
 export async function apiRequest<T = any>(
   path: string,
@@ -24,7 +25,7 @@ export async function apiRequest<T = any>(
     headers["Authorization"] = `Bearer ${resolvedToken}`;
   }
 
-  let response = await fetch(url, {
+  let response = await fetchWithTimeout(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -36,7 +37,7 @@ export async function apiRequest<T = any>(
     const renewed = await refreshAccessToken();
     if (renewed) {
       headers["Authorization"] = `Bearer ${renewed}`;
-      response = await fetch(url, {
+      response = await fetchWithTimeout(url, {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,

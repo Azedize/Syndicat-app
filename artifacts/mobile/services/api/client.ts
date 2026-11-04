@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { isTunnelHost, resolveApiBaseUrl } from "@/lib/login-transport";
+import { fetchWithTimeout } from "@/lib/fetchTimeout";
 import { requestLanguage } from "@/i18n/current";
 
 const TOKEN_KEY = "@syndycat_token";
@@ -200,7 +201,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
       return null;
     }
 
-    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${getApiBaseUrl()}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -259,7 +260,7 @@ export async function request<T>(
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getApiBaseUrl()}${path.trim()}`, {
+  const res = await fetchWithTimeout(`${getApiBaseUrl()}${path.trim()}`, {
     ...options,
     headers,
   });

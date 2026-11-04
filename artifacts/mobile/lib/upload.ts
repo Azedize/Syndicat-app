@@ -1,9 +1,18 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { fetchWithTimeout, UPLOAD_TIMEOUT_MS } from "./fetchTimeout";
 import { ensureCameraPermission } from "./permissions";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";
 import { getApiBaseUrl, getToken } from "@/services/api";
+
+/**
+ * A file for FormData on Android and iOS. The global fetch of Expo refuses a { uri, name, type } part
+ * (« Unsupported FormDataPart implementation »): it reads the content through bytes().
+ */
+function nativeFilePart(uri: string, name: string, type: string): Blob {
+  return { name, type, bytes: () => new File(uri).bytes() } as unknown as Blob;
+}
 
 /** Max attachment size: 50 MB */
 export const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
@@ -45,9 +54,6 @@ export async function uploadFileUri(
     }
     form.append("file", blob, fileName);
   } else {
-    // Android / iOS: React Native's FormData streams the file from its URI
-    // ({ uri, name, type }). A Blob part is not serialized reliably there,
-    // which made every native upload fail.
     try {
       size = new File(uri).size ?? 0;
     } catch {
@@ -56,16 +62,16 @@ export async function uploadFileUri(
     if (size > MAX_ATTACHMENT_SIZE) {
       throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
     }
-    form.append("file", { uri, name: fileName, type: contentType } as unknown as Blob);
+    form.append("file", nativeFilePart(uri, fileName, contentType));
   }
 
   onProgress?.(0.3);
 
-  const uploadRes = await fetch(`${getApiBaseUrl()}/storage/uploads`, {
+  const uploadRes = await fetchWithTimeout(`${getApiBaseUrl()}/storage/uploads`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
-  });
+  }, UPLOAD_TIMEOUT_MS);
 
   onProgress?.(0.9);
 
@@ -211,15 +217,15 @@ export async function sendLibraryFile(
     const blob = await (await fetch(file.uri)).blob();
     form.append("file", blob, file.name);
   } else {
-    form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+    form.append("file", nativeFilePart(file.uri, file.name, file.mimeType));
   }
   let res: Response;
   try {
-    res = await fetch(`${getApiBaseUrl()}${path}`, {
+    res = await fetchWithTimeout(`${getApiBaseUrl()}${path}`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: form,
-    });
+    }, UPLOAD_TIMEOUT_MS);
   } catch {
     throw new LibraryUploadError("Connexion interrompue : le document n'a pas été enregistré. Réessayez.", "NETWORK");
   }

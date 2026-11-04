@@ -156,6 +156,13 @@ async function main() {
     const cDel = await call("POST", "/me/account/delete", { password: PASSWORD }, cLogin.body?.data?.token);
     check("in a suspended condominium, the account can still be deleted", cDel.status === 200, `${cDel.status} ${cDel.body?.code ?? ""}`);
 
+    // Public privacy page: no session, the app's own text, nothing left to substitute.
+    const privacyRes = await fetch(`${BASE}/legal/privacy`);
+    const privacyHtml = await privacyRes.text();
+    check("the privacy page is public", privacyRes.status === 200 && /text\/html/.test(privacyRes.headers.get("content-type") ?? ""), String(privacyRes.status));
+    check("the privacy page has the sections of the app's screen", /1\. Responsable du traitement/.test(privacyHtml) && /11\. Modifications de la politique/.test(privacyHtml));
+    check("the privacy page keeps its emphasis and leaves no placeholder", /<strong>Droit d'accès<\/strong>/.test(privacyHtml) && !/\{\{|CONTACT\./.test(privacyHtml));
+
     // Public page.
     const pageFr = await fetch(`${BASE}/account-deletion?lang=fr`);
     const htmlFr = await pageFr.text();
@@ -172,7 +179,12 @@ async function main() {
     check("the page deletes the account with the right password", okWeb.status === 200 && /Votre compte a été supprimé/.test(okWeb.html), String(okWeb.status));
     const [ub] = (await pool`SELECT name, status FROM users WHERE id = ${b.id}`) as any[];
     check("the account deleted from the page is anonymised", ub.name === "Compte supprimé" && ub.status === "inactive");
-    const [logged] = (await pool`SELECT body_html, status FROM email_logs WHERE recipient = ${b.email} AND template = 'account_deleted' ORDER BY created_at DESC LIMIT 1`) as any[];
+    // The e-mail leaves after the response: wait for its log entry.
+    let logged: any;
+    for (let i = 0; i < 50 && !logged; i++) {
+      [logged] = (await pool`SELECT body_html, status FROM email_logs WHERE recipient = ${b.email} AND template = 'account_deleted' ORDER BY created_at DESC LIMIT 1`) as any[];
+      if (!logged) await new Promise((r) => setTimeout(r, 100));
+    }
     check("the confirmation e-mail is attempted and its body not stored", !!logged && logged.body_html === null, logged?.status);
     const expired = await call("POST", "/me/account/delete", { password: "x" });
     check("the subscription gate does not hide the route (auth answers first)", expired.status === 401);

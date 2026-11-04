@@ -5,7 +5,7 @@ Monorepo pnpm avec une application mobile Expo et une API Express / PostgreSQL.
 
 | Dossier | Contenu |
 |---|---|
-| `artifacts/mobile` | Application iOS, Android et web (Expo SDK 58, Expo Router) |
+| `artifacts/mobile` | Application iOS et Android (Expo SDK 58, Expo Router) |
 | `artifacts/api-server` | API REST `/api` (Express 5, Drizzle) |
 | `lib/db` | Schéma et migrations de la base |
 | `scripts` | Tests d'intégration et de bout en bout, outils de base de test |

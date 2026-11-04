@@ -102,6 +102,8 @@ function mapApiUser(u: Record<string, unknown>): AuthUser {
   };
 }
 
+const LOGOUT_WAIT_MS = 5000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
@@ -216,12 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       // Before the session ends: this phone must stop receiving this account's notifications.
+      // Signing out does not wait for a stalled network: the local session ends in any case.
       const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
-      if (pushToken) await apiRequest("/users/push-token", "DELETE", { pushToken }).catch(() => {});
       const rt = await getRefreshToken();
-      if (rt) {
-        await authApi.logout(rt).catch(() => {});
-      }
+      const server = (async () => {
+        if (pushToken) await apiRequest("/users/push-token", "DELETE", { pushToken }).catch(() => {});
+        if (rt) await authApi.logout(rt).catch(() => {});
+      })();
+      await Promise.race([server, new Promise((resolve) => setTimeout(resolve, LOGOUT_WAIT_MS))]);
     } catch {}
     await clearAllTokens();
     await AsyncStorage.multiRemove(["@syndycat_user", "@syndycat_demo_email", PUSH_TOKEN_KEY]);

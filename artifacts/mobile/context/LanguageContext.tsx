@@ -112,16 +112,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   lastLanguage = lang;
   setRequestLanguage(lang);
 
-  // Web: the page declares its language and direction (screen readers, the
-  // browser's own RTL handling) and its title follows the language.
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-    document.documentElement.lang = lang;
-    document.documentElement.dir = isRTL ? "rtl" : "ltr";
-    const tagline = TRANSLATIONS.appTitleTagline?.[lang] ?? TRANSLATIONS.appTitleTagline?.fr;
-    if (tagline) document.title = `MIZAN — ${tagline}`;
-  }, [lang, isRTL]);
-
   return (
     <LanguageContext.Provider
       value={{ lang, setLang, t, isRTL, currentOption }}

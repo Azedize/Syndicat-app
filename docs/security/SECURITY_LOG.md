@@ -216,3 +216,6 @@ Constat sans correction : `seed.ts` contient une adresse `@gmail.com` (`sara.bou
 - **Android :** `RECORD_AUDIO` et `SYSTEM_ALERT_WINDOW` bloquées, sauvegarde automatique coupée (`allowBackup: false`).
 - **Dépendances :** faille critique `proxy-addr` corrigée (elle concernait le calcul de l'IP derrière le proxy, donc les limites de débit). Mises à jour de `body-parser`, `multer`, `compression`, `axios`, `follow-redirects`, `ip-address`, `fast-xml-parser`, `nodemailer` 10.
 - **Risque ouvert :** `zod` 3 a une faille haute de consommation mémoire, corrigée seulement en version 4 (56 fichiers à migrer). Le corps des requêtes reste limité à 2 Mo.
+- **Notifications d'un autre compte :** après une déconnexion, le téléphone continuait à recevoir les notifications du compte. Un autre compte connecté sur le même téléphone les recevait aussi. Le jeton est maintenant retiré à la déconnexion, et il ne peut appartenir qu'à un seul compte (`push-token-test`).
+- **Journaux :** le jeton de notification, le titre et le texte des notifications ne sont plus écrits dans les journaux du téléphone.
+- **Mention juridique :** « conforme à la loi 18-00 » et l'engagement de conformité à la loi 09-08 et au RGPD ont été retirés des écrans publics : personne ne les a vérifiés.

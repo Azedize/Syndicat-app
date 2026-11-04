@@ -20,7 +20,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { NotificationManager } from "@/features/notifications/components/NotificationManager";
-import { SidebarNav } from "@/components/SidebarNav";
 import SubscriptionBanner from "@/features/subscriptions/components/SubscriptionBanner";
 import { ToastContainer } from "@/components/ToastContainer";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -33,7 +32,6 @@ import { publicHome, setFirstLaunchStage } from "@/lib/firstLaunch";
 import { SearchProvider } from "@/context/SearchContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
-import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { usePushNotifications } from "@/features/notifications/hooks/usePushNotifications";
 
@@ -94,7 +92,6 @@ function LanguageSync() {
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
-  const { isWide } = useBreakpoints();
   const colors = useColors();
   const { isRTL } = useLanguage();
 
@@ -128,20 +125,6 @@ function AuthGate() {
     !user;
 
   const direction = isRTL ? "rtl" : "ltr";
-
-  if (isWide && user && !inAuthRoute && Platform.OS === "web") {
-    return (
-      <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background, direction } as any}>
-        <SidebarNav />
-        <View style={{ flex: 1, overflow: "hidden" as any }}>
-          <SubscriptionBanner />
-          <Slot />
-          <ToastContainer />
-          <NotificationManager />
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1, direction } as any}>

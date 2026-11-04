@@ -10,6 +10,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { GENERATED, renderPrivacyText } from "./privacy-sync.js";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const MOBILE = join(ROOT, "artifacts", "mobile");
@@ -76,6 +77,8 @@ async function main() {
     report(Boolean(value?.trim()), name, value?.trim() ? "" : "absent : la politique de confidentialité afficherait « à compléter »");
   }
 
+  report(readFileSync(GENERATED, "utf8") === renderPrivacyText(), "page publique de confidentialité identique à l'écran de l'app", "sinon : pnpm run privacy:sync");
+
   console.log("— Android");
   report(app.android?.allowBackup === false, "sauvegarde automatique Android coupée");
   const manifest = execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], {
@@ -119,6 +122,8 @@ async function main() {
     // Google Play requires a public link to request the deletion of an account.
     const deletion = await probe(`${base}/account-deletion`);
     report(deletion === 200, "page publique de suppression de compte", `GET /account-deletion → ${deletion}`);
+    const privacy = await probe(`${base}/legal/privacy`);
+    report(privacy === 200, "page publique de confidentialité", `GET /legal/privacy → ${privacy}`);
   }
 
   console.log("");

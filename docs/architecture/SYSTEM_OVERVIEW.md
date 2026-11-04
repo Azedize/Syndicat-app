@@ -3,7 +3,7 @@
 MIZAN est une application de gestion de copropriété (syndic, copropriétaires, locataires, super admin). Elle se compose de deux applications et de deux bibliothèques partagées, regroupées dans un monorepo pnpm.
 
 ```text
- Téléphone / navigateur                         Serveur                         Données
+ Téléphone                                      Serveur                         Données
 ┌──────────────────────┐   HTTPS /api   ┌──────────────────────────┐   SQL   ┌──────────────┐
 │ artifacts/mobile     │ ─────────────▶ │ artifacts/api-server     │ ──────▶ │ PostgreSQL   │
 │ Expo SDK 58          │                │ Express 5 (esbuild)      │         │ (Drizzle)    │
@@ -16,7 +16,7 @@ MIZAN est une application de gestion de copropriété (syndic, copropriétaires,
 
 | Partie | Rôle | Technologies |
 |---|---|---|
-| `artifacts/mobile` | Application iOS, Android et web | Expo 58, React Native 0.88, Expo Router, Reanimated 4, TypeScript |
+| `artifacts/mobile` | Application iOS et Android | Expo 58, React Native 0.88, Expo Router, Reanimated 4, TypeScript |
 | `artifacts/api-server` | API REST `/api`, authentification, droits, PDF, e-mails, notifications, jobs | Node.js, Express 5, Drizzle ORM, pino, esbuild |
 | `lib/db` | Schéma Drizzle, migrations SQL versionnées (`drizzle/0000…0018`) | Drizzle, PostgreSQL |
 | `lib/api-zod` | Schémas Zod partagés (aujourd'hui : `HealthCheckResponse` seulement) | Zod |

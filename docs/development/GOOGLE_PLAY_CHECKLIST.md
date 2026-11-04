@@ -1,4 +1,4 @@
-# Publication sur Google Play : liste de contrôle
+# Publication sur Google Play et l'App Store : liste de contrôle
 
 Pour le propriétaire du projet. Mise à jour le 02/11/2026.
 
@@ -8,9 +8,10 @@ Contrôle automatique : `pnpm --filter @workspace/scripts run release:check` (il
 
 | Élément | Pourquoi | Qui |
 |---|---|---|
-| Serveur de production en HTTPS | L'app ne peut rien faire sans API. Les pages publiques en dépendent aussi. | Propriétaire |
+| Serveur de production en HTTPS | L'app ne peut rien faire sans API. Les pages publiques en dépendent aussi. Variables serveur à définir : `ALLOWED_ORIGINS`, `LEGAL_ENTITY`, `PRIVACY_EMAIL`. | Propriétaire |
 | Compte Expo et `extra.eas.projectId` | Sans lui, ni build EAS ni jeton de notification Expo. | Propriétaire |
 | Compte Google Play Console | Publication et compte de service. | Propriétaire |
+| Compte Apple Developer | TestFlight, App Store, clé de notifications (APNs). | Propriétaire |
 | Raison sociale et e-mail de confidentialité (`EXPO_PUBLIC_LEGAL_ENTITY`, `EXPO_PUBLIC_PRIVACY_EMAIL`) | Sinon la politique affiche « à compléter ». | Propriétaire |
 | Relecture juridique de la politique et des CGU | L'écran affirme une conformité à la loi 09-08 et au RGPD que personne n'a vérifiée. Déclaration à la CNDP à vérifier. | Juriste |
 | Lieu d'hébergement | La section « Transferts internationaux » en dépend. | Propriétaire |
@@ -29,11 +30,23 @@ Contrôle automatique : `pnpm --filter @workspace/scripts run release:check` (il
 | Permissions justifiées | Fait dans la configuration. Liste finale à relire sur le fichier compilé. |
 | Suppression de compte dans l'app | Fait et testé. |
 | Lien web public de suppression | Page prête (`/api/account-deletion`). Il lui manque une adresse publique. |
-| URL publique de la politique de confidentialité | **Manquante.** L'écran n'existe que dans l'app. |
+| URL publique de la politique de confidentialité | Page prête (`/api/legal/privacy`). Il lui manque une adresse publique. |
 | Formulaire Data safety | Brouillon ci-dessous, à valider. |
 | Accès pour les examinateurs | Compte de démonstration à créer sur le serveur de production. |
 | Fiche : description, captures, icône 512 px, image 1024 × 500 | À préparer. |
 | Test fermé | Google l'exige pour certains comptes personnels récents : à vérifier sur la Console. |
+
+## Exigences de l'App Store
+
+| Exigence | État |
+|---|---|
+| Identifiant, numéro de build | Configurés (`com.syndycatglobalcps.app`, build 1). |
+| Textes d'autorisation (appareil photo, photos) | Écrits en 4 langues (`locales/`). Micro retiré. |
+| Suppression de compte dans l'app | Faite et testée sur émulateur Android. Jamais essayée sur iOS. |
+| Déclaration de chiffrement | `ITSAppUsesNonExemptEncryption: false` : HTTPS seulement. À confirmer par le propriétaire. |
+| Notifications | Clé APNs à fournir à EAS. |
+| Construction | Impossible sous Windows sans EAS : demande un compte Expo et un compte Apple. |
+| Essai sur iPhone ou simulateur | **Jamais fait.** |
 
 ## Permissions Android
 
@@ -80,4 +93,5 @@ La politique de confidentialité ne nomme pas ces prestataires et ne mentionne n
 - Après une réinitialisation, un jeton d'accès déjà émis reste valable jusqu'à 15 minutes.
 - Le lecteur PDF charge `pdf.js` depuis un CDN public, sans contrôle d'intégrité. Il ne fonctionne pas hors ligne.
 - L'invitation envoie un mot de passe temporaire par e-mail.
-- Fonctionnement sur téléphone réel jamais vérifié.
+- Fonctionnement sur téléphone réel jamais vérifié. Essais faits sur émulateur Android, dans Expo Go.
+- Un compte n'a qu'un jeton de notification : seul le dernier téléphone connecté reçoit les notifications.

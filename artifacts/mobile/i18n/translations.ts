@@ -19946,10 +19946,10 @@ export const TRANSLATIONS: Translations = {
     es: "Datos protegidos",
   },
   welcomeLaw18: {
-    fr: "Conforme à la Loi 18-00",
-    en: "Aligned with Law 18-00",
-    ar: "متوافق مع القانون \u206618-00\u2069",
-    es: "Conforme a la Ley 18-00",
+    fr: "Pensé pour la loi 18-00",
+    en: "Built around Law 18-00",
+    ar: "مصمم وفق سياق القانون \u206618-00\u2069",
+    es: "Pensado para la Ley 18-00",
   },
   welcomeAllInOne: {
     fr: "Tout-en-un",

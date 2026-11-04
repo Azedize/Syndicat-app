@@ -75,14 +75,12 @@ export function applyScriptFonts(lang: string) {
   const f = FONT as unknown as Record<string, string>;
   f.display = face.display;
   f.displayMedium = face.displayMedium;
-  const t = TYPE as unknown as Record<"display" | "title" | "headline", { fontFamily?: string; lineHeight?: number }>;
-  t.display.fontFamily = face.displayMedium;
-  t.title.fontFamily = face.display;
-  t.headline.fontFamily = face.display;
   const k = ar ? 1.22 : 1;
-  t.display.lineHeight = Math.round(LATIN_LINES.display * k);
-  t.title.lineHeight = Math.round(LATIN_LINES.title * k);
-  t.headline.lineHeight = Math.round(LATIN_LINES.headline * k);
+  // New objects: React Native freezes a style once it has been rendered, so these cannot be changed in place.
+  const t = TYPE as unknown as Record<"display" | "title" | "headline", object>;
+  t.display = { ...TYPE.display, fontFamily: face.displayMedium, lineHeight: Math.round(LATIN_LINES.display * k) };
+  t.title = { ...TYPE.title, fontFamily: face.display, lineHeight: Math.round(LATIN_LINES.title * k) };
+  t.headline = { ...TYPE.headline, fontFamily: face.display, lineHeight: Math.round(LATIN_LINES.headline * k) };
 }
 
 /** Display family for styles built outside TYPE (StyleSheet objects). */

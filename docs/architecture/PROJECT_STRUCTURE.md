@@ -52,7 +52,7 @@ zip-repl/
 │   │   │   ├── brand/             Logo, marque, en-tête d'authentification
 │   │   │   ├── signature/         Illustration de résidence
 │   │   │   └── *.tsx              Composants transverses (DataState, EmptyState, FormSheet, RoleGuard,
-│   │   │                          SidebarNav, StatCard, LanguageSwitcher…)
+│   │   │                          StatCard, LanguageSwitcher…)
 │   │   ├── services/api/          Client HTTP
 │   │   │   ├── client.ts          URL de base, jetons, session, request(), tickets de fichiers
 │   │   │   └── index.ts           Endpoints transverses (226 lignes) : auth, audit, content
