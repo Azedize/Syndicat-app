@@ -25999,4 +25999,46 @@ export const TRANSLATIONS: Translations = {
     ar: "{amount} مصرح به",
     es: "{amount} declarados",
   },
+  candidacySubmittedToast: {
+    fr: "Candidature envoyée. Elle sera examinée par le syndic.",
+    en: "Candidacy sent. The syndic will review it.",
+    ar: "تم إرسال الترشيح. سيقوم السانديك بدراسته.",
+    es: "Candidatura enviada. El administrador la revisará.",
+  },
+  tsDuplicatePromptTitle: {
+    fr: "Dupliquer le modèle",
+    en: "Duplicate the template",
+    ar: "نسخ النموذج",
+    es: "Duplicar la plantilla",
+  },
+  tsDuplicatePromptMessage: {
+    fr: "Identifiant du nouveau modèle (exemple : attestation_v2)",
+    en: "Identifier of the new template (example: attestation_v2)",
+    ar: "معرف النموذج الجديد (مثال: attestation_v2)",
+    es: "Identificador de la nueva plantilla (ejemplo: attestation_v2)",
+  },
+  voteCountOne: {
+    fr: "vote",
+    en: "vote",
+    ar: "صوت",
+    es: "voto",
+  },
+  recordResignation: {
+    fr: "Enregistrer la démission",
+    en: "Record the resignation",
+    ar: "تسجيل الاستقالة",
+    es: "Registrar la dimisión",
+  },
+  actionReasonLabel: {
+    fr: "Motif",
+    en: "Reason",
+    ar: "السبب",
+    es: "Motivo",
+  },
+  resignConfirmMessage: {
+    fr: "Ce mandat prendra fin immédiatement.",
+    en: "This mandate will end immediately.",
+    ar: "ستنتهي هذه الولاية فورًا.",
+    es: "Este mandato terminará de inmediato.",
+  },
 };

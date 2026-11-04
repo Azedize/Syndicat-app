@@ -219,3 +219,9 @@ Constat sans correction : `seed.ts` contient une adresse `@gmail.com` (`sara.bou
 - **Notifications d'un autre compte :** après une déconnexion, le téléphone continuait à recevoir les notifications du compte. Un autre compte connecté sur le même téléphone les recevait aussi. Le jeton est maintenant retiré à la déconnexion, et il ne peut appartenir qu'à un seul compte (`push-token-test`).
 - **Journaux :** le jeton de notification, le titre et le texte des notifications ne sont plus écrits dans les journaux du téléphone.
 - **Mention juridique :** « conforme à la loi 18-00 » et l'engagement de conformité à la loi 09-08 et au RGPD ont été retirés des écrans publics : personne ne les a vérifiés.
+
+## 2026-11-04 — Secret du scrutin en cours
+
+- **Faille corrigée :** pendant un vote ouvert, l'API donnait le score de chaque candidat à tout membre de la copropriété, alors que la route des résultats le refusait. Masqué pour tous les rôles jusqu'à la clôture (`mobile-actions-test`).
+- **Vérifié :** la table `votes` ne contient aucun lien vers le votant ; `vote_receipts` ne contient pas le choix ; un second vote est refusé.
+

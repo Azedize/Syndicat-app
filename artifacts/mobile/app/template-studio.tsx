@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { askText } from "@/components/ui/TextPrompt";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
@@ -327,10 +328,12 @@ function TemplateStudioContent() {
       return;
     }
     if (action === "duplicate") {
-      Alert.prompt(
-        "Dupliquer le template",
-        "Entrez le slug du nouveau template (ex: attestation_v2) :",
-        async (newSlug) => {
+      askText({
+        title: t("tsDuplicatePromptTitle"),
+        message: t("tsDuplicatePromptMessage"),
+        defaultValue: `${template.slug}_copie`,
+        required: true,
+      }).then(async (newSlug) => {
           if (!newSlug?.trim()) return;
           try {
             setActionLoading(template.id);
@@ -342,10 +345,7 @@ function TemplateStudioContent() {
           } finally {
             setActionLoading(null);
           }
-        },
-        "plain-text",
-        `${template.slug}_copie`,
-      );
+      });
       return;
     }
 

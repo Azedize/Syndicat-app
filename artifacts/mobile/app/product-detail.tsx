@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { askText } from "@/components/ui/TextPrompt";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
@@ -721,11 +722,9 @@ export default function ProductDetailScreen() {
                     <Text style={[styles.modBtnText, { color: colors.success }]}>{t("productApproveAction")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.warning + "15" }]} onPress={() => {
-                    Alert.prompt
-                      ? Alert.prompt(t("productRequestChangesTitle"), t("productRequestChangesDescription"), (reason) => {
-                          if (reason?.trim()) marketplace.moderate(product.id, { action: "request_modification", reason }).then((r) => setProduct((p) => p ? { ...p, ...(r.data as Partial<Product>) } : p)).catch(() => {});
-                        })
-                      : Alert.alert(t("productActionUnavailableTitle"), t("productRequestChangesWebFallback"));
+                    askText({ title: t("productRequestChangesTitle"), message: t("productRequestChangesDescription"), required: true }).then((reason) => {
+                      if (reason) marketplace.moderate(product.id, { action: "request_modification", reason }).then((r) => setProduct((p) => p ? { ...p, ...(r.data as Partial<Product>) } : p)).catch(() => {});
+                    });
                   }}>
                     <Feather name="edit" size={16} color={colors.warning} />
                     <Text style={[styles.modBtnText, { color: colors.warning }]}>{t("productRequestChangesAction")}</Text>

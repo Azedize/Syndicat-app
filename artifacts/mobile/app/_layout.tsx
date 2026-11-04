@@ -22,6 +22,7 @@ import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { NotificationManager } from "@/features/notifications/components/NotificationManager";
 import SubscriptionBanner from "@/features/subscriptions/components/SubscriptionBanner";
 import { ToastContainer } from "@/components/ToastContainer";
+import { TextPromptHost } from "@/components/ui/TextPrompt";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ActivityProvider } from "@/context/ActivityContext";
 import { DataProvider } from "@/context/DataContext";
@@ -132,6 +133,7 @@ function AuthGate() {
       <Slot />
       {user && !inAuthRoute && <NotificationManager />}
       <ToastContainer />
+      <TextPromptHost />
     </View>
   );
 }

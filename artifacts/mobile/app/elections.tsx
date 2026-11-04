@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { askText } from "@/components/ui/TextPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -340,12 +341,12 @@ function ElectionsScreenInner() {
         message: t("voteRegisteredMsg"),
       });
     },
-    onError: () => {
+    onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast({
         type: "error",
         title: t("elections"),
-        message: t("electionVoteFailed"),
+        message: err?.message || t("electionVoteFailed"),
       });
     },
   });
@@ -454,7 +455,7 @@ function ElectionsScreenInner() {
       setCandProgram("");
       setCandPhoto(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", message: t("elections") });
+      showToast({ type: "success", message: t("candidacySubmittedToast") });
     },
     onError: () =>
       showToast({
@@ -736,7 +737,7 @@ function ElectionsScreenInner() {
   const handleVote = (candidateId: string, onBehalfOfUserId?: string) => {
     const name = candidates.find((c) => c.id === candidateId)?.name ?? "";
     Alert.alert(t("castVote"), name, [
-      { text: t("electionClosed"), style: "cancel" },
+      { text: t("cancel"), style: "cancel" },
       {
         text: t("castVote"),
         onPress: () =>
@@ -747,7 +748,7 @@ function ElectionsScreenInner() {
 
   const handleAbstain = (onBehalfOfUserId?: string) => {
     Alert.alert(t("abstain"), "", [
-      { text: t("electionClosed"), style: "cancel" },
+      { text: t("cancel"), style: "cancel" },
       {
         text: t("abstain"),
         onPress: () =>
@@ -756,24 +757,15 @@ function ElectionsScreenInner() {
     ]);
   };
 
-  const handleTransition = (action: string, destructive?: boolean) => {
+  const handleTransition = (action: string, label: string, destructive?: boolean) => {
     if (destructive) {
-      Alert.prompt
-        ? Alert.prompt(t("cancelReasonPrompt"), undefined, (reason) =>
-            transitionMutation.mutate({ action, reason: reason || undefined }),
-          )
-        : Alert.alert(t("actionConfirm"), action, [
-            { text: t("electionClosed"), style: "cancel" },
-            {
-              text: t("actionConfirm"),
-              style: "destructive",
-              onPress: () => transitionMutation.mutate({ action }),
-            },
-          ]);
+      askText({ title: label, message: t("actionReasonLabel"), confirmLabel: label, destructive: true }).then((reason) => {
+        if (reason !== null) transitionMutation.mutate({ action, reason: reason || undefined });
+      });
       return;
     }
-    Alert.alert(t("actionConfirm"), action, [
-      { text: t("electionClosed"), style: "cancel" },
+    Alert.alert(label, selected?.title ?? "", [
+      { text: t("cancel"), style: "cancel" },
       {
         text: t("actionConfirm"),
         onPress: () => transitionMutation.mutate({ action }),
@@ -895,8 +887,8 @@ function ElectionsScreenInner() {
           const sc = statusConfig(e.status);
           const candidateCount =
             e.candidates?.filter((c) => c.status === "approved").length ?? 0;
-          const totalVotes =
-            e.candidates?.reduce((s, c) => s + (c.votes ?? 0), 0) ?? 0;
+          // Participation, not the tally: each candidate's votes stay secret until the vote is closed.
+          const totalVotes = e.participantCount ?? 0;
           return (
             <TouchableOpacity
               style={[
@@ -1025,7 +1017,7 @@ function ElectionsScreenInner() {
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <Text
-                  style={[styles.modalTitle, { color: colors.foreground }]}
+                  style={[styles.modalTitle, { color: colors.foreground, flex: 0 }]}
                   numberOfLines={2}
                 >
                   {selected.title}
@@ -1104,7 +1096,7 @@ function ElectionsScreenInner() {
                             : colors.primary + "15",
                         },
                       ]}
-                      onPress={() => handleTransition(a.action, a.destructive)}
+                      onPress={() => handleTransition(a.action, t(a.labelKey), a.destructive)}
                       disabled={transitionMutation.isPending}
                     >
                       <Feather
@@ -1141,11 +1133,11 @@ function ElectionsScreenInner() {
                     },
                   ]}
                 >
-                  <Text
-                    style={[styles.descText, { color: colors.mutedForeground }]}
-                  >
-                    {selected.description}
-                  </Text>
+                  {selected.description ? (
+                    <Text style={[styles.descText, { color: colors.mutedForeground }]}>
+                      {selected.description}
+                    </Text>
+                  ) : null}
                   <InfoRow
                     icon="tag"
                     label={t("electionType")}
@@ -1656,7 +1648,12 @@ function ElectionsScreenInner() {
                   mandates={mandates}
                   isAdmin={isAdmin}
                   currentUserId={user?.id}
-                  onResign={(id: string) => resignMutation.mutate(id)}
+                  onResign={(id: string) =>
+                    Alert.alert(t("resignMandate"), t("resignConfirmMessage"), [
+                      { text: t("cancel"), style: "cancel" },
+                      { text: t("actionConfirm"), style: "destructive", onPress: () => resignMutation.mutate(id) },
+                    ])
+                  }
                   onRevoke={(id: string, reason: string) =>
                     revokeMandateMutation.mutate({ mandateId: id, reason })
                   }
@@ -2792,7 +2789,7 @@ function ResultsPanel({
               />
             </View>
             <Text style={[styles.votesText, { color: colors.mutedForeground }]}>
-              {c.votes} {t("votesCount")}
+              {c.votes} {c.votes === 1 ? t("voteCountOne") : t("votesCount")}
             </Text>
           </View>
         </View>
@@ -2845,31 +2842,18 @@ function ResultsPanel({
                       fontWeight: "700",
                     }}
                   >
-                    {t("resignMandate")}
+                    {m.userId === currentUserId ? t("resignMandate") : t("recordResignation")}
                   </Text>
                 </TouchableOpacity>
               ) : null}
               {m.status === "active" && isAdmin ? (
                 <TouchableOpacity
                   onPress={() =>
-                    Alert.prompt
-                      ? Alert.prompt(
-                          t("revokeMandate"),
-                          t("revokeReasonPrompt"),
-                          (reason) => reason && onRevoke(m.id, reason),
-                        )
-                      : Alert.alert(
-                          t("revokeMandate"),
-                          t("revokeReasonPrompt"),
-                          [
-                            { text: t("electionClosed"), style: "cancel" },
-                            {
-                              text: t("revokeMandate"),
-                              style: "destructive",
-                              onPress: () => onRevoke(m.id, t("revokeMandate")),
-                            },
-                          ],
-                        )
+                    askText({ title: t("revokeMandate"), message: t("revokeReasonPrompt"), confirmLabel: t("revokeMandate"), destructive: true, required: true }).then(
+                      (reason) => {
+                        if (reason) onRevoke(m.id, reason);
+                      },
+                    )
                   }
                 >
                   <Text

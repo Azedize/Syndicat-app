@@ -2066,3 +2066,17 @@ Vérifié sur émulateur Android (Expo Go), base de test : déclaration d'un pai
 
 **Remarque :** deux écrans s'appellent « Documents » : `documents` (générés) et `bibliotheque` (fichiers importés).
 
+## 2026-11-04 — Élections sur Android
+
+Vérifié sur émulateur Android (Expo Go), base de test : vote d'un membre, refus du second vote, résultats cachés avant clôture, clôture, publication, mandats créés.
+
+**Corrigé :**
+- **Score en cours exposé :** `GET /elections` et `GET /elections/:id` renvoyaient les voix de chaque candidat pendant le scrutin, à tout membre. Masquées jusqu'à la clôture, avec les statuts de la route des résultats.
+- **Boutons sans effet sur Android :** `Alert.prompt` n'agit que sur iOS. Annuler ou contester une élection, révoquer un mandat, demander une modification d'annonce et dupliquer un modèle passent par `components/ui/TextPrompt.tsx`.
+- Bouton d'annulation des dialogues intitulé « Élection clôturée ».
+- Code `close_voting` affiché dans la confirmation.
+- Démission d'un élu sans confirmation, libellé trompeur pour le syndic.
+- Raison du refus d'un vote masquée, message « Élections » après une candidature, titre coupé, carte vide, « 1 votes ».
+
+**À décider :** à égalité de voix entre élus, la fonction (président, vice-président) suit l'ordre de classement sans arbitrage.
+

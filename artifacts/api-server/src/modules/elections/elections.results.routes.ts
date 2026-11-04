@@ -14,7 +14,7 @@ import {
 import { requireAuth, requireOperationalAccess } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { createAlert, sendPushToUsers, sendEmailToMany } from "../../lib/notify.js";
-import { quorumMetAndNoTie } from "./elections.service.js";
+import { quorumMetAndNoTie, RESULTS_VISIBLE_STATUSES } from "./elections.service.js";
 import { assertAccess, requireSyndicateScope } from "./elections.access.js";
 
 const router = Router();
@@ -36,7 +36,7 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    if (!["closed", "completed", "contested"].includes(election.status ?? "")) {
+    if (!RESULTS_VISIBLE_STATUSES.includes(election.status ?? "")) {
       res
         .status(400)
         .json({ error: "Les résultats ne sont pas encore disponibles" });

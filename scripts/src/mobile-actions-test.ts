@@ -97,6 +97,30 @@ async function main() {
     const budgets = await call("GET", "/budgets", undefined, liveSyndic);
     check("each budget names its building", budgets.status === 200 && (budgets.body?.data ?? []).length > 0 && budgets.body.data.every((b: any) => typeof b.buildingName === "string"), String(budgets.body?.data?.length));
 
+    // Elections: nobody reads the running tally while the vote is open, the results route still does afterwards.
+    const [openElection] = (await pool`
+      SELECT e.id, e.syndicate_id FROM elections e
+        JOIN syndicates s ON s.id = e.syndicate_id AND s.status = 'active'
+        JOIN candidates c ON c.election_id = e.id AND c.votes > 0
+       WHERE e.status = 'open' LIMIT 1`) as any[];
+    const voter = await make("member", openElection.syndicate_id);
+    const voterAdmin = await make("syndicate_admin", openElection.syndicate_id);
+    const openDetail = await call("GET", `/elections/${openElection.id}`, undefined, voter);
+    check("an open election hides each candidate's votes from a member", openDetail.status === 200 && openDetail.body.candidates.length > 0 && openDetail.body.candidates.every((c: any) => c.votes === null));
+    const adminDetail = await call("GET", `/elections/${openElection.id}`, undefined, voterAdmin);
+    check("an open election hides them from the syndic too", adminDetail.status === 200 && adminDetail.body.candidates.every((c: any) => c.votes === null));
+    const listed = await call("GET", "/elections", undefined, voter);
+    const listedOpen = (listed.body?.data ?? []).find((e: any) => e.id === openElection.id);
+    check("the election list hides them as well", Boolean(listedOpen) && (listedOpen.candidates ?? []).every((c: any) => c.votes === null));
+    const [closedElection] = (await pool`
+      SELECT e.id, e.syndicate_id FROM elections e
+        JOIN syndicates s ON s.id = e.syndicate_id AND s.status = 'active'
+        JOIN candidates c ON c.election_id = e.id AND c.votes > 0
+       WHERE e.status = 'completed' LIMIT 1`) as any[];
+    const closedVoter = await make("member", closedElection.syndicate_id);
+    const closedDetail = await call("GET", `/elections/${closedElection.id}`, undefined, closedVoter);
+    check("a completed election shows the votes", closedDetail.status === 200 && closedDetail.body.candidates.some((c: any) => c.votes > 0));
+
     // Invoice: same call as the « send » button.
     const [invoice] = (await pool`
       INSERT INTO invoices (id, syndicate_id, reference, type, recipient, amount, status, date, due_date)

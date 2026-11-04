@@ -12,7 +12,7 @@ import {
   conseilSyndicalTable,
 } from "@workspace/db/schema";
 import { requireAuth } from "../../middleware/auth.js";
-import { isUserEligible, enrichElections } from "./elections.service.js";
+import { isUserEligible, enrichElections, hideRunningTally } from "./elections.service.js";
 import { assertAccess, requireSyndicateScope } from "./elections.access.js";
 
 const router = Router();
@@ -195,7 +195,7 @@ router.get("/elections/:id", requireAuth, async (req, res) => {
 
     res.json({
       data: election,
-      candidates: [...candidateMap.values()],
+      candidates: hideRunningTally(election.status, [...candidateMap.values()]),
       questions,
       // Ballots are anonymous — we can confirm participation but never reveal the choice, even to the voter.
       hasVoted: !!receipt,

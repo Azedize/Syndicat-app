@@ -101,6 +101,14 @@ export async function isUserEligible(
   return ids.includes(userId);
 }
 
+/** Same statuses as GET /elections/:id/results: before them, no one reads the running tally. */
+export const RESULTS_VISIBLE_STATUSES = ["closed", "completed", "contested"];
+
+export function hideRunningTally<C extends { votes: number | null }>(status: string | null, candidates: C[]): C[] {
+  if (RESULTS_VISIBLE_STATUSES.includes(status ?? "")) return candidates;
+  return candidates.map((c) => ({ ...c, votes: null }));
+}
+
 export async function enrichElections(
   elections: (typeof electionsTable.$inferSelect)[],
   userId: string,
@@ -136,7 +144,7 @@ export async function enrichElections(
 
   return elections.map((e) => ({
     ...e,
-    candidates: candidatesByElection.get(e.id) ?? [],
+    candidates: hideRunningTally(e.status, candidatesByElection.get(e.id) ?? []),
     hasVoted: votedElectionIds.has(e.id),
   }));
 }
