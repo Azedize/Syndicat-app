@@ -56,6 +56,8 @@
     "invitation-email:test": "node --env-file=../.env --import=tsx ./src/testdb.ts exec env API_BASE_URL=http://localhost:5056/api node --import=tsx src/invitation-email-test.ts",
     "push-token:test": "node --env-file=../.env --import=tsx ./src/testdb.ts exec env API_BASE_URL=http://localhost:5056/api node --import=tsx src/push-token-test.ts",
     "privacy:sync": "node --import=tsx src/privacy-sync.ts",
+    "api-contract:test": "node --import=tsx src/api-contract-test.ts",
+    "mobile-actions:test": "node --env-file=../.env --import=tsx ./src/testdb.ts exec env API_BASE_URL=http://localhost:5056/api node --import=tsx src/mobile-actions-test.ts",
     "release:check": "node --import=tsx src/release-check.ts",
     "account-deletion:test": "node --env-file=../.env --import=tsx ./src/testdb.ts exec env API_BASE_URL=http://localhost:5056/api node --import=tsx src/account-deletion-test.ts"
   },

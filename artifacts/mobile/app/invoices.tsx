@@ -461,11 +461,16 @@ function InvoicesScreenInner() {
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     try {
-                      await apiRequest(`/invoices/${selectedInvoice.id}/send`, "POST");
-                      await Share.share({
+                      const shared = await Share.share({
                         title: selectedInvoice.reference,
                           message: `${t("invSharePrefix")} ${selectedInvoice.reference} — ${selectedInvoice.recipient} — ${formatMAD(selectedInvoice.amount, lang)}`,
                       });
+                      // Recorded only if the user did share it, and never over a later status (paid…).
+                      if (shared.action !== Share.dismissedAction && selectedInvoice.status === "draft") {
+                        await apiRequest(`/invoices/${selectedInvoice.id}/status`, "PUT", { status: "sent" });
+                        setSelectedInvoice({ ...selectedInvoice, status: "sent" });
+                        void refreshInvoices();
+                      }
                     } catch {
                       showToast({ type: "error", title: t("error"), message: t("invSendError") });
                     }

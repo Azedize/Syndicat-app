@@ -106,14 +106,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const showUnavailableSecurity = () => {
-    Alert.alert(
-      t("securityFeatureUnavailable"),
-      t("securityFeatureUnavailableSub"),
-      [{ text: t("ok") }],
-    );
-  };
-
   const handleLogout = () => {
     Alert.alert(t("logoutConfirmTitle"), t("logoutConfirmMessage"), [
       { text: t("cancel"), style: "cancel" },
@@ -284,24 +276,6 @@ export default function SettingsScreen() {
           <Card padding="none">
             <ListItem icon="key" title={t("changePassword")} subtitle={t("viaProfilePage")} onPress={() => router.push("/profile" as any)} chevron divider />
             <ListItem icon="download" title={t("exportMyData")} subtitle={t("exportMyDataSub")} onPress={exportMyData} chevron divider />
-            {(
-              [
-                ["cpu", t("biometricAuth")],
-                ["shield", t("twoFactorAuth")],
-                ["lock", t("autoLockLabel")],
-              ] as const
-            ).map(([icon, label], i) => (
-              <ListItem
-                key={label}
-                icon={icon}
-                iconTone="neutral"
-                title={label}
-                subtitle={t("uiUnavailableFeature")}
-                onPress={showUnavailableSecurity}
-                divider={i < 2}
-                trailing={<StatusBadge label={t("disabled")} tone="neutral" icon={null} />}
-              />
-            ))}
           </Card>
         </View>
 

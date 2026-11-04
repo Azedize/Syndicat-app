@@ -497,7 +497,7 @@ interface DataContextType {
   deleteProduct: (id: string) => Promise<boolean>;
   validateProduct: (id: string) => Promise<boolean>;
   addSyndicate: (s: Syndicate) => Promise<boolean>;
-  updateSyndicateStatus: (id: string, status: Syndicate["status"]) => Promise<boolean>;
+  updateSyndicateStatus: (id: string, status: Syndicate["status"], reason?: string) => Promise<boolean>;
   resolveLegalAlert: (id: string) => Promise<boolean>;
   addSupportTicket: (t: SupportTicket) => Promise<boolean>;
   resolveTicket: (id: string) => Promise<boolean>;
@@ -512,7 +512,6 @@ interface DataContextType {
     id: string,
     status: Transaction["status"],
   ) => Promise<void>;
-  createElection: (e: Election) => void;
   addToCart: (item: Omit<CartItem, "id">) => void;
   removeFromCart: (id: string) => void;
   updateCartQty: (id: string, qty: number) => void;
@@ -1628,10 +1627,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSyndicates((p) => (p.some((x) => x.id === s.id) ? p : [s, ...p]));
     return Promise.resolve(true);
   };
-  const updateSyndicateStatus = (id: string, status: Syndicate["status"]) => {
-    setSyndicates((p) => p.map((s) => (s.id === id ? { ...s, status } : s)));
-    return organizationsApi.syndicates.update(id, { status }).then(
-      () => true,
+  // The list changes only once the server has accepted: a refusal must not look like a success.
+  const updateSyndicateStatus = (id: string, status: Syndicate["status"], reason?: string) => {
+    return organizationsApi.organizations.setStatus(id, status === "active" ? "active" : "suspended", reason).then(
+      () => {
+        setSyndicates((p) => p.map((s) => (s.id === id ? { ...s, status } : s)));
+        return true;
+      },
       (e) => {
         onWriteFailed(e);
         return false;
@@ -1805,28 +1807,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       },
     );
   };
-  const createElection = (e: Election) => {
-    setElections((p) => [e, ...p]);
-    governanceApi.elections.create(e).catch(() => {
-      notificationBus.emit({
-        type: "warning",
-        message: "Élection créée localement — synchronisation en attente",
-      });
-    });
-    api.content
-      .auditLog({
-        action: "create_election",
-        entity: "élection",
-        entityId: e.id,
-        details: e.title,
-      })
-      .catch(() => {});
-    notificationBus.emit({
-      type: "info",
-      message: `Élection créée : "${e.title}" — les membres peuvent voter`,
-    });
-  };
-
   const addToCart = (item: Omit<CartItem, "id">) =>
     setCart((prev) => {
       const existing = prev.find((c) => c.productId === item.productId);
@@ -2012,7 +1992,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateTransactionStatus,
         likePublication,
         addPublication,
-        createElection,
         addToCart,
         removeFromCart,
         updateCartQty,

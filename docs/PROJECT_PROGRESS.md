@@ -2037,3 +2037,14 @@ Tous les tests ont tourné sur la base isolée `syndycat_test` (API :5056, envoi
 - Vérifié sur émulateur Android (API 37), dans Expo Go : syndic, membre, super admin ; clair et sombre en français, clair en arabe ; 320 dp en arabe. Non vérifié : iOS, téléphone réel, sombre et arabe ensemble, mesure de performance.
 - Signalé, non modifié : sur l'accueil en arabe, le titre de section « الأولويات » est coupé sous la bannière.
 
+## 2026-11-04 — Boutons jamais fonctionnels, contrat mobile / API
+
+- Nouveau test `api-contract` : chaque appel d'API du code mobile (509) est comparé aux routes du serveur.
+- **Corrigé :**
+  - suspension d'une copropriété depuis l'onglet Syndicats : le `PATCH` n'existait pas, et le `PUT` ignore le statut. Passe maintenant par `POST /condominiums/:id/status`, avec le motif obligatoire et la trace d'audit ;
+  - « Envoyer » une facture : la route n'existait pas. Le bouton partage la facture puis la marque envoyée si elle était en brouillon ;
+  - QR code d'un document : route ajoutée. Sans `PUBLIC_APP_URL`, elle répond `QR_UNAVAILABLE` au lieu d'inventer un code ;
+  - liste des syndicats : date lisible, nom de l'administrateur, nombre réel de membres actifs. Le compteur stocké était faux sur 64 copropriétés sur 65 de la base de test. Il n'a pas été réécrit, et `statistics.routes.ts` le lit encore.
+- **Retiré :** 3 lignes « Non disponible » des paramètres (biométrie, double authentification, verrouillage automatique), `createElection` (code mort qui annonçait une synchronisation inexistante), `meetings.get` (route inexistante, jamais appelé).
+- Le titre coupé signalé sur l'accueil en arabe n'est pas un défaut : la capture tombait pendant l'arrivée des données.
+

@@ -158,7 +158,6 @@ export const meetings = {
     const query = params.toString();
     return request<{ data: unknown[] }>(`/meetings${query ? `?${query}` : ""}`);
   },
-  get: (id: string) => request<{ data: unknown }>(`/meetings/${id}`),
   create: (data: unknown) =>
     request<{ data: unknown }>("/meetings", {
       method: "POST",

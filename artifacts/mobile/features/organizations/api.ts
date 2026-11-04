@@ -11,11 +11,6 @@ export const syndicates = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/syndicates/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
 };
 
 // ─── Syndic companies, condominiums, assignments, portfolio ──────────────────

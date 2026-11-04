@@ -25969,4 +25969,10 @@ export const TRANSLATIONS: Translations = {
     ar: "المس لفتح إعدادات الهاتف",
     es: "Toque para abrir los ajustes del teléfono",
   },
+  syndicateSuspendReason: {
+    fr: "Motif de la suspension (3 caractères minimum)",
+    en: "Reason for the suspension (at least 3 characters)",
+    ar: "سبب التعليق (3 أحرف على الأقل)",
+    es: "Motivo de la suspensión (3 caracteres como mínimo)",
+  },
 };

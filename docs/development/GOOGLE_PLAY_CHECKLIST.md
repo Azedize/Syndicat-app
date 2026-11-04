@@ -8,7 +8,7 @@ Contrôle automatique : `pnpm --filter @workspace/scripts run release:check` (il
 
 | Élément | Pourquoi | Qui |
 |---|---|---|
-| Serveur de production en HTTPS | L'app ne peut rien faire sans API. Les pages publiques en dépendent aussi. Variables serveur à définir : `ALLOWED_ORIGINS`, `LEGAL_ENTITY`, `PRIVACY_EMAIL`. | Propriétaire |
+| Serveur de production en HTTPS | L'app ne peut rien faire sans API. Les pages publiques en dépendent aussi. Variables serveur à définir : `ALLOWED_ORIGINS`, `LEGAL_ENTITY`, `PRIVACY_EMAIL`, `PUBLIC_APP_URL` (QR codes de vérification). | Propriétaire |
 | Compte Expo et `extra.eas.projectId` | Sans lui, ni build EAS ni jeton de notification Expo. | Propriétaire |
 | Compte Google Play Console | Publication et compte de service. | Propriétaire |
 | Compte Apple Developer | TestFlight, App Store, clé de notifications (APNs). | Propriétaire |

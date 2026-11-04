@@ -31,11 +31,17 @@ import { localDate } from "@/lib/localDate";
 
 type MemberFilter = "all" | "active" | "inactive" | "pending";
 
+function readableDate(value: string, lang: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(lang === "ar" ? "ar-MA" : lang, { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function MembersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, lang } = useLanguage();
   const { members, syndicates, addMember, addSyndicate, updateSyndicateStatus, updateMemberStatus } = useData();
 
   const [search, setSearch] = useState("");
@@ -59,10 +65,12 @@ export default function MembersScreen() {
   const [synRegion, setSynRegion] = useState("");
   const [synAdmin, setSynAdmin] = useState("");
   const [selectedSyndicate, setSelectedSyndicate] = useState<Syndicate | null>(null);
+  const [suspendReason, setSuspendReason] = useState<string | null>(null);
   const [syndicateModalView, setSyndicateModalView] = useState<"detail" | "members">("detail");
   const [contactingAdmin, setContactingAdmin] = useState(false);
 
   const closeSyndicateModal = () => {
+    setSuspendReason(null);
     setSelectedSyndicate(null);
     setSyndicateModalView("detail");
   };
@@ -240,7 +248,7 @@ export default function MembersScreen() {
                 leading={<Avatar name={s.name} size={44} />}
                 title={s.name}
                 subtitle={`${s.sector} · ${s.region}`}
-                meta={`${s.members} ${t("syndicatMembersCount").toLowerCase()} · ${t("syndicatAdminLabel")}: ${s.admin}`}
+                meta={`${s.members} ${t("syndicatMembersCount").toLowerCase()} · ${t("syndicatAdminLabel")}: ${s.admin || "—"}`}
                 trailing={<StatusBadge label={s.status === "active" ? t("statusActive") : t("statusInactive")} tone={s.status === "active" ? "success" : "neutral"} />}
                 onPress={() => setSelectedSyndicate(s)}
                 divider={index < syndicates.length - 1}
@@ -259,9 +267,9 @@ export default function MembersScreen() {
                   {[
                     { label: t("syndicatSector"), value: selectedSyndicate.sector },
                     { label: t("syndicatRegion"), value: selectedSyndicate.region },
-                    { label: t("syndicatAdminLabel"), value: selectedSyndicate.admin },
+                    { label: t("syndicatAdminLabel"), value: selectedSyndicate.admin || "—" },
                     { label: t("syndicatMembersCount"), value: `${selectedSyndicate.members}` },
-                    { label: t("syndicatCreatedAt"), value: selectedSyndicate.createdAt },
+                    { label: t("syndicatCreatedAt"), value: readableDate(selectedSyndicate.createdAt, lang) },
                   ].map((item, i) => (
                     <View key={item.label} style={[styles.detailRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
                       <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{item.label}</Text>
@@ -284,6 +292,9 @@ export default function MembersScreen() {
                     onPress={() => handleContactAdmin(selectedSyndicate)}
                   />
                   <Button label={t("tableauNationalLabel")} icon="globe" variant="secondary" fullWidth onPress={() => navigateFromSyndicateModal("/tableau-national")} />
+                  {suspendReason !== null ? (
+                    <TextField label={t("syndicateSuspendReason")} value={suspendReason} onChangeText={setSuspendReason} multiline maxLength={500} />
+                  ) : null}
                   <Button
                     label={selectedSyndicate.status === "active" ? t("deactivate") : t("activate")}
                     icon={selectedSyndicate.status === "active" ? "user-x" : "user-check"}
@@ -292,13 +303,20 @@ export default function MembersScreen() {
                     onPress={() => {
                       const newStatus = selectedSyndicate.status === "active" ? ("inactive" as const) : ("active" as const);
                       const label = newStatus === "active" ? t("activate") : t("deactivate");
+                      // The server requires a reason to suspend a condominium.
+                      if (newStatus === "inactive" && suspendReason === null) return setSuspendReason("");
+                      if (newStatus === "inactive" && (suspendReason ?? "").trim().length < 3) {
+                        return showToast({ type: "error", title: t("error"), message: t("syndicateSuspendReason") });
+                      }
+                      const reason = newStatus === "inactive" ? suspendReason!.trim() : undefined;
                       Alert.alert(label, `${selectedSyndicate.name}?`, [
                         { text: t("cancel"), style: "cancel" },
                         {
                           text: label,
                           style: newStatus === "active" ? "default" : "destructive",
                           onPress: async () => {
-                            if (!(await updateSyndicateStatus(selectedSyndicate.id, newStatus))) return;
+                            if (!(await updateSyndicateStatus(selectedSyndicate.id, newStatus, reason))) return;
+                            setSuspendReason(null);
                             setSelectedSyndicate({ ...selectedSyndicate, status: newStatus });
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
                             showToast({ type: "success", title: t("success"), message: selectedSyndicate.name });

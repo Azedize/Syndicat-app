@@ -793,7 +793,7 @@ function t(key: string, lang: DocumentLanguage): string {
  * when no verification URL could be constructed (e.g. no domain available at all),
  * so the QR still communicates the reference rather than silently disappearing.
  */
-async function generateQrDataUrl(verifyUrlOrDocNumber: string): Promise<string> {
+export async function generateQrDataUrl(verifyUrlOrDocNumber: string): Promise<string> {
   try {
     return await QRCode.toDataURL(verifyUrlOrDocNumber, {
       errorCorrectionLevel: "M",

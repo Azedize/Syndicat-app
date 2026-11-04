@@ -2,8 +2,8 @@ import { sendRouteError } from "../../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { organizationMembersTable, organizationsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { membersTable, organizationMembersTable, organizationsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { BankDetailsError, maskBankIdentifier, normaliseBankFields } from "../../lib/bank-details.js";
@@ -32,7 +32,30 @@ router.get("/syndicates", requireAuth, async (req, res) => {
             .select()
             .from(syndicatesTable)
             .where(eq(syndicatesTable.id, user.syndicateId ?? ""));
-    res.json({ data: rows });
+    // The platform list names each condominium's administrator (the column alone is rarely filled in).
+    const admins =
+      user.role === "super_admin"
+        ? await db
+            .select({ id: usersTable.id, name: usersTable.name, syndicateId: usersTable.syndicateId })
+            .from(usersTable)
+            .where(and(eq(usersTable.role, "syndicate_admin"), eq(usersTable.status, "active")))
+        : [];
+    const adminName = (row: (typeof rows)[number]) =>
+      (admins.find((a) => a.id === row.adminId) ?? admins.find((a) => a.syndicateId === row.id))?.name ?? "";
+    // Counted here: the stored counter is only adjusted by some writes and drifts from the real list.
+    const counts = await db
+      .select({ syndicateId: membersTable.syndicateId, n: count() })
+      .from(membersTable)
+      .where(eq(membersTable.status, "active"))
+      .groupBy(membersTable.syndicateId);
+    const activeMembers = new Map(counts.map((c) => [c.syndicateId, c.n]));
+    res.json({
+      data: rows.map((row) => ({
+        ...row,
+        membersCount: activeMembers.get(row.id) ?? 0,
+        ...(user.role === "super_admin" ? { adminName: adminName(row) } : {}),
+      })),
+    });
   } catch (err) {
     sendRouteError(req, res, err);
   }

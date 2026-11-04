@@ -1,5 +1,6 @@
 // documents: crud endpoints (mounted by documents.routes.ts, in order).
 import { randomUUID } from "node:crypto";
+import { generateQrDataUrl } from "../../lib/documentPdf.js";
 import { Router } from "express";
 import { z } from "zod";
 import { findForeignReference, resolveDocumentSubject } from "../../lib/scope.js";
@@ -81,6 +82,33 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
 });
 
 // ─── GET /documents/local-docs/:uuid/:filename — serve local-disk fallback PDFs
+
+// QR code of the public verification page. Only with a real public address: without PUBLIC_APP_URL,
+// or for a document without verification token, there is nothing a scanner could open.
+router.get("/documents/:id/qr", requireAuth, async (req, res) => {
+  try {
+    const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, String(req.params.id)));
+    if (
+      !doc ||
+      doc.isDeleted ||
+      (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) ||
+      !(await canSeeDocument(req.user!, doc))
+    ) {
+      res.status(404).json({ error: "Document introuvable", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
+    const verifyUrl = doc.verificationToken ? buildVerifyUrl(doc.verificationToken) : undefined;
+    const qrDataUrl = verifyUrl ? await generateQrDataUrl(verifyUrl) : "";
+    if (!qrDataUrl) {
+      res.status(409).json({ error: "Code de vérification indisponible", code: "QR_UNAVAILABLE" });
+      return;
+    }
+    res.json({ qrDataUrl, verifyUrl });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 router.get(
   "/documents/local-docs/:uuid/:filename",
