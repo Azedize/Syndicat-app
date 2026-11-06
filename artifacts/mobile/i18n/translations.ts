@@ -26388,5 +26388,5 @@ export const TRANSLATIONS: Translations = {
     en: "Closed",
     ar: "مغلقة",
     es: "Cerrada",
-  },
+  }
 };
