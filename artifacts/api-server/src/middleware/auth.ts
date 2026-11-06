@@ -51,6 +51,8 @@ export interface JwtPayload {
   name: string;
   /** "must change password": temporary credentials, restricted session. */
   mcp?: boolean;
+  /** Issued at (seconds), set by jwt.sign: compared with the last password change. */
+  iat?: number;
 }
 
 /** Endpoints a restricted (must-change-password) session may still call. */

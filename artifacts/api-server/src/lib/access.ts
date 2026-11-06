@@ -103,6 +103,7 @@ type Decision =
 export async function checkSessionAccess(p: JwtPayload): Promise<Decision> {
   const rows = (await db.execute(sql`
     SELECT u.status AS user_status, u.role AS home_role, u.syndicate_id AS home_syndicate,
+      floor(extract(epoch FROM u.password_changed_at))::bigint AS password_changed_s,
       s.id AS syndicate_id, s.status AS syndicate_status, o.status AS org_status,
       (SELECT m.role FROM syndicate_memberships m
         WHERE m.user_id = u.id AND m.syndicate_id = s.id AND m.status = 'active' LIMIT 1) AS membership_role,
@@ -116,6 +117,11 @@ export async function checkSessionAccess(p: JwtPayload): Promise<Decision> {
   const r = rows[0];
   const revoked = (message: string): Decision => ({ ok: false, http: 401, code: "SESSION_CONTEXT_REVOKED", message });
   if (!r || r.user_status !== "active") return { ok: false, http: 401, code: "ACCOUNT_DISABLED", message: "Compte désactivé ou introuvable" };
+  // A token issued before the last password change (reset or change) is closed:
+  // a reset usually means the old password leaked. Same second = after (iat is in seconds).
+  if (r.password_changed_s != null && typeof p.iat === "number" && p.iat < Number(r.password_changed_s)) {
+    return { ok: false, http: 401, code: "SESSION_PASSWORD_CHANGED", message: "Mot de passe modifié : reconnectez-vous." };
+  }
 
   if (p.role === "super_admin") {
     return r.home_role === "super_admin" ? { ok: true, status: null, orgAdmin: false } : revoked("Accès plateforme révoqué");

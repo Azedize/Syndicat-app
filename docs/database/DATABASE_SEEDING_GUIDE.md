@@ -131,6 +131,16 @@ utilisez une base dédiée (par ex. `syndycat_test`) et `seedgen -- run`.
 | `appel_adjustments` | 0 à 3 corrections par copropriété | via `adjustObligation()` du projet : jamais sous le montant déjà payé ; statut recalculé |
 | `documents` en arabe | avis, procès-verbal du conseil, règlement intérieur (`language = ar`) | PDF de droite à gauche, police Amiri |
 
+Elle n'agit que dans les copropriétés **actives dont la société de syndic n'est pas suspendue**, les seules où l'API accepte des écritures : on n'y fabrique donc aucune activité récente là où personne ne pourrait agir.
+
+Vérification à travers l'API en marche, sur toutes les copropriétés générées (clés de répartition, CGU, « lu et compris », paniers) :
+
+```bash
+pnpm --filter @workspace/scripts run testdb -- exec env API_BASE_URL=http://localhost:5056/api node --import=tsx ./src/seedgen/api-extras-check.ts
+```
+
+`seedgen -- scenarios` ajoute aussi une résidence à l'abonnement expiré (`scn-s<graine>-expired`), avec son propre syndic et un copropriétaire. C'est la lecture seule (`402`) que vérifie `subscriptions-access`.
+
 Cette phase utilise **sa propre suite de tirages aléatoires** (graine du lancement décalée). Les données des phases précédentes restent donc identiques pour une même graine, ainsi que les comptes utilisés par les tests de non-régression.
 
 Restent exclues, avec leur motif dans `plan.ts` : les jetons et codes de sécurité, les e-mails envoyés, les signatures, les contenus juridiques et réglementaires, la configuration, les modules retirés, les étapes de recouvrement contentieux, les promotions payantes et les bulletins de paie (aucun employé n'a de compte).

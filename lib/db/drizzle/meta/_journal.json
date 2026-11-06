@@ -134,6 +134,13 @@
       "when": 1792793387433,
       "tag": "0018_alert_i18n_links",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792879787433,
+      "tag": "0019_password_changed_at",
+      "breakpoints": true
     }
   ]
 }

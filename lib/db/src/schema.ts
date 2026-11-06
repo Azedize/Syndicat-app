@@ -98,6 +98,8 @@ export const usersTable = pgTable(
     cin: text("cin"),                    // Moroccan CIN (Carte d'Identité Nationale)
     passwordHash: text("password_hash").notNull(),
     mustChangePassword: boolean("must_change_password").notNull().default(false),
+    /** Last password change: access tokens issued before it are refused (lib/access.ts). */
+    passwordChangedAt: timestamp("password_changed_at"),
     /**
      * unverified (default) | verified (confirmed by a code sent to it) |
      * undeliverable (reserved domain, or known not to receive mail). Mail is

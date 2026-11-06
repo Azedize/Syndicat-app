@@ -499,7 +499,7 @@ router.post("/auth/change-password", requireAuth, async (req, res) => {
       // Update the password
       await tx
         .update(usersTable)
-        .set({ passwordHash, mustChangePassword: false, updatedAt: now })
+        .set({ passwordHash, mustChangePassword: false, passwordChangedAt: now, updatedAt: now })
         .where(eq(usersTable.id, user.id));
       // Revoke all existing refresh tokens — forces re-login on all devices after password change
       await tx
@@ -701,9 +701,18 @@ async function applyNewPassword(
     // A reset also clears temporary credentials.
     await tx
       .update(usersTable)
-      .set({ passwordHash, mustChangePassword: false, updatedAt: now })
+      .set({ passwordHash, mustChangePassword: false, passwordChangedAt: now, updatedAt: now })
       .where(eq(usersTable.id, user.id));
     await consume(tx, now);
+    // Every other code or link still open for this account dies with the reset.
+    await tx
+      .update(otpTokensTable)
+      .set({ usedAt: now } as any)
+      .where(and(eq(otpTokensTable.email, user.email.toLowerCase()), eq(otpTokensTable.purpose, RESET_CODE_PURPOSE), isNull(otpTokensTable.usedAt)));
+    await tx
+      .update(passwordResetTokensTable)
+      .set({ usedAt: now })
+      .where(and(eq(passwordResetTokensTable.userId, user.id), isNull(passwordResetTokensTable.usedAt)));
     // Every open session ends: a reset usually means the old password leaked.
     await tx
       .update(refreshTokensTable)
