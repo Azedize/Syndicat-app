@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/DataState";

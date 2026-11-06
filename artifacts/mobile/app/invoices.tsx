@@ -8,7 +8,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Modal,
   Platform,
   ScrollView,
   Share,
@@ -18,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
@@ -179,7 +179,9 @@ function InvoicesScreenInner() {
         { text: t("invAppareilPhoto"), onPress: () => doPickAndUpload("camera") },
         { text: t("invDocumentOption"), onPress: () => doPickAndUpload("document") },
         { text: t("cancel"), style: "cancel" },
-      ]
+      ],
+      // Three actions: Android has no room left for a « Cancel » button, a tap outside closes it.
+      { cancelable: true },
     );
   };
 

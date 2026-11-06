@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FONT } from "@/constants/typography";

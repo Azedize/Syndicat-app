@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   View,
   RefreshControl,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";

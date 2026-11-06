@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -305,12 +305,13 @@ function ChargesScreenInner() {
   };
 
   const choosePayProof = () => {
+    // Three actions: Android has no room left for a « Cancel » button, a tap outside closes it.
     Alert.alert(t("proofSourceTitle"), undefined, [
       { text: t("proofFromCamera"), onPress: () => pickProofImage("camera") },
       { text: t("proofFromGallery"), onPress: () => pickProofImage("library") },
       { text: t("proofFromPdf"), onPress: pickProofPdf },
       { text: t("cancel"), style: "cancel" },
-    ]);
+    ], { cancelable: true });
   };
 
   const pickProofImage = async (source: "camera" | "library") => {

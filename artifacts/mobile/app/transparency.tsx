@@ -3,9 +3,17 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, Modal, Platform, RefreshControl,
-  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
@@ -13,6 +21,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import { parseAmount } from "@/lib/parseAmount";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 const STRINGS: Record<string, Record<LangCode, string>> = {
@@ -144,12 +153,13 @@ export default function TransparencyScreen() {
 
   const handleAdd = async () => {
     if (!form.title.trim()) { showToast({ type: "warning", title: STRINGS.required[lang], message: STRINGS.titleRequired[lang] }); return; }
-    if (!form.amount) { showToast({ type: "warning", title: STRINGS.required[lang], message: STRINGS.amountRequired[lang] }); return; }
+    const amount = parseAmount(form.amount);
+    if (!form.amount || amount === null) { showToast({ type: "warning", title: STRINGS.required[lang], message: STRINGS.amountRequired[lang] }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/expense-justifications", "POST", {
         ...form,
-        amount: parseFloat(form.amount),
+        amount,
       }, token);
       setShowAdd(false);
       setForm({ title: "", description: "", amount: "", category: "maintenance", receiptUrl: "" });

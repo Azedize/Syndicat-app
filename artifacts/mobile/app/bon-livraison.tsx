@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import {
   Alert,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type BonLivraison } from "@/context/DataContext";
@@ -21,6 +21,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { parseAmount } from "@/lib/parseAmount";
 import { localDate } from "@/lib/localDate";
 
 type FilterType = "all" | "sortie" | "entree";
@@ -125,7 +126,7 @@ export default function BonLivraisonScreen() {
   const handleAdd = async () => {
     if (!newRecipient.trim() || !newItemLabel.trim() || !newItemPrice.trim() || savingBl) return;
     const qty = parseInt(newItemQty) || 1;
-    const price = parseFloat(newItemPrice.replace(",", ".")) || 0;
+    const price = parseAmount(newItemPrice) ?? 0;
     const newBl: BonLivraison = {
       id: "",
       // allocated by the server (BL-<year>-<n>)
@@ -471,7 +472,7 @@ export default function BonLivraisonScreen() {
               {newItemQty && newItemPrice ? (
                 <View style={[styles.previewTotal, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <Text style={[styles.previewTotalText, { color: colors.tint }]}>
-                     {localize("estimatedTotal", lang)}: {formatMoney((parseInt(newItemQty) || 0) * (parseFloat(newItemPrice) || 0), lang)}
+                     {localize("estimatedTotal", lang)}: {formatMoney((parseInt(newItemQty) || 0) * ((parseAmount(newItemPrice) ?? 0)), lang)}
                   </Text>
                 </View>
               ) : null}

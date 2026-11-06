@@ -4,8 +4,8 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -21,6 +22,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import { parseAmount } from "@/lib/parseAmount";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import { Avatar, ListItem, StatusBadge, type StatusTone } from "@/components/ui";
@@ -149,6 +151,12 @@ function LocatairesScreenInner() {
 
   const handleAdd = async () => {
     if (!form.name.trim()) return;
+    const monthlyRent = form.monthlyRent ? parseAmount(form.monthlyRent) : undefined;
+    const depositAmount = form.depositAmount ? parseAmount(form.depositAmount) : undefined;
+    if (monthlyRent === null || depositAmount === null) {
+      Alert.alert(t("error"), t("invalidAmountMessage"));
+      return;
+    }
     try {
       setSubmitting(true);
       await apiRequest(
@@ -161,12 +169,8 @@ function LocatairesScreenInner() {
           lotId: form.lotId.trim() || undefined,
           leaseStart: form.leaseStart || undefined,
           leaseEnd: form.leaseEnd || undefined,
-          monthlyRent: form.monthlyRent
-            ? parseFloat(form.monthlyRent)
-            : undefined,
-          depositAmount: form.depositAmount
-            ? parseFloat(form.depositAmount)
-            : undefined,
+          monthlyRent,
+          depositAmount,
           emergencyContact: form.emergencyContact.trim() || undefined,
           emergencyPhone: form.emergencyPhone.trim() || undefined,
           notes: form.notes.trim() || undefined,

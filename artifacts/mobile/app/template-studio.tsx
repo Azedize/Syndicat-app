@@ -13,7 +13,6 @@ import {
   Alert,
   Animated,
   FlatList,
-  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -23,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { askText } from "@/components/ui/TextPrompt";

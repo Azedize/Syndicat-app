@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   RefreshControl,
   ScrollView,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { askText } from "@/components/ui/TextPrompt";
@@ -526,7 +526,7 @@ export default function ProductDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       <ScrollView
         showsVerticalScrollIndicator={false}

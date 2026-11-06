@@ -2,7 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -209,7 +210,7 @@ export default function PublicationsScreen() {
       {/* Reader + comments */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedId(null)}>
         {selected ? (
-          <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
             <SheetHeader title={catLabel(selected.category) || t("pubTitle")} subtitle={date(selected.createdAt)} onClose={() => setSelectedId(null)} />
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
               <Text style={[TYPE.title, { color: colors.foreground, textAlign: "auto" }]}>{selected.title}</Text>

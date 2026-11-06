@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Alert as AppAlert } from "@/context/DataContext";

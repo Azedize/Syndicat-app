@@ -20,7 +20,6 @@ import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -29,6 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";

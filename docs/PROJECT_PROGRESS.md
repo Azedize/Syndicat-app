@@ -2080,3 +2080,13 @@ Vérifié sur émulateur Android (Expo Go), base de test : vote d'un membre, ref
 
 **À décider :** à égalité de voix entre élus, la fonction (président, vice-président) suit l'ordre de classement sans arbitrage.
 
+## 2026-11-04 — Pièges propres à Android
+
+Tout compilait et passait les tests d'API, mais ne marchait pas sur un téléphone. Nouveau test `native-rules`, pour qu'ils ne reviennent pas.
+
+- **Clavier :** Android dessine bord à bord et ne redimensionne plus la fenêtre. Le champ de la messagerie et ceux des fenêtres modales restaient sous le clavier. `components/ui/AppModal.tsx` (61 fichiers) et `KeyboardAvoidingView` de `react-native-keyboard-controller`.
+- **Dialogues :** Android affiche 3 boutons au plus. Dans la messagerie, Modifier, Supprimer, Signaler et Supprimer la conversation étaient inaccessibles. `showOptions` et `askChoice` dans `components/ui/TextPrompt.tsx`.
+- **Montants :** `parseFloat("1500,50")` donnait 1500 (loyer, caution, prix d'annonce, dépense). `lib/parseAmount.ts` accepte la virgule et refuse ce qu'il ne peut pas lire exactement.
+- **PV :** « Publier » ne modifiait que l'écran. Passe par `PUT /ag-meetings/:id/status`, seulement pour une réunion déjà tenue et non annulée.
+- **Messagerie :** point « en ligne » permanent et sans donnée retiré, bouton d'appel ouvrant un composeur vide retiré, rôle affiché en clair.
+

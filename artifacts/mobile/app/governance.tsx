@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { shareContent } from "@/hooks/useShare";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";

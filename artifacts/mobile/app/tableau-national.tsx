@@ -6,7 +6,6 @@ import {
   Alert,
   ActivityIndicator,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   Share,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";

@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { reloadAppAsync } from "expo";
 import React, { useState } from "react";
 import {
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { getLastLanguage } from "@/context/LanguageContext";
 

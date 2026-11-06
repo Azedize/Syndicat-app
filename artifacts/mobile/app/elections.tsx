@@ -8,7 +8,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -18,10 +17,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { askText } from "@/components/ui/TextPrompt";
+import { askChoice, askText } from "@/components/ui/TextPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -421,21 +421,13 @@ function ElectionsScreenInner() {
       });
       return;
     }
-    Alert.alert(
-      t("tieDetected"),
-      `${remainingSeats - picked.length} ${t("seatsToFill")}`,
-      [
-        ...remaining.map((c) => ({
-          text: `${c.name} (${c.votes})`,
-          onPress: () =>
-            promptTieResolution(tiedCandidates, remainingSeats, [
-              ...picked,
-              c.id,
-            ]),
-        })),
-        { text: t("electionClosed"), style: "cancel" as const },
-      ],
-    );
+    askChoice({
+      title: t("tieDetected"),
+      message: `${remainingSeats - picked.length} ${t("seatsToFill")}`,
+      choices: remaining.map((c) => ({ label: `${c.name} (${c.votes})`, value: c.id })),
+    }).then((id) => {
+      if (id) promptTieResolution(tiedCandidates, remainingSeats, [...picked, id]);
+    });
   };
 
   const submitCandidacyMutation = useMutation({

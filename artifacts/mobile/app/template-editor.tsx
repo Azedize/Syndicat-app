@@ -10,7 +10,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";

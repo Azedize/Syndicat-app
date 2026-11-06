@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:login-transport": "node --test lib/login-transport.test.mjs",
     "test:permissions": "node --test lib/permissionFlow.test.mjs",
+    "test:amounts": "node --test lib/parseAmount.test.mjs",
     "dev:tunnel": "pnpm exec expo start --tunnel --port 8081",
     "dev:localhost": "pnpm exec expo start --localhost --port 8081"
   },

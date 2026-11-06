@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";

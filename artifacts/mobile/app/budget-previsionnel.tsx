@@ -6,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { apiRequest } from "@/lib/api";
 import { ticketedUrl } from "@/services/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

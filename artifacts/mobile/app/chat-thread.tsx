@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { shareContent } from "@/hooks/useShare";
+import { showOptions } from "@/components/ui/TextPrompt";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   ActivityIndicator,
@@ -10,7 +11,6 @@ import {
   FlatList,
   I18nManager,
   Image,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   pickAndUploadPhoto,
   pickAndUploadDocument,
@@ -146,6 +147,22 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+const PARTICIPANT_ROLE_KEYS: Record<string, string> = {
+  super_admin: "superAdmin",
+  syndicate_admin: "syndicateAdmin",
+  president: "rolePresident",
+  treasurer: "roleTresorier",
+  secretary: "roleSecrétaire",
+  committee_member: "roleMembreConseil",
+  member: "roleMember",
+  tenant: "roleTenant",
+};
+
+function participantRoleLabel(role: string, t: (key: string) => string): string {
+  const key = PARTICIPANT_ROLE_KEYS[role];
+  return key ? t(key) : role;
 }
 
 export default function ChatThreadScreen() {
@@ -584,7 +601,7 @@ export default function ChatThreadScreen() {
     }
 
     actionOptions.push({ text: t("cancel"), style: "cancel" as const });
-    Alert.alert(t("messageOptions"), undefined, actionOptions);
+    showOptions(t("messageOptions"), actionOptions);
   };
 
   if (!conversation) {
@@ -620,7 +637,7 @@ export default function ChatThreadScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       keyboardVerticalOffset={0}
     >
       {/* Header */}
@@ -655,39 +672,10 @@ export default function ChatThreadScreen() {
           >
             {conversation.participant}
           </Text>
-          <View style={styles.onlineRow}>
-            <View
-              style={[styles.onlineDot, { backgroundColor: colors.success }]}
-            />
-            <Text
-              style={[styles.onlineLabel, { color: colors.mutedForeground }]}
-            >
-              {conversation.role}
-            </Text>
-          </View>
+          <Text style={[styles.onlineLabel, { color: colors.mutedForeground }]}>
+            {participantRoleLabel(conversation.role, t)}
+          </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert(
-              t("vocalCallLabel"),
-              `${t("callLabel")} ${conversation.participant}?`,
-              [
-                { text: t("cancel"), style: "cancel" },
-                {
-                  text: t("callLabel"),
-                  onPress: () =>
-                    Linking.openURL("tel:").catch(() =>
-                      Alert.alert(t("error"), t("callUnavailable")),
-                    ),
-                },
-              ],
-            );
-          }}
-        >
-          <Feather name="phone" size={16} color={colors.primary} />
-        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
@@ -725,7 +713,7 @@ export default function ChatThreadScreen() {
                 router.back();
               },
             });
-            Alert.alert(t("optionsLabel"), undefined, options);
+            showOptions(t("optionsLabel"), options);
           }}
         >
           <Feather name="more-vertical" size={16} color={colors.foreground} />
@@ -1454,13 +1442,6 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 15, fontFamily: "Inter_700Bold" },
   headerName: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  onlineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 2,
-  },
-  onlineDot: { width: 7, height: 7, borderRadius: 4 },
   onlineLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
   headerBtn: {
     width: 36,

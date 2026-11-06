@@ -2,7 +2,8 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/DataState";

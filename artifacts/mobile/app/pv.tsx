@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   Share,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
@@ -42,6 +42,7 @@ interface PV {
   summary: string;
   resolutions: string[];
   signataires: string[];
+  meetingStatus: string;
 }
 
 const TYPE_CONFIG_META: Record<
@@ -101,6 +102,7 @@ function meetingToPV(m: any): PV {
       return `${r.title}${badge}`;
     }),
     signataires: [],
+    meetingStatus: m.status ?? "",
   };
 }
 
@@ -187,16 +189,15 @@ function PVScreenInner() {
       { text: t("cancel"), style: "cancel" },
       {
         text: t("pvPublishBtn"),
-        onPress: () => {
-          setPVList((prev) =>
-            prev.map((p) =>
-              p.id === id ? { ...p, status: "published" as const } : p,
-            ),
-          );
-          setSelectedPV((prev) =>
-            prev ? { ...prev, status: "published" } : null,
-          );
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onPress: async () => {
+          try {
+            await apiRequest(`/ag-meetings/${id}/status`, "PUT", { status: "completed" });
+            setSelectedPV((prev) => (prev ? { ...prev, status: "published", meetingStatus: "completed" } : null));
+            await fetchPVs();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (err: any) {
+            Alert.alert(t("error"), err?.message ?? t("pvPublishError"));
+          }
         },
       },
     ]);
@@ -715,7 +716,11 @@ function PVScreenInner() {
                     {t("pvDownloadPDF")}
                   </Text>
                 </TouchableOpacity>
-                {isAdmin && selectedPV.status !== "published" ? (
+                {/* Only for a meeting that took place: neither a cancelled one nor one still to come. */}
+                {isAdmin &&
+                selectedPV.status !== "published" &&
+                selectedPV.meetingStatus !== "cancelled" &&
+                selectedPV.date <= localDate() ? (
                   <TouchableOpacity
                     style={[
                       styles.actionBtn,

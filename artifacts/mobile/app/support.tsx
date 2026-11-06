@@ -11,7 +11,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import type { SupportTicket, TicketReply } from "@/context/DataContext";
@@ -362,7 +363,7 @@ export default function SupportScreen() {
       {/* ── Ticket detail ── */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
         {selected ? (
-          <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
             <SheetHeader title={`${t("supportTicketDetail")} #${selected.id.slice(-6).toUpperCase()}`} subtitle={t(catCfg(selected.category).labelKey)} onClose={() => setSelected(null)} />
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={[TYPE.headline, { color: colors.foreground, textAlign: "auto" }]}>{selected.title}</Text>
@@ -471,7 +472,7 @@ export default function SupportScreen() {
 
       {/* ── New ticket ── */}
       <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowNew(false)}>
-        <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
           <SheetHeader title={t("supportNewTicket")} subtitle={`${t("supportSubmittedBy")} : ${user?.name ?? ""}`} onClose={() => setShowNew(false)} />
           <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>

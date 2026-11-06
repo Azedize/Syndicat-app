@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   FlatList,
   Linking,
-  Modal,
   ScrollView,
   Share,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "@/context/ActivityContext";
 import { useAuth } from "@/context/AuthContext";

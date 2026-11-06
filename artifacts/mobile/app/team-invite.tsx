@@ -442,7 +442,7 @@ export default function TeamInviteScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         <KeyboardAwareScrollViewCompat
           contentContainerStyle={{

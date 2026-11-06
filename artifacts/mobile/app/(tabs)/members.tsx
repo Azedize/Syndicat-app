@@ -5,7 +5,6 @@ import React, { useState, useCallback } from "react";
 import {
   Alert,
   FlatList,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Member, type Syndicate } from "@/context/DataContext";

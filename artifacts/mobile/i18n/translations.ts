@@ -26041,4 +26041,16 @@ export const TRANSLATIONS: Translations = {
     ar: "ستنتهي هذه الولاية فورًا.",
     es: "Este mandato terminará de inmediato.",
   },
+  invalidAmountMessage: {
+    fr: "Montant invalide. Exemple : 1500,50",
+    en: "Invalid amount. Example: 1500.50",
+    ar: "مبلغ غير صالح. مثال: 1500,50",
+    es: "Importe no válido. Ejemplo: 1500,50",
+  },
+  pvPublishError: {
+    fr: "Le PV n'a pas pu être publié.",
+    en: "The minutes could not be published.",
+    ar: "تعذر نشر المحضر.",
+    es: "No se ha podido publicar el acta.",
+  },
 };

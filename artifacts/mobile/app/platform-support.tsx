@@ -20,7 +20,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -30,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -660,7 +660,7 @@ function PlatformSupportScreen() {
         {selected ? (
           <KeyboardAvoidingView
             style={[styles.modal, { backgroundColor: colors.background }]}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior="padding"
           >
             {/* Modal header */}
             <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
@@ -835,7 +835,7 @@ function PlatformSupportScreen() {
       <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView
           style={[styles.modal, { backgroundColor: colors.background }]}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="padding"
         >
           <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{ps("newTitle")}</Text>

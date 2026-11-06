@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { uploadFileUri } from "@/lib/upload";
+import { parseAmount } from "@/lib/parseAmount";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -9,7 +10,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as CoverImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -477,8 +478,9 @@ export default function MyShopScreen() {
 
   const handleSave = async () => {
     if (!name.trim() || !price.trim()) { Alert.alert(t("required"), shopText("productRequired", lang)); return; }
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) { Alert.alert(t("error"), shopText("invalidPrice", lang)); return; }
+    const parsedPrice = parseAmount(price);
+    const parsedOriginalPrice = originalPrice.trim() ? parseAmount(originalPrice) : undefined;
+    if (parsedPrice === null || parsedPrice <= 0 || parsedOriginalPrice === null) { Alert.alert(t("error"), shopText("invalidPrice", lang)); return; }
     if (contactPrefs.length === 0) { Alert.alert(t("error"), shopText("contactRequired", lang)); return; }
     if (uploadingImages) { Alert.alert(t("info"), shopText("imagesPending", lang)); return; }
     setSaving(true);
@@ -495,7 +497,7 @@ export default function MyShopScreen() {
         imageUrls: imageObjectPaths,
         negotiable,
       };
-      if (originalPrice.trim()) payload.originalPrice = parseFloat(originalPrice);
+      if (parsedOriginalPrice !== undefined) payload.originalPrice = parsedOriginalPrice;
       if (brand.trim()) payload.brand = brand.trim();
       if (model.trim()) payload.model = model.trim();
       if (purchaseYear.trim()) payload.purchaseYear = purchaseYear.trim();

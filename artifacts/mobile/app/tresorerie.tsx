@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -173,7 +173,7 @@ function Btn({ label, onPress, color, icon, busy }: { label: string; onPress: ()
 function Sheet({ visible, title, onClose, children, colors, bottomInset, closeLabel }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; colors: Colors; bottomInset: number; closeLabel: string }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior="padding">
         <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
           <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{title}</Text>
           <TouchableOpacity onPress={onClose} accessibilityLabel={closeLabel}>
