@@ -10,6 +10,7 @@ import { serverAuditLog } from "../../lib/audit.js";
 import { createAlert, sendPushToUsers, sendEmailToMany } from "../../lib/notify.js";
 import { getEligibleVoterIds, closeElectionVoting, publishElectionResults } from "./elections.service.js";
 import { assertAccess } from "./elections.access.js";
+import { defaultsFor, ELECTION_TYPES, validateConfig } from "./elections.rules.js";
 
 const router = Router();
 
@@ -23,24 +24,16 @@ router.post(
     const schema = z.object({
       title: z.string().min(1),
       description: z.string().default(""),
-      electionType: z
-        .enum([
-          "president",
-          "board",
-          "financial_committee",
-          "maintenance_committee",
-          "building_representative",
-          "special",
-        ])
-        .default("special"),
+      electionType: z.enum(ELECTION_TYPES).default("special"),
       buildingId: z.string().nullable().optional(),
-      votingMethod: z
-        .enum(["simple_majority", "absolute_majority"])
-        .default("simple_majority"),
+      votingMethod: z.enum(["simple_majority", "absolute_majority", "three_quarters"]).optional(),
       quorumPercent: z.number().int().min(0).max(100).default(50),
       majorityPercent: z.number().int().min(0).max(100).default(50),
-      seatsCount: z.number().int().min(1).default(1),
-      tenantsCanVote: z.boolean().default(false),
+      seatsCount: z.number().int().min(1).max(50).optional(),
+      ballotMode: z.enum(["single", "multiple"]).optional(),
+      weighting: z.enum(["per_voter", "quote_part"]).optional(),
+      majorityBase: z.enum(["votes_cast", "all_voices"]).optional(),
+      tenantsCanVote: z.boolean().optional(),
       candidacyStart: z.string(),
       candidacyEnd: z.string(),
       startDate: z.string(),
@@ -63,7 +56,22 @@ router.post(
       return;
     }
 
-    const d = result.data;
+    // The type's legal settings first, then what the organizer chose for the rest.
+    const preset = defaultsFor(result.data.electionType);
+    const d = {
+      ...result.data,
+      seatsCount: result.data.seatsCount ?? preset.seatsCount ?? 1,
+      ballotMode: result.data.ballotMode ?? preset.ballotMode ?? ((result.data.seatsCount ?? 1) > 1 ? "multiple" : "single"),
+      weighting: result.data.weighting ?? preset.weighting ?? "per_voter",
+      votingMethod: result.data.votingMethod ?? preset.votingMethod ?? "simple_majority",
+      majorityBase: result.data.majorityBase ?? preset.majorityBase ?? "votes_cast",
+      tenantsCanVote: result.data.tenantsCanVote ?? preset.tenantsCanVote ?? false,
+    };
+    const ruleErrors = validateConfig({ ...d, buildingId: d.buildingId ?? null });
+    if (ruleErrors.length) {
+      res.status(422).json({ error: ruleErrors[0].message, code: ruleErrors[0].code, field: ruleErrors[0].field, errors: ruleErrors });
+      return;
+    }
     if (
       d.candidacyEnd < d.candidacyStart ||
       d.startDate < d.candidacyEnd ||
@@ -120,6 +128,9 @@ router.post(
           quorumPercent: d.quorumPercent,
           majorityPercent: d.majorityPercent,
           seatsCount: d.seatsCount,
+          ballotMode: d.ballotMode,
+          weighting: d.weighting,
+          majorityBase: d.majorityBase,
           tenantsCanVote: d.tenantsCanVote,
           candidacyStart: d.candidacyStart,
           candidacyEnd: d.candidacyEnd,
@@ -158,7 +169,11 @@ router.put(
       description: z.string().optional(),
       quorumPercent: z.number().int().min(0).max(100).optional(),
       majorityPercent: z.number().int().min(0).max(100).optional(),
-      seatsCount: z.number().int().min(1).optional(),
+      seatsCount: z.number().int().min(1).max(50).optional(),
+      ballotMode: z.enum(["single", "multiple"]).optional(),
+      weighting: z.enum(["per_voter", "quote_part"]).optional(),
+      majorityBase: z.enum(["votes_cast", "all_voices"]).optional(),
+      votingMethod: z.enum(["simple_majority", "absolute_majority", "three_quarters"]).optional(),
       tenantsCanVote: z.boolean().optional(),
       candidacyStart: z.string().optional(),
       candidacyEnd: z.string().optional(),
@@ -192,6 +207,29 @@ router.put(
         return;
       }
 
+      // A second round keeps the seats and candidates of its tie: only the dates
+      // (and the texts) are the organizer's to set.
+      if ((election.round ?? 1) > 1 && ["seatsCount", "ballotMode", "weighting", "majorityBase", "votingMethod", "majorityPercent", "tenantsCanVote"].some((k) => k in result.data)) {
+        res.status(400).json({ error: "Un second tour garde les règles du premier : seules les dates et les textes se modifient", code: "RUNOFF_RULES_FIXED" });
+        return;
+      }
+      const merged = { ...election, ...result.data };
+      const ruleErrors = validateConfig({
+        electionType: merged.electionType ?? "special",
+        seatsCount: merged.seatsCount ?? 1,
+        ballotMode: merged.ballotMode as "single" | "multiple",
+        weighting: merged.weighting as "per_voter" | "quote_part",
+        votingMethod: (merged.votingMethod ?? "simple_majority") as "simple_majority",
+        majorityBase: merged.majorityBase as "votes_cast" | "all_voices",
+        majorityPercent: merged.majorityPercent ?? 50,
+        tenantsCanVote: !!merged.tenantsCanVote,
+        buildingId: merged.buildingId ?? null,
+      });
+      if (ruleErrors.length) {
+        res.status(422).json({ error: ruleErrors[0].message, code: ruleErrors[0].code, field: ruleErrors[0].field, errors: ruleErrors });
+        return;
+      }
+
       const [updated] = await db
         .update(electionsTable)
         .set(result.data as any)
@@ -215,7 +253,8 @@ router.put(
 const TRANSITIONS: Record<string, { from: string[]; to: string }> = {
   open_candidacy: { from: ["draft"], to: "candidacy_open" },
   start_campaign: { from: ["candidacy_open"], to: "campaign" },
-  open_voting: { from: ["campaign", "candidacy_open"], to: "open" },
+  // from draft only for a second round (its candidates are the tied ones)
+  open_voting: { from: ["campaign", "candidacy_open", "draft"], to: "open" },
   close_voting: { from: ["open"], to: "closed" },
   publish_results: { from: ["closed"], to: "completed" },
   cancel: {
@@ -227,6 +266,10 @@ const TRANSITIONS: Record<string, { from: string[]; to: string }> = {
     from: ["quorum_failed", "contested", "cancelled"],
     to: "candidacy_open",
   },
+  // A tie that persisted, or no candidate reaching the majority: the organizer
+  // plans a new ballot (a new election, candidacies open again). The
+  // deliberation_required election and its results stay as they are.
+  schedule_new_ballot: { from: ["deliberation_required"], to: "deliberation_required" },
 };
 
 router.post(
@@ -238,8 +281,7 @@ router.post(
     const schema = z.object({
       action: z.enum(Object.keys(TRANSITIONS) as [string, ...string[]]),
       reason: z.string().optional(),
-      // Required only when publish_results hits a tie at the seat cutoff — the admin
-      // must explicitly pick which tied candidate(s) take the remaining seat(s).
+      // Formerly the administrator's pick among tied candidates: refused now (nobody breaks a tie).
       tiebreakWinnerIds: z.array(z.string()).optional(),
     });
     const result = schema.safeParse(req.body);
@@ -271,6 +313,61 @@ router.post(
           });
         return;
       }
+      if (result.data.tiebreakWinnerIds?.length) {
+        res.status(400).json({
+          error: "Le départage manuel n'est plus possible : une égalité mène à un second tour, puis à une nouvelle délibération",
+          code: "TIEBREAK_NOT_ALLOWED",
+        });
+        return;
+      }
+      if (result.data.action === "open_voting" && election.status === "draft") {
+        if ((election.round ?? 1) < 2) {
+          res.status(400).json({ error: "Ouvrez d'abord les candidatures", code: "CANDIDACY_FIRST" });
+          return;
+        }
+        if (!election.startDate || !election.endDate) {
+          res.status(400).json({ error: "Fixez les dates du second tour avant d'ouvrir le vote", code: "RUNOFF_DATES_REQUIRED" });
+          return;
+        }
+      }
+
+      if (result.data.action === "schedule_new_ballot") {
+        const [next] = await db
+          .insert(electionsTable)
+          .values({
+            syndicateId: election.syndicateId,
+            title: `${election.title.replace(/ — 2e tour$/, "")} — nouveau scrutin`,
+            description: election.description,
+            electionType: election.electionType,
+            buildingId: election.buildingId,
+            votingMethod: election.votingMethod,
+            quorumPercent: election.quorumPercent,
+            majorityPercent: election.majorityPercent,
+            seatsCount: (election.outcomeDetails as any)?.seatsInPlay || (election.outcomeDetails as any)?.vacantSeats || election.seatsCount,
+            ballotMode: election.ballotMode,
+            weighting: election.weighting,
+            majorityBase: election.majorityBase,
+            tenantsCanVote: election.tenantsCanVote,
+            mandateDurationMonths: election.mandateDurationMonths,
+            round: 1,
+            parentElectionId: election.id,
+            status: "draft",
+            createdBy: req.user!.userId,
+          } as any)
+          .returning();
+        // Seats must stay coherent with the ballot mode of the new election.
+        if ((next.seatsCount ?? 1) < 2 && next.ballotMode === "multiple") {
+          await db.update(electionsTable).set({ ballotMode: "single" } as any).where(eq(electionsTable.id, next.id));
+        }
+        await serverAuditLog(req, {
+          action: "SCHEDULE_NEW_BALLOT",
+          entity: "election",
+          entityId: id,
+          details: `Nouveau scrutin préparé : ${next.id}`,
+        });
+        res.status(201).json({ data: next, message: "Nouveau scrutin préparé (brouillon)" });
+        return;
+      }
 
       if (result.data.action === "close_voting") {
         await closeElectionVoting(election);
@@ -289,60 +386,21 @@ router.post(
       }
 
       if (result.data.action === "publish_results") {
-        const candidates = await db
-          .select()
-          .from(candidatesTable)
-          .where(
-            and(
-              eq(candidatesTable.electionId, election.id),
-              eq(candidatesTable.status, "approved"),
-            ),
-          );
-        const ranked = [...candidates].sort(
-          (a, b) => (b.votes ?? 0) - (a.votes ?? 0),
-        );
-        const seats = election.seatsCount ?? 1;
-        const cutoffVotes = ranked[seats - 1]?.votes ?? -1;
-        const tie =
-          ranked.length > seats && ranked[seats]?.votes === cutoffVotes;
-
-        if (tie) {
-          // Candidates tied exactly at the seat cutoff — the admin must explicitly
-          // choose who fills the remaining seat(s) instead of silently picking by
-          // array order. Return the tied group so the client can render a chooser.
-          const tiedGroup = ranked.filter(
-            (c) => (c.votes ?? 0) === cutoffVotes,
-          );
-          const confirmedIds = result.data.tiebreakWinnerIds ?? [];
-          const remainingSeats =
-            seats - ranked.filter((c) => (c.votes ?? 0) > cutoffVotes).length;
-          const validSelection =
-            confirmedIds.length === remainingSeats &&
-            confirmedIds.every((cid) => tiedGroup.some((c) => c.id === cid));
-          if (!validSelection) {
-            res.status(409).json({
-              error: `Égalité détectée pour ${remainingSeats} siège(s) restant(s) — sélection manuelle requise`,
-              code: "TIE_DETECTED",
-              tiedCandidates: tiedGroup.map((c) => ({
-                id: c.id,
-                name: c.name,
-                votes: c.votes,
-              })),
-              remainingSeats,
-            });
-            return;
-          }
-        }
-
-        const winners = await publishElectionResults(
-          election,
-          result.data.tiebreakWinnerIds,
-        );
+        // The count decides: elected, second round between tied candidates, or a
+        // new deliberation. Nobody picks among tied candidates.
+        const published = await publishElectionResults(election);
+        const winners = published.mandates;
+        const OUTCOME_TEXT: Record<string, string> = {
+          elected: "élu(s)",
+          runoff_required: "égalité : second tour préparé",
+          deliberation_required: "égalité persistante : nouvelle délibération requise",
+          no_majority: "aucun candidat n'atteint la majorité requise",
+        };
         await serverAuditLog(req, {
           action: "PUBLISH_RESULTS",
           entity: "election",
           entityId: id,
-          details: `Résultats publiés, ${winners.length} mandat(s) créé(s)${tie ? " (égalité résolue manuellement)" : ""}`,
+          details: `Résultats publiés (${OUTCOME_TEXT[published.count.outcome]}), ${winners.length} mandat(s) créé(s)${published.runoffElectionId ? `, second tour ${published.runoffElectionId}` : ""}`,
         });
         await createAlert({
           key: "election.results",
@@ -377,7 +435,9 @@ router.post(
           .where(eq(electionsTable.id, id));
         res.json({
           data: refreshed,
-          message: "Résultats publiés, mandats créés",
+          outcome: published.count.outcome,
+          runoffElectionId: published.runoffElectionId,
+          message: `Résultats publiés : ${OUTCOME_TEXT[published.count.outcome]}`,
         });
         return;
       }

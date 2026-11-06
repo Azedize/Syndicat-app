@@ -25,24 +25,30 @@ const router = Router();
 router.post("/elections/:id/vote", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const schema = z.object({
+    // One candidate (single-choice ballot), kept for older clients…
     candidateId: z.string().min(1).optional(),
+    // …or the selections of a ballot (up to the number of seats when several are elected).
+    candidateIds: z.array(z.string().min(1)).max(50).optional(),
     abstain: z.boolean().default(false),
     // Present when the caller is casting a delegated (proxy) vote on behalf of a grantor,
     // instead of voting for themselves.
     onBehalfOfUserId: z.string().optional(),
   });
   const result = schema.safeParse(req.body);
-  if (!result.success || (!result.data.candidateId && !result.data.abstain)) {
+  const selection = result.success ? (result.data.candidateIds ?? (result.data.candidateId ? [result.data.candidateId] : [])) : [];
+  if (!result.success || (!selection.length && !result.data.abstain)) {
     res.status(400).json({ error: "Candidat ou abstention requis" });
     return;
   }
 
   try {
     await db.transaction(async (tx) => {
+      // Locked: the closing of the vote cannot interleave with a ballot.
       const [election] = await tx
         .select()
         .from(electionsTable)
-        .where(eq(electionsTable.id, id));
+        .where(eq(electionsTable.id, id))
+        .for("update");
       if (!election)
         throw Object.assign(new Error("NOT_FOUND"), {
           status: 404,
@@ -101,24 +107,42 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
           msg: "Vous n'êtes pas éligible pour voter à cette élection",
         });
 
-      let candidateId: string | null = null;
+      const invalid = validateSelection(
+        { ballotMode: (election.ballotMode ?? "single") as "single", seatsCount: election.seatsCount ?? 1 },
+        result.data.abstain ? [] : selection,
+        result.data.abstain,
+      );
+      if (invalid)
+        throw Object.assign(new Error(invalid.code), { status: 400, msg: invalid.message, code: invalid.code });
+      const candidateIds: string[] = [];
       if (!result.data.abstain) {
-        const [candidate] = await tx
-          .select()
+        const found = await tx
+          .select({ id: candidatesTable.id })
           .from(candidatesTable)
           .where(
             and(
-              eq(candidatesTable.id, result.data.candidateId!),
+              inArray(candidatesTable.id, selection),
               eq(candidatesTable.electionId, id),
               eq(candidatesTable.status, "approved"),
             ),
           );
-        if (!candidate)
+        if (found.length !== selection.length)
           throw Object.assign(new Error("BAD_CANDIDATE"), {
             status: 400,
             msg: "Ce candidat n'appartient pas à cette élection",
           });
-        candidateId = candidate.id;
+        candidateIds.push(...selection);
+      }
+      // Voices of the voter of record (his own, or the grantor's for a proxy vote).
+      let weight = "1.0000";
+      if (election.weighting === "quote_part") {
+        weight = (await voicesOf(election.syndicateId!, election.buildingId, [voterId])).get(voterId) ?? "0.0000";
+        if (toUnits(weight) <= 0)
+          throw Object.assign(new Error("NO_VOICES"), {
+            status: 403,
+            msg: "Aucune quote-part n'est enregistrée pour ce copropriétaire : il ne dispose d'aucune voix pour ce scrutin",
+            code: "NO_VOICES",
+          });
       }
 
       const existing = await tx

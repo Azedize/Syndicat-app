@@ -1,4 +1,4 @@
-import { inArray, eq, and } from "drizzle-orm";
+import { inArray, eq, and, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   electionsTable,
@@ -10,6 +10,7 @@ import {
   tenantsTable,
   usersTable,
 } from "@workspace/db/schema";
+import { countOutcome, rolesForWinners, toUnits, type MajorityBase, type Tally, type VotingMethod, type Weighting } from "./elections.rules.js";
 
 /** Resolves the list of userIds eligible to vote/candidate for a given election scope. */
 export async function getEligibleVoterIds(
@@ -101,12 +102,35 @@ export async function isUserEligible(
   return ids.includes(userId);
 }
 
-/** Same statuses as GET /elections/:id/results: before them, no one reads the running tally. */
-export const RESULTS_VISIBLE_STATUSES = ["closed", "completed", "contested"];
+/**
+ * Voices of each voter (Loi 18-00, art. 16 decies): the tantièmes of the lots
+ * he currently owns, times his share of each lot, within the election's
+ * building when it has one. A voter with no recorded quote-part has 0 voices.
+ * Returned as decimal strings (4 decimals), never floats.
+ */
+export async function voicesOf(syndicateId: string, buildingId: string | null, userIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>(userIds.map((id) => [id, "0.0000"]));
+  if (!userIds.length) return out;
+  const rows = (await db.execute(sql`
+    SELECT u.id AS user_id, COALESCE(SUM(l.tantiemes * o.share_percent / 100), 0)::numeric(14,4)::text AS voices
+    FROM users u
+    JOIN members m ON m.syndicate_id = ${syndicateId} AND lower(m.email) = lower(u.email)
+    JOIN lot_ownerships o ON o.member_id = m.id AND o.end_date IS NULL
+    JOIN lots l ON l.id = o.lot_id AND l.archived_at IS NULL
+    JOIN buildings b ON b.id = l.building_id AND b.syndicate_id = ${syndicateId}
+    WHERE u.id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})
+      ${buildingId ? sql`AND l.building_id = ${buildingId}` : sql``}
+    GROUP BY u.id`)) as unknown as { user_id: string; voices: string }[];
+  for (const r of rows) out.set(r.user_id, r.voices);
+  return out;
+}
 
-export function hideRunningTally<C extends { votes: number | null }>(status: string | null, candidates: C[]): C[] {
+/** Same statuses as GET /elections/:id/results: before them, no one reads the running tally. */
+export const RESULTS_VISIBLE_STATUSES = ["closed", "completed", "contested", "deliberation_required"];
+
+export function hideRunningTally<C extends { votes: number | null; voices?: string | null }>(status: string | null, candidates: C[]): C[] {
   if (RESULTS_VISIBLE_STATUSES.includes(status ?? "")) return candidates;
-  return candidates.map((c) => ({ ...c, votes: null }));
+  return candidates.map((c) => ({ ...c, votes: null, ...("voices" in c ? { voices: null } : {}) }));
 }
 
 export async function enrichElections(
@@ -149,7 +173,7 @@ export async function enrichElections(
   }));
 }
 
-/** Phase 5/6 — Quorum + result computation, run once when voting closes. */
+/** Phase 5/6 — Quorum, run once when voting closes (eligible voters and their voices are frozen). */
 export async function closeElectionVoting(
   election: typeof electionsTable.$inferSelect,
 ) {
@@ -170,6 +194,11 @@ export async function closeElectionVoting(
   const participationRate =
     eligibleCount > 0 ? (participantCount / eligibleCount) * 100 : 0;
   const quorumReached = participationRate >= (election.quorumPercent ?? 50);
+  let eligibleVoices: string | null = null;
+  if (election.weighting === "quote_part" && election.syndicateId) {
+    const voices = await voicesOf(election.syndicateId, election.buildingId, voterIds);
+    eligibleVoices = (Array.from(voices.values()).reduce((t, v) => t + toUnits(v), 0) / 10_000).toFixed(4);
+  }
 
   await db
     .update(electionsTable)
@@ -177,44 +206,49 @@ export async function closeElectionVoting(
       eligibleCount,
       participantCount,
       quorumReached,
+      eligibleVoices,
       status: quorumReached ? "closed" : "quorum_failed",
     })
     .where(eq(electionsTable.id, election.id));
 }
 
-/** Phase 7 — Elected members: promotes winning candidates into conseil_syndical mandates. */
-export async function publishElectionResults(
-  election: typeof electionsTable.$inferSelect,
-  tiebreakWinnerIds?: string[],
-) {
+/** The figures a count needs, read from the database. */
+export async function tallyOf(election: typeof electionsTable.$inferSelect) {
   const candidates = await db
     .select()
     .from(candidatesTable)
-    .where(
-      and(
-        eq(candidatesTable.electionId, election.id),
-        eq(candidatesTable.status, "approved"),
-      ),
-    );
+    .where(and(eq(candidatesTable.electionId, election.id), eq(candidatesTable.status, "approved")));
+  const tally: Tally = {
+    candidates: candidates.map((c) => ({ id: c.id, votes: c.votes ?? 0, voices: c.voices })),
+    ballotsCast: (election.participantCount ?? 0) + (election.invalidVotesCount ?? 0),
+    voicesCast: election.voicesCast,
+    eligibleCount: election.eligibleCount ?? 0,
+    eligibleVoices: election.eligibleVoices,
+  };
+  return { candidates, tally };
+}
 
-  const ranked = [...candidates].sort(
-    (a, b) => (b.votes ?? 0) - (a.votes ?? 0),
-  );
-  const seats = election.seatsCount ?? 1;
-  let winners = ranked.slice(0, seats);
+export const configOf = (e: typeof electionsTable.$inferSelect) => ({
+  seatsCount: e.seatsCount ?? 1,
+  weighting: (e.weighting ?? "per_voter") as Weighting,
+  votingMethod: (e.votingMethod ?? "simple_majority") as VotingMethod,
+  majorityBase: (e.majorityBase ?? "votes_cast") as MajorityBase,
+  majorityPercent: e.majorityPercent ?? 50,
+});
 
-  // When the caller already resolved a tie at the cutoff (validated by the
-  // transition route before this function is invoked), swap in the admin's
-  // explicit picks instead of the raw array-order slice.
-  if (tiebreakWinnerIds?.length) {
-    const cutoffVotes = ranked[seats - 1]?.votes ?? -1;
-    const aboveCutoff = ranked.filter((c) => (c.votes ?? 0) > cutoffVotes);
-    const chosen = ranked.filter((c) => tiebreakWinnerIds.includes(c.id));
-    winners = [...aboveCutoff, ...chosen].slice(0, seats);
-  }
+/**
+ * Phase 7 — publishes a count: mandates for the candidates elected outright
+ * (never for tied ones), then either the election is completed, a second
+ * round is prepared between the tied candidates, or a new deliberation is
+ * required. One transaction; results and history are kept.
+ */
+export async function publishElectionResults(election: typeof electionsTable.$inferSelect) {
+  const { candidates, tally } = await tallyOf(election);
+  const count = countOutcome(configOf(election), tally, election.round ?? 1);
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const scored = count.ranking.filter((r) => count.winners.includes(r.id)).map((r) => ({ id: r.id, score: r.score }));
+  const roles = rolesForWinners(election.electionType ?? "special", scored);
 
-  // Fixed-term mandates: election.mandateDurationMonths (months) is added to the mandate
-  // start date to compute an expiry the mandate-expiry scheduler will act on. Null = indefinite.
   let mandateEnd: string | null = null;
   if (election.mandateDurationMonths) {
     const start = new Date(election.endDate ?? new Date().toISOString());
@@ -222,60 +256,99 @@ export async function publishElectionResults(
     mandateEnd = start.toISOString().slice(0, 10);
   }
 
-  const roles = MANDATE_ROLE_BY_TYPE[election.electionType ?? "special"] ?? [
-    "committee_member",
-  ];
-  const mandates = [];
-  for (let i = 0; i < winners.length; i++) {
-    const winner = winners[i];
-    const role = roles[i] ?? roles[roles.length - 1];
-    const [mandate] = await db
-      .insert(conseilSyndicalTable)
-      .values({
-        syndicateId: election.syndicateId!,
-        userId: winner.userId,
-        role,
-        name: winner.name,
-        mandateStart: election.endDate,
-        mandateEnd,
-        status: "active",
-        electionId: election.id,
-        candidateId: winner.id,
-      } as any)
-      .returning();
-    mandates.push(mandate);
-  }
+  return db.transaction(async (tx) => {
+    // The election row is locked: two publications at once cannot both create mandates.
+    const [current] = await tx.select().from(electionsTable).where(eq(electionsTable.id, election.id)).for("update");
+    if (current?.status !== "closed") throw Object.assign(new Error("Les résultats ont déjà été publiés"), { status: 409, code: "ALREADY_PUBLISHED" });
+    const mandates = [];
+    for (const r of roles) {
+      const winner = byId.get(r.id)!;
+      const [mandate] = await tx
+        .insert(conseilSyndicalTable)
+        .values({
+          syndicateId: election.syndicateId!,
+          userId: winner.userId,
+          role: r.role,
+          name: winner.name,
+          mandateStart: election.endDate,
+          mandateEnd,
+          status: "active",
+          electionId: election.id,
+          candidateId: winner.id,
+          notes: r.roleTie ? "Égalité de voix avec un autre élu : la fonction est à attribuer par un vote distinct." : null,
+        } as any)
+        .returning();
+      mandates.push(mandate);
+    }
 
-  await db
-    .update(electionsTable)
-    .set({ status: "completed", resultsPublishedAt: new Date() } as any)
-    .where(eq(electionsTable.id, election.id));
+    let runoffElectionId: string | null = null;
+    if (count.outcome === "runoff_required") {
+      // Second round between the tied candidates only, for the seats they tie on.
+      // Created as a draft: the organizer sets its dates, then opens the vote.
+      const [runoff] = await tx
+        .insert(electionsTable)
+        .values({
+          syndicateId: election.syndicateId,
+          title: `${election.title} — 2e tour`,
+          description: election.description,
+          electionType: election.electionType,
+          buildingId: election.buildingId,
+          votingMethod: election.votingMethod,
+          quorumPercent: election.quorumPercent,
+          majorityPercent: election.majorityPercent,
+          seatsCount: count.seatsInPlay,
+          ballotMode: count.seatsInPlay > 1 ? election.ballotMode : "single",
+          weighting: election.weighting,
+          majorityBase: election.majorityBase,
+          tenantsCanVote: election.tenantsCanVote,
+          mandateDurationMonths: election.mandateDurationMonths,
+          round: (election.round ?? 1) + 1,
+          parentElectionId: election.id,
+          status: "draft",
+          createdBy: election.createdBy,
+        } as any)
+        .returning();
+      runoffElectionId = runoff.id;
+      for (const id of count.tied) {
+        const c = byId.get(id)!;
+        await tx.insert(candidatesTable).values({
+          electionId: runoff.id,
+          userId: c.userId,
+          name: c.name,
+          post: c.post,
+          apartmentNumber: c.apartmentNumber,
+          buildingId: c.buildingId,
+          photo: c.photo,
+          bio: c.bio,
+          motivationLetter: c.motivationLetter,
+          program: c.program,
+          status: "approved",
+        } as any);
+      }
+    }
 
-  return mandates;
+    const status = count.outcome === "elected" || count.outcome === "runoff_required" ? "completed" : "deliberation_required";
+    const outcomeDetails = {
+      winners: count.winners,
+      tied: count.tied,
+      seatsInPlay: count.seatsInPlay,
+      vacantSeats: count.vacantSeats,
+      runoffElectionId,
+      roleTies: roles.filter((r) => r.roleTie).map((r) => r.id),
+      // Syndic or adjoint not designated: the president of the court of first
+      // instance designates them on a co-owner's request (art. 19).
+      legalPath: count.outcome === "no_majority" && ["syndic", "vice_syndic"].includes(election.electionType ?? "") ? "court_designation_art19" : null,
+    };
+    await tx
+      .update(electionsTable)
+      .set({ status, outcome: count.outcome, outcomeDetails, resultsPublishedAt: new Date() } as any)
+      .where(eq(electionsTable.id, election.id));
+    return { mandates, count, runoffElectionId, status };
+  });
 }
 
-export function quorumMetAndNoTie(
-  election: typeof electionsTable.$inferSelect,
-  tie: boolean,
-) {
-  return !!election.quorumReached && !tie;
-}
-
-export const MANDATE_ROLE_BY_TYPE: Record<string, string[]> = {
-  president: ["president"],
-  board: [
-    "president",
-    "vice_president",
-    "secretary",
-    "treasurer",
-    "committee_member",
-  ],
-  financial_committee: ["treasurer", "committee_member"],
-  maintenance_committee: ["committee_member"],
-  building_representative: ["building_representative"],
-  special: ["committee_member"],
-};
-
-/** A member may hold at most this many proxies (own vote + delegated votes) — prevents
- *  concentration of voting power in a single hand (common condo-syndic governance rule). */
+/** A member may hold at most this many proxies — an internal rule, stricter than the
+ *  law (art. 16 decies: at most 3 co-owners and 10 % of the voices per proxy holder). */
 export const MAX_PROXIES_PER_GRANTEE = 2;
+/** Art. 16 decies: the co-owners a proxy holder represents hold at most 10 % of the voices. */
+export const MAX_PROXY_VOICES_PERCENT = 10;

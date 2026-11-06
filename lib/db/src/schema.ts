@@ -727,10 +727,25 @@ export const electionsTable = pgTable(
     // the closing-soon scheduler from re-notifying voters on every run. Mirrors the
     // notifiedThresholds pattern used by contrats_prestataires expiry reminders.
     remindersSent: text("reminders_sent").default("[]"),
+    // single: one candidate per ballot | multiple: up to seatsCount distinct candidates
+    ballotMode: text("ballot_mode").notNull().default("single"),
+    // per_voter: one voice per ballot | quote_part: the voter's voices (Loi 18-00, art. 16 decies)
+    weighting: text("weighting").notNull().default("per_voter"),
+    // votes_cast | all_voices: what a percentage majority is measured against
+    majorityBase: text("majority_base").notNull().default("votes_cast"),
+    // 1 = first round; a second round is a new election linked by parentElectionId
+    round: integer("round").notNull().default(1),
+    parentElectionId: text("parent_election_id"),
+    // elected | runoff_required | deliberation_required | no_majority (set when results are published)
+    outcome: text("outcome"),
+    outcomeDetails: jsonb("outcome_details"),
+    voicesCast: numeric("voices_cast", { precision: 14, scale: 4 }).notNull().default("0"),
+    eligibleVoices: numeric("eligible_voices", { precision: 14, scale: 4 }),
     createdAt: createdAt(),
   },
   (t) => [
     index("elections_syndicate_id_idx").on(t.syndicateId),
+    index("elections_parent_election_id_idx").on(t.parentElectionId),
     index("elections_status_idx").on(t.status),
   ],
 );
@@ -754,6 +769,8 @@ export const candidatesTable = pgTable(
     rejectionReason: text("rejection_reason"),
     withdrawnAt: timestamp("withdrawn_at"),
     votes: integer("votes").default(0),
+    // Weighted total (quotes-parts) next to the ballot count; never stored per ballot.
+    voices: numeric("voices", { precision: 14, scale: 4 }).notNull().default("0"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -797,6 +814,8 @@ export const votesTable = pgTable(
     // Null candidateId = abstention. Intentionally no voterId column — see comment above.
     candidateId: text("candidate_id").references(() => candidatesTable.id, { onDelete: "cascade" }),
     isAbstention: boolean("is_abstention").default(false),
+    // Selections of one ballot share it (multiple-seat ballots). Null on older ballots.
+    ballotId: text("ballot_id"),
     // Kept for anomaly detection only (e.g. ballot-stuffing patterns) — cannot be
     // joined back to a specific voter, so this does not compromise ballot secrecy.
     device: text("device"),
@@ -2305,6 +2324,37 @@ export const conseilSyndicalTable = pgTable(
 // A council member may delegate a defined authority to another active council
 // member for a bounded period. The copied names keep the historical record
 // readable even if a council row is later resigned or removed.
+// Official resignation of the syndic or the syndic adjoint (Loi 18-00, art. 26 ter,
+// 27, 27 ter): notification date, 30-day general assembly, the adjoint's interim,
+// handover of documents and funds. The mandate row stays (status resigned).
+export const mandateResignationsTable = pgTable(
+  "mandate_resignations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    mandateId: text("mandate_id").notNull().references(() => conseilSyndicalTable.id, { onDelete: "restrict" }),
+    // syndic | vice_syndic
+    role: text("role").notNull(),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    reason: text("reason"),
+    notifiedAt: date("notified_at").notNull(),
+    agDeadline: date("ag_deadline").notNull(),
+    agMeetingId: text("ag_meeting_id").references(() => meetingsTable.id, { onDelete: "set null" }),
+    interimMandateId: text("interim_mandate_id").references(() => conseilSyndicalTable.id, { onDelete: "set null" }),
+    handover: jsonb("handover").notNull().default({}),
+    handoverCompletedAt: timestamp("handover_completed_at"),
+    // none | no_deputy | no_successor
+    escalation: text("escalation").notNull().default("none"),
+    // open | closed
+    status: text("status").notNull().default("open"),
+    successorMandateId: text("successor_mandate_id").references(() => conseilSyndicalTable.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    closedAt: timestamp("closed_at"),
+  },
+  (t) => [index("mandate_resignations_syndicate_id_idx").on(t.syndicateId)],
+);
+
 export const governanceDelegationsTable = pgTable(
   "governance_delegations",
   {

@@ -5328,10 +5328,10 @@ export const TRANSLATIONS: Translations = {
     es: "Contraseña cambiada",
   },
   profilePasswordChangedMessage: {
-    fr: "Votre mot de passe a été modifié avec succès.",
-    en: "Your password was changed successfully.",
-    ar: "تم تغيير كلمة المرور بنجاح.",
-    es: "Su contraseña se ha cambiado correctamente.",
+    fr: "Votre mot de passe a été modifié. Reconnectez-vous avec le nouveau mot de passe.",
+    en: "Your password was changed. Sign in again with the new password.",
+    ar: "تم تغيير كلمة المرور. سجّل الدخول من جديد بكلمة المرور الجديدة.",
+    es: "Su contraseña se ha cambiado. Inicie sesión de nuevo con la nueva contraseña.",
   },
   profilePasswordChangeError: {
     fr: "Erreur lors du changement de mot de passe. Réessayez.",

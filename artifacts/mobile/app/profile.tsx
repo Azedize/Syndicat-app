@@ -29,7 +29,7 @@ type FeatherName = keyof typeof Feather.glyphMap;
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, updateUser, token } = useAuth();
+  const { user, updateUser, token, logout } = useAuth();
   const isMember = user?.role === "member";
   const myCharges = useMyCharges(isMember);
   const fileTicket = useFileTicket(!!token);
@@ -162,6 +162,9 @@ export default function ProfileScreen() {
       closePwd();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: t("profilePasswordChanged"), message: t("profilePasswordChangedMessage") });
+      // Every session of the account is closed by the change, this one included.
+      await logout();
+      router.replace("/login" as any);
     } catch {
       showToast({ type: "error", title: t("error"), message: t("profilePasswordChangeError") });
     } finally {

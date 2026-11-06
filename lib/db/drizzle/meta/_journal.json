@@ -141,6 +141,13 @@
       "when": 1792879787433,
       "tag": "0019_password_changed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792966187433,
+      "tag": "0020_election_rules_resignations",
+      "breakpoints": true
     }
   ]
 }

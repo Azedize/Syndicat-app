@@ -10,6 +10,7 @@
  * The test account's password is restored at the end.
  */
 import bcrypt from "bcryptjs";
+import { createHash, randomBytes } from "node:crypto";
 import { pool } from "@workspace/db";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
@@ -55,6 +56,7 @@ async function main() {
   const login0 = await call("POST", "/auth/login", { email, password: PASSWORD });
   if (login0.status !== 200) throw new Error(`test account cannot sign in (${login0.status})`);
   const refreshBefore = login0.body?.data?.refreshToken as string;
+  const accessBefore = login0.body?.data?.token as string;
 
   try {
     // 1-2. Same answer whether or not the address has an account (no enumeration).
@@ -67,7 +69,7 @@ async function main() {
     check("a reset code is stored for the account (address normalised)", issued.length === 1, `${issued.length} code(s)`);
     check("the code is stored hashed (bcrypt), never in clear", /^\$2[aby]\$/.test(issued[0]?.code_hash ?? "") && !/^\d{6}$/.test(issued[0]?.code_hash ?? ""));
     const ttl = issued[0] ? (new Date(issued[0].expires_at).getTime() - new Date(issued[0].created_at).getTime()) / 60_000 : 0;
-    check("the code expires after 10 minutes", Math.round(ttl) === 10, `${ttl.toFixed(1)} min`);
+    check("the code expires after 10 minutes (at most 15)", Math.round(ttl) === 10 && ttl <= 15, `${ttl.toFixed(1)} min`);
     const [log] = await pool`SELECT status, body_html FROM email_logs WHERE recipient = ${email} AND template = 'password_reset' ORDER BY created_at DESC LIMIT 1` as any[];
     check("the e-mail is logged without its body (it holds the code)", !!log && log.body_html === null, log?.status);
     const unknownCodes = await pool`SELECT count(*)::int n FROM otp_tokens WHERE email = 'personne.inconnue@s20261019.seedgen.mizan.test'` as any[];
@@ -129,7 +131,10 @@ async function main() {
     const open = (await codes(email)).filter((c) => !c.used_at);
     check("only one code is open at a time", open.length === 1, `${open.length}`);
 
-    // 9. Success.
+    // 9. Success. A former e-mail link (64-character token, stored hashed) is still open:
+    // the reset must close it too, not only the code it used.
+    const legacy = randomBytes(32).toString("hex");
+    await pool`INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (${u.id}, ${createHash("sha256").update(legacy).digest("hex")}, ${new Date(Date.now() + 10 * 60_000).toISOString()})`;
     code = await plantCode(email, "640351");
     const done = await call("POST", "/auth/reset-password", { email, code, newPassword: NEW_PASSWORD });
     check("the right code resets the password", done.status === 200, `${done.status} ${done.body?.error ?? ""}`);
@@ -137,6 +142,12 @@ async function main() {
     check("login with the old password is refused", (await call("POST", "/auth/login", { email, password: PASSWORD })).status === 401);
     const refresh = await call("POST", "/auth/refresh", { refreshToken: refreshBefore });
     check("sessions opened before the reset are closed (refresh refused)", refresh.status === 401, String(refresh.status));
+    const meBefore = await call("GET", "/auth/me", undefined, accessBefore);
+    check("an access token issued before the reset is refused at once (SESSION_PASSWORD_CHANGED)", meBefore.status === 401 && meBefore.body?.code === "SESSION_PASSWORD_CHANGED", `${meBefore.status} ${meBefore.body?.code}`);
+    const fresh = await call("POST", "/auth/login", { email, password: NEW_PASSWORD });
+    check("a token issued after the reset works", (await call("GET", "/auth/me", undefined, fresh.body?.data?.token)).status === 200);
+    const oldLink = await call("POST", "/auth/reset-password", { token: legacy, newPassword: "Lien#Ancien2026" });
+    check("an older reset link still open is closed by the reset", oldLink.status === 400 && oldLink.body?.code === "RESET_TOKEN_INVALID_OR_EXPIRED", `${oldLink.status} ${oldLink.body?.code}`);
     const reuse = await call("POST", "/auth/reset-password", { email, code, newPassword: "Encore#Autre2026" });
     check("a used code cannot be reused", reuse.status === 400 && reuse.body?.code === "RESET_CODE_INVALID");
     const [notice] = await pool`SELECT status FROM email_logs WHERE recipient = ${email} AND template = 'password_changed' ORDER BY created_at DESC LIMIT 1` as any[];
