@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
@@ -525,13 +526,13 @@ export default function ParkingScreen() {
       <Modal visible={showAddVehicle} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAddVehicle(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("parkingRegisterVehicle")} onClose={() => setShowAddVehicle(false)} />
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
             <TextField label={bare(t("parkingPlateRequired"))} required placeholder={t("parkingPlatePlaceholder")} value={vPlate} onChangeText={(x) => setVPlate(x.toUpperCase())} autoCapitalize="characters" />
             <TextField label={t("parkingBrand")} placeholder={t("parkingBrandPlaceholder")} value={vBrand} onChangeText={setVBrand} />
             <TextField label={t("parkingModel")} placeholder={t("parkingModelPlaceholder")} value={vModel} onChangeText={setVModel} />
             <TextField label={t("parkingColor")} placeholder={t("parkingColorPlaceholder")} value={vColor} onChangeText={setVColor} />
             <Button label={t("save")} icon="check" size="lg" fullWidth loading={savingVehicle} disabled={!vPlate.trim()} onPress={handleAddVehicle} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -539,7 +540,7 @@ export default function ParkingScreen() {
       <Modal visible={showReportViolation} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowReportViolation(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("parkingReportViolation")} onClose={() => setShowReportViolation(false)} />
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>
                 {bare(t("parkingPlaceRequired"))} <Text style={{ color: colors.danger }}>*</Text>
@@ -574,7 +575,7 @@ export default function ParkingScreen() {
               )}
             </View>
             <Button label={t("parkingSubmitViolation")} icon="send" size="lg" fullWidth loading={savingViolation} disabled={!rPlate.trim() || !rSpot || uploadingPhoto} onPress={handleReportViolation} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -582,7 +583,7 @@ export default function ParkingScreen() {
       <Modal visible={showReserve} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowReserve(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("parkingReservationTitle")} onClose={() => setShowReserve(false)} />
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>
                 {t("parkingAvailableVisitorSpot")} <Text style={{ color: colors.danger }}>*</Text>
@@ -619,7 +620,7 @@ export default function ParkingScreen() {
               disabled={!resSpotId || !resVisitorName.trim() || !resStart || !resEnd || resEnd <= resStart}
               onPress={handleReserve}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

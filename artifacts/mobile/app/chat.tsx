@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -437,7 +438,7 @@ export default function ChatScreen() {
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : (
-            <ScrollView>
+            <KeyboardAwareScrollViewCompat bottomOffset={24}>
               {filteredContacts.map((contact) => (
                 <TouchableOpacity
                   key={contact.id}
@@ -478,7 +479,7 @@ export default function ChatScreen() {
                   <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noMembers")}</Text>
                 </View>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           )}
         </View>
       </Modal>
@@ -493,7 +494,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 16 }}>
             {/* Group name */}
             <View>
               <Text style={[styles.formLabel, { color: colors.foreground }]}>{t("nameLabel")} *</Text>
@@ -599,7 +600,7 @@ export default function ChatScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

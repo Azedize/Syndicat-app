@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -356,7 +357,7 @@ export default function OrdersScreen() {
                <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("ordModalTitle")}</Text>
               <View style={{ width: 22 }} />
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
               {/* Order hero */}
               <View style={[styles.orderHero, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "20" }]}>
                 <View style={[styles.orderHeroIcon, { backgroundColor: colors.primary + "20" }]}>
@@ -447,7 +448,7 @@ export default function OrdersScreen() {
                    <Text style={[styles.modalActionText, { color: "#fff" }]}>{t("ordConfirmOrderBtn")}</Text>
                 </TouchableOpacity>
               ) : null}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>

@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -347,7 +348,7 @@ export default function TransparencyScreen() {
              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{STRINGS.publish[lang]}</Text>
             <TouchableOpacity onPress={() => setShowAdd(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             {[
                { label: STRINGS.title[lang], key: "title" as const, placeholder: STRINGS.titlePlaceholder[lang] },
                { label: STRINGS.amount[lang], key: "amount" as const, placeholder: "12500", numeric: true },
@@ -375,7 +376,7 @@ export default function TransparencyScreen() {
             >
                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.publishButton[lang]}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -386,7 +387,7 @@ export default function TransparencyScreen() {
              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{STRINGS.challengeTitle[lang]}</Text>
             <TouchableOpacity onPress={() => setShowChallenge(null)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <View style={[styles.challengePreview, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{showChallenge?.title}</Text>
               <Text style={[styles.amount, { color: colors.foreground, marginTop: 4 }]}>{formatMoney(showChallenge?.amount ?? 0)}</Text>
@@ -406,7 +407,7 @@ export default function TransparencyScreen() {
             >
                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.confirmChallenge[lang]}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

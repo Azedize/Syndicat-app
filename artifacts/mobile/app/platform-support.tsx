@@ -29,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -681,7 +682,7 @@ function PlatformSupportScreen() {
               ) : <View style={{ width: 72 }} />}
             </View>
 
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -824,7 +825,7 @@ function PlatformSupportScreen() {
                   </Text>
                 </View>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
       </Modal>
@@ -843,7 +844,7 @@ function PlatformSupportScreen() {
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -962,7 +963,7 @@ function PlatformSupportScreen() {
                 {submitting ? ps("sending") : ps("submit")}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </KeyboardAvoidingView>
       </Modal>
     </View>

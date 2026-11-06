@@ -22,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -550,7 +551,7 @@ function TemplateStudioContent() {
               <Text style={styles.emptyDesc}>{t("tsNoRequestsDescription")}</Text>
             </View>
           ) : (
-            <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}>
               {(() => {
                 const STATUS_CFG: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
                    pending:       { labelKey: "tsPending",       color: "#C98511", icon: "clock" },
@@ -593,7 +594,7 @@ function TemplateStudioContent() {
                   );
                 });
               })()}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           )}
         </View>
       </Modal>
@@ -611,7 +612,7 @@ function TemplateStudioContent() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                 {/* Info rows */}
       {[
                    { k: t("tsSyndicate"), v: selectedReq.syndicateName },
@@ -683,7 +684,7 @@ function TemplateStudioContent() {
                 )}
 
                 <View style={{ height: 20 }} />
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
 
               <TouchableOpacity
                 style={[styles.reviewSubmitBtn, reviewSubmitting && { opacity: 0.6 }]}

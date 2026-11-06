@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -755,7 +756,7 @@ function ChargesScreenInner() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
             {rejectModal ? (
               <View
                 style={[
@@ -818,7 +819,7 @@ function ChargesScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -840,7 +841,7 @@ function ChargesScreenInner() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
             {payModal ? (
               <View
                 style={[
@@ -1121,7 +1122,7 @@ function ChargesScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

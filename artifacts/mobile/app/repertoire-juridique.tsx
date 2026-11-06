@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -224,7 +225,7 @@ export default function RepertoireJuridiqueScreen() {
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("legalDirectoryDetailTitle")}</Text>
               <View style={{ width: 24 }} />
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
               {(() => {
                 const tc = THEME_CONFIG[selected.theme];
                 return (
@@ -283,7 +284,7 @@ export default function RepertoireJuridiqueScreen() {
                   </>
                 );
               })()}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>

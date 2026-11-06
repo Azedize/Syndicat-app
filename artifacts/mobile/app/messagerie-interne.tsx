@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -547,7 +548,7 @@ export default function MessagerieInterneScreen() {
                     </Text>
                     <View style={{ width: 32 }} />
                   </View>
-                  <ScrollView
+                  <KeyboardAwareScrollViewCompat bottomOffset={24}
                     contentContainerStyle={{
                       padding: 20,
                       gap: 16,
@@ -742,7 +743,7 @@ export default function MessagerieInterneScreen() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </ScrollView>
+                  </KeyboardAwareScrollViewCompat>
                 </View>
               );
             })()
@@ -781,7 +782,7 @@ export default function MessagerieInterneScreen() {
             )}
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             {/* Type selector */}
@@ -955,7 +956,7 @@ export default function MessagerieInterneScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

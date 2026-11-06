@@ -28,6 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -435,7 +436,7 @@ export default function TemplateRequestModal({
           </View>
         ) : (
           <>
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{
                 padding: 20,
                 gap: 20,
@@ -866,7 +867,7 @@ export default function TemplateRequestModal({
                   </Text>
                 </View>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
 
             {/* Footer */}
             <View

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -641,7 +642,7 @@ function TravauxScreenInner() {
       <Modal visible={!!actionTravail} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeActionModal}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={actionTravail?.status === "reported" ? S("assignAction") : S("reportAction")} subtitle={actionTravail?.title} onClose={closeActionModal} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
             {actionTravail?.status === "reported" ? (
               <>
                 <Text style={[TYPE.label, { color: colors.foreground }]}>{S("providerLabel")}</Text>
@@ -697,7 +698,7 @@ function TravauxScreenInner() {
                 />
               </>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -705,7 +706,7 @@ function TravauxScreenInner() {
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={isResident ? S("requestAction") : S("newWorkOrder")} onClose={() => setShowModal(false)} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
             <View style={styles.field}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>{S("buildingLabel")}</Text>
               {buildings.length === 0 ? (
@@ -760,7 +761,7 @@ function TravauxScreenInner() {
               disabled={!form.title.trim() || !form.buildingId || !estimatedValid}
               onPress={handleSubmit}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

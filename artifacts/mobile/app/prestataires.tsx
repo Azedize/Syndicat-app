@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -369,7 +370,7 @@ function PrestatairesScreenInner() {
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={STRINGS.newProvider[L]} onClose={() => { setShowAdd(false); resetForm(); }} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <TextField label={bare(STRINGS.name[L])} required placeholder={STRINGS.namePlaceholder[L]} value={form.name} onChangeText={(v) => setForm((p) => ({ ...p, name: v }))} />
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>
@@ -403,7 +404,7 @@ function PrestatairesScreenInner() {
             </View>
 
             <Button label={STRINGS.createProvider[L]} icon="check" size="lg" fullWidth loading={submitting} disabled={!form.name.trim() || !documentUrl || uploading} onPress={handleCreatePrestataire} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

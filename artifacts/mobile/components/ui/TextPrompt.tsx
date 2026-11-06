@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { RADIUS, SPACING } from "@/constants/spacing";
@@ -91,7 +92,7 @@ export function TextPromptHost() {
           {request?.choices ? (
             <>
               {request.message ? <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{request.message}</Text> : null}
-              <ScrollView style={styles.choices} contentContainerStyle={{ gap: SPACING.SM }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} style={styles.choices} contentContainerStyle={{ gap: SPACING.SM }}>
                 {/* Emoji reactions share one line, so the actions below stay in view. */}
                 <View style={styles.shortChoices}>
                   {request.choices.filter(isShortChoice).map((choice) => (
@@ -109,7 +110,7 @@ export function TextPromptHost() {
                 {request.choices.filter((c) => !isShortChoice(c)).map((choice) => (
                   <Button key={choice.value} label={choice.label} variant={choice.destructive ? "destructive" : "secondary"} fullWidth onPress={() => close(choice.value)} />
                 ))}
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </>
           ) : (
             <TextField label={request?.message ?? request?.title ?? ""} value={value} onChangeText={setValue} autoFocus multiline maxLength={500} />

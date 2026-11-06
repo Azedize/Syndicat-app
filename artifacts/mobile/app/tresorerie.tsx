@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -180,9 +181,9 @@ function Sheet({ visible, title, onClose, children, colors, bottomInset, closeLa
             <Feather name="x" size={22} color={colors.foreground} />
           </TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: bottomInset + 24 }} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: bottomInset + 24 }} keyboardShouldPersistTaps="handled">
           {children}
-        </ScrollView>
+        </KeyboardAwareScrollViewCompat>
       </KeyboardAvoidingView>
     </Modal>
   );

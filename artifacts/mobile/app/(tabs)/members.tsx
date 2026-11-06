@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -262,7 +263,7 @@ export default function MembersScreen() {
           {selectedSyndicate && syndicateModalView === "detail" ? (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
               <SheetHeader title={selectedSyndicate.name} onClose={closeSyndicateModal} />
-              <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
                 <Card padding="none">
                   {[
                     { label: t("syndicatSector"), value: selectedSyndicate.sector },
@@ -326,7 +327,7 @@ export default function MembersScreen() {
                     }}
                   />
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           ) : selectedSyndicate && syndicateModalView === "members" ? (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
@@ -384,13 +385,13 @@ export default function MembersScreen() {
         <Modal visible={showAddSyndicate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAddSyndicate(false)}>
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
             <SheetHeader title={t("newSyndicate")} onClose={() => setShowAddSyndicate(false)} />
-            <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
               <TextField label={t("nomSyndicat")} required value={synName} onChangeText={setSynName} placeholder={t("synNamePlaceholder")} />
               <TextField label={t("syndicatSector")} value={synSector} onChangeText={setSynSector} placeholder={t("synSectorPlaceholder")} />
               <TextField label={t("syndicatRegion")} value={synRegion} onChangeText={setSynRegion} placeholder={t("synRegionPlaceholder")} />
               <TextField label={t("syndicatAdminLabel")} value={synAdmin} onChangeText={setSynAdmin} />
               <Button label={t("createSyndicatBtn")} size="lg" fullWidth disabled={!synName.trim()} loading={submittingSyndicate} onPress={handleAddSyndicate} />
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         </Modal>
       </View>
@@ -489,7 +490,7 @@ export default function MembersScreen() {
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <SheetHeader title={t("addMember")} onClose={() => setShowAdd(false)} />
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
             <TextField label={t("nomComplet")} required value={newName} onChangeText={setNewName} placeholder="Mohammed Alaoui" autoCapitalize="words" />
             <TextField label={t("email")} value={newEmail} onChangeText={setNewEmail} placeholder="email@exemple.com" keyboardType="email-address" autoCapitalize="none" />
             <TextField label={t("phone")} value={newPhone} onChangeText={setNewPhone} placeholder="+212 6 XX XX XX XX" keyboardType="phone-pad" />
@@ -507,7 +508,7 @@ export default function MembersScreen() {
               />
             </View>
             <Button label={t("saveMemberBtn")} size="lg" fullWidth disabled={!newName.trim()} loading={submittingMember} onPress={handleAdd} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

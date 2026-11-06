@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -397,7 +398,7 @@ export default function BonLivraisonScreen() {
       {/* Add Modal */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <View style={styles.modalOverlay}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}>
             <View style={[styles.addModal, { backgroundColor: colors.card }]}>
               <View style={styles.modalHandle} />
               <View style={styles.detailHeader}>
@@ -500,7 +501,7 @@ export default function BonLivraisonScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

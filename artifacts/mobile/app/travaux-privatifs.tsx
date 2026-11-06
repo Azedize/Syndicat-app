@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -651,7 +652,7 @@ export default function TravauxPrivatifsScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <View style={[styles.infoBox, { backgroundColor: ACCENT + "12" }]}>
               <Feather name="info" size={14} color={ACCENT} />
               <Text style={[styles.infoText, { color: ACCENT }]}>
@@ -730,7 +731,7 @@ export default function TravauxPrivatifsScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={styles.submitText}>{t("privateWorksSubmit")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -743,7 +744,7 @@ export default function TravauxPrivatifsScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>{showSyndicReview?.title}</Text>
             <Text style={[styles.cardDesc, { color: colors.mutedForeground, marginTop: 6 }]}>{showSyndicReview?.description}</Text>
 
@@ -790,7 +791,7 @@ export default function TravauxPrivatifsScreen() {
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveReview")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -803,7 +804,7 @@ export default function TravauxPrivatifsScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>{showCommitteeReview?.title}</Text>
 
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("privateWorksCommitteeRecommendation")}</Text>
@@ -841,7 +842,7 @@ export default function TravauxPrivatifsScreen() {
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveOpinion")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -854,7 +855,7 @@ export default function TravauxPrivatifsScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksVoteOutcome")}</Text>
             <View style={styles.recRow}>
               {([
@@ -899,7 +900,7 @@ export default function TravauxPrivatifsScreen() {
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveVote")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -912,7 +913,7 @@ export default function TravauxPrivatifsScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <View style={[styles.infoBox, { backgroundColor: colors.danger + "12" }]}>
               <Feather name="alert-circle" size={14} color={colors.danger} />
               <Text style={[styles.infoText, { color: colors.danger }]}>
@@ -959,7 +960,7 @@ export default function TravauxPrivatifsScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={styles.submitText}>{decisionForm.decision === "approved" ? t("privateWorksApproveRequest") : t("privateWorksRejectRequest")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

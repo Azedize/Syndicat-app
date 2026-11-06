@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -508,7 +509,7 @@ export default function WorkflowScreen() {
                   <Text style={styles.modalStatusText}>{STRINGS[statusCfg.label][lang]}</Text>
                 </View>
               </View>
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 <Text style={[styles.wfDesc, { color: colors.mutedForeground }]}>{w.description}</Text>
 
                 {w.document && (
@@ -599,7 +600,7 @@ export default function WorkflowScreen() {
                     </View>
                   </View>
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}
@@ -651,7 +652,7 @@ export default function WorkflowScreen() {
               {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>}
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.titleLabel[lang]}</Text>
               <TextInput
@@ -715,7 +716,7 @@ export default function WorkflowScreen() {
                 textAlignVertical="top"
               />
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

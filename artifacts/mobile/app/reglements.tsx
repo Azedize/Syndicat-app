@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -911,7 +912,7 @@ export default function ReglementsScreen() {
                 </TouchableOpacity>
                 <Text style={styles.modalTitle} numberOfLines={2}>{d.title}</Text>
               </View>
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 <View style={styles.docBadges}>
                   <View style={[styles.typeBadge, { backgroundColor: typeCfg.color + "15" }]}>
                     <Feather name={typeCfg.icon} size={12} color={typeCfg.color} />
@@ -991,7 +992,7 @@ export default function ReglementsScreen() {
                     <Text style={styles.publishBtnText}>{STRINGS.btnPublishDoc[lang]}</Text>
                   </TouchableOpacity>
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}
@@ -1009,7 +1010,7 @@ export default function ReglementsScreen() {
               <Text style={styles.modalSave}>{STRINGS.btnCreate[lang]}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.fieldTitle[lang]}</Text>
               <TextInput
@@ -1053,7 +1054,7 @@ export default function ReglementsScreen() {
                 textAlignVertical="top"
               />
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

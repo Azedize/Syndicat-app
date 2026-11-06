@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -212,7 +213,7 @@ export default function PublicationsScreen() {
         {selected ? (
           <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
             <SheetHeader title={catLabel(selected.category) || t("pubTitle")} subtitle={date(selected.createdAt)} onClose={() => setSelectedId(null)} />
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
               <Text style={[TYPE.title, { color: colors.foreground, textAlign: "auto" }]}>{selected.title}</Text>
               <View style={styles.row}>
                 <Avatar name={authorOf(selected) || "?"} size={36} />
@@ -275,7 +276,7 @@ export default function PublicationsScreen() {
                   onPress={() => commentMutation.mutate({ id: selected.id, text: commentText.trim() })}
                 />
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
       </Modal>
@@ -284,7 +285,7 @@ export default function PublicationsScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("pubCreateTitle")} onClose={() => setShowCreate(false)} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>{t("pubFieldCategory")}</Text>
               <View style={styles.chips}>
@@ -304,7 +305,7 @@ export default function PublicationsScreen() {
               disabled={!newTitle.trim() || !newContent.trim()}
               onPress={() => createMutation.mutate({ title: newTitle.trim(), content: newContent.trim(), category: newCategory })}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

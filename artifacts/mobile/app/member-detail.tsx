@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "@/components/EmptyState";
@@ -252,7 +253,7 @@ export default function MemberDetailScreen() {
       <Modal visible={showEdit} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEdit(false)}>
         <View style={[styles.root, { backgroundColor: colors.background }]}>
           <SheetHeader title={t("editProfileBtn")} subtitle={member.name} onClose={() => setShowEdit(false)} />
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
             <TextField label={t("nameLabel")} required value={edit.name} onChangeText={(v) => setEdit((e) => ({ ...e, name: v }))} autoCapitalize="words" />
             <TextField label={t("uiEmail")} value={edit.email} onChangeText={(v) => setEdit((e) => ({ ...e, email: v }))} keyboardType="email-address" autoCapitalize="none" />
             <TextField label={t("phoneLabel")} value={edit.phone} onChangeText={(v) => setEdit((e) => ({ ...e, phone: v }))} keyboardType="phone-pad" />
@@ -267,7 +268,7 @@ export default function MemberDetailScreen() {
               <Button label={t("cancel")} variant="secondary" style={{ flex: 1 }} onPress={() => setShowEdit(false)} />
               <Button label={t("save")} style={{ flex: 1 }} loading={saving} onPress={saveEdit} />
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 

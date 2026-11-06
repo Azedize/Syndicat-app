@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import { Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View, Platform } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -242,7 +243,7 @@ export default function AnnoncesScreen() {
         {selected && sel ? (
           <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
             <SheetHeader title={selected.title} subtitle={selected.audience} onClose={() => setSelected(null)} />
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
               <View style={styles.badges}>
                 <StatusBadge label={t(sel.key)} tone={sel.tone} icon={sel.icon} size="md" />
                 {selected.pinned ? <StatusBadge label={t("announcePinned")} tone="primary" icon="bookmark" size="md" /> : null}
@@ -269,7 +270,7 @@ export default function AnnoncesScreen() {
                   onPress={() => handleDelete(selected)}
                 />
               ) : null}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -278,7 +279,7 @@ export default function AnnoncesScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("createAnnouncement")} subtitle={t("annCreateSubtitle")} onClose={() => setShowCreate(false)} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>{t("annPriorityLabel")}</Text>
               <View style={styles.badges} accessibilityRole="radiogroup">
@@ -334,7 +335,7 @@ export default function AnnoncesScreen() {
               disabled={!newTitle.trim() || !newBody.trim()}
               onPress={handleCreate}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

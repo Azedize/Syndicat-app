@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
@@ -1951,7 +1952,7 @@ function TableauNationalScreenInner() {
                 {selectedSyndicat.name}
               </Text>
             </View>
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{
                 padding: 20,
                 gap: 14,
@@ -2414,7 +2415,7 @@ function TableauNationalScreenInner() {
                   </>
                 );
               })()}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>

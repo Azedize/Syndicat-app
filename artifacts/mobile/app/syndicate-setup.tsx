@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import type { TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1637,7 +1638,7 @@ function SyndicateSetupScreenInner() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 24, gap: 20 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -1790,7 +1791,7 @@ function SyndicateSetupScreenInner() {
                  {t("setupSmsHint")}
               </Text>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

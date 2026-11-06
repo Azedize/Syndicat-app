@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -461,7 +462,7 @@ export default function UtilisateursScreen() {
                   </View>
                 </View>
               </View>
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                 {/* Info card */}
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
@@ -562,7 +563,7 @@ export default function UtilisateursScreen() {
                      </TouchableOpacity>
                    ) : null}
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}
@@ -580,7 +581,7 @@ export default function UtilisateursScreen() {
               <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             {[
               { label: STRINGS.fullName[lang], val: newName, set: setNewName, placeholder: STRINGS.fullNamePlaceholder[lang] },
               { label: STRINGS.email[lang] + " *", val: newEmail, set: setNewEmail, placeholder: STRINGS.emailPlaceholder[lang] },
@@ -617,7 +618,7 @@ export default function UtilisateursScreen() {
               </View>
             </View>
 
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

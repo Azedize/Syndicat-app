@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -496,7 +497,7 @@ function RegisterView() {
                 </View>
               </View>
 
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
                     { icon: "tag" as const,      label: t("type"),       value: typeLabel },
@@ -547,7 +548,7 @@ function RegisterView() {
                     <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("shareLabel")}</Text>
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}

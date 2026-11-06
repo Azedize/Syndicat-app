@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MemberDocumentRequest from "@/features/documents/components/MemberDocumentRequest";
@@ -402,7 +403,7 @@ export default function ProfileScreen() {
       <Modal visible={showPwd} animationType="slide" presentationStyle="pageSheet" onRequestClose={closePwd}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("profilePasswordChange")} onClose={closePwd} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
             <View style={[styles.tip, { backgroundColor: colors.infoSoft }]}>
               <Feather name="shield" size={16} color={colors.info} />
               <Text style={[TYPE.secondary, { color: colors.infoText, flex: 1 }]}>{t("profilePasswordTip")}</Text>
@@ -445,7 +446,7 @@ export default function ProfileScreen() {
             />
 
             <Button label={t("profileConfirmChange")} icon="lock" fullWidth size="lg" loading={pwdSaving} disabled={!pwdReady} onPress={handleChangePassword} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

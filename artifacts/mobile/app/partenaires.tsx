@@ -487,7 +487,7 @@ export default function PartenairesScreen() {
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             {selectedPartner && (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
                 {/* Partner header */}
                 <View style={styles.detailHeader}>
                   <View
@@ -676,7 +676,7 @@ export default function PartenairesScreen() {
                 >
                   <Text style={styles.closeBtnText}>{t("close")}</Text>
                 </TouchableOpacity>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             )}
           </View>
         </View>

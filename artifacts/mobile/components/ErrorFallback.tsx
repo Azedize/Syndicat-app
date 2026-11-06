@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { getLastLanguage } from "@/context/LanguageContext";
@@ -140,7 +141,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                 </Pressable>
               </View>
 
-              <ScrollView
+              <KeyboardAwareScrollViewCompat bottomOffset={24}
                 style={styles.modalScrollView}
                 contentContainerStyle={styles.modalScrollContent}
                 showsVerticalScrollIndicator
@@ -156,7 +157,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                     {formatErrorDetails()}
                   </Text>
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           </View>
         </Modal>

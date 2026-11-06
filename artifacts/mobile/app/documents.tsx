@@ -22,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "@/context/ActivityContext";
@@ -2180,7 +2181,7 @@ export default function DocumentsScreen() {
                     </View>
                   </View>
 
-                  <ScrollView
+                  <KeyboardAwareScrollViewCompat bottomOffset={24}
                     contentContainerStyle={detailStyles.scrollContent}
                     showsVerticalScrollIndicator={false}
                   >
@@ -3028,7 +3029,7 @@ export default function DocumentsScreen() {
 
                     {/* bottom padding */}
                     <View style={{ height: 40 }} />
-                  </ScrollView>
+                  </KeyboardAwareScrollViewCompat>
                 </View>
               );
             })()
@@ -3054,7 +3055,7 @@ export default function DocumentsScreen() {
               </Text>
             </View>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
@@ -3125,7 +3126,7 @@ export default function DocumentsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -3158,7 +3159,7 @@ export default function DocumentsScreen() {
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             <View style={{ gap: 8 }}>
@@ -3222,7 +3223,7 @@ export default function DocumentsScreen() {
                 {savingEdit ? docText("saving") : docText("save")}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 

@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -208,7 +209,7 @@ function ModerationScreen() {
       <Modal visible={!!history} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setHistory(null)}>
         <View style={[styles.root, { backgroundColor: colors.background }]}>
           <SheetHeader title={t("modHistory")} subtitle={history?.listing.name} onClose={() => setHistory(null)} />
-          <ScrollView contentContainerStyle={{ padding: SPACING.LG, gap: SPACING.SM }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: SPACING.LG, gap: SPACING.SM }}>
             {history?.rows === null ? (
               <ActivityIndicator color={colors.tint} />
             ) : history?.rows?.length ? (
@@ -221,7 +222,7 @@ function ModerationScreen() {
             ) : (
               <Text style={[TYPE.secondary, { color: colors.textMuted }]}>{t("modNoHistory")}</Text>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

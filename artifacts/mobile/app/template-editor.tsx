@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "@/context/ToastContext";
@@ -477,7 +478,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
             <Text style={s.modalTitle}>{editingIdx === -1 ? tr("newVariable", lang) : tr("editVariable", lang)}</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
               {draft && (
                 <>
                   <Field label={tr("identifier", lang)} required>
@@ -513,7 +514,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
                   </View>
                 </>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setEditingIdx(null)}>
                 <Text style={s.modalCancelText}>{tr("cancel", lang)}</Text>
@@ -613,7 +614,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
             <Text style={s.modalTitle}>{editingIdx === -1 ? tr("newSection", lang) : tr("editSection", lang)}</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
               {draft && (
                 <>
                   <I18NEditor value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} label={tr("sectionTitle", lang)} />
@@ -635,7 +636,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                   </View>
                 </>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setEditingIdx(null)}><Text style={s.modalCancelText}>{tr("cancel", lang)}</Text></TouchableOpacity>
               <TouchableOpacity style={s.modalSave} onPress={save}><Text style={s.modalSaveText}>{tr("save", lang)}</Text></TouchableOpacity>

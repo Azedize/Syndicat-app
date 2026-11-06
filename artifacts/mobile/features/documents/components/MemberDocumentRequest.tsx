@@ -26,6 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -282,7 +283,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
 
           {/* ── Step 1: Choose template ────────────────────────────────── */}
           {step === 1 && (
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 60 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 60 }}>
               <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("mdrChooseTitle")}</Text>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
                 {role === "tenant"
@@ -335,12 +336,12 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                   </TouchableOpacity>
                 ))
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           )}
 
           {/* ── Step 2: Confirm + optional fields ────────────────────────── */}
           {step === 2 && selectedTpl && (
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}>
               {/* Template banner */}
               <View style={[s.templateBanner, { backgroundColor: selectedTpl.color + "10", borderColor: selectedTpl.color + "25" }]}>
                 <View style={[s.tplIconWrap, { backgroundColor: selectedTpl.color + "20" }]}>
@@ -483,7 +484,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                   <Text style={{ fontSize: 12, color: "#C8323C", flex: 1 }}>{error}</Text>
                 </View>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           )}
 
           {/* ── Step 3: Success ─────────────────────────────────────────── */}

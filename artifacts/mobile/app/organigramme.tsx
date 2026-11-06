@@ -25,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -321,7 +322,7 @@ function RoleModal({ node, visible, onClose, isAdmin, colors, t, locale }: {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
           {/* Contact + mandate info */}
           <View style={[styles.infoGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <InfoRow icon="mail"      label="Email"        value={node.email || "—"}          colors={colors} />
@@ -359,7 +360,7 @@ function RoleModal({ node, visible, onClose, isAdmin, colors, t, locale }: {
               </View>
             </View>
           ))}
-        </ScrollView>
+        </KeyboardAwareScrollViewCompat>
       </View>
     </Modal>
   );

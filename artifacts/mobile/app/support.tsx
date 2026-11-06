@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -365,7 +366,7 @@ export default function SupportScreen() {
         {selected ? (
           <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
             <SheetHeader title={`${t("supportTicketDetail")} #${selected.id.slice(-6).toUpperCase()}`} subtitle={t(catCfg(selected.category).labelKey)} onClose={() => setSelected(null)} />
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={[TYPE.headline, { color: colors.foreground, textAlign: "auto" }]}>{selected.title}</Text>
               <View style={styles.badges}>
                 <StatusBadge label={t(stCfg(selected.status).labelKey)} tone={stCfg(selected.status).tone} icon={stCfg(selected.status).icon} size="md" />
@@ -465,7 +466,7 @@ export default function SupportScreen() {
                   />
                 </Card>
               ) : null}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
       </Modal>
@@ -474,7 +475,7 @@ export default function SupportScreen() {
       <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowNew(false)}>
         <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]} behavior="padding">
           <SheetHeader title={t("supportNewTicket")} subtitle={`${t("supportSubmittedBy")} : ${user?.name ?? ""}`} onClose={() => setShowNew(false)} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>
                 {t("supportCategory")} <Text style={{ color: colors.danger }}>*</Text>
@@ -512,7 +513,7 @@ export default function SupportScreen() {
               disabled={!newTitle.trim() || !newDesc.trim()}
               onPress={handleCreate}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </KeyboardAvoidingView>
       </Modal>
     </View>

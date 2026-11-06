@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -760,7 +761,7 @@ function FichesPaieScreenInner() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             {[
               {
                 label: STRINGS.postLabel[lang],
@@ -817,7 +818,7 @@ function FichesPaieScreenInner() {
                 <Text style={styles.submitText}>{STRINGS.save[lang]}</Text>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

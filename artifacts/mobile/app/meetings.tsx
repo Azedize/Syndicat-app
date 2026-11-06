@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "@/context/ActivityContext";
@@ -663,7 +664,7 @@ export default function MeetingsScreen() {
               ) : null}
             </View>
 
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{
                 padding: 20,
                 gap: 16,
@@ -974,7 +975,7 @@ export default function MeetingsScreen() {
                   </Text>
                 </TouchableOpacity>
               ) : null}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -997,7 +998,7 @@ export default function MeetingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             {/* Type selector */}
@@ -1154,7 +1155,7 @@ export default function MeetingsScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1212,7 +1213,7 @@ export default function MeetingsScreen() {
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ gap: 14, paddingBottom: 20 }}
             >
@@ -1328,7 +1329,7 @@ export default function MeetingsScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         </View>
       </Modal>

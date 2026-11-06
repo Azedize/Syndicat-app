@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -387,7 +388,7 @@ export default function IdeasScreen() {
       <Modal visible={showSubmit} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSubmit(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={STRINGS.newProposal[L]} onClose={() => setShowSubmit(false)} />
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
             <View style={{ gap: 8 }}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>{STRINGS.category[L]}</Text>
               <View style={styles.chips}>
@@ -399,7 +400,7 @@ export default function IdeasScreen() {
             <TextField label={bare(STRINGS.titleRequiredLabel[L])} required placeholder={STRINGS.titlePlaceholder[L]} value={form.title} onChangeText={(v) => setForm((p) => ({ ...p, title: v }))} maxLength={120} />
             <TextField label={bare(STRINGS.descriptionRequiredLabel[L])} required placeholder={STRINGS.descriptionPlaceholder[L]} value={form.description} onChangeText={(v) => setForm((p) => ({ ...p, description: v }))} multiline />
             <Button label={STRINGS.submitProposal[L]} icon="send" size="lg" fullWidth loading={submitting} disabled={!form.title.trim() || !form.description.trim()} onPress={handleSubmit} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -407,7 +408,7 @@ export default function IdeasScreen() {
       <Modal visible={!!showReview} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowReview(null)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={STRINGS.reviewIdea[L]} subtitle={showReview?.title} onClose={() => setShowReview(null)} />
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
             <Card padding="lg">
               <Text style={[TYPE.body, { color: colors.foreground, textAlign: "auto" }]}>{showReview?.description}</Text>
             </Card>
@@ -427,7 +428,7 @@ export default function IdeasScreen() {
             </View>
             <TextField label={STRINGS.adminNote[L]} placeholder={STRINGS.adminNotePlaceholder[L]} value={adminNote} onChangeText={setAdminNote} multiline />
             <Button label={STRINGS.saveDecision[L]} icon="check" size="lg" fullWidth loading={submitting} onPress={handleReview} variant={adminAction === "rejected" ? "destructive" : "primary"} />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

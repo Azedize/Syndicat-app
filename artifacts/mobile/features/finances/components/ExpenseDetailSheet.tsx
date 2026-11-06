@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -70,7 +71,7 @@ export default function ExpenseDetailSheet({ id, onClose }: { id: string | null;
         ) : q.isError || !e ? (
           <ErrorState title={t("uiLoadErrorTitle")} description={t("uiLoadErrorHint")} retryLabel={t("retry")} onRetry={() => q.refetch()} />
         ) : (
-          <ScrollView contentContainerStyle={{ padding: SPACING.LG, gap: SPACING.LG }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: SPACING.LG, gap: SPACING.LG }}>
             <View style={{ gap: 4 }}>
               <Text style={[TYPE.display, { color: colors.foreground }]}>{fmt.money(e.amount)}</Text>
               <Text style={[TYPE.secondary, { color: e.status === "paid" ? colors.successText : colors.warningText }]}>
@@ -131,7 +132,7 @@ export default function ExpenseDetailSheet({ id, onClose }: { id: string | null;
             )}
 
             <Text style={[TYPE.caption, { color: colors.textMuted }]}>{t("expReadOnlyNote")}</Text>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         )}
       </View>
     </Modal>

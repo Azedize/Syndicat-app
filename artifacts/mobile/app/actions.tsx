@@ -14,6 +14,7 @@ import {
   View,
   RefreshControl,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -375,7 +376,7 @@ export default function ActionsScreen() {
                 </View>
               </View>
 
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 {/* Support & participate */}
                 <View style={styles.actionBtnsRow}>
                   <TouchableOpacity
@@ -464,7 +465,7 @@ export default function ActionsScreen() {
                     ))}
                   </View>
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}

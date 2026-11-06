@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
@@ -815,7 +816,7 @@ function AssembleeGeneraleScreenInner() {
                   </View>
                 </View>
 
-                <ScrollView
+                <KeyboardAwareScrollViewCompat bottomOffset={24}
                   contentContainerStyle={{
                     padding: 16,
                     gap: 14,
@@ -1251,7 +1252,7 @@ function AssembleeGeneraleScreenInner() {
                       </View>
                     )}
                   </View>
-                </ScrollView>
+                </KeyboardAwareScrollViewCompat>
               </View>
             );
           })()}
@@ -1284,7 +1285,7 @@ function AssembleeGeneraleScreenInner() {
               {t("agPlanTitle")}
             </Text>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}
           >
             {/* Type selector */}
@@ -1446,7 +1447,7 @@ function AssembleeGeneraleScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1477,7 +1478,7 @@ function AssembleeGeneraleScreenInner() {
               {t("agNewResolutionTitle")}
             </Text>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}
           >
             <View style={{ gap: 6 }}>
@@ -1594,7 +1595,7 @@ function AssembleeGeneraleScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1632,7 +1633,7 @@ function AssembleeGeneraleScreenInner() {
               )}
             </View>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}
           >
             {[
@@ -1714,7 +1715,7 @@ function AssembleeGeneraleScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1745,7 +1746,7 @@ function AssembleeGeneraleScreenInner() {
               {t("agPVTitle")}
             </Text>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
           >
             <View
@@ -1758,7 +1759,7 @@ function AssembleeGeneraleScreenInner() {
                 {pvText ?? ""}
               </Text>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

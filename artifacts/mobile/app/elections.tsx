@@ -26,6 +26,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useToast } from "@/context/ToastContext";
 import { elections as electionsApi } from "@/features/governance/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
@@ -1067,7 +1068,7 @@ function ElectionsScreenInner() {
               ))}
             </View>
 
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{
                 padding: 16,
                 gap: 14,
@@ -1665,7 +1666,7 @@ function ElectionsScreenInner() {
                   }
                 />
               )}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : (
           <View style={styles.center}>
@@ -1703,7 +1704,7 @@ function ElectionsScreenInner() {
               {t("submitCandidacy")}
             </Text>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 14 }}>
             <View
               style={[
                 styles.fieldCard,
@@ -1864,7 +1865,7 @@ function ElectionsScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1897,7 +1898,7 @@ function ElectionsScreenInner() {
               {t("delegateMyVote")}
             </Text>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 10 }}>
             {(eligibleVotersData?.data ?? []).filter((v) => v.id !== user?.id)
               .length === 0 ? (
               <Text
@@ -1941,7 +1942,7 @@ function ElectionsScreenInner() {
                   </View>
                 ))
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -1974,7 +1975,7 @@ function ElectionsScreenInner() {
               {t("electionCreate")}
             </Text>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 16, gap: 14 }}>
             <View
               style={[
                 styles.fieldCard,
@@ -1984,7 +1985,7 @@ function ElectionsScreenInner() {
               <Text
                 style={[styles.fieldLabel, { color: colors.mutedForeground }]}
               >
-                {t("elections")} *
+                {t("electionTitleLabel")} *
               </Text>
               <TextInput
                 style={[
@@ -2002,7 +2003,7 @@ function ElectionsScreenInner() {
                   { color: colors.mutedForeground, marginTop: 12 },
                 ]}
               >
-                {t("openElections")}
+                {t("electionDescriptionLabel")}
               </Text>
               <TextInput
                 style={[
@@ -2266,7 +2267,7 @@ function ElectionsScreenInner() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

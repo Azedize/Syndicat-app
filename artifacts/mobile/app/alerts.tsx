@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -420,7 +421,7 @@ export default function AlertsScreen() {
                 <View style={{ width: 34 }} />
               </View>
 
-              <ScrollView
+              <KeyboardAwareScrollViewCompat bottomOffset={24}
                 contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 48 }}
                 showsVerticalScrollIndicator={false}
               >
@@ -512,7 +513,7 @@ export default function AlertsScreen() {
                     <Text style={styles.readBtnText}>{t("notificationMarkRead")}</Text>
                   </TouchableOpacity>
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })() : null}

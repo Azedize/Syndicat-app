@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { useFormat } from "@/hooks/useFormat";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ScreenHeader from "@/components/ScreenHeader";
@@ -299,7 +300,7 @@ function SinistresScreenInner() {
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
         <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
           <SheetHeader title={t("sinistreDeclareTitle")} onClose={() => setShowModal(false)} />
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
             <View style={styles.field}>
               <Text style={[TYPE.label, { color: colors.foreground }]}>
                 {t("building")} <Text style={{ color: colors.danger }}>*</Text>
@@ -350,7 +351,7 @@ function SinistresScreenInner() {
               keyboardType="numbers-and-punctuation"
             />
             <TextField
-              label={`${t("sinistreEstimatedDamage")} (MAD)`}
+              label={t("sinistreEstimatedDamage")}
               placeholder={t("sinistreEstimatedPlaceholder")}
               value={form.estimatedAmount}
               onChangeText={(v) => setForm((p) => ({ ...p, estimatedAmount: v }))}
@@ -367,7 +368,7 @@ function SinistresScreenInner() {
               disabled={!form.description.trim() || !form.buildingId || !dateValid || !amountValid}
               onPress={handleSubmit}
             />
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

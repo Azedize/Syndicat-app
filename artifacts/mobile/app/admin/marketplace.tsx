@@ -30,6 +30,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
@@ -636,7 +637,7 @@ function ModerationDashboard() {
           <View style={[styles.detailSheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             {detailProduct && (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
                 {/* Status + close */}
                 <View style={styles.detailHeader}>
                   <StatusBadge status={detailProduct.status} colors={colors} t={t} />
@@ -724,7 +725,7 @@ function ModerationDashboard() {
                 )}
 
                 <View style={{ height: 36 }} />
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             )}
           </View>
         </View>
@@ -768,7 +769,7 @@ function ModerationDashboard() {
                 <Text style={[styles.emptySub, { color: colors.mutedForeground, marginTop: 8 }]}>{t("marketplaceReportedEmptyTitle")}</Text>
               </View>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
                 {reports.map((r) => (
                   <View key={r.id} style={[styles.reportCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <View style={styles.reportTop}>
@@ -794,7 +795,7 @@ function ModerationDashboard() {
                   </View>
                 ))}
                 <View style={{ height: 40 }} />
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             )}
           </View>
         </View>

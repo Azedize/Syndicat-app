@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -263,7 +264,7 @@ function TemplateRequestContent() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
               {/* Title */}
               <View style={s.formField}>
                 <Text style={s.formLabel}>{t("trTitle")} <Text style={{ color: "#C8323C" }}>*</Text></Text>
@@ -367,7 +368,7 @@ function TemplateRequestContent() {
               </View>
 
               <View style={{ height: 20 }} />
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
 
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.cancelBtn} onPress={() => setShowForm(false)}>
@@ -403,7 +404,7 @@ function TemplateRequestContent() {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView showsVerticalScrollIndicator={false}>
+                  <KeyboardAwareScrollViewCompat bottomOffset={24} showsVerticalScrollIndicator={false}>
                     <View style={[s.detailStatusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
                       <Feather name={sc.icon} size={14} color={sc.color} />
                       <Text style={[s.detailStatusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
@@ -450,7 +451,7 @@ function TemplateRequestContent() {
                     ) : null}
 
                     <View style={{ height: 20 }} />
-                  </ScrollView>
+                  </KeyboardAwareScrollViewCompat>
                 </>
               );
             })()}

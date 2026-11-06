@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
@@ -480,7 +481,7 @@ function PVScreenInner() {
                 <Feather name="share" size={16} color={colors.primary} />
               </TouchableOpacity>
             </View>
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               contentContainerStyle={{
                 padding: 20,
                 gap: 16,
@@ -739,7 +740,7 @@ function PVScreenInner() {
                   </TouchableOpacity>
                 ) : null}
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -768,7 +769,7 @@ function PVScreenInner() {
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             {/* Title */}
@@ -994,7 +995,7 @@ function PVScreenInner() {
                 {t("pvCreateBtn")}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

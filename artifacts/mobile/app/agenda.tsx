@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -427,7 +428,7 @@ export default function AgendaScreen() {
                 </View>
               </View>
 
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
+              <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 {/* Date highlight */}
                 <View style={[styles.dateHighlight, { backgroundColor: typeCfg.color + "10", borderColor: typeCfg.color + "30" }]}>
                   <View style={styles.dateHighlightLeft}>
@@ -516,7 +517,7 @@ export default function AgendaScreen() {
                     <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>{t("agendaExportCalendar")}</Text>
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             </View>
           );
         })()}

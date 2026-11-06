@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -353,7 +354,7 @@ export default function PrestataireDetailScreen() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pdNewContract")}</Text>
             <TouchableOpacity onPress={() => setShowNewContract(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdTitle")} *</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               value={ctForm.title} onChangeText={(v) => setCtForm((p) => ({ ...p, title: v }))} placeholderTextColor={colors.mutedForeground} placeholder={t("pdContractTitlePlaceholder")} />
@@ -378,7 +379,7 @@ export default function PrestataireDetailScreen() {
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#5A4AD6", opacity: submitting ? 0.7 : 1 }]} onPress={handleCreateContract} disabled={submitting}>
               {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{t("pdCreateContract")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -389,7 +390,7 @@ export default function PrestataireDetailScreen() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pdEvaluate")} {data.name}</Text>
             <TouchableOpacity onPress={() => setShowEvaluate(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             {([
               ["quality", "pdQuality"], ["speed", "pdSpeed"], ["communication", "pdCommunication"], ["price", "pdValueForMoney"],
             ] as const).map(([k, label]) => (
@@ -410,7 +411,7 @@ export default function PrestataireDetailScreen() {
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.warning, opacity: submitting ? 0.7 : 1 }]} onPress={handleSubmitEvaluation} disabled={submitting}>
               {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{t("pdSubmitEvaluation")}</Text>}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 

@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -281,7 +282,7 @@ export default function EquipeSyndicScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             {[
               { label: t("phoneLabel"),       key: "phone"       as const, placeholder: "+212 5xx xx xx xx" },
               { label: t("emailLabel"),       key: "email"       as const, placeholder: "contact@syndicat.ma" },
@@ -318,7 +319,7 @@ export default function EquipeSyndicScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { shareContent } from "@/hooks/useShare";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -502,7 +503,7 @@ function GovernanceScreenInner() {
                 Fiche bureau
               </Text>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
               {/* Profile */}
               <View style={[styles.memberProfile, { backgroundColor: colors.primary }]}>
                 <View style={styles.memberProfileAvatar}>
@@ -561,7 +562,7 @@ function GovernanceScreenInner() {
                   </TouchableOpacity>
                 ) : null}
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -578,7 +579,7 @@ function GovernanceScreenInner() {
                 {selectedCommission.name}
               </Text>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               <View style={[styles.commDetailHeader, { backgroundColor: colors.primary }]}>
                 <Feather name="layers" size={30} color="rgba(255,255,255,0.3)" />
                 <View>
@@ -626,7 +627,7 @@ function GovernanceScreenInner() {
                   <Text style={[styles.memberActionText, { color: colors.tint }]}>{t("governanceViewMinutes")}</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -642,7 +643,7 @@ function GovernanceScreenInner() {
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]}>{t("governanceMandateDetail")}</Text>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
                 const sc = { actif: { label: t("govMandateActive"), color: colors.success, bg: colors.success + "18" }, expire: { label: t("govMandateExpired"), color: colors.warning, bg: colors.warning + "18" }, vacant: { label: t("govMandateVacant"), color: colors.danger, bg: colors.danger + "18" } }[selectedMandat.status];
                 return (
@@ -716,7 +717,7 @@ function GovernanceScreenInner() {
                   </>
                 );
               })()}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>
@@ -733,7 +734,7 @@ function GovernanceScreenInner() {
                 {selectedDelegation.domaine}
               </Text>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
+            <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
                 const dc = { active: { label: t("govDelegActive"), color: colors.success, bg: colors.success + "18" }, expired: { label: t("govDelegExpired"), color: colors.warning, bg: colors.warning + "18" }, revoked: { label: t("govDelegRevoked"), color: colors.danger, bg: colors.danger + "18" } }[selectedDelegation.status];
                 return (
@@ -786,7 +787,7 @@ function GovernanceScreenInner() {
                   </>
                 );
               })()}
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           </View>
         ) : null}
       </Modal>

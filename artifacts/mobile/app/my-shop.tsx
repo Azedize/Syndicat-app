@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as CoverImage } from "expo-image";
@@ -753,7 +754,7 @@ export default function MyShopScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
 
             {/* ── Section: Produit ──────────────────────────────── */}
             <Text style={[styles.sectionLabel, { color: colors.tint }]}>{shopText("productInfo", lang)}</Text>
@@ -885,7 +886,7 @@ export default function MyShopScreen() {
                 <Text style={[styles.infoText, { color: colors.tint }]}>{shopText("moderationNote", lang)}</Text>
               </View>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
 
@@ -902,7 +903,7 @@ export default function MyShopScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalBody}>
+          <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={styles.modalBody}>
             <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 0 }]}>{sponsorProduct?.name}</Text>
             <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>
               {shopText("sponsorDescription", lang)}
@@ -947,7 +948,7 @@ export default function MyShopScreen() {
                 <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{shopText("addPhoto", lang)}</Text>
               </TouchableOpacity>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

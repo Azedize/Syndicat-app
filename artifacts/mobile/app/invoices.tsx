@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
@@ -354,7 +355,7 @@ function InvoicesScreenInner() {
       <Modal visible={!!selectedInvoice} transparent animationType="slide" onRequestClose={() => setSelectedInvoice(null)}>
         <View style={styles.modalOverlay}>
           {selectedInvoice && (
-            <ScrollView
+            <KeyboardAwareScrollViewCompat bottomOffset={24}
               style={[styles.detailModal, { backgroundColor: colors.card }]}
               contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: insets.bottom + 24 }}
               showsVerticalScrollIndicator={false}
@@ -483,7 +484,7 @@ function InvoicesScreenInner() {
                   <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("invEnvoyerBtn")}</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </KeyboardAwareScrollViewCompat>
           )}
         </View>
       </Modal>
@@ -504,7 +505,7 @@ function InvoicesScreenInner() {
       {/* ─── Add modal ──────────────────────────────────────────────────────────── */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
         <View style={styles.modalOverlay}>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             style={[styles.addModal, { backgroundColor: colors.card }]}
             contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: insets.bottom + 24 }}
             showsVerticalScrollIndicator={false}
@@ -713,7 +714,7 @@ function InvoicesScreenInner() {
                   : t("invHintFillFields")}
               </Text>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

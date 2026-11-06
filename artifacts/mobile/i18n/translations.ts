@@ -26053,4 +26053,16 @@ export const TRANSLATIONS: Translations = {
     ar: "تعذر نشر المحضر.",
     es: "No se ha podido publicar el acta.",
   },
+  electionTitleLabel: {
+    fr: "Titre de l'élection",
+    en: "Election title",
+    ar: "عنوان الانتخاب",
+    es: "Título de la elección",
+  },
+  electionDescriptionLabel: {
+    fr: "Description",
+    en: "Description",
+    ar: "الوصف",
+    es: "Descripción",
+  },
 };

@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
@@ -714,7 +715,7 @@ function ActesAdministratifsScreenInner() {
                       />
                     </TouchableOpacity>
                   </View>
-                  <ScrollView
+                  <KeyboardAwareScrollViewCompat bottomOffset={24}
                     contentContainerStyle={{
                       padding: 20,
                       gap: 16,
@@ -1091,7 +1092,7 @@ function ActesAdministratifsScreenInner() {
                         </Text>
                       </TouchableOpacity>
                     )}
-                  </ScrollView>
+                  </KeyboardAwareScrollViewCompat>
                 </View>
               );
             })()
@@ -1139,7 +1140,7 @@ function ActesAdministratifsScreenInner() {
               )}
             </TouchableOpacity>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
           >
             {/* Type */}
@@ -1435,7 +1436,7 @@ function ActesAdministratifsScreenInner() {
                   : t("actsMarkImportant")}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         </View>
       </Modal>
     </View>

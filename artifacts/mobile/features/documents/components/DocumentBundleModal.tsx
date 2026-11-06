@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -314,7 +315,7 @@ export default function DocumentBundleModal({
         </View>
 
         {step !== 3 ? (
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 120 }}
           >
             {/* ── Entity picker (recovery / sale) ── */}
@@ -542,10 +543,10 @@ export default function DocumentBundleModal({
                 <Text style={[s.hintText, { color: "#C8323C" }]}>{error}</Text>
               </View>
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         ) : (
           /* ── Success screen ── */
-          <ScrollView
+          <KeyboardAwareScrollViewCompat bottomOffset={24}
             contentContainerStyle={{ padding: 24, gap: 20, paddingBottom: 80 }}
           >
             <View style={{ alignItems: "center", gap: 12 }}>
@@ -617,7 +618,7 @@ export default function DocumentBundleModal({
               <Feather name="list" size={16} color="#fff" />
               <Text style={s.submitBtnText}>{t("bundleViewDocuments")}</Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollViewCompat>
         )}
 
         {/* ── Bottom action bar ── */}
