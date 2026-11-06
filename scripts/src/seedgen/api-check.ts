@@ -178,6 +178,42 @@ async function main() {
   const dbUnit = await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM documents WHERE syndicate_id = $1 AND NOT is_deleted AND category = 'financier' AND visibility = 'unit' AND status IS DISTINCT FROM 'archived'`, [A.id]);
   step("syndic : filtre catégorie + audience, page 2", r.status === 200 && totalOf(r.json) === dbUnit.n && (r.json?.data ?? []).length <= 20, `${totalOf(r.json)} / ${dbUnit.n}, page de ${(r.json?.data ?? []).length}`, r.ms);
 
+  // ── Data of the « extras » phase, read back through the API ──
+  r = await get(admin, "/allocation-keys");
+  const dbKeys = await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM allocation_keys WHERE syndicate_id = $1`, [A.id]);
+  step("syndic : clés de répartition de la copropriété", r.status === 200 && (r.json?.data ?? []).length === dbKeys.n, `${(r.json?.data ?? []).length} / ${dbKeys.n}`, r.ms);
+  const key = (r.json?.data ?? [])[0];
+  if (key) {
+    const k = await get(admin, `/allocation-keys/${key.id}`);
+    step("syndic : clé valide pour le moteur (lots de l'immeuble, exclusions motivées)", k.status === 200 && (k.json?.data?.validation?.errors ?? [1]).length === 0, `${key.code} v${k.json?.data?.versions?.[0]?.version}, ${k.json?.data?.validation?.errors?.length ?? "?"} erreur(s)`, k.ms);
+  }
+  r = await get(member, "/allocation-keys");
+  step("copropriétaire : clés de répartition réservées à l'équipe", r.status === 403, String(r.status));
+  r = await get(member, "/me/terms-acceptances");
+  const dbTerms = await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM terms_acceptances WHERE user_id = $1`, [member.id]);
+  step("copropriétaire : SES acceptations des CGU", r.status === 200 && (r.json?.data ?? []).length === dbTerms.n, `${(r.json?.data ?? []).length} / ${dbTerms.n}`, r.ms);
+  r = await get(admin, "/announcements?limit=100");
+  const anns = (r.json?.data ?? []) as { id: string; acknowledgementCount?: number }[];
+  const dbAcks = anns.length ? await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM announcement_acknowledgements WHERE announcement_id = ANY($1)`, [anns.map((a) => a.id)]) : { n: 0 };
+  const apiAcks = anns.reduce((s, a) => s + (a.acknowledgementCount ?? 0), 0);
+  step("syndic : « lu et compris » comptés par annonce = base", r.status === 200 && apiAcks === dbAcks.n, `${apiAcks} / ${dbAcks.n} sur ${anns.length} annonces`, r.ms);
+  r = await get(member, "/announcements?limit=100");
+  const seen = (r.json?.data ?? []) as { id: string; acknowledged?: boolean; acknowledgementCount?: number }[];
+  const dbMine = seen.length ? await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM announcement_acknowledgements WHERE user_id = $1 AND announcement_id = ANY($2)`, [member.id, seen.map((a) => a.id)]) : { n: 0 };
+  step("copropriétaire : SES « lu et compris », sans le compte de l'équipe", r.status === 200 && seen.filter((a) => a.acknowledged).length === dbMine.n && seen.every((a) => a.acknowledgementCount === undefined), `${seen.filter((a) => a.acknowledged).length} / ${dbMine.n}`, r.ms);
+  r = await get(admin, "/parking/violations");
+  const dbViol = await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM parking_violations v JOIN buildings b ON b.id = v.building_id WHERE b.syndicate_id = $1`, [A.id]);
+  step("syndic : infractions de stationnement des immeubles", r.status === 200 && (r.json?.data ?? []).length === dbViol.n, `${(r.json?.data ?? []).length} / ${dbViol.n}`, r.ms);
+  r = await get(member, "/parking/violations");
+  const foreignViol = (r.json?.data ?? []).filter((v: any) => v.reportedById !== member.id);
+  step("copropriétaire : uniquement les infractions qu'il a signalées", r.status === 200 && foreignViol.length === 0, `${(r.json?.data ?? []).length} visibles`, r.ms);
+  const shopper = await one<U>(`SELECT u.id, u.email, u.role, u.syndicate_id, u.name FROM users u WHERE u.syndicate_id = $1 AND u.status = 'active' AND EXISTS (SELECT 1 FROM cart_items c WHERE c.user_id = u.id) LIMIT 1`, [A.id]);
+  if (shopper) {
+    r = await get(shopper, "/cart");
+    const dbCart = await one<{ n: number }>(`SELECT COUNT(*)::int AS n FROM cart_items WHERE user_id = $1`, [shopper.id]);
+    step("résident : SON panier", r.status === 200 && (r.json?.data ?? []).length === dbCart.n && (r.json?.data ?? []).every((c: any) => c.userId === shopper.id), `${(r.json?.data ?? []).length} / ${dbCart.n}`, r.ms);
+  }
+
   // ── Isolation between condominiums ──
   const lotB =await one<{ id: string }>(`SELECT l.id FROM lots l JOIN buildings b ON b.id = l.building_id WHERE b.syndicate_id = $1 LIMIT 1`, [B.id]);
   r = await get(admin, `/lots/${lotB.id}`);

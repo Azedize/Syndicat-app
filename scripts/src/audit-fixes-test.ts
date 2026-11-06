@@ -15,6 +15,7 @@
  */
 import jwt from "jsonwebtoken";
 import { pool } from "@workspace/db";
+import { writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5055/api").replace(/\/$/, "");
 type U = { id: string; email: string; role: string; syndicate_id: string | null; name: string };
@@ -34,8 +35,9 @@ async function api(u: U, method: string, path: string, body?: unknown) {
 const cleanup: (() => Promise<unknown>)[] = [];
 
 async function main() {
+  // writable condominiums: live subscription and syndic company not suspended (423 otherwise)
   const [A, B] = (await pool.unsafe(`SELECT s.id FROM syndicates s WHERE s.creation_key LIKE 'seedgen:%' AND s.status = 'active'
-       AND EXISTS (SELECT 1 FROM syndicate_subscriptions x WHERE x.syndicate_id = s.id AND x.status = 'active' AND (x.current_period_end IS NULL OR x.current_period_end > now()))
+       AND ${writableSubscriptionSql("s")}
      ORDER BY s.id LIMIT 2`)) as unknown as { id: string }[];
   if (!A || !B) throw new Error("Données générées absentes : lancez « seedgen run ».");
   const adminOf = async (sid: string): Promise<U> => ({

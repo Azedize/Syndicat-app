@@ -52,14 +52,40 @@ export async function seedScenarios(seed: number, log: (s: string) => void) {
       { id: `${p}-nodocs-mem2`, syndicate_id: sid, name: "Nadia El Fassi", email: `nadia.elfassi.nodocs@${domain}`, status: "active", created_at: now },
     ],
   };
-  if (already) {
-    log(`Scénarios : déjà présents (${sid}) — rien d'ajouté`);
-    return { added: 0 };
-  }
   let added = 0;
+  const tables = ["syndicates", "syndicate_subscriptions", "buildings", "lots", "users", "members"];
+  if (already) log(`Scénarios : déjà présents (${sid}) — rien d'ajouté`);
+  else {
+    await pool.begin(async (tx: any) => {
+      for (const table of tables) added += await insertRows(tx, table, rows[table]);
+    });
+    log(`Scénarios : résidence sans document (${sid}, 3 lots, syndic + 2 copropriétaires) et 2 syndics sans résidence — ${added} lignes`);
+  }
+
+  // A residence whose subscription has expired: read only (402 on writes), with
+  // its OWN syndic and co-owner (generated syndics are often shared between
+  // residences, so the main run has no expired residence with a dedicated syndic).
+  const xid = `${p}-expired`;
+  if (((await pool.unsafe(`SELECT id FROM syndicates WHERE id = $1`, [xid])) as unknown as unknown[]).length) {
+    log(`Scénarios : déjà présent (${xid}) — rien d'ajouté`);
+    return { added };
+  }
+  const day = 86_400_000;
+  const expired: Record<string, Row[]> = {
+    syndicates: [{ id: xid, name: "Résidence Al Yasmine — abonnement expiré", status: "active", city: "Rabat", address: "12 rue Oued Sebou, Agdal", creation_key: `seedgen:s${seed}:scn-expired`, created_at: new Date(now.getTime() - 400 * day) }],
+    syndicate_subscriptions: [{ id: `${xid}-sub`, syndicate_id: xid, status: "expired", current_period_start: new Date(now.getTime() - 60 * day), current_period_end: new Date(now.getTime() - 30 * day), auto_renew: false, created_at: new Date(now.getTime() - 400 * day) }],
+    buildings: [{ id: `${xid}-b1`, syndicate_id: xid, name: "Immeuble A", address: "12 rue Oued Sebou, Agdal" }],
+    lots: ["A01", "A02"].map((n, i) => ({ id: `${xid}-lot${i + 1}`, building_id: `${xid}-b1`, number: n, type: "appartement", status: "occupied" })),
+    users: [
+      { id: `${xid}-syndic`, name: "Omar Bennis", email: `omar.bennis.expired@${domain}`, password_hash: hash, role: "syndicate_admin", status: "active", syndicate_id: xid, email_status: "undeliverable", created_at: new Date(now.getTime() - 400 * day) },
+      { id: `${xid}-m1`, name: "Leila Chraibi", email: `leila.chraibi.expired@${domain}`, password_hash: hash, role: "member", status: "active", syndicate_id: xid, email_status: "undeliverable", created_at: new Date(now.getTime() - 390 * day) },
+    ],
+    members: [{ id: `${xid}-mem1`, syndicate_id: xid, name: "Leila Chraibi", email: `leila.chraibi.expired@${domain}`, status: "active", created_at: new Date(now.getTime() - 390 * day) }],
+  };
+  let n = 0;
   await pool.begin(async (tx: any) => {
-    for (const table of ["syndicates", "syndicate_subscriptions", "buildings", "lots", "users", "members"]) added += await insertRows(tx, table, rows[table]);
+    for (const table of tables) n += await insertRows(tx, table, expired[table]);
   });
-  log(`Scénarios : résidence sans document (${sid}, 3 lots, syndic + 2 copropriétaires) et 2 syndics sans résidence — ${added} lignes`);
-  return { added };
+  log(`Scénarios : résidence à l'abonnement expiré (${xid}, syndic + copropriétaire dédiés) — ${n} lignes`);
+  return { added: added + n };
 }

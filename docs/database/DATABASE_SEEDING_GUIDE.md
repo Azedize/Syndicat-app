@@ -114,6 +114,29 @@ utilisez une base dédiée (par ex. `syndycat_test`) et `seedgen -- run`.
 - **Nouvelle commande `seedgen -- scenarios`.** Elle ajoute une résidence sans aucun document (au nom très long), avec son syndic et deux copropriétaires, ainsi que deux syndics inscrits sans résidence. Elle est idempotente (identifiants `scn-s<graine>-…`).
 - **Catalogue du marché.** Il couvre aussi l'espagnol. Les états d'annonce se limitent à ceux que l'API accepte (`neuf`, `bon`, `acceptable`, `mauvais`).
 
+## Phase complémentaire `extras` (2026-11-06)
+
+`scripts/src/seedgen/extras.ts` est exécutée pour chaque copropriété après les documents. Elle remplit 15 tables que le générateur laissait vides, à partir des enregistrements déjà écrits et selon les règles de l'API :
+
+| Table | Ce qui est généré | Règle reprise |
+|---|---|---|
+| `terms_acceptances` | ≈ 80 % des comptes actifs | document `cgu`, version `2026-10-21` (celle de `app/cgu.tsx`), acceptée après sa publication et après la création du compte |
+| `announcement_acknowledgements` | « Lu et compris » de 20 à 70 % du public des annonces importantes et urgentes | pas de locataire quand l'annonce vise les copropriétaires ; jamais avant la publication |
+| `conversation_archives`, `blocked_users` | archivages par un participant ; un résident bloque un autre résident | — |
+| `chat_reports`, `product_reports` | un message ordinaire signalé « hors sujet » ; un signalement `mauvaise_info` par annonce approuvée, au plus | statut `pending` (l'API n'a pas de route de traitement) ; sous le seuil d'escalade de 3. **Aucun contenu abusif n'est inventé.** |
+| `cart_items` | 0 à 2 paniers par annonce approuvée | jamais le vendeur lui-même |
+| `parking_violations` | 0 à 3 par immeuble, photo PNG réelle pour la moitié | statuts `open`, `resolved` ou `dismissed`, déclarés par l'équipe |
+| `election_proxies` | pouvoirs utilisés, actifs ou révoqués | au plus 2 par mandataire (`MAX_PROXIES_PER_GRANTEE`) ; pour un pouvoir utilisé, le reçu de vote du mandant porte `cast_by_proxy_id` ; un pouvoir actif concerne un mandant qui n'a pas voté |
+| `allocation_keys` (+ versions et coefficients) | clé « ASC » (ascenseur) sur ≈ 50 % des immeubles, avec une v2 à partir de l'année suivante pour ≈ 30 % d'entre elles | contrôlée par `validateKey()` du moteur ; elle couvre la seule catégorie `ascenseur`, donc les appels déjà émis (tantièmes du budget) ne changent pas ; chaque exclusion est motivée |
+| `appel_adjustments` | 0 à 3 corrections par copropriété | via `adjustObligation()` du projet : jamais sous le montant déjà payé ; statut recalculé |
+| `documents` en arabe | avis, procès-verbal du conseil, règlement intérieur (`language = ar`) | PDF de droite à gauche, police Amiri |
+
+Cette phase utilise **sa propre suite de tirages aléatoires** (graine du lancement décalée). Les données des phases précédentes restent donc identiques pour une même graine, ainsi que les comptes utilisés par les tests de non-régression.
+
+Restent exclues, avec leur motif dans `plan.ts` : les jetons et codes de sécurité, les e-mails envoyés, les signatures, les contenus juridiques et réglementaires, la configuration, les modules retirés, les étapes de recouvrement contentieux, les promotions payantes et les bulletins de paie (aucun employé n'a de compte).
+
+PDF en arabe : avec `PdfSpec.rtl`, le texte est aligné à droite, les segments de chaque ligne sont placés de droite à gauche, et les libellés et puces passent à droite. pdfmake coupe les lignes de gauche à droite : chaque paragraphe arabe doit donc tenir sur une ligne. Le rendu a été contrôlé visuellement (page convertie en image par pdf.js).
+
 ## Ce qui est supprimé, et ce qui ne l'est jamais
 
 Supprimé (après sauvegarde) :

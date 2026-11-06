@@ -7,6 +7,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
+import { writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
 if (!/syndycat_test/.test(process.env.DATABASE_URL ?? "")) throw new Error("mobile-actions: run it against the isolated test base.");
@@ -38,10 +39,9 @@ async function main() {
     ids.push(id);
     return (await call("POST", "/auth/login", { email, password: PASSWORD })).body?.data?.token as string;
   };
-  // Writes need a live subscription (402 otherwise): the invoice checks run in seeded condominiums that have one.
-  const live = (await pool`
-    SELECT s.id FROM syndicates s JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
-     WHERE s.status = 'active' ORDER BY s.id LIMIT 2`) as any[];
+  // Writes need a live subscription (402 otherwise) and a syndic company that is not
+  // suspended (423 otherwise): the invoice checks run in seeded condominiums that are writable.
+  const live = (await pool.unsafe(`SELECT s.id FROM syndicates s WHERE s.status = 'active' AND ${writableSubscriptionSql("s")} ORDER BY s.id LIMIT 2`)) as any[];
   if (live.length < 2) throw new Error("mobile-actions: two condominiums with a subscription are needed");
   const liveSyndic = await make("syndicate_admin", live[0].id);
   const liveMember = await make("member", live[0].id);

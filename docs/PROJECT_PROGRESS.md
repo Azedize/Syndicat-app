@@ -2090,3 +2090,24 @@ Tout compilait et passait les tests d'API, mais ne marchait pas sur un télépho
 - **PV :** « Publier » ne modifiait que l'écran. Passe par `PUT /ag-meetings/:id/status`, seulement pour une réunion déjà tenue et non annulée.
 - **Messagerie :** point « en ligne » permanent et sans donnée retiré, bouton d'appel ouvrant un composeur vide retiré, rôle affiché en clair.
 
+## 2026-11-06 — Formulaires avec le clavier ouvert, sur Android
+
+Vérifié sur émulateur, compte syndic : 12 formulaires ouverts, dernier champ sélectionné, captures avant et après.
+
+- **Défilement :** le clavier réduisait bien la fenêtre, mais le dernier champ restait caché dans 4 formulaires (création d'élection, de lot, de réunion, sinistre). Dans les fenêtres modales, les listes verticales sont maintenant `KeyboardAwareScrollViewCompat` (99 listes, 55 fichiers, dont `FormSheet`). Le dernier champ reste au-dessus du clavier dans les 12 formulaires.
+- **Libellés :** dans « Créer une élection », le titre était intitulé « Élections » et la description « Scrutins ouverts » ; « Estimation des dommages (MAD) (MAD) » corrigé.
+- **Point ouvert :** au premier lancement après une réinitialisation d'Expo Go, l'erreur `Cannot read property 'EventEmitter' of undefined` est apparue trois fois. Le second lancement est normal. Cause non trouvée ; à vérifier sur un vrai build.
+
+
+## 2026-11-06 — Données de test réinitialisées et complétées ; l'application utilise `syndycat_test`
+
+**Base visée :** `syndycat_test` seulement. `syndycat_global_cps` n'a pas été modifiée : ses ≈ 1 050 comptes générés avaient été réécrits en `@gmail.com`, et une réinitialisation les aurait laissés sans copropriété (simulation `reset --dry-run`).
+
+- **Sauvegarde vérifiée :** `pg_dump` et copie des 12 685 fichiers dans `scripts/.seedgen/backups/2026-11-06T13-42-41-435Z`. Restaurée dans une base temporaire : 129 tables, 197 207 lignes et 19 migrations identiques. La base temporaire a ensuite été supprimée.
+- **Réinitialisation :** seules les données générées ont été retirées. La démonstration (4 copropriétés, 42 comptes) et les lignes orphelines d'origine non prouvée sont conservées.
+- **Génération (graine 20261019) :** 61 copropriétés générées (65 en tout), 1 044 comptes générés (1 086 en tout), 12 055 fichiers valides (10 369 PDF, 1 686 PNG). Seule `claim_notifications` reste vide, puisque l'API seule la remplit.
+- **Nouvelle phase `extras.ts` :** 15 tables auparavant vides (CGU, « lu et compris », clés de répartition, ajustements, procurations, paniers, signalements, blocages, archives, infractions, documents en arabe). Elle suit les règles de l'API, n'agit que sur les copropriétés actives dont la société de syndic n'est pas suspendue et utilise sa propre suite de tirages : les comptes des tests ne changent pas. Détail dans `docs/database/DATABASE_SEEDING_GUIDE.md`.
+- **PDF en arabe :** `PdfSpec.rtl` (alignement à droite, ordre des mots, libellés et puces à droite), contrôlé visuellement.
+- **Contrôles :** intégrité 317/319. Les 2 échecs viennent de la procuration de démonstration `eproxy_2` du seed initial, que je n'ai pas modifiée. Vérification par l'API : 45/45 sur une copropriété et 173/173 sur les données complémentaires (73 clés, CGU, « lu et compris », paniers).
+- **Défauts trouvés et corrigés pendant la génération :** des données récentes avaient été créées dans des copropriétés archivées ou suspendues, que l'API bloque ; des dates étaient relues sans leurs millisecondes.
+- **Application :** `.env` pointe vers `syndycat_test`, avec `LOCAL_UPLOADS_DIR=uploads-test`. L'ancienne valeur est copiée dans `.env.backup-20261106.local`, ignoré par Git. L'API du port 5000 doit être redémarrée pour la prendre en compte.

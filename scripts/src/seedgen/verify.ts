@@ -42,6 +42,8 @@ const ALLOWED_VALUES: Array<[string, string, string[], keyof typeof GENERATED | 
   ["sinistres", "status", ["declared", "in_progress", "expert", "repair", "closed"], "building"],
   ["ag_resolutions", "required_majority", ["simple", "absolute", "qualified", "unanimite"], "meeting"],
   ["ag_resolutions", "result", ["pending", "adopted", "rejected"], "meeting"],
+  ["parking_violations", "status", ["open", "resolved", "dismissed"], "building"],
+  ["election_proxies", "status", ["active", "used", "revoked"], undefined],
   ["documents", "visibility", ["syndic", "council", "owners", "residents", "unit", "personal"], undefined],
 ];
 
@@ -112,6 +114,32 @@ const BUSINESS: Array<[string, string, string]> = [
   ["États", "Fichier d'un document présent dans le stockage", `SELECT d.id FROM documents d WHERE d.source = 'upload' AND d.file_url LIKE '/objects/%' AND NOT EXISTS (SELECT 1 FROM storage_objects s WHERE s.object_path = d.file_url)`],
   ["États", "Contrat terminé ⇒ fin au plus tard à la résiliation", `SELECT id FROM contrats_prestataires WHERE status IN ('expired','terminated') AND terminated_at IS NOT NULL AND end_date::date > terminated_at::date`],
   ["États", "Majorité simple : adoptée ⇔ pour > contre", `SELECT id FROM ag_resolutions WHERE required_majority = 'simple' AND result IN ('adopted','rejected') AND (result = 'adopted') <> (tantiemes_for > tantiemes_against)`],
+  ["États", "Procuration utilisée ⇒ reçu de vote du mandant porté par le mandataire", `
+    SELECT p.id FROM election_proxies p WHERE p.status = 'used'
+      AND NOT EXISTS (SELECT 1 FROM vote_receipts r WHERE r.election_id = p.election_id AND r.voter_id = p.grantor_id AND r.cast_by_proxy_id = p.grantee_id)`],
+  ["États", "Au plus 2 pouvoirs actifs par mandataire et par élection", `SELECT election_id, grantee_id FROM election_proxies WHERE status = 'active' GROUP BY 1, 2 HAVING COUNT(*) > 2`],
+  ["États", "Pouvoir actif ⇒ le mandant n'a pas encore voté", `
+    SELECT p.id FROM election_proxies p WHERE p.status = 'active' AND EXISTS (SELECT 1 FROM vote_receipts r WHERE r.election_id = p.election_id AND r.voter_id = p.grantor_id)`],
+  ["Isolation", "Procuration : mandant et mandataire de la copropriété de l'élection", `
+    SELECT p.id FROM election_proxies p JOIN elections e ON e.id = p.election_id JOIN users g ON g.id = p.grantor_id JOIN users h ON h.id = p.grantee_id
+    WHERE g.syndicate_id IS DISTINCT FROM e.syndicate_id OR h.syndicate_id IS DISTINCT FROM e.syndicate_id`],
+  ["Isolation", "Lu et compris : utilisateur rattaché à la copropriété de l'annonce", `
+    SELECT k.id FROM announcement_acknowledgements k JOIN announcements a ON a.id = k.announcement_id JOIN users u ON u.id = k.user_id
+    WHERE u.role <> 'super_admin' AND u.syndicate_id IS DISTINCT FROM a.syndicate_id
+      AND NOT EXISTS (SELECT 1 FROM syndicate_memberships m WHERE m.user_id = u.id AND m.syndicate_id = a.syndicate_id AND m.status = 'active')`],
+  ["Isolation", "Clé de répartition : lots de l'immeuble de la clé", `
+    SELECT s.id FROM allocation_key_shares s JOIN allocation_key_versions v ON v.id = s.version_id JOIN allocation_keys k ON k.id = v.key_id JOIN lots l ON l.id = s.lot_id
+    WHERE l.building_id <> k.building_id`],
+  ["Isolation", "Infraction : déclarant de la copropriété de l'immeuble", `
+    SELECT x.id FROM parking_violations x JOIN buildings b ON b.id = x.building_id JOIN users u ON u.id = x.reported_by_id
+    WHERE u.role <> 'super_admin' AND u.syndicate_id IS DISTINCT FROM b.syndicate_id
+      AND NOT EXISTS (SELECT 1 FROM syndicate_memberships m WHERE m.user_id = u.id AND m.syndicate_id = b.syndicate_id AND m.status = 'active')`],
+  ["Finance", "Ajustement : montant de l'appel = dernier montant ajusté", `
+    SELECT a.id FROM appels_de_fonds a
+    JOIN LATERAL (SELECT new_amount FROM appel_adjustments j WHERE j.appel_id = a.id ORDER BY j.created_at DESC, j.id DESC LIMIT 1) j ON true
+    WHERE a.status <> 'cancelled' AND a.amount <> j.new_amount`],
+  ["Dates", "Lu et compris après la publication de l'annonce", `SELECT k.id FROM announcement_acknowledgements k JOIN announcements a ON a.id = k.announcement_id WHERE k.acknowledged_at < a.created_at`],
+  ["Dates", "Infraction traitée ⇒ traitée après le signalement", `SELECT id FROM parking_violations WHERE status IN ('resolved','dismissed') AND (resolved_at IS NULL OR resolved_at < reported_at)`],
   ["Documents", "Document « lot » ⇒ lot renseigné, document « personnel » ⇒ personne renseignée", `SELECT id FROM documents WHERE (visibility = 'unit' AND lot_id IS NULL) OR (visibility = 'personal' AND subject_user_id IS NULL)`],
   ["Documents", "Travaux terminés ou à valider ⇒ rapport, facture et photos (données générées)", `SELECT x.id FROM travaux x WHERE ${GENERATED.building} AND x.status IN ('pending_validation','completed') AND (x.report_url IS NULL OR x.invoice_url IS NULL OR x.photo_urls IS NULL OR x.photo_urls = '[]')`],
   ["Documents", "Facture fournisseur ⇒ justificatif PDF (données générées)", `SELECT x.id FROM invoices x WHERE ${GENERATED.syndicate} AND x.proof_url IS NULL`],

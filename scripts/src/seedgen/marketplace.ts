@@ -91,6 +91,8 @@ export async function seedMarketplace(seed: number, log: (s: string) => void, op
        JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
        JOIN users u ON u.syndicate_id = s.id AND u.status = 'active' AND u.role = 'member' AND u.email LIKE $1
       WHERE s.status = 'active' AND s.creation_key LIKE $2
+        -- a writable condominium: its syndic company is not suspended (read only otherwise)
+        AND NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'suspended')
       GROUP BY s.id, s.name ORDER BY residents DESC, s.id LIMIT 1`,
     [`%${domain}`, `seedgen:s${seed}:%`],
   )) as unknown as { id: string; name: string; residents: number }[];

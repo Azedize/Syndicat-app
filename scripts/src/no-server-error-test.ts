@@ -8,7 +8,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pool } from "@workspace/db";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 // Every file of the API source: routes live in routes/ and in modules/<domain>/.
@@ -38,7 +38,7 @@ async function main() {
   const accounts = (await (pool as any).unsafe(`
     SELECT DISTINCT ON (u.role) u.role, u.email FROM users u
     JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${writableSubscriptionSql("s")}
     WHERE u.status = 'active' AND u.email LIKE $1 ORDER BY u.role, u.email DESC`, [TEST_EMAIL_LIKE])) as { role: string; email: string }[];
   const tokens: [string, string, string][] = [];
   for (const a of accounts) {

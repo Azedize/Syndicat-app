@@ -5,7 +5,7 @@
  * Read only: nothing is created or changed.
  */
 import { pool } from "@workspace/db";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const PASSWORD = "MizanTest#2026";
@@ -51,7 +51,8 @@ async function main() {
   const approved = await dbCount(`status = 'approved'`);
   const walk = await all({});
   const ids = walk.rows.map((p) => p.id);
-  check("a large catalogue to test with", approved >= 150, `${approved} visible listings`);
+  // ≈ 78 % of the 200 generated listings are approved: enough for several pages of 50
+  check("a large catalogue to test with", approved >= 100, `${approved} visible listings`);
   check("total = SQL count", walk.total === approved, `${walk.total} / ${approved}`);
   check("walking every page returns each listing exactly once", ids.length === approved && new Set(ids).size === ids.length, `${ids.length} rows, ${new Set(ids).size} distinct`);
   const capped = await list({ limit: "500" });
@@ -96,7 +97,7 @@ async function main() {
 
   // Another residence
   const [empty] = await q(`SELECT u.email FROM users u JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active' AND s.creation_key LIKE 'seedgen:%'
-      JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+      JOIN LATERAL (SELECT 1) ss ON ${writableSubscriptionSql("s")}
       WHERE u.role = 'member' AND u.status = 'active' AND u.email LIKE '${TEST_EMAIL_LIKE}'
         AND NOT EXISTS (SELECT 1 FROM products p WHERE p.syndicate_id = s.id AND p.status = 'approved') LIMIT 1`);
   if (empty) {

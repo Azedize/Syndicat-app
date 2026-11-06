@@ -11,7 +11,7 @@
 import { db, pool } from "@workspace/db";
 import { bankStatementLinesTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const PASSWORD = "MizanTest#2026";
@@ -48,7 +48,7 @@ async function main() {
     SELECT u.email, a.id AS appel_id, a.payment_reference AS reference
     FROM users u
     JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${sql.raw(writableSubscriptionSql("s"))}
     JOIN members m ON m.syndicate_id = u.syndicate_id AND lower(m.email) = lower(u.email)
     JOIN lot_ownerships o ON o.member_id = m.id AND o.end_date IS NULL
     JOIN appels_de_fonds a ON a.lot_id = o.lot_id AND a.status IN ('pending','overdue','partially_paid')
@@ -67,7 +67,7 @@ async function main() {
     SELECT le.syndicate_id, le.account_id, le.id AS entry_id, le.amount, le.entry_date::text AS entry_date, a.payment_reference AS reference
     FROM ledger_entries le
     JOIN treasury_accounts ta ON ta.id = le.account_id AND ta.kind = 'bank'
-    JOIN syndicates sy ON sy.id = le.syndicate_id AND sy.status = 'active'
+    JOIN syndicates sy ON sy.id = le.syndicate_id AND sy.status = 'active' AND ${sql.raw(writableSubscriptionSql("sy"))}
     JOIN appel_payments ap ON le.source_type = 'appel_payment' AND ap.id = le.source_id
     JOIN appels_de_fonds a ON a.id = ap.appel_id
     LEFT JOIN (SELECT ledger_entry_id, SUM(amount) matched FROM reconciliation_matches GROUP BY ledger_entry_id) m ON m.ledger_entry_id = le.id

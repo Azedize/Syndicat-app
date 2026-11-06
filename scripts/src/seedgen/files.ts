@@ -48,6 +48,12 @@ export interface PdfSpec {
   sections: PdfSection[];
   signature?: string;
   footerNote?: string;
+  /**
+   * Document written in Arabic: text aligned right and the runs of each line
+   * in right-to-left order. Keep each Arabic paragraph to one line: pdfmake
+   * wraps left to right, so a wrapped line would start with its last words.
+   */
+  rtl?: boolean;
 }
 
 // ─── Rendering (pdfmake, as the API's official documents) ─────────────────────
@@ -87,7 +93,7 @@ const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
  * kept as one shaping run (no-break spaces): otherwise pdfmake splits the
  * words and the gap between them is lost.
  */
-const tx = (text: string, o: Record<string, unknown> = {}) => (ARABIC.test(text) ? { text: segments(text), ...o } : { text, ...o });
+const txLtr = (text: string, o: Record<string, unknown> = {}) => (ARABIC.test(text) ? { text: segments(text), ...o } : { text, ...o });
 
 /**
  * Mixed or Arabic text as inline segments. fontkit shapes an Arabic run only
@@ -131,19 +137,25 @@ function segments(text: string): { text: string; font?: string }[] {
 /** Renders a business document to a PDF (A4, header band, footer with page numbers, watermark). */
 export async function renderPdf(spec: PdfSpec): Promise<Buffer> {
   const content: any[] = [];
+  // Arabic document: segments in right-to-left order, aligned right.
+  const tx = (text: string, o: Record<string, unknown> = {}) =>
+    spec.rtl && ARABIC.test(text) ? { text: segments(text).reverse(), alignment: "right", ...o } : txLtr(text, o);
   content.push(tx(spec.title, { style: "title" }));
 
   const left = spec.recipient
     ? {
         table: {
           widths: ["*"],
-          body: [[{ stack: [{ text: spec.recipient.label.toUpperCase(), style: "label" }, tx(spec.recipient.name, { bold: true, fontSize: 10.5, margin: [0, 3, 0, 2] }), ...spec.recipient.lines.filter(Boolean).map((l) => tx(l, { fontSize: 8.5 }))], fillColor: LIGHT, margin: [8, 6, 8, 6] }]],
+          body: [[{ stack: [tx(spec.recipient.label.toUpperCase(), { style: "label" }), tx(spec.recipient.name, { bold: true, fontSize: 10.5, margin: [0, 3, 0, 2] }), ...spec.recipient.lines.filter(Boolean).map((l) => tx(l, { fontSize: 8.5 }))], fillColor: LIGHT, margin: [8, 6, 8, 6] }]],
         },
         layout: "noBorders",
       }
     : { text: "" };
   const kv = (pairs: [string, string][], size = 8.5) => ({
-    table: { widths: ["*", "auto"], body: pairs.map(([k, v]) => [{ text: k, color: GREY, fontSize: size }, tx(v, { bold: true, alignment: "right", fontSize: size })]) },
+    // right to left: the label on the right, its value on its left
+    table: spec.rtl
+      ? { widths: ["auto", "*"], body: pairs.map(([k, v]) => [tx(v, { bold: true, alignment: "left", fontSize: size }), tx(k, { color: GREY, alignment: "right", fontSize: size })]) }
+      : { widths: ["*", "auto"], body: pairs.map(([k, v]) => [tx(k, { color: GREY, fontSize: size }), tx(v, { bold: true, alignment: "right", fontSize: size })]) },
     layout: { hLineWidth: (i: number) => (i === 0 ? 0 : 0.5), vLineWidth: () => 0, hLineColor: () => "#D9DCE1", paddingTop: () => 3, paddingBottom: () => 3, paddingLeft: () => 0, paddingRight: () => 0 },
   });
   if (spec.recipient || spec.keyValues?.length) {
@@ -151,9 +163,10 @@ export async function renderPdf(spec: PdfSpec): Promise<Buffer> {
   }
 
   for (const s of spec.sections) {
-    if (s.heading) content.push({ stack: [{ text: s.heading.toUpperCase(), style: "heading" }, { canvas: [{ type: "line", x1: 0, y1: 2, x2: 499, y2: 2, lineWidth: 1, lineColor: GOLD }] }], margin: [0, 8, 0, 8] });
+    if (s.heading) content.push({ stack: [tx(s.heading.toUpperCase(), { style: "heading" }), { canvas: [{ type: "line", x1: 0, y1: 2, x2: 499, y2: 2, lineWidth: 1, lineColor: GOLD }] }], margin: [0, 8, 0, 8] });
     for (const p of s.paragraphs ?? []) content.push(tx(p, { margin: [0, 0, 0, 6], lineHeight: 1.25 }));
-    if (s.bullets?.length) content.push({ ul: s.bullets.map((b) => tx(b)), margin: [0, 0, 0, 6] });
+    // pdfmake draws list markers on the left: right-to-left bullets are lines ending (visually) with •
+    if (s.bullets?.length) content.push(spec.rtl ? { stack: s.bullets.map((b) => { const t = tx(b, { margin: [0, 0, 0, 3] }) as { text: unknown }; return { ...t, text: [...(Array.isArray(t.text) ? t.text : [{ text: t.text }]), { text: "  •" }] }; }), margin: [0, 0, 0, 6] } : { ul: s.bullets.map((b) => tx(b)), margin: [0, 0, 0, 6] });
     if (s.keyValues?.length) content.push({ ...kv(s.keyValues, 9), margin: [0, 0, 0, 8] });
     if (s.table) {
       const t = s.table;
@@ -163,7 +176,7 @@ export async function renderPdf(spec: PdfSpec): Promise<Buffer> {
           headerRows: 1,
           widths: t.columns.map((c) => `${((c.width / total) * 100).toFixed(2)}%`),
           body: [
-            t.columns.map((c) => ({ text: c.label, bold: true, color: "#FFFFFF", fillColor: NAVY, alignment: c.align ?? "left", fontSize: 8 })),
+            t.columns.map((c) => tx(c.label, { bold: true, color: "#FFFFFF", fillColor: NAVY, alignment: c.align ?? "left", fontSize: 8 })),
             ...t.rows.map((row) => row.map((v, i) => tx(v, { alignment: t.columns[i].align ?? "left", fontSize: 8.5 }))),
           ],
         },
@@ -201,7 +214,7 @@ export async function renderPdf(spec: PdfSpec): Promise<Buffer> {
         body: [
           [
             { stack: [tx(spec.issuer.name, { fontSize: 14, bold: true, color: "#FFFFFF" }), ...spec.issuer.lines.slice(0, 2).map((l) => tx(l, { fontSize: 8.5, color: "#D9E0EC" }))], margin: [48, 20, 0, 16] },
-            { stack: [{ text: spec.kind, fontSize: 14, bold: true, color: GOLD, alignment: "right" }, ...(spec.reference ? [{ text: `N° ${spec.reference}`, fontSize: 9, bold: true, color: "#FFFFFF", alignment: "right" }] : []), ...(spec.date ? [{ text: spec.date, fontSize: 8.5, color: "#D9E0EC", alignment: "right" }] : [])], margin: [0, 20, 48, 16] },
+            { stack: [tx(spec.kind, { fontSize: 14, bold: true, color: GOLD, alignment: "right" }), ...(spec.reference ? [{ text: `N° ${spec.reference}`, fontSize: 9, bold: true, color: "#FFFFFF", alignment: "right" }] : []), ...(spec.date ? [{ text: spec.date, fontSize: 8.5, color: "#D9E0EC", alignment: "right" }] : [])], margin: [0, 20, 48, 16] },
           ],
         ],
       },

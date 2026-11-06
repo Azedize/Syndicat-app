@@ -7,6 +7,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
+import { writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
 if (!/syndycat_test/.test(process.env.DATABASE_URL ?? "")) throw new Error("push-token: run it against the isolated test base.");
@@ -29,7 +30,7 @@ const tokenOf = async (id: string) => ((await pool`SELECT push_token FROM users 
 async function main() {
   const [syndic] = (await pool`
     SELECT u.syndicate_id FROM users u JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active'
-      JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+      JOIN LATERAL (SELECT 1) ss ON ${pool.unsafe(writableSubscriptionSql("s"))}
      WHERE u.role = 'syndicate_admin' AND u.status = 'active' AND u.email LIKE '%.seedgen.mizan.test' LIMIT 1`) as any[];
   const suspended = `test-push-syn-${randomUUID()}`;
   await pool`INSERT INTO syndicates (id, name, status) VALUES (${suspended}, 'Copropriété suspendue', 'suspended')`;

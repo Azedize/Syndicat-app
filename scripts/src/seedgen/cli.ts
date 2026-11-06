@@ -46,6 +46,8 @@ import { PLAN, planFor } from "./plan.js";
 import { verifyDatabase, type CheckResult } from "./verify.js";
 import { seedMarketplace } from "./marketplace.js";
 import { seedScenarios } from "./scenarios.js";
+import { extrasPhase, type ExtrasEnv } from "./extras.js";
+import { Rng } from "./rng.js";
 
 const ROOT = path.resolve(process.cwd(), "..");
 const STATE_DIR = path.resolve(process.cwd(), ".seedgen");
@@ -165,7 +167,10 @@ async function generate(tables: TableInfo[]) {
   if (!plans.length) throw new Error("Aucun plan d'abonnement : lancez d'abord pnpm db:seed (données de référence).");
   const order = dependencyOrder(tables).order;
   const before = Object.fromEntries(tables.map((t) => [t.name, t.rows]));
-  const g = new Generator({ seed, scale, runKey, order, now: new Date(), log });
+  const now = new Date();
+  const g = new Generator({ seed, scale, runKey, order, now, log });
+  // own random stream: the earlier phases (and the test accounts) stay the same for a seed
+  const extras: ExtrasEnv = { rng: new Rng((seed * 31 + 7) >>> 0), now, order, counts: g.counts, usersDone: new Set() };
   const nSyndicates = Number(opt("syndicates", String(Math.max(2, Math.round(60 * scale)))));
   const started = Date.now();
   mkdirSync(STATE_DIR, { recursive: true });
@@ -209,6 +214,7 @@ async function generate(tables: TableInfo[]) {
       }
       await pool.begin(async (tx) => g.payments(tx, c));
       await pool.begin(async (tx) => g.documents(tx, c));
+      await extrasPhase(extras, c);
       log(`[${i + 1}/${nSyndicates}] ${c.name} — ${c.buildings.length} imm., ${c.lots.length} lots, ${c.allUsers.length} comptes, ${issued} appels — ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     }
   } catch (err) {
@@ -412,6 +418,10 @@ function planMd(tables: TableInfo[]): string {
 const KNOWN: Record<string, string> = {
   "Lignes budgétaires = montant des charges du budget":
     "Budgets de démonstration du seed initial (budget_atlas_2026, budget_agdal_2026) dont les lignes dépassent le montant des charges ; aucun budget généré n'est concerné. À corriger dans scripts/src/seed.ts (non modifié ici).",
+  "Procuration utilisée ⇒ reçu de vote du mandant porté par le mandataire":
+    "Procuration de démonstration eproxy_2 du seed initial : statut « used » sans bulletin du mandant. Aucune procuration générée n'est concernée. À corriger dans scripts/src/seed.ts (non modifié ici).",
+  "Procuration : mandant et mandataire de la copropriété de l'élection":
+    "Procuration de démonstration eproxy_2 du seed initial : mandant et mandataire (user_member_4, user_member_3) rattachés à une autre copropriété que l'élection election_2. Aucune procuration générée n'est concernée. À corriger dans scripts/src/seed.ts (non modifié ici).",
 };
 
 function latestReset(): { at: string; backup: string; removed: Record<string, number> } | null {

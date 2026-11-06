@@ -16,7 +16,7 @@ import { emailLogsTable, membersTable, otpTokensTable, usersTable } from "@works
 import { and, eq, sql } from "drizzle-orm";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 // API modules are loaded at run time: they live outside this package's rootDir.
 const apiLib = (p: string) => pathToFileURL(path.resolve(import.meta.dirname, "../../artifacts/api-server/src/lib", p)).href;
@@ -84,7 +84,7 @@ async function main() {
   const [subject] = rows<{ id: string; email: string; syndicate_id: string }>(await db.execute(sql`
     SELECT u.id, u.email, u.syndicate_id FROM users u
     JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${sql.raw(writableSubscriptionSql("s"))}
     JOIN members m ON m.syndicate_id = u.syndicate_id AND lower(m.email) = lower(u.email)
     WHERE u.role = 'member' AND u.status = 'active' AND u.email LIKE ${TEST_EMAIL_LIKE}
     ORDER BY u.email LIMIT 1`));

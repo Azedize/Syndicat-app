@@ -10,7 +10,7 @@
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { pool } from "@workspace/db";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const PASSWORD = "MizanTest#2026";
@@ -42,7 +42,7 @@ async function main() {
   const [syndic] = (await (pool as any).unsafe(`
     SELECT u.email, b.id AS building_id FROM users u
     JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active' AND s.creation_key LIKE 'seedgen:%'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${writableSubscriptionSql("s")}
     JOIN buildings b ON b.syndicate_id = s.id
     WHERE u.role = 'syndicate_admin' AND u.status = 'active' AND u.email LIKE '${TEST_EMAIL_LIKE}'
     ORDER BY u.email LIMIT 1`)) as { email: string; building_id: string }[];

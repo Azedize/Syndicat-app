@@ -13,7 +13,7 @@
  * Rows it creates are removed at the end.
  */
 import { pool } from "@workspace/db";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
 const PASSWORD = "MizanTest#2026";
@@ -53,13 +53,13 @@ async function main() {
       (SELECT x.id FROM expenses x WHERE x.syndicate_id = e.syndicate_id AND x.status NOT IN ('approved','paid') LIMIT 1) AS draft_id
     FROM expenses e
     JOIN syndicates s ON s.id = e.syndicate_id AND s.status = 'active'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${writableSubscriptionSql("s")}
     JOIN storage_objects so ON so.object_path = e.proof_url AND so.content_type = 'application/pdf'
     WHERE e.status = 'paid' AND e.budget_line_id IS NOT NULL
     ORDER BY e.id LIMIT 1`, [TEST_EMAIL_LIKE]);
   if (!fx?.member || !fx.syndic || !fx.tenant || fx.member === fx.member2) throw new Error("fixture incomplete");
   const [other] = await q(`SELECT e.id AS expense_id, (SELECT u.email FROM users u WHERE u.syndicate_id = e.syndicate_id AND u.role = 'member' AND u.status = 'active' AND u.email LIKE $2 LIMIT 1) AS member
-    FROM expenses e JOIN syndicates s ON s.id = e.syndicate_id AND s.status = 'active' JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    FROM expenses e JOIN syndicates s ON s.id = e.syndicate_id AND s.status = 'active' JOIN LATERAL (SELECT 1) ss ON ${writableSubscriptionSql("s")}
     WHERE e.status IN ('approved','paid') AND e.syndicate_id <> $1 LIMIT 1`, [fx.syndicate_id, TEST_EMAIL_LIKE]);
 
   const member = await login(fx.member);

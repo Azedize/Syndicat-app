@@ -8,7 +8,7 @@
  */
 import { db, pool } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { TEST_EMAIL_LIKE } from "./test-domain.js";
+import { TEST_EMAIL_LIKE, writableSubscriptionSql } from "./test-domain.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const PASSWORD = "MizanTest#2026";
@@ -29,7 +29,7 @@ async function get(token: string, path: string) {
   return { status: r.status, body: (await r.json().catch(() => null)) as any, text: "" };
 }
 const ACTIVE = sql`JOIN syndicates s ON s.id = u.syndicate_id AND s.status = 'active'
-  JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')`;
+  JOIN LATERAL (SELECT 1) ss ON ${sql.raw(writableSubscriptionSql("s"))}`;
 
 async function main() {
   // A condominium with an adopted budget and a draft one.
@@ -38,7 +38,7 @@ async function main() {
            (SELECT bu.id FROM budgets bu WHERE bu.building_id = b.id AND bu.status = 'approved' LIMIT 1) AS approved,
            (SELECT bu.id FROM budgets bu JOIN buildings b2 ON b2.id = bu.building_id WHERE b2.syndicate_id = b.syndicate_id AND bu.status = 'draft' LIMIT 1) AS draft
     FROM buildings b JOIN syndicates s ON s.id = b.syndicate_id AND s.status = 'active'
-    JOIN syndicate_subscriptions ss ON ss.syndicate_id = s.id AND ss.status IN ('active','trial')
+    JOIN LATERAL (SELECT 1) ss ON ${sql.raw(writableSubscriptionSql("s"))}
     WHERE EXISTS (SELECT 1 FROM budgets bu WHERE bu.building_id = b.id AND bu.status = 'approved')
       AND EXISTS (SELECT 1 FROM users u WHERE u.syndicate_id = b.syndicate_id AND u.role = 'member' AND u.status = 'active' AND u.email LIKE ${TEST_EMAIL_LIKE}
                   AND EXISTS (SELECT 1 FROM members m WHERE m.syndicate_id = u.syndicate_id AND lower(m.email) = lower(u.email) AND m.status = 'active'))
