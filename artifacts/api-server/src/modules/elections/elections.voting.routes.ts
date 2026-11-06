@@ -15,8 +15,10 @@ import {
 import { requireAuth } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { sendPushToUsers } from "../../lib/notify.js";
-import { getEligibleVoterIds, isUserEligible, MAX_PROXIES_PER_GRANTEE } from "./elections.service.js";
+import { getEligibleVoterIds, isUserEligible, MAX_PROXIES_PER_GRANTEE, MAX_PROXY_VOICES_PERCENT, voicesOf } from "./elections.service.js";
 import { assertAccess } from "./elections.access.js";
+import { toUnits, validateSelection } from "./elections.rules.js";
+import { randomUUID } from "node:crypto";
 
 const router = Router();
 
@@ -166,23 +168,31 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
       await tx
         .insert(voteReceiptsTable)
         .values({ electionId: id, voterId, castByProxyId } as any);
-      await tx.insert(votesTable).values({
-        electionId: id,
-        candidateId,
-        isAbstention: result.data.abstain,
-        device: req.headers["user-agent"]?.toString().slice(0, 200) ?? null,
-        ipAddress: req.ip ?? req.socket?.remoteAddress ?? null,
-      } as any);
+      // One row per selection, sharing the ballot id (an abstention is one row
+      // without candidate). The voter's weight is not stored on the ballot.
+      const ballotId = randomUUID();
+      const device = req.headers["user-agent"]?.toString().slice(0, 200) ?? null;
+      const ipAddress = req.ip ?? req.socket?.remoteAddress ?? null;
+      await tx.insert(votesTable).values(
+        (result.data.abstain ? [null] : candidateIds).map((candidateId) => ({
+          electionId: id,
+          candidateId,
+          isAbstention: result.data.abstain,
+          ballotId,
+          device,
+          ipAddress,
+        })) as any,
+      );
 
-      if (candidateId) {
+      if (candidateIds.length) {
         await tx
           .update(candidatesTable)
-          .set({ votes: sql`${candidatesTable.votes} + 1` })
-          .where(eq(candidatesTable.id, candidateId));
+          .set({ votes: sql`${candidatesTable.votes} + 1`, voices: sql`${candidatesTable.voices} + ${weight}::numeric` })
+          .where(inArray(candidatesTable.id, candidateIds));
       }
       await tx
         .update(electionsTable)
-        .set({ participantCount: sql`${electionsTable.participantCount} + 1` })
+        .set({ participantCount: sql`${electionsTable.participantCount} + 1`, voicesCast: sql`${electionsTable.voicesCast} + ${weight}::numeric` })
         .where(eq(electionsTable.id, id));
 
       if (castByProxyId) {
@@ -218,7 +228,7 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
     res.json({ message: "Vote enregistré avec succès" });
   } catch (err: any) {
     if (err.status) {
-      res.status(err.status).json({ error: err.msg });
+      res.status(err.status).json({ error: err.msg, ...(err.code ? { code: err.code } : {}) });
       return;
     }
     if (err.code === "23505") {
@@ -370,6 +380,23 @@ router.post("/elections/:id/delegate", requireAuth, async (req, res) => {
     if (!grantee) {
       res.status(404).json({ error: "Mandataire introuvable" });
       return;
+    }
+    // Art. 16 decies: the co-owners a proxy holder represents hold at most 10 % of all voices.
+    if (election.weighting === "quote_part" && election.syndicateId) {
+      const held = await db
+        .select({ grantorId: electionProxiesTable.grantorId })
+        .from(electionProxiesTable)
+        .where(and(eq(electionProxiesTable.electionId, id), eq(electionProxiesTable.granteeId, result.data.granteeId), inArray(electionProxiesTable.status, ["active", "used"])));
+      const all = await voicesOf(election.syndicateId, election.buildingId, eligible);
+      const total = Array.from(all.values()).reduce((t, v) => t + toUnits(v), 0);
+      const represented = [...held.map((h) => h.grantorId), req.user!.userId].reduce((t, g) => t + toUnits(all.get(g)), 0);
+      if (total > 0 && represented * 100 > total * MAX_PROXY_VOICES_PERCENT) {
+        res.status(400).json({
+          error: `Ce mandataire représenterait plus de ${MAX_PROXY_VOICES_PERCENT} % des voix de la copropriété (art. 16 decies)`,
+          code: "PROXY_VOICES_LIMIT",
+        });
+        return;
+      }
     }
 
     const [proxy] = await db

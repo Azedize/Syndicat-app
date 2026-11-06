@@ -251,6 +251,37 @@ export const NOTIFICATIONS = {
     link: "/governance",
     roles: GOVERNANCE,
   },
+  // Official resignations (Loi 18-00, art. 26 ter, 27, 27 ter): every co-owner is informed.
+  "resignation.syndic": {
+    title: { fr: "Démission du syndic", en: "The syndic has resigned", ar: "استقالة السنديك", es: "Dimisión del administrador" },
+    message: {
+      fr: "{name} a démissionné de la fonction de syndic. Une assemblée générale doit se tenir avant le {deadline} pour désigner un nouveau syndic. Le syndic adjoint exerce ses attributions entre-temps.",
+      en: "{name} resigned as syndic. A general assembly must be held before {deadline} to designate a new syndic. The deputy syndic acts as syndic meanwhile.",
+      ar: "استقال {name} من مهام السنديك. يجب عقد جمع عام قبل {deadline} لتعيين سنديك جديد. يمارس نائب السنديك مهامه في الأثناء.",
+      es: "{name} ha dimitido como administrador. Debe celebrarse una asamblea general antes del {deadline} para designar un nuevo administrador. El administrador adjunto ejerce sus funciones mientras tanto.",
+    },
+    link: "/resignations",
+  },
+  "resignation.syndicNoDeputy": {
+    title: { fr: "Démission du syndic", en: "The syndic has resigned", ar: "استقالة السنديك", es: "Dimisión del administrador" },
+    message: {
+      fr: "{name} a démissionné de la fonction de syndic. Une assemblée générale doit se tenir avant le {deadline}. Aucun syndic adjoint n'est en fonction pour assurer l'intérim.",
+      en: "{name} resigned as syndic. A general assembly must be held before {deadline}. No deputy syndic is in office to act meanwhile.",
+      ar: "استقال {name} من مهام السنديك. يجب عقد جمع عام قبل {deadline}. لا يوجد نائب للسنديك لتولي المهام في الأثناء.",
+      es: "{name} ha dimitido como administrador. Debe celebrarse una asamblea general antes del {deadline}. Ningún administrador adjunto está en funciones para sustituirle.",
+    },
+    link: "/resignations",
+  },
+  "resignation.viceSyndic": {
+    title: { fr: "Démission du syndic adjoint", en: "The deputy syndic has resigned", ar: "استقالة نائب السنديك", es: "Dimisión del administrador adjunto" },
+    message: {
+      fr: "{name} a démissionné de la fonction de syndic adjoint. Le syndic doit convoquer une assemblée générale avant le {deadline} pour désigner un nouvel adjoint.",
+      en: "{name} resigned as deputy syndic. The syndic must call a general assembly before {deadline} to designate a new deputy.",
+      ar: "استقال {name} من مهام نائب السنديك. يجب على السنديك دعوة جمع عام قبل {deadline} لتعيين نائب جديد.",
+      es: "{name} ha dimitido como administrador adjunto. El administrador debe convocar una asamblea general antes del {deadline} para designar un nuevo adjunto.",
+    },
+    link: "/resignations",
+  },
   "mandate.revoked": {
     title: { fr: "Révocation de mandat", en: "Mandate revoked", ar: "إلغاء التفويض", es: "Revocación de mandato" },
     message: { fr: "{name} ({role}) a été révoqué(e) de son mandat.", en: "{name} ({role}) was removed from their mandate.", ar: "تم إعفاء {name} ({role}) من مهامه.", es: "{name} ({role}) ha sido revocado/a de su mandato." },

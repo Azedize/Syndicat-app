@@ -2,9 +2,9 @@
 import { sendRouteError } from "../../lib/route-error.js";
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { electionsTable, candidatesTable, electionQuestionsTable, usersTable } from "@workspace/db/schema";
+import { electionsTable, candidatesTable, electionQuestionsTable, usersTable, conseilSyndicalTable } from "@workspace/db/schema";
 import { requireAuth, requireNotTenant, requireOperationalAccess } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { sendPushToUsers, sendEmailToMany } from "../../lib/notify.js";
@@ -67,6 +67,28 @@ router.post(
           .status(403)
           .json({ error: "Vous n'êtes pas éligible pour cette élection" });
         return;
+      }
+
+      // Art. 17: the syndic and the syndic adjoint cannot preside the general assembly.
+      if (election.electionType === "ag_president") {
+        const [holder] = await db
+          .select({ role: conseilSyndicalTable.role })
+          .from(conseilSyndicalTable)
+          .where(
+            and(
+              eq(conseilSyndicalTable.syndicateId, election.syndicateId!),
+              eq(conseilSyndicalTable.userId, req.user!.userId),
+              eq(conseilSyndicalTable.status, "active"),
+              inArray(conseilSyndicalTable.role, ["syndic", "vice_syndic"]),
+            ),
+          );
+        if (holder || req.user!.role === "syndicate_admin") {
+          res.status(403).json({
+            error: "Le syndic et son adjoint ne peuvent pas présider l'assemblée générale (art. 17)",
+            code: "SYNDIC_CANNOT_PRESIDE",
+          });
+          return;
+        }
       }
 
       const [existing] = await db

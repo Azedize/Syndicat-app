@@ -14,7 +14,8 @@ import {
 import { requireAuth, requireOperationalAccess } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { createAlert, sendPushToUsers, sendEmailToMany } from "../../lib/notify.js";
-import { quorumMetAndNoTie, RESULTS_VISIBLE_STATUSES } from "./elections.service.js";
+import { configOf, RESULTS_VISIBLE_STATUSES, tallyOf } from "./elections.service.js";
+import { countOutcome } from "./elections.rules.js";
 import { assertAccess, requireSyndicateScope } from "./elections.access.js";
 
 const router = Router();
@@ -43,15 +44,8 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
       return;
     }
 
-    const candidates = await db
-      .select()
-      .from(candidatesTable)
-      .where(
-        and(
-          eq(candidatesTable.electionId, id),
-          eq(candidatesTable.status, "approved"),
-        ),
-      );
+    const { candidates, tally } = await tallyOf(election);
+    const count = countOutcome(configOf(election), tally, election.round ?? 1);
     const [{ abstentions }] = await db
       .select({ abstentions: sql<number>`count(*)::int` })
       .from(votesTable)
@@ -59,43 +53,32 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
         and(eq(votesTable.electionId, id), eq(votesTable.isAbstention, true)),
       );
     const invalidVotes = election.invalidVotesCount ?? 0;
-
-    const totalCandidateVotes = candidates.reduce(
-      (s, c) => s + (c.votes ?? 0),
-      0,
-    );
-    const totalVotes =
-      totalCandidateVotes + Number(abstentions ?? 0) + invalidVotes;
-    const ranked = [...candidates]
-      .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
-      .map((c, i) => ({
-        ...c,
-        rank: i + 1,
-        pct:
-          totalCandidateVotes > 0
-            ? Math.round(((c.votes ?? 0) / totalCandidateVotes) * 1000) / 10
-            : 0,
-      }));
-
-    const seats = election.seatsCount ?? 1;
-    const cutoffVotes = ranked[seats - 1]?.votes ?? -1;
-    const tie = ranked.length > seats && ranked[seats]?.votes === cutoffVotes;
-
-    const majorityThreshold = election.majorityPercent ?? 50;
-    const winners = ranked.slice(0, seats);
-    const majorityMet =
-      election.votingMethod === "absolute_majority"
-        ? winners.every((w) => w.pct >= majorityThreshold)
-        : true;
-
+    const weighted = election.weighting === "quote_part";
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    const ranking = count.ranking.map((r, i) => ({
+      ...byId.get(r.id)!,
+      rank: i + 1,
+      // share of the majority base (voices or ballots), in %
+      pct: r.sharePct,
+      meetsMajority: r.meetsMajority,
+      tied: count.tied.includes(r.id),
+    }));
+    const totalCandidateVotes = candidates.reduce((s, c) => s + (c.votes ?? 0), 0);
+    // Once published the stored outcome is the record; before, the count shows what it would be.
+    const stored = election.outcomeDetails as { winners?: string[] } | null;
+    const winnerIds = election.outcome ? (stored?.winners ?? []) : !!election.quorumReached ? count.winners : [];
     res.json({
       data: {
         election,
-        ranking: ranked,
-        totalVotes,
+        ranking,
+        totalVotes: (election.participantCount ?? 0) + invalidVotes,
         totalCandidateVotes,
         abstentions: Number(abstentions ?? 0),
         invalidVotes,
+        weighting: election.weighting,
+        voicesCast: election.voicesCast,
+        eligibleVoices: election.eligibleVoices,
+        majorityBase: election.majorityBase,
         participationRate: election.eligibleCount
           ? Math.round(
               ((election.participantCount ?? 0) / election.eligibleCount) *
@@ -103,14 +86,15 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
             ) / 10
           : 0,
         quorumReached: election.quorumReached,
-        winners:
-          election.status === "completed"
-            ? winners
-            : quorumMetAndNoTie(election, tie)
-              ? winners
-              : [],
-        tie,
-        majorityMet,
+        outcome: election.outcome ?? count.outcome,
+        outcomeDetails: election.outcomeDetails ?? null,
+        winners: ranking.filter((c) => winnerIds.includes(c.id)),
+        tie: count.tied.length > 0,
+        tiedCandidateIds: count.tied,
+        seatsInPlay: count.seatsInPlay,
+        vacantSeats: count.vacantSeats,
+        majorityMet: count.outcome !== "no_majority",
+        scoredBy: weighted ? "voices" : "ballots",
       },
     });
   } catch (err) {
@@ -207,6 +191,12 @@ router.post(
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
+      // The syndic and the adjoint resign through the official procedure: notification,
+      // general assembly within 30 days, interim and handover (art. 26 ter, 27, 27 ter).
+      if (["syndic", "vice_syndic"].includes(mandate.role)) {
+        res.status(409).json({ error: "La démission du syndic ou de son adjoint suit la procédure officielle (POST /governance/resignations)", code: "OFFICIAL_RESIGNATION_REQUIRED" });
+        return;
+      }
 
       const [updated] = await db
         .update(conseilSyndicalTable)
@@ -271,6 +261,11 @@ router.post(
       }
       if (mandate.status !== "active") {
         res.status(400).json({ error: "Ce mandat n'est plus actif" });
+        return;
+      }
+      // Art. 27 bis: the syndic and the adjoint are revoked by the general assembly (3/4 of the voices).
+      if (["syndic", "vice_syndic"].includes(mandate.role)) {
+        res.status(409).json({ error: "Le syndic et son adjoint ne sont révoqués que par l'assemblée générale, à la majorité des trois quarts des voix (art. 27 bis)", code: "REVOCATION_BY_GENERAL_ASSEMBLY" });
         return;
       }
 
