@@ -253,11 +253,31 @@ async function main() {
     await api(`/elections/${e5.id}/vote`, { method: "POST", token: ownerTokens[OWNER_EMAILS[i]], body: { candidateId: tieVoteMap[i] } });
   }
   await transition(e5.id, "close_voting");
+  // Nobody breaks a tie (2026-11-06 rule): the former manual pick is refused…
+  const manualPick = await transition(e5.id, "publish_results", { tiebreakWinnerIds: [c5Ahmed] });
+  record("S5.manual_resolution", "A manual tiebreak by the administrator is refused (TIEBREAK_NOT_ALLOWED)", manualPick.status === 400 && manualPick.json?.code === "TIEBREAK_NOT_ALLOWED", `status=${manualPick.status} code=${manualPick.json?.code}`);
+  // …and the count prepares a second round between the tied candidates.
   const tiePublish = await transition(e5.id, "publish_results");
-  record("S5.tie_detected", "publish_results returns 409 TIE_DETECTED with tied candidates, no auto-winner", tiePublish.status === 409 && tiePublish.json?.code === "TIE_DETECTED", `status=${tiePublish.status} code=${tiePublish.json?.code} tied=${JSON.stringify(tiePublish.json?.tiedCandidates?.map((c: any) => c.name))}`);
-
-  const tieResolved = await transition(e5.id, "publish_results", { tiebreakWinnerIds: [c5Ahmed] });
-  record("S5.manual_resolution", "Manual tiebreak resolution workflow accepts admin's explicit pick", tieResolved.status === 200 && tieResolved.json?.data?.status === "completed", `status=${tieResolved.status}`);
+  const runoffId = tiePublish.json?.runoffElectionId as string | undefined;
+  const e5Mandates = (await pool`SELECT count(*)::int AS n FROM conseil_syndical WHERE election_id = ${e5.id}`)[0].n;
+  record("S5.tie_detected", "Tie → second round prepared, no winner designated", tiePublish.status === 200 && tiePublish.json?.outcome === "runoff_required" && !!runoffId && e5Mandates === 0, `status=${tiePublish.status} outcome=${tiePublish.json?.outcome} mandates=${e5Mandates}`);
+  if (runoffId) {
+    const { json: r2 } = await api(`/elections/${runoffId}`, { token: adminToken });
+    const names = (r2?.candidates ?? []).map((c: any) => c.name).sort();
+    record("S5.runoff_candidates", "Second round: round 2, the two tied candidates only, one seat", r2?.data?.round === 2 && names.length === 2 && r2?.data?.seatsCount === 1, `round=${r2?.data?.round} candidates=${names.join(" / ")}`);
+    await api(`/elections/${runoffId}`, { method: "PUT", token: adminToken, body: { startDate: iso(0), endDate: iso(7) } });
+    await transition(runoffId, "open_voting");
+    const r2Ids = (r2?.candidates ?? []).map((c: any) => c.id);
+    for (let i = 0; i < 16; i++) {
+      await api(`/elections/${runoffId}/vote`, { method: "POST", token: ownerTokens[OWNER_EMAILS[i]], body: { candidateIds: [r2Ids[i % 2]] } });
+    }
+    await transition(runoffId, "close_voting");
+    const second = await transition(runoffId, "publish_results");
+    const r2Mandates = (await pool`SELECT count(*)::int AS n FROM conseil_syndical WHERE election_id = ${runoffId}`)[0].n;
+    record("S5.second_round_tie", "Tie again in the second round → new deliberation, nobody designated", second.json?.outcome === "deliberation_required" && second.json?.data?.status === "deliberation_required" && r2Mandates === 0, `outcome=${second.json?.outcome} status=${second.json?.data?.status} mandates=${r2Mandates}`);
+    const next = await transition(runoffId, "schedule_new_ballot");
+    record("S5.new_ballot", "The organizer plans a new ballot (draft, linked), the results are kept", next.status === 201 && next.json?.data?.status === "draft" && next.json?.data?.parentElectionId === runoffId, `status=${next.status} draft=${next.json?.data?.status}`);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // SCENARIO 6 — Candidate withdrawal (Sara withdraws before voting opens)

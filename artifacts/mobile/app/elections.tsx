@@ -28,7 +28,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useToast } from "@/context/ToastContext";
-import { elections as electionsApi } from "@/features/governance/api";
+import { elections as electionsApi, resignations as resignationsApi } from "@/features/governance/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -41,7 +41,8 @@ type ElectionStatus =
   | "quorum_failed"
   | "contested"
   | "cancelled"
-  | "completed";
+  | "completed"
+  | "deliberation_required";
 
 type CandidateStatus =
   | "submitted"
@@ -131,7 +132,17 @@ interface ApiElection {
   quorumReached: boolean | null;
   candidates: ApiCandidate[];
   createdAt: string;
+  // single: one candidate per ballot; multiple: up to seatsCount
+  ballotMode?: "single" | "multiple";
+  weighting?: "per_voter" | "quote_part";
+  round?: number;
+  parentElectionId?: string | null;
+  outcome?: string | null;
 }
+
+/** Types whose rules come from Loi 18-00 (seats, majority and weighting fixed by the server). */
+const LEGAL_TYPES = ["syndic", "vice_syndic"];
+const ONE_SEAT_TYPES = ["syndic", "vice_syndic", "ag_president"];
 
 // Elections (candidature, vote) sont un droit de copropriétaire (Loi 18-00) ; exclu aux locataires sauf autorisation.
 export default function ElectionsScreen() {
@@ -210,6 +221,9 @@ const NEXT_ACTIONS: Record<
   cancelled: [
     { action: "reopen_round", labelKey: "reopenRound", icon: "refresh-cw" },
   ],
+  deliberation_required: [
+    { action: "schedule_new_ballot", labelKey: "scheduleNewBallot", icon: "calendar" },
+  ],
   completed: [
     {
       action: "contest",
@@ -219,6 +233,12 @@ const NEXT_ACTIONS: Record<
     },
   ],
 };
+
+/** A second round is created as a draft with its candidates: it opens straight to the vote. */
+const actionsFor = (e: { status: ElectionStatus; round?: number }) =>
+  e.status === "draft" && (e.round ?? 1) > 1
+    ? [{ action: "open_voting", labelKey: "openRunoffVoting", icon: "unlock" as const }, ...NEXT_ACTIONS.draft.filter((a) => a.action === "cancel")]
+    : NEXT_ACTIONS[e.status] ?? [];
 
 function ElectionsScreenInner() {
   const colors = useColors();
@@ -247,6 +267,9 @@ function ElectionsScreenInner() {
   const [newSeats, setNewSeats] = useState("1");
   const [newTenantsVote, setNewTenantsVote] = useState(false);
   const [newEmergency, setNewEmergency] = useState(false);
+  const [newWeighted, setNewWeighted] = useState(false);
+  // Selections of a multiple-seat ballot, per voter of record ("self" or a grantor's id).
+  const [ballots, setBallots] = useState<Record<string, string[]>>({});
   // Default dates computed relative to today so they are never stale
   const [candStart, setCandStart] = useState(() => {
     const d = new Date();
@@ -284,6 +307,10 @@ function ElectionsScreenInner() {
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const ELECTION_TYPES = [
+    { value: "syndic", key: "electionTypeSyndic" },
+    { value: "vice_syndic", key: "electionTypeViceSyndic" },
+    { value: "ag_president", key: "electionTypeAgPresident" },
+    { value: "members", key: "electionTypeMembers" },
     { value: "president", key: "electionTypePresident" },
     { value: "board", key: "electionTypeBoard" },
     { value: "financial_committee", key: "electionTypeFinancial" },
@@ -309,7 +336,7 @@ function ElectionsScreenInner() {
     queryFn: () => electionsApi.results(selectedId!),
     enabled:
       !!selectedId &&
-      ["closed", "completed", "contested"].includes(
+      ["closed", "completed", "contested", "deliberation_required"].includes(
         (detail?.data as any)?.status,
       ),
   });
@@ -324,16 +351,17 @@ function ElectionsScreenInner() {
 
   const voteMutation = useMutation({
     mutationFn: ({
-      candidateId,
+      candidateIds,
       abstain,
       onBehalfOfUserId,
     }: {
-      candidateId?: string;
+      candidateIds?: string[];
       abstain?: boolean;
       onBehalfOfUserId?: string;
     }) =>
-      electionsApi.vote(selectedId!, candidateId, abstain, onBehalfOfUserId),
-    onSuccess: () => {
+      electionsApi.vote(selectedId!, candidateIds ?? [], abstain, onBehalfOfUserId),
+    onSuccess: (_r, vars) => {
+      setBallots((p) => ({ ...p, [vars.onBehalfOfUserId ?? "self"]: [] }));
       invalidate();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({
@@ -360,76 +388,45 @@ function ElectionsScreenInner() {
       setShowCreate(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () =>
+    onError: (err: any) =>
       showToast({
         type: "error",
         title: t("elections"),
-        message: t("electionCreateFailed"),
+        // the server explains a refused configuration (e.g. a legal majority)
+        message: err?.message || t("electionCreateFailed"),
       }),
   });
 
   const transitionMutation = useMutation({
-    mutationFn: ({
-      action,
-      reason,
-      tiebreakWinnerIds,
-    }: {
-      action: string;
-      reason?: string;
-      tiebreakWinnerIds?: string[];
-    }) =>
-      electionsApi.transition(selectedId!, action, reason, tiebreakWinnerIds),
-    onSuccess: () => {
+    mutationFn: ({ action, reason }: { action: string; reason?: string }) =>
+      electionsApi.transition(selectedId!, action, reason),
+    onSuccess: (res) => {
       invalidate();
       refetchDetail();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Publishing a tie never designates anyone: say what happens next.
+      const outcomeKey =
+        res?.outcome === "runoff_required"
+          ? "electionOutcomeRunoff"
+          : res?.outcome === "deliberation_required"
+            ? "electionOutcomeDeliberation"
+            : res?.outcome === "no_majority"
+              ? "electionOutcomeNoMajority"
+              : "electionActionCompleted";
       showToast({
-        type: "success",
+        type: res?.outcome && res.outcome !== "elected" ? "warning" : "success",
         title: t("elections"),
-        message: t("electionActionCompleted"),
-      });
+        message: t(outcomeKey),
+      } as any);
     },
     onError: (err: any) => {
-      if (err.code === "TIE_DETECTED" && err.body?.tiedCandidates) {
-        promptTieResolution(
-          err.body.tiedCandidates,
-          err.body.remainingSeats,
-          [],
-        );
-        return;
-      }
       showToast({
         type: "error",
         title: t("elections"),
-        message: t("electionActionFailed"),
+        message: err?.message || t("electionActionFailed"),
       });
     },
   });
-
-  // A tie at the seat cutoff requires the admin to explicitly pick the
-  // winner(s) instead of the backend silently resolving it by array order.
-  // Prompts one seat at a time, accumulating picks, then re-submits publish_results.
-  const promptTieResolution = (
-    tiedCandidates: { id: string; name: string; votes: number }[],
-    remainingSeats: number,
-    picked: string[],
-  ) => {
-    const remaining = tiedCandidates.filter((c) => !picked.includes(c.id));
-    if (picked.length >= remainingSeats) {
-      transitionMutation.mutate({
-        action: "publish_results",
-        tiebreakWinnerIds: picked,
-      });
-      return;
-    }
-    askChoice({
-      title: t("tieDetected"),
-      message: `${remainingSeats - picked.length} ${t("seatsToFill")}`,
-      choices: remaining.map((c) => ({ label: `${c.name} (${c.votes})`, value: c.id })),
-    }).then((id) => {
-      if (id) promptTieResolution(tiedCandidates, remainingSeats, [...picked, id]);
-    });
-  };
 
   const submitCandidacyMutation = useMutation({
     mutationFn: () =>
@@ -692,6 +689,12 @@ function ElectionsScreenInner() {
         icon: "check-circle" as const,
         bg: colors.primary + "15",
       },
+      deliberation_required: {
+        color: colors.warning,
+        label: t("statusDeliberationRequired"),
+        icon: "pause-circle" as const,
+        bg: colors.warning + "15",
+      },
     })[status] ?? {
       color: colors.mutedForeground,
       label: status,
@@ -710,6 +713,9 @@ function ElectionsScreenInner() {
 
   const mandateRoleLabel = (role: string): string =>
     ({
+      syndic: t("mandateRoleSyndic"),
+      vice_syndic: t("mandateRoleViceSyndic"),
+      ag_president: t("mandateRoleAgPresident"),
       president: t("mandateRolePresident"),
       vice_president: t("mandateRoleVicePresident"),
       secretary: t("mandateRoleSecretary"),
@@ -727,17 +733,86 @@ function ElectionsScreenInner() {
       expired: t("mandateExpired"),
     })[status] ?? status;
 
+  const isMultiple = selected?.ballotMode === "multiple" && (selected?.seatsCount ?? 1) > 1;
+  const maxChoices = isMultiple ? (selected?.seatsCount ?? 1) : 1;
+  const ballotOf = (key: string) => ballots[key] ?? [];
   const handleVote = (candidateId: string, onBehalfOfUserId?: string) => {
+    // Several seats: a tap adds or removes the candidate from the ballot (up to the seats).
+    if (isMultiple) {
+      const key = onBehalfOfUserId ?? "self";
+      const cur = ballotOf(key);
+      if (cur.includes(candidateId)) setBallots((p) => ({ ...p, [key]: cur.filter((x) => x !== candidateId) }));
+      else if (cur.length < maxChoices) setBallots((p) => ({ ...p, [key]: [...cur, candidateId] }));
+      else showToast({ type: "info", message: t("ballotHint").replace("{n}", String(maxChoices)) } as any);
+      return;
+    }
     const name = candidates.find((c) => c.id === candidateId)?.name ?? "";
     Alert.alert(t("castVote"), name, [
       { text: t("cancel"), style: "cancel" },
       {
         text: t("castVote"),
         onPress: () =>
-          voteMutation.mutate({ candidateId, onBehalfOfUserId } as any),
+          voteMutation.mutate({ candidateIds: [candidateId], onBehalfOfUserId }),
       },
     ]);
   };
+  const submitBallot = (onBehalfOfUserId?: string) => {
+    const picked = ballotOf(onBehalfOfUserId ?? "self");
+    if (!picked.length) {
+      showToast({ type: "error", message: t("ballotEmpty") });
+      return;
+    }
+    const names = picked.map((id) => candidates.find((c) => c.id === id)?.name ?? "").join(", ");
+    Alert.alert(t("ballotSubmit"), names, [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("ballotSubmit"), onPress: () => voteMutation.mutate({ candidateIds: picked, onBehalfOfUserId }) },
+    ]);
+  };
+  const ballotButton = (candidateId: string, onBehalfOfUserId?: string) => {
+    const chosen = isMultiple && ballotOf(onBehalfOfUserId ?? "self").includes(candidateId);
+    return (
+      <TouchableOpacity
+        style={[styles.voteForBtn, { backgroundColor: chosen ? colors.success : colors.primary }]}
+        onPress={() => handleVote(candidateId, onBehalfOfUserId)}
+        disabled={voteMutation.isPending}
+        accessibilityRole={isMultiple ? "checkbox" : "button"}
+        accessibilityState={isMultiple ? { checked: chosen } : undefined}
+      >
+        {voteMutation.isPending && !isMultiple ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Feather name={isMultiple ? (chosen ? "check-square" : "square") : "check-circle"} size={15} color="#fff" />
+            <Text style={styles.voteForBtnText}>
+              {isMultiple ? (chosen ? t("ballotChosen") : t("ballotChoose")) : t("castVote")}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
+  const submitBallotButton = (onBehalfOfUserId?: string) =>
+    isMultiple ? (
+      <View style={{ gap: 6 }}>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+          {t("ballotHint").replace("{n}", String(maxChoices))} — {ballotOf(onBehalfOfUserId ?? "self").length}/{maxChoices}
+        </Text>
+        <TouchableOpacity
+          style={[styles.voteBtn, { backgroundColor: colors.primary }]}
+          onPress={() => submitBallot(onBehalfOfUserId)}
+          disabled={voteMutation.isPending || !ballotOf(onBehalfOfUserId ?? "self").length}
+        >
+          {voteMutation.isPending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Feather name="send" size={15} color="#fff" />
+              <Text style={[styles.voteBtnText, { color: "#fff" }]}>{t("ballotSubmit")}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    ) : null;
 
   const handleAbstain = (onBehalfOfUserId?: string) => {
     Alert.alert(t("abstain"), "", [
@@ -751,6 +826,19 @@ function ElectionsScreenInner() {
   };
 
   const handleTransition = (action: string, label: string, destructive?: boolean) => {
+    if (action === "open_voting" && selected?.status === "draft") {
+      askText({ title: label, message: t("runoffEndDatePrompt"), confirmLabel: label, required: true }).then(async (end) => {
+        if (!end) return;
+        if (!DATE_RE.test(end.trim())) return handleDateError();
+        try {
+          await electionsApi.update(selected.id, { startDate: new Date().toISOString().slice(0, 10), endDate: end.trim() });
+          transitionMutation.mutate({ action });
+        } catch (err: any) {
+          showToast({ type: "error", title: t("elections"), message: err?.message || t("electionActionFailed") });
+        }
+      });
+      return;
+    }
     if (destructive) {
       askText({ title: label, message: t("actionReasonLabel"), confirmLabel: label, destructive: true }).then((reason) => {
         if (reason !== null) transitionMutation.mutate({ action, reason: reason || undefined });
@@ -774,20 +862,29 @@ function ElectionsScreenInner() {
         return;
       }
     }
+    // Syndic and adjoint: seats, majority (3/4) and weighting come from the law,
+    // the server applies them. Other types: the organizer's internal rules.
+    const legal = LEGAL_TYPES.includes(newType);
+    const oneSeat = ONE_SEAT_TYPES.includes(newType);
     createMutation.mutate({
       title: newTitle.trim(),
       description: newDesc.trim(),
       electionType: newType,
       quorumPercent: parseInt(newQuorum, 10) || 50,
       majorityPercent: parseInt(newMajority, 10) || 50,
-      seatsCount: parseInt(newSeats, 10) || 1,
-      tenantsCanVote: newTenantsVote,
+      ...(oneSeat ? {} : { seatsCount: parseInt(newSeats, 10) || 1 }),
+      ...(legal
+        ? {}
+        : {
+            votingMethod: "simple_majority",
+            weighting: newWeighted ? "quote_part" : "per_voter",
+            tenantsCanVote: newWeighted ? false : newTenantsVote,
+          }),
       isEmergency: newEmergency,
       candidacyStart: candStart,
       candidacyEnd: candEnd,
       startDate: newStart,
       endDate: newEnd,
-      votingMethod: "simple_majority",
       mandateDurationMonths: newMandateMonths.trim()
         ? parseInt(newMandateMonths, 10)
         : null,
@@ -1076,9 +1173,9 @@ function ElectionsScreenInner() {
               }}
               showsVerticalScrollIndicator={false}
             >
-              {isAdmin && NEXT_ACTIONS[selected.status]?.length ? (
+              {isAdmin && actionsFor(selected).length ? (
                 <View style={styles.actionsRow}>
-                  {NEXT_ACTIONS[selected.status].map((a) => (
+                  {actionsFor(selected).map((a) => (
                     <TouchableOpacity
                       key={a.action}
                       style={[
@@ -1475,31 +1572,10 @@ function ElectionsScreenInner() {
                                 </Text>
                               </View>
                             </View>
-                            <TouchableOpacity
-                              style={[
-                                styles.voteForBtn,
-                                { backgroundColor: colors.primary },
-                              ]}
-                              onPress={() => handleVote(c.id)}
-                              disabled={voteMutation.isPending}
-                            >
-                              {voteMutation.isPending ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                              ) : (
-                                <>
-                                  <Feather
-                                    name="check-circle"
-                                    size={15}
-                                    color="#fff"
-                                  />
-                                  <Text style={styles.voteForBtnText}>
-                                    {t("castVote")}
-                                  </Text>
-                                </>
-                              )}
-                            </TouchableOpacity>
+                            {ballotButton(c.id)}
                           </View>
                         ))}
+                      {submitBallotButton()}
                       <TouchableOpacity
                         style={[
                           styles.voteBtn,
@@ -1578,35 +1654,11 @@ function ElectionsScreenInner() {
                                   </Text>
                                 </View>
                               </View>
-                              <TouchableOpacity
-                                style={[
-                                  styles.voteForBtn,
-                                  { backgroundColor: colors.primary },
-                                ]}
-                                onPress={() => handleVote(c.id, d.grantorId)}
-                                disabled={voteMutation.isPending}
-                              >
-                                {voteMutation.isPending ? (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color="#fff"
-                                  />
-                                ) : (
-                                  <>
-                                    <Feather
-                                      name="check-circle"
-                                      size={15}
-                                      color="#fff"
-                                    />
-                                    <Text style={styles.voteForBtnText}>
-                                      {t("castVote")}
-                                    </Text>
-                                  </>
-                                )}
-                              </TouchableOpacity>
+                              {ballotButton(c.id, d.grantorId)}
                             </View>
                           ))}
-                        <TouchableOpacity
+                        {submitBallotButton(d.grantorId)}
+                      <TouchableOpacity
                           style={[
                             styles.voteBtn,
                             { backgroundColor: colors.muted },
@@ -1641,11 +1693,24 @@ function ElectionsScreenInner() {
                   mandates={mandates}
                   isAdmin={isAdmin}
                   currentUserId={user?.id}
-                  onResign={(id: string) =>
-                    Alert.alert(t("resignMandate"), t("resignConfirmMessage"), [
-                      { text: t("cancel"), style: "cancel" },
-                      { text: t("actionConfirm"), style: "destructive", onPress: () => resignMutation.mutate(id) },
-                    ])
+                  onResign={(id: string, role?: string) =>
+                    // Syndic and adjoint: the official procedure (art. 26 ter, 27 ter).
+                    LEGAL_TYPES.includes(role ?? "")
+                      ? askText({ title: t("officialResignationTitle"), message: t("officialResignationMessage"), confirmLabel: t("resignMandate"), destructive: true }).then(async (reason) => {
+                          if (reason === null) return;
+                          try {
+                            await resignationsApi.create(id, reason || undefined);
+                            invalidate();
+                            showToast({ type: "success", message: t("resignationRecorded") });
+                            router.push("/resignations" as any);
+                          } catch (err: any) {
+                            showToast({ type: "error", title: t("elections"), message: err?.message || t("electionActionFailed") });
+                          }
+                        })
+                      : Alert.alert(t("resignMandate"), t("resignConfirmMessage"), [
+                          { text: t("cancel"), style: "cancel" },
+                          { text: t("actionConfirm"), style: "destructive", onPress: () => resignMutation.mutate(id) },
+                        ])
                   }
                   onRevoke={(id: string, reason: string) =>
                     revokeMandateMutation.mutate({ mandateId: id, reason })
@@ -2040,6 +2105,8 @@ function ElectionsScreenInner() {
                       },
                     ]}
                     onPress={() => setNewType(type.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: newType === type.value }}
                   >
                     <Text
                       style={{
@@ -2054,6 +2121,14 @@ function ElectionsScreenInner() {
                   </TouchableOpacity>
                 ))}
               </View>
+              {LEGAL_TYPES.includes(newType) || newType === "ag_president" ? (
+                <View style={[styles.warnBox, { backgroundColor: colors.primary + "12", marginTop: 10 }]}>
+                  <Feather name="book-open" size={14} color={colors.tint} />
+                  <Text style={[styles.warnText, { color: colors.foreground }]}>
+                    {t(newType === "ag_president" ? "electionLegalAgPresidentNote" : "electionLegalSyndicNote")}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.rowFields}>
                 <View style={{ flex: 1 }}>
@@ -2094,6 +2169,7 @@ function ElectionsScreenInner() {
                     keyboardType="numeric"
                   />
                 </View>
+                {ONE_SEAT_TYPES.includes(newType) ? null : (
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[
@@ -2113,6 +2189,7 @@ function ElectionsScreenInner() {
                     keyboardType="numeric"
                   />
                 </View>
+                )}
               </View>
 
               <Text
@@ -2213,6 +2290,18 @@ function ElectionsScreenInner() {
                 />
               </View>
 
+              {LEGAL_TYPES.includes(newType) ? null : (
+                <TouchableOpacity
+                  style={styles.toggleRow}
+                  onPress={() => setNewWeighted((p) => !p)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: newWeighted }}
+                >
+                  <Feather name={newWeighted ? "check-square" : "square"} size={18} color={colors.primary} />
+                  <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("electionWeightedByQuoteParts")}</Text>
+                </TouchableOpacity>
+              )}
+              {LEGAL_TYPES.includes(newType) || newWeighted ? null : (
               <TouchableOpacity
                 style={styles.toggleRow}
                 onPress={() => setNewTenantsVote((p) => !p)}
@@ -2228,6 +2317,7 @@ function ElectionsScreenInner() {
                   {t("allowTenantsVote")}
                 </Text>
               </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.toggleRow}
                 onPress={() => setNewEmergency((p) => !p)}
@@ -2642,7 +2732,23 @@ function ResultsPanel({
     quorumReached,
     winners,
     tie,
+    outcome,
+    outcomeDetails,
+    scoredBy,
+    vacantSeats,
   } = resultsData;
+  const published = ["completed", "deliberation_required"].includes(electionStatus);
+  const outcomeKey = !published
+    ? tie
+      ? "electionTieBeforePublish"
+      : null
+    : outcome === "runoff_required"
+      ? "electionOutcomeRunoff"
+      : outcome === "deliberation_required"
+        ? "electionOutcomeDeliberation"
+        : outcome === "no_majority"
+          ? "electionOutcomeNoMajority"
+          : null;
   const winnerIds = new Set((winners ?? []).map((w: any) => w.id));
 
   return (
@@ -2707,18 +2813,28 @@ function ResultsPanel({
         ) : null}
       </View>
 
-      {tie ? (
+      {outcomeKey ? (
         <View
-          style={[
-            styles.warnBox,
-            { backgroundColor: colors.destructive + "15" },
-          ]}
+          style={[styles.warnBox, { backgroundColor: colors.warning + "18" }]}
+          accessibilityRole="alert"
         >
-          <Feather name="alert-triangle" size={14} color={colors.destructive} />
-          <Text style={[styles.warnText, { color: colors.destructive }]}>
-            {t("tieDetected")}
-          </Text>
+          <Feather name="alert-triangle" size={14} color={colors.warning} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[styles.warnText, { color: colors.foreground }]}>
+              {t(outcomeKey)}
+            </Text>
+            {outcomeDetails?.legalPath === "court_designation_art19" ? (
+              <Text style={[styles.warnText, { color: colors.mutedForeground }]}>
+                {t("electionOutcomeCourtArt19")}
+              </Text>
+            ) : null}
+          </View>
         </View>
+      ) : null}
+      {published && vacantSeats > 0 && outcome === "elected" ? (
+        <Text style={[styles.votesText, { color: colors.mutedForeground }]}>
+          {vacantSeats} {t("electionVacantSeats")}
+        </Text>
       ) : null}
 
       {(ranking ?? []).map((c: any) => (
@@ -2783,6 +2899,7 @@ function ResultsPanel({
             </View>
             <Text style={[styles.votesText, { color: colors.mutedForeground }]}>
               {c.votes} {c.votes === 1 ? t("voteCountOne") : t("votesCount")}
+              {scoredBy === "voices" ? ` · ${Number(c.voices ?? 0).toLocaleString(lang)} ${t("voicesUnit")}` : ""}
             </Text>
           </View>
         </View>
@@ -2827,7 +2944,7 @@ function ResultsPanel({
               </View>
               {m.status === "active" &&
               (isAdmin || m.userId === currentUserId) ? (
-                <TouchableOpacity onPress={() => onResign(m.id)}>
+                <TouchableOpacity onPress={() => onResign(m.id, m.role)}>
                   <Text
                     style={{
                       color: colors.destructive,
@@ -2839,7 +2956,7 @@ function ResultsPanel({
                   </Text>
                 </TouchableOpacity>
               ) : null}
-              {m.status === "active" && isAdmin ? (
+              {m.status === "active" && isAdmin && !LEGAL_TYPES.includes(m.role) ? (
                 <TouchableOpacity
                   onPress={() =>
                     askText({ title: t("revokeMandate"), message: t("revokeReasonPrompt"), confirmLabel: t("revokeMandate"), destructive: true, required: true }).then(

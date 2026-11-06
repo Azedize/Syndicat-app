@@ -154,7 +154,7 @@ router.get("/elections/:id", requireAuth, async (req, res) => {
           );
 
     const mandates =
-      election.status === "completed"
+      ["completed", "deliberation_required"].includes(election.status ?? "")
         ? await db
             .select()
             .from(conseilSyndicalTable)
