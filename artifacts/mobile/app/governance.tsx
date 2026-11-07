@@ -23,6 +23,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { organization as orgApi } from "@/features/governance/api";
+import { componentName } from "@/features/governance/orgLabels";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
@@ -113,7 +114,7 @@ function GovernanceScreenInner() {
           .filter((c) => c.category !== "statutory" && c.status !== "closed")
           .map((c) => ({
             id: c.id,
-            name: c.name,
+            name: componentName(t, c),
             members: new Set(c.positions.flatMap((p) => p.assignments.filter((a) => a.status === "active").map((a) => a.userId))).size,
             status: c.status === "active" ? "active" : "inactive",
             chair: c.positions.find((p) => p.isLeader)?.assignments.find((a) => a.status === "active")?.userName ?? "—",
@@ -239,7 +240,7 @@ function GovernanceScreenInner() {
           <View style={[styles.mandatBadge, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
             <Feather name="calendar" size={13} color={colors.primary} />
             <Text style={[styles.mandatText, { color: colors.tint }]}>
-              {t("governanceCurrentMandate")}: 2023–2026 • {bureau.length} {t("governanceBoardMembers")}
+              {bureau.length} {t("governanceBoardMembers")}
             </Text>
           </View>
 
@@ -337,9 +338,13 @@ function GovernanceScreenInner() {
                 <Text style={[styles.commName2, { color: colors.foreground }]}>{c.name}</Text>
                 <View style={styles.commMeta}>
                   <Feather name="users" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{c.members} {t("governanceMembers")}</Text>
-                  <Text style={[styles.commMetaDot, { color: colors.mutedForeground }]}>•</Text>
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceChairPrefix")}: {c.chair.split(" ")[0]}</Text>
+                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{c.members} {c.members === 1 ? t("governanceMemberOne") : t("governanceMembers")}</Text>
+                  {c.chair !== "—" ? (
+                    <>
+                      <Text style={[styles.commMetaDot, { color: colors.mutedForeground }]}>•</Text>
+                      <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceChairPrefix")}: {c.chair}</Text>
+                    </>
+                  ) : null}
                 </View>
                 {c.nextMeeting !== "—" ? (
                   <View style={styles.commMeta}>

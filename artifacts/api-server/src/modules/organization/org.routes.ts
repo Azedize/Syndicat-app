@@ -123,15 +123,17 @@ async function review(structureId: string, sid: string) {
   const positions = ids.length ? await db.select().from(orgPositionsTable).where(inArray(orgPositionsTable.componentId, ids)) : [];
   const assignments = ids.length ? await db.select().from(orgAssignmentsTable).where(and(inArray(orgAssignmentsTable.componentId, ids), eq(orgAssignmentsTable.status, "active"))) : [];
   const mandates = await db.select().from(conseilSyndicalTable).where(and(eq(conseilSyndicalTable.syndicateId, sid), eq(conseilSyndicalTable.status, "active"), inArray(conseilSyndicalTable.role, ["syndic", "vice_syndic"])));
-  const errors: { code: string; message: string; componentId?: string }[] = [];
-  const warnings: { code: string; message: string; componentId?: string }[] = [];
-  for (const t of STATUTORY_TYPES) if (!components.some((c) => c.type === t)) errors.push({ code: "STATUTORY_MISSING", message: `Organe obligatoire absent : ${t}` });
+  // code + parameters for the app to translate; message: the French text
+  type Item = { code: string; message: string; componentId?: string; positionTitle?: string; type?: string };
+  const errors: Item[] = [];
+  const warnings: Item[] = [];
+  for (const t of STATUTORY_TYPES) if (!components.some((c) => c.type === t)) errors.push({ code: "STATUTORY_MISSING", message: `Organe obligatoire absent : ${t}`, type: t });
   if (!mandates.some((m) => m.role === "syndic")) warnings.push({ code: "NO_SYNDIC_MANDATE", message: "Aucun syndic désigné par l'assemblée n'est enregistré (élection de type syndic)" });
   if (!mandates.some((m) => m.role === "vice_syndic")) warnings.push({ code: "NO_DEPUTY_MANDATE", message: "Aucun syndic adjoint désigné n'est enregistré" });
   for (const c of components.filter((x) => x.category !== "statutory" && x.status === "active")) {
     const pos = positions.filter((p) => p.componentId === c.id && p.status === "active");
     if (!pos.length) warnings.push({ code: "NO_POSITION", message: `${c.name} : aucun poste défini`, componentId: c.id });
-    for (const p of pos) if (p.isLeader && !assignments.some((a) => a.positionId === p.id && a.kind === "holder")) warnings.push({ code: "LEADER_VACANT", message: `${c.name} : poste « ${p.title} » vacant`, componentId: c.id });
+    for (const p of pos) if (p.isLeader && !assignments.some((a) => a.positionId === p.id && a.kind === "holder")) warnings.push({ code: "LEADER_VACANT", message: `${c.name} : poste « ${p.title} » vacant`, componentId: c.id, positionTitle: p.title });
   }
   // Somebody who controls what he manages: the syndic in an audit or financial committee.
   const syndicUsers = new Set(mandates.filter((m) => m.role === "syndic").map((m) => m.userId));

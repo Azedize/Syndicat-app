@@ -240,14 +240,15 @@ export interface OrgComponent {
   closeReason: string | null;
   positions: OrgPosition[];
 }
+export interface OrgReviewItem { code: string; message: string; componentId?: string; positionTitle?: string; type?: string }
 export interface OrgStructureResponse {
   data: null | { id: string; status: "draft" | "active"; version: number; template: string | null; components: OrgComponent[] };
   facts: { buildings: number; lots: number; residents: number; floors: number };
   statutoryHolders: { id: string; role: string; name: string; mandateStart: string | null; mandateEnd: string | null }[];
   canManage: boolean;
-  review: null | { errors: { code: string; message: string }[]; warnings: { code: string; message: string }[] };
+  review: null | { errors: OrgReviewItem[]; warnings: OrgReviewItem[] };
 }
-export interface OrgRecommendation { type: string; strength: "statutory" | "consider"; reasons: string[] }
+export interface OrgRecommendation { type: string; strength: "statutory" | "consider"; reasons: { code: string; n?: number; text: string }[] }
 
 export const organization = {
   structure: () => request<OrgStructureResponse>("/org/structure"),

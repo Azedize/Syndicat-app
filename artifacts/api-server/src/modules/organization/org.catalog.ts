@@ -121,41 +121,71 @@ export interface Profile {
   otherFacilities?: boolean;
 }
 
+export interface Reason {
+  code: string;
+  n?: number;
+  text: string;
+}
+
 export interface Recommendation {
   type: string;
   /** "consider": worth discussing; never "mandatory" unless the law says so */
   strength: "statutory" | "consider";
-  reasons: string[];
+  reasons: Reason[];
 }
 
+/** French text of each reason (the app translates the code; {n} is the number). */
+export const REASON_TEXT: Record<string, string> = {
+  statutory_assembly: "Organe obligatoire de tout syndicat (loi 18-00, art. 15)",
+  statutory_syndic: "Désigné par l'assemblée générale (art. 19)",
+  statutory_deputy: "Désigné avec le syndic (art. 19)",
+  statutory_council: "Ensemble immobilier géré par plusieurs syndicats : conseil syndical de plein droit (art. 29)",
+  elevators: "{n} ascenseurs à entretenir",
+  elevator: "Un ascenseur à suivre",
+  maintenance_staff: "Personnel d'entretien à coordonner",
+  pool: "Piscine : entretien technique régulier",
+  gardens: "Espaces verts à entretenir",
+  security_staff: "Personnel de sécurité à coordonner",
+  parking: "Stationnement à organiser",
+  shared_facilities: "Équipements partagés à réserver",
+  employees: "{n} salarié(s) : paie et charges à suivre",
+  many_lots: "{n} lots : budget et appels de fonds plus nombreux",
+  professional_syndic: "Syndic professionnel : un suivi des pièces par des copropriétaires facilite la transparence",
+  buildings: "{n} immeubles : un référent par immeuble peut faire le relais",
+  many_residents: "Nombreux résidents : une information régulière est utile",
+};
+
 /**
- * Explainable suggestions: every item lists the facts that motivate it. No
- * committee is presented as mandatory except the statutory bodies (and the
- * council of a multi-syndicate complex, art. 29).
+ * Explainable suggestions: every item lists the facts that motivate it (a code
+ * the app translates, its number, and the French text). No committee is
+ * presented as mandatory except the statutory bodies (and the council of a
+ * multi-syndicate complex, art. 29). The template follows the size: several
+ * buildings or many lots suggest the large one.
  */
 export function recommend(p: Profile): { template: keyof typeof TEMPLATES; items: Recommendation[] } {
+  const r = (code: string, n?: number): Reason => ({ code, ...(n !== undefined ? { n } : {}), text: REASON_TEXT[code].replace("{n}", String(n ?? "")) });
   const items: Recommendation[] = [
-    { type: "general_assembly", strength: "statutory", reasons: ["Organe obligatoire de tout syndicat (loi 18-00, art. 15)"] },
-    { type: "syndic", strength: "statutory", reasons: ["Désigné par l'assemblée générale (art. 19)"] },
-    { type: "vice_syndic", strength: "statutory", reasons: ["Désigné avec le syndic (art. 19)"] },
+    { type: "general_assembly", strength: "statutory", reasons: [r("statutory_assembly")] },
+    { type: "syndic", strength: "statutory", reasons: [r("statutory_syndic")] },
+    { type: "vice_syndic", strength: "statutory", reasons: [r("statutory_deputy")] },
   ];
-  const add = (type: string, reasons: string[]) => reasons.length && items.push({ type, strength: "consider", reasons });
-  if (p.multiSyndicateComplex) items.push({ type: "syndicate_council", strength: "statutory", reasons: ["Ensemble immobilier géré par plusieurs syndicats : conseil syndical de plein droit (art. 29)"] });
+  const add = (type: string, reasons: Reason[]) => reasons.length && items.push({ type, strength: "consider", reasons });
+  if (p.multiSyndicateComplex) items.push({ type: "syndicate_council", strength: "statutory", reasons: [r("statutory_council")] });
   const lots = p.lots ?? 0;
   const buildings = p.buildings ?? 1;
   add("maintenance", [
-    ...(p.elevators && p.elevators > 1 ? [`${p.elevators} ascenseurs à entretenir`] : p.elevators === 1 ? ["Un ascenseur à suivre"] : []),
-    ...(p.maintenanceStaff ? ["Personnel d'entretien à coordonner"] : []),
-    ...(p.pool ? ["Piscine : entretien technique régulier"] : []),
+    ...(p.elevators && p.elevators > 1 ? [r("elevators", p.elevators)] : p.elevators === 1 ? [r("elevator")] : []),
+    ...(p.maintenanceStaff ? [r("maintenance_staff")] : []),
+    ...(p.pool ? [r("pool")] : []),
   ]);
-  add("environment", p.gardens ? ["Espaces verts à entretenir"] : []);
-  add("security", p.securityStaff ? ["Personnel de sécurité à coordonner"] : []);
-  add("parking", [...(p.parking ? ["Stationnement à organiser"] : []), ...(p.pool || p.otherFacilities ? ["Équipements partagés à réserver"] : [])]);
-  add("financial", [...(p.employees && p.employees > 0 ? [`${p.employees} salarié(s) : paie et charges à suivre`] : []), ...(lots >= 50 ? [`${lots} lots : budget et appels de fonds plus nombreux`] : [])]);
-  add("audit", p.professionalSyndic ? ["Syndic professionnel : un suivi des pièces par des copropriétaires facilite la transparence"] : []);
-  add("building", buildings > 1 ? [`${buildings} immeubles : un référent par immeuble peut faire le relais`] : []);
-  add("communication", (p.residents ?? 0) >= 100 || lots >= 80 ? ["Nombreux résidents : une information régulière est utile"] : []);
+  add("environment", p.gardens ? [r("gardens")] : []);
+  add("security", p.securityStaff ? [r("security_staff")] : []);
+  add("parking", [...(p.parking ? [r("parking")] : []), ...(p.pool || p.otherFacilities ? [r("shared_facilities")] : [])]);
+  add("financial", [...(p.employees && p.employees > 0 ? [r("employees", p.employees)] : []), ...(lots >= 50 ? [r("many_lots", lots)] : [])]);
+  add("audit", p.professionalSyndic ? [r("professional_syndic")] : []);
+  add("building", buildings > 1 ? [r("buildings", buildings)] : []);
+  add("communication", (p.residents ?? 0) >= 100 || lots >= 80 ? [r("many_residents")] : []);
   const optional = items.filter((i) => i.strength === "consider").length;
-  const template = optional === 0 ? "small" : optional <= 3 && buildings <= 1 ? "medium" : "large";
+  const template = optional === 0 ? "small" : buildings > 1 || lots >= 150 ? "large" : "medium";
   return { template, items };
 }

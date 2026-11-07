@@ -20,8 +20,8 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
-import { organization as orgApi, type OrgComponent } from "@/features/governance/api";
-import { CAPABILITY_KEYS, TYPE_KEYS } from "@/features/governance/orgLabels";
+import { organization as orgApi, type OrgComponent, type OrgReviewItem } from "@/features/governance/api";
+import { CAPABILITY_KEYS, componentName, formatDay, formatMad, positionTitle, responsibilityText, statusLabel, TYPE_KEYS } from "@/features/governance/orgLabels";
 
 export default function OrganizationScreen() {
   const colors = useColors();
@@ -52,6 +52,16 @@ export default function OrganizationScreen() {
   const closed = (s?.components ?? []).filter((c) => c.status === "closed");
   const holder = (role: string) => data?.statutoryHolders.find((h) => h.role === role);
   const opened = s?.components.find((c) => c.id === openId) ?? null;
+  /** A review item in the reader's language (the server also sends French text). */
+  const reviewText = (i: OrgReviewItem) => {
+    const key = `orgReview_${i.code}`;
+    if (t(key) === key) return i.message;
+    const c = s?.components.find((x) => x.id === i.componentId);
+    return t(key)
+      .replace("{component}", c ? componentName(t, c) : "")
+      .replace("{position}", i.positionTitle ? positionTitle(t, i.positionTitle) : "")
+      .replace("{type}", i.type && TYPE_KEYS[i.type] ? t(TYPE_KEYS[i.type]) : i.type ?? "");
+  };
 
   const pickNewComponent = async () => {
     const types = ["financial", "maintenance", "security", "communication", "social", "environment", "legal", "audit", "parking", "building", "syndicate_council", "custom"];
@@ -95,8 +105,8 @@ export default function OrganizationScreen() {
                   <Feather name={s.status === "draft" ? "edit-3" : "check-circle"} size={16} color={s.status === "draft" ? colors.warning : colors.success} />
                   <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>{s.status === "draft" ? t("orgDraft") : `${t("orgActiveVersion")} ${s.version}`}</Text>
                 </View>
-                {data.review.errors.map((e) => <Text key={e.code + e.message} style={[styles.small, { color: colors.destructive }]}>• {e.message}</Text>)}
-                {data.review.warnings.map((w) => <Text key={w.code + w.message} style={[styles.small, { color: colors.mutedForeground }]}>• {w.message}</Text>)}
+                {data.review.errors.map((e) => <Text key={e.code + e.message} style={[styles.small, { color: colors.destructive }]}>• {reviewText(e)}</Text>)}
+                {data.review.warnings.map((w) => <Text key={w.code + w.message} style={[styles.small, { color: colors.mutedForeground }]}>• {reviewText(w)}</Text>)}
                 <View style={styles.actions}>
                   <TouchableOpacity style={[styles.chip, { backgroundColor: colors.primary + "15" }]} onPress={pickNewComponent}>
                     <Feather name="plus" size={13} color={colors.tint} />
@@ -138,13 +148,14 @@ export default function OrganizationScreen() {
             {committees.map((c) => {
               const leader = c.positions.find((p) => p.isLeader)?.assignments.find((a) => a.status === "active");
               const members = new Set(c.positions.flatMap((p) => p.assignments.filter((a) => a.status === "active").map((a) => a.userId))).size;
-              const vacant = c.positions.filter((p) => p.status === "active" && !p.assignments.some((a) => a.status === "active" && a.kind === "holder")).length;
+              // a leading position without holder; plain member positions take any number of people
+              const vacant = c.positions.filter((p) => p.status === "active" && p.isLeader && !p.assignments.some((a) => a.status === "active" && a.kind === "holder")).length;
               return (
                 <TouchableOpacity key={c.id} style={[styles.card, { backgroundColor: colors.card, borderColor: c.mine ? colors.success : colors.border }]} onPress={() => setOpenId(c.id)} accessibilityRole="button">
                   <View style={styles.row}>
                     <View style={[styles.icon, { backgroundColor: colors.muted }]}><Feather name="layers" size={17} color={colors.foreground} /></View>
                     <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>{c.name}</Text>
+                      <Text style={[styles.cardTitle, { color: colors.foreground }]}>{componentName(t, c)}</Text>
                       <Text style={[styles.small, { color: colors.mutedForeground }]}>
                         {leader ? `${leader.userName} · ` : ""}{members} {t("orgMembers")}{vacant ? ` · ${vacant} ${t("orgVacant")}` : ""}
                       </Text>
@@ -170,7 +181,7 @@ export default function OrganizationScreen() {
             {showClosed
               ? closed.map((c) => (
                   <TouchableOpacity key={c.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: 0.75 }]} onPress={() => setOpenId(c.id)}>
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{c.name}</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground }]}>{componentName(t, c)}</Text>
                     {c.closeReason ? <Text style={[styles.small, { color: colors.mutedForeground }]}>{c.closeReason}</Text> : null}
                   </TouchableOpacity>
                 ))
@@ -204,11 +215,11 @@ function Tag({ label, color }: { label: string; color: string }) {
 function ComponentSheet({ component: c, manage, onClose, onChanged }: { component: OrgComponent; manage: boolean; onClose: () => void; onChanged: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { showToast } = useToast();
   const canWork = c.status === "active" && c.category !== "statutory" && (c.mine || manage);
   const ws = useQuery({ queryKey: ["org-workspace", c.id], queryFn: () => orgApi.workspace(c.id), enabled: canWork });
-  const fail = (err: any) => showToast({ type: "error", title: c.name, message: err?.message || t("electionActionFailed") });
+  const fail = (err: any) => showToast({ type: "error", title: componentName(t, c), message: err?.message || t("electionActionFailed") });
   const done = () => {
     onChanged();
     ws.refetch();
@@ -255,7 +266,7 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 }]}>
           <View style={[styles.row, { padding: 16 }]}>
-            <Text style={[styles.section, { color: colors.foreground, flex: 1 }]} accessibilityRole="header">{c.category === "statutory" ? t(TYPE_KEYS[c.type]) : c.name}</Text>
+            <Text style={[styles.section, { color: colors.foreground, flex: 1 }]} accessibilityRole="header">{c.category === "statutory" ? t(TYPE_KEYS[c.type]) : componentName(t, c)}</Text>
             <TouchableOpacity onPress={onClose} accessibilityLabel={t("close")} hitSlop={12}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
           <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 24 }}>
@@ -267,7 +278,7 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
             {c.responsibilities.length ? (
               <View style={{ gap: 4 }}>
                 <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("orgResponsibilities")}</Text>
-                {c.responsibilities.map((r) => <Text key={r} style={[styles.small, { color: colors.foreground }]}>• {r}</Text>)}
+                {c.responsibilities.map((r) => <Text key={r} style={[styles.small, { color: colors.foreground }]}>• {responsibilityText(t, r)}</Text>)}
               </View>
             ) : null}
             {c.category === "statutory" && c.type !== "general_assembly" ? <Text style={[styles.small, { color: colors.foreground }]}>{t("orgStatutoryHolderNote")}</Text> : null}
@@ -279,20 +290,20 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
                 <View key={p.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.row}>
                     <Feather name={p.isLeader ? "star" : "user"} size={14} color={p.isLeader ? colors.warning : colors.mutedForeground} />
-                    <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>{p.title}</Text>
+                    <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>{positionTitle(t, p.title)}</Text>
                     {manage && c.status !== "closed" ? (
-                      <TouchableOpacity onPress={() => void assign(p.id, p.title)} accessibilityLabel={t("orgAssign")} hitSlop={8}><Feather name="user-plus" size={16} color={colors.tint} /></TouchableOpacity>
+                      <TouchableOpacity onPress={() => void assign(p.id, positionTitle(t, p.title))} accessibilityLabel={t("orgAssign")} hitSlop={8}><Feather name="user-plus" size={16} color={colors.tint} /></TouchableOpacity>
                     ) : null}
                   </View>
                   {active.length === 0 ? <Text style={[styles.small, { color: colors.warning }]}>{t("orgVacantPosition")}</Text> : null}
                   {active.map((a) => (
                     <TouchableOpacity key={a.id} disabled={!manage} onPress={() => void replaceOrEnd(a.id, a.userName)} style={styles.row}>
                       <Text style={[styles.body, { color: colors.foreground, flex: 1 }]}>{a.userName}{a.kind === "substitute" ? ` (${t("orgSubstitute")})` : ""}</Text>
-                      <Text style={[styles.small, { color: colors.mutedForeground }]}>{t("orgSince")} {a.startDate}</Text>
+                      <Text style={[styles.small, { color: colors.mutedForeground }]}>{t("orgSince")} {formatDay(lang, a.startDate)}</Text>
                     </TouchableOpacity>
                   ))}
                   {ended.map((a) => (
-                    <Text key={a.id} style={[styles.small, { color: colors.mutedForeground }]}>{a.userName} · {a.startDate} → {a.endDate}{a.endReason ? ` · ${a.endReason}` : ""}</Text>
+                    <Text key={a.id} style={[styles.small, { color: colors.mutedForeground }]}>{a.userName} · {formatDay(lang, a.startDate)} → {formatDay(lang, a.endDate)}{a.endReason ? ` · ${a.endReason}` : ""}</Text>
                   ))}
                   {p.permissions.length ? <Text style={[styles.small, { color: colors.mutedForeground }]}>{p.permissions.map((x) => t(CAPABILITY_KEYS[x] ?? x)).join(" · ")}</Text> : null}
                 </View>
@@ -325,7 +336,7 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
                   <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("orgFinanceReadOnly")}</Text>
                     {ws.data.data.finance.expenses.slice(0, 8).map((e: any) => (
-                      <Text key={e.id} style={[styles.small, { color: colors.foreground }]}>{e.reference} · {e.label} · {Number(e.amount).toLocaleString()} MAD · {e.status}</Text>
+                      <Text key={e.id} style={[styles.small, { color: colors.foreground }]}>{e.reference} · {e.label} · {formatMad(lang, e.amount)} · {statusLabel(t, e.status)}</Text>
                     ))}
                   </View>
                 ) : null}
@@ -333,7 +344,7 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
                   <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[styles.label, { color: colors.mutedForeground }]}>{t("orgMaintenanceReadOnly")}</Text>
                     {ws.data.data.maintenance.openClaims.slice(0, 8).map((x: any) => (
-                      <Text key={x.id} style={[styles.small, { color: colors.foreground }]}>{x.reference} · {x.title} · {x.status}</Text>
+                      <Text key={x.id} style={[styles.small, { color: colors.foreground }]}>{x.reference} · {x.title} · {statusLabel(t, x.status)}</Text>
                     ))}
                   </View>
                 ) : null}

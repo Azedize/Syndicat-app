@@ -2144,4 +2144,39 @@ Détail : `docs/architecture/GOVERNANCE_RULES.md` § 7 et `docs/research/SYNDICA
   - l'onglet « Commissions » de `governance.tsx`, jusqu'ici une liste vide figée, affiche maintenant les vrais comités ;
   - une entrée de menu pour tous les rôles ; 136 textes en FR, EN, AR et ES.
 - **Tests :** `org-structure` 53/53, de bout en bout (scénarios 1 à 9, 11 et 12). Tests statiques mobiles : contrat API 535/535, règles natives, RTL, contrastes, routes.
-- **Non vérifié :** les écrans n'ont été essayés ni sur émulateur ni sur téléphone, dont le scénario 10 (arabe et mode sombre).
+- **Vérifié sur émulateur Android (Expo Go, base de test), en arabe et en mode sombre, avec le compte syndic :**
+  - assistant complet : profil prérempli, recommandation, comités, postes, responsable, création et activation ;
+  - tableau de bord, avec organes légaux, rôles de séance, comités et avertissements ;
+  - fiche d'un comité ;
+  - recommandation envoyée puis refusée par le syndic.
+- **Corrigé grâce à cet essai :**
+  - les raisons des recommandations et les avertissements arrivaient en français : le serveur envoie maintenant un code, que l'application traduit ;
+  - les noms, postes et responsabilités par défaut sont traduits tant qu'ils n'ont pas été modifiés ;
+  - les statuts s'affichaient en code anglais et les montants n'étaient pas au format local ;
+  - « Grand ensemble » était recommandé pour un seul immeuble de 53 lots : il ne l'est plus que pour plusieurs immeubles ou au moins 150 lots ;
+  - les champs de saisie sont alignés selon le sens de lecture.
+- **Non vérifié :** sur un vrai téléphone ; en mode clair ; avec un compte de membre de comité.
+
+## 2026-11-07 — Essais d'interface sur émulateur : organisation, élections, gouvernance
+
+Émulateur Android (Expo Go, base de test), en français et mode clair, puis en arabe et mode sombre, avec trois comptes : syndic, responsable de comité, copropriétaire.
+
+**Vérifié à l'écran :**
+- vue d'un membre de comité : pas de bouton de gestion, espace limité à ses droits, création puis clôture d'une tâche, aucun espace sur un comité dont il n'est pas membre ;
+- bulletin à deux sièges : sélection de deux candidats, refus du troisième, vote enregistré avec 1 voix chacun, mention « Déjà voté » ;
+- élection de type Syndic créée depuis le formulaire, enregistrée avec ses règles légales : pondération par quotes-parts, trois quarts de toutes les voix, un siège, mandat de 24 mois ;
+- onglet Commissions de la gouvernance : il affiche les vrais comités.
+
+**Corrigé :**
+- **Organisation :** le nombre de postes vacants comptait les postes de simple membre ; les dates sont maintenant localisées.
+- **Élections :**
+  - le poste des candidats affichait le code brut « members » ;
+  - l'onglet Infos affichait « Majorité requise 50 % » pour un scrutin à la majorité relative : il indique maintenant le mode de scrutin, les voix pondérées et la durée du mandat ;
+  - « 1 votes » est corrigé au singulier ;
+  - le champ « Majorité requise » du formulaire de création n'avait aucun effet : il est retiré ;
+  - le mandat du syndic et de son adjoint est fixé par défaut à 24 mois (art. 19).
+- **Gouvernance :** le sous-titre « Bureau National — Mandat 2023-2026 » et le badge « Mandat en cours : 2023–2026 » étaient écrits en dur, sans aucune donnée derrière, et sont retirés ; « 1 membre » est au singulier ; « Prés : — » n'apparaît plus quand il n'y a pas de responsable.
+
+**Non-régression :** 49 suites sur 50 ; seul `election-audit` S7 (élection d'urgence) attend toujours une décision.
+
+**Données de test laissées dans `syndycat_test`** : l'organisation et deux élections d'essai de la Résidence Riad Salam Anfa 22.

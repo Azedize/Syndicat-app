@@ -24,7 +24,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import { organization as orgApi, type OrgRecommendation } from "@/features/governance/api";
-import { CAPABILITY_KEYS, TYPE_KEYS } from "@/features/governance/orgLabels";
+import { CAPABILITY_KEYS, positionTitle, TYPE_KEYS } from "@/features/governance/orgLabels";
 
 const OPTIONAL = ["financial", "maintenance", "security", "communication", "social", "environment", "legal", "audit", "parking", "building", "syndicate_council"];
 const TEMPLATE_COMPONENTS: Record<string, string[]> = {
@@ -61,7 +61,7 @@ export default function OrganizationWizard() {
 function Wizard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
@@ -172,7 +172,7 @@ function Wizard() {
                   value={profile[k]}
                   onChangeText={(v) => setProfile((p) => ({ ...p, [k]: v.replace(/[^\d]/g, "") }))}
                   keyboardType="number-pad"
-                  style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                  style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card, textAlign: isRTL ? "right" : "left" }]}
                   accessibilityLabel={t(`orgField_${k}`)}
                 />
               </View>
@@ -202,7 +202,12 @@ function Wizard() {
             {(reco?.items ?? []).map((i) => (
               <View key={i.type} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t(TYPE_KEYS[i.type])} · {i.strength === "statutory" ? t("orgTagLegal") : t("orgToConsider")}</Text>
-                {i.reasons.map((r) => <Text key={r} style={[styles.small, { color: colors.mutedForeground }]}>• {r}</Text>)}
+                {i.reasons.map((r) => {
+                  // translated by code; the server also sends the French text
+                  const key = `orgReason_${r.code}`;
+                  const label = t(key) === key ? r.text : t(key).replace("{n}", String(r.n ?? ""));
+                  return <Text key={r.code} style={[styles.small, { color: colors.mutedForeground }]}>• {label}</Text>;
+                })}
               </View>
             ))}
             <Text style={[styles.small, { color: colors.mutedForeground }]}>{t("orgTemplatesDisclaimer")}</Text>
@@ -232,7 +237,7 @@ function Wizard() {
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t(TYPE_KEYS[type])}</Text>
                 {(positionsOf(type)?.positions ?? []).map((p: any) => (
                   <Text key={p.title} style={[styles.small, { color: colors.foreground }]}>
-                    {p.isLeader ? "★ " : "• "}{p.title} — {p.permissions.map((x: string) => t(CAPABILITY_KEYS[x] ?? x)).join(", ")}
+                    {p.isLeader ? "★ " : "• "}{positionTitle(t, p.title)} — {p.permissions.map((x: string) => t(CAPABILITY_KEYS[x] ?? x)).join(" · ")}
                   </Text>
                 ))}
               </View>
@@ -310,7 +315,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 14, textAlign: "left" },
   small: { fontSize: 12, lineHeight: 17, textAlign: "left" },
   field: { gap: 6 },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, textAlign: "left" },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
   toggle: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
   btn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 13, borderRadius: 12 },

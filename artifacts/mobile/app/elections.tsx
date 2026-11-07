@@ -135,10 +135,19 @@ interface ApiElection {
   // single: one candidate per ballot; multiple: up to seatsCount
   ballotMode?: "single" | "multiple";
   weighting?: "per_voter" | "quote_part";
+  mandateDurationMonths?: number | null;
   round?: number;
   parentElectionId?: string | null;
   outcome?: string | null;
 }
+
+/** A candidate's post: the API defaults it to the election type code. */
+const POST_TYPE_KEYS: Record<string, string> = {
+  syndic: "electionTypeSyndic", vice_syndic: "electionTypeViceSyndic", ag_president: "electionTypeAgPresident", members: "electionTypeMembers",
+  president: "electionTypePresident", board: "electionTypeBoard", financial_committee: "electionTypeFinancial", maintenance_committee: "electionTypeMaintenance",
+  building_representative: "electionTypeRepresentative", special: "electionTypeSpecial",
+};
+const postLabel = (t: (k: string) => string, post: string) => (POST_TYPE_KEYS[post] ? t(POST_TYPE_KEYS[post]) : post);
 
 /** Types whose rules come from Loi 18-00 (seats, majority and weighting fixed by the server). */
 const LEGAL_TYPES = ["syndic", "vice_syndic"];
@@ -885,9 +894,12 @@ function ElectionsScreenInner() {
       candidacyEnd: candEnd,
       startDate: newStart,
       endDate: newEnd,
+      // Syndic and adjoint: two-year mandate (Loi 18-00, art. 19) unless the organizer set one.
       mandateDurationMonths: newMandateMonths.trim()
         ? parseInt(newMandateMonths, 10)
-        : null,
+        : legal
+          ? 24
+          : null,
     } as any);
   };
 
@@ -1055,7 +1067,7 @@ function ElectionsScreenInner() {
                       { color: colors.mutedForeground },
                     ]}
                   >
-                    {totalVotes} {t("votesCount")}
+                    {totalVotes} {totalVotes === 1 ? t("voteCountOne") : t("votesCount")}
                   </Text>
                 </View>
                 <View style={styles.stat}>
@@ -1258,10 +1270,22 @@ function ElectionsScreenInner() {
                   />
                   <InfoRow
                     icon="percent"
-                    label={t("majorityRequired")}
-                    value={`${selected.majorityPercent}%`}
+                    label={t("electionMethodLabel")}
+                    value={
+                      selected.votingMethod === "three_quarters"
+                        ? t("electionMethodThreeQuarters")
+                        : selected.votingMethod === "absolute_majority"
+                          ? `${t("electionMethodAbsolute")} (> ${selected.majorityPercent} %)`
+                          : t("electionMethodRelative")
+                    }
                     colors={colors}
                   />
+                  {selected.mandateDurationMonths ? (
+                    <InfoRow icon="clock" label={t("mandateDuration")} value={`${selected.mandateDurationMonths} ${t("monthsUnit")}`} colors={colors} />
+                  ) : null}
+                  {selected.weighting === "quote_part" ? (
+                    <InfoRow icon="pie-chart" label={t("electionWeightingLabel")} value={t("electionWeightedByQuoteParts")} colors={colors} />
+                  ) : null}
                   <InfoRow
                     icon="users"
                     label={t("seatsToFill")}
@@ -1568,7 +1592,7 @@ function ElectionsScreenInner() {
                                     { color: colors.mutedForeground },
                                   ]}
                                 >
-                                  {c.post}
+                                  {postLabel(t, c.post)}
                                 </Text>
                               </View>
                             </View>
@@ -1650,7 +1674,7 @@ function ElectionsScreenInner() {
                                       { color: colors.mutedForeground },
                                     ]}
                                   >
-                                    {c.post}
+                                    {postLabel(t, c.post)}
                                   </Text>
                                 </View>
                               </View>
@@ -2150,25 +2174,6 @@ function ElectionsScreenInner() {
                     keyboardType="numeric"
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.fieldLabel,
-                      { color: colors.mutedForeground, marginTop: 12 },
-                    ]}
-                  >
-                    {t("majorityRequired")}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { color: colors.foreground, borderColor: colors.border },
-                    ]}
-                    value={newMajority}
-                    onChangeText={setNewMajority}
-                    keyboardType="numeric"
-                  />
-                </View>
                 {ONE_SEAT_TYPES.includes(newType) ? null : (
                 <View style={{ flex: 1 }}>
                   <Text
@@ -2208,7 +2213,7 @@ function ElectionsScreenInner() {
                 value={newMandateMonths}
                 onChangeText={setNewMandateMonths}
                 keyboardType="numeric"
-                placeholder={t("indefinite")}
+                placeholder={LEGAL_TYPES.includes(newType) ? t("electionMandateLegalDefault") : t("indefinite")}
                 placeholderTextColor={colors.mutedForeground}
               />
 
@@ -2465,7 +2470,7 @@ function CandidateCard({
           <Text
             style={[styles.candidatePost, { color: colors.mutedForeground }]}
           >
-            {c.post}
+            {postLabel(t, c.post)}
           </Text>
         </View>
         <View
@@ -2879,7 +2884,7 @@ function ResultsPanel({
                   { color: colors.mutedForeground },
                 ]}
               >
-                {c.post}
+                {postLabel(t, c.post)}
               </Text>
             </View>
             <Text style={[styles.pctText, { color: colors.tint }]}>
