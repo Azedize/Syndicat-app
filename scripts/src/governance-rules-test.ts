@@ -39,6 +39,8 @@ async function main() {
   const [condo] = await q<{ id: string }>(`
     SELECT s.id FROM syndicates s WHERE s.creation_key LIKE 'seedgen:%' AND s.status = 'active' AND ${writableSubscriptionSql("s")}
       AND (SELECT count(*) FROM users u WHERE u.syndicate_id = s.id AND u.role = 'member' AND u.status = 'active') >= 6
+      -- no syndic or adjoint already in office (they would take part in the resignation scenarios)
+      AND NOT EXISTS (SELECT 1 FROM conseil_syndical c WHERE c.syndicate_id = s.id AND c.status = 'active' AND c.role IN ('syndic', 'vice_syndic'))
     ORDER BY s.id LIMIT 1`);
   const [other] = await q<{ id: string }>(`SELECT s.id FROM syndicates s WHERE s.creation_key LIKE 'seedgen:%' AND s.status = 'active' AND s.id <> $1 AND ${writableSubscriptionSql("s")} ORDER BY s.id LIMIT 1`, [condo.id]);
   const sid = condo.id;

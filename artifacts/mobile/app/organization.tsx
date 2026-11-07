@@ -303,7 +303,7 @@ function ComponentSheet({ component: c, manage, onClose, onChanged }: { componen
                     </TouchableOpacity>
                   ))}
                   {ended.map((a) => (
-                    <Text key={a.id} style={[styles.small, { color: colors.mutedForeground }]}>{a.userName} · {formatDay(lang, a.startDate)} → {formatDay(lang, a.endDate)}{a.endReason ? ` · ${a.endReason}` : ""}</Text>
+                    <Text key={a.id} style={[styles.small, { color: colors.mutedForeground }]}>{a.userName} · {formatDay(lang, a.startDate)} – {formatDay(lang, a.endDate)}{a.endReason ? ` · ${a.endReason}` : ""}</Text>
                   ))}
                   {p.permissions.length ? <Text style={[styles.small, { color: colors.mutedForeground }]}>{p.permissions.map((x) => t(CAPABILITY_KEYS[x] ?? x)).join(" · ")}</Text> : null}
                 </View>

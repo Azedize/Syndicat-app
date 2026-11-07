@@ -27685,4 +27685,10 @@ export const TRANSLATIONS: Translations = {
     ar: "الولاية منذ",
     es: "Mandato desde el",
   },
+  resignationReason: {
+    fr: "Motif",
+    en: "Reason",
+    ar: "السبب",
+    es: "Motivo",
+  },
 };

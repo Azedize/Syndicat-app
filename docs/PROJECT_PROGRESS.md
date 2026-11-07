@@ -2180,3 +2180,22 @@ Détail : `docs/architecture/GOVERNANCE_RULES.md` § 7 et `docs/research/SYNDICA
 **Non-régression :** 49 suites sur 50 ; seul `election-audit` S7 (élection d'urgence) attend toujours une décision.
 
 **Données de test laissées dans `syndycat_test`** : l'organisation et deux élections d'essai de la Résidence Riad Salam Anfa 22.
+
+## 2026-11-07 — Démission du syndic, vérifiée à l'écran
+
+Émulateur Android, en arabe et mode sombre. Un syndic et un adjoint ont été élus par l'API dans la copropriété d'essai ; le syndic a démissionné depuis la liste des élus.
+
+**Vérifié :**
+- fenêtre de démission officielle (rappel des 30 jours et des articles, motif facultatif) ;
+- écran des démissions : date de notification, échéance de l'assemblée (+30 jours), intérim assuré par l'adjoint, passation cochée et enregistrée en base ;
+- notification envoyée à tous les copropriétaires, en arabe.
+
+**Corrigé :**
+- **Début de mandat dans le futur :** un mandat commençait à la date de fin prévue du vote, même si les résultats étaient publiés plus tôt. Il commence maintenant à la publication, jamais dans le futur, et sa fin est calculée depuis ce début.
+- **Dates localisées** dans la liste des élus, l'écran des notifications et le texte des notifications côté serveur (« 7 décembre 2026 »).
+- **Écran des démissions :** le motif est affiché ; les deux-points suivent la typographie de la langue ; le tiret entre deux dates remplace la flèche, qui s'inversait en arabe.
+- **Test `governance-rules` :** il choisit maintenant une copropriété sans syndic ni adjoint en fonction. Il échouait à cause des mandats d'essai créés pour l'interface.
+
+**À décider :** une nouvelle élection de syndic ou d'adjoint ne met pas fin au mandat en cours ; deux mandats actifs peuvent donc coexister.
+
+**Non-régression :** 49 suites sur 50 (`election-audit` S7 en attente de décision).

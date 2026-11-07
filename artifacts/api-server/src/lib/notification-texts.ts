@@ -371,10 +371,21 @@ const LANGS: readonly Lang[] = ["fr", "en", "ar", "es"];
 export const asLang = (v: unknown): Lang => (LANGS.includes(v as Lang) ? (v as Lang) : "fr");
 
 /** Values keep their own direction inside Arabic text (amounts, periods, references). */
+const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-GB", ar: "ar-MA", es: "es-ES" };
+/** A date parameter (YYYY-MM-DD) written in the reader's language: « 7 décembre 2026 ». */
+function localDate(s: string, lang: Lang) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  try {
+    return new Date(`${s}T12:00:00Z`).toLocaleDateString(LOCALES[lang], { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  } catch {
+    return s;
+  }
+}
+
 function fill(template: string, params: NotificationParams, lang: Lang) {
   return template.replace(/\{(\w+)\}/g, (_m, name: string) => {
     const v = params[name];
-    const s = v === null || v === undefined ? "" : String(v);
+    const s = v === null || v === undefined ? "" : localDate(String(v), lang);
     return lang === "ar" && s ? `⁨${s}⁩` : s;
   });
 }

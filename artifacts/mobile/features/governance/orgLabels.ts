@@ -98,10 +98,6 @@ export const formatMad = (lang: string, v: string | number) => {
   const n = Number(v) || 0;
   try { return `${new Intl.NumberFormat(lang === "ar" ? "ar-MA" : lang === "en" ? "en-GB" : lang === "es" ? "es-ES" : "fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} MAD`; } catch { return `${n.toFixed(2)} MAD`; }
 };
-/** A date (YYYY-MM-DD) in the reader's language: « 7 novembre 2026 », « 7 نونبر 2026 »… */
-export const formatDay = (lang: string, ymd: string | null | undefined) => {
-  if (!ymd) return "";
-  const d = new Date(`${ymd.slice(0, 10)}T12:00:00Z`);
-  if (Number.isNaN(d.getTime())) return ymd;
-  try { return d.toLocaleDateString(lang === "ar" ? "ar-MA" : lang, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }); } catch { return ymd.slice(0, 10); }
-};
+export { formatDay } from "@/lib/formatDay";
+/** « Label : value » in French, « Label: value » elsewhere. */
+export const labelValue = (lang: string, label: string, value: string) => `${label}${lang === "fr" ? " : " : ": "}${value}`;

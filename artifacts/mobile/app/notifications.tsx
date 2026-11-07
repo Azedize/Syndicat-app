@@ -23,6 +23,7 @@ import FilterTabs from "@/components/FilterTabs";
 import ScreenHeader from "@/components/ScreenHeader";
 import { Button, Card, ListItem, SkeletonList, type StatusTone } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
+import { formatDay } from "@/lib/formatDay";
 
 type TabType = "preferences" | "historique";
 
@@ -42,7 +43,7 @@ const ALERT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 export default function NotificationsScreen() {
   const colors = useColors();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const {
     notificationPreferences,
@@ -474,7 +475,7 @@ export default function NotificationsScreen() {
                         iconTone={tone}
                         title={alert.title}
                         subtitle={alert.message}
-                        meta={`${typeLabel} · ${alert.date}`}
+                        meta={`${typeLabel} · ${formatDay(lang, alert.date)}`}
                         divider={i < alerts.length - 1}
                         accessibilityHint={alert.read ? undefined : t("uiUnread")}
                         trailing={!alert.read ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} accessibilityLabel={t("uiUnread")} /> : undefined}

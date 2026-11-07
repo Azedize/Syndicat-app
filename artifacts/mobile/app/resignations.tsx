@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
+import { labelValue } from "@/features/governance/orgLabels";
 import { elections as electionsApi, meetings as meetingsApi, resignations as resignationsApi, type ApiResignation, type HandoverKey } from "@/features/governance/api";
 
 /**
@@ -111,6 +112,7 @@ export default function ResignationsScreen() {
                   <Text style={[styles.badge, { color: open ? colors.warning : colors.success }]}>{open ? t("resignationOpen") : t("resignationClosed")}</Text>
                 </View>
 
+                {r.reason ? <Text style={[styles.sub, { color: colors.mutedForeground }]}>{labelValue(lang, t("resignationReason"), r.reason)}</Text> : null}
                 {open ? (
                   <View style={[styles.box, { backgroundColor: (r.assemblyOverdue ? colors.destructive : colors.primary) + "12" }]} accessibilityRole="summary">
                     <Text style={[styles.boxText, { color: colors.foreground }]}>
@@ -119,10 +121,10 @@ export default function ResignationsScreen() {
                     {r.assemblyOverdue ? <Text style={[styles.boxText, { color: colors.destructive }]}>{t("resignationOverdue")}</Text> : null}
                   </View>
                 ) : null}
-                {r.role === "syndic" && r.interim ? <Text style={[styles.sub, { color: colors.foreground }]}>{t("resignationInterim")} : {r.interim.name}</Text> : null}
+                {r.role === "syndic" && r.interim ? <Text style={[styles.sub, { color: colors.foreground }]}>{labelValue(lang, t("resignationInterim"), r.interim.name)}</Text> : null}
                 {r.escalation === "no_deputy" ? <Text style={[styles.alert, { color: colors.destructive }]}>{t("resignationNoDeputy")}</Text> : null}
                 {r.escalation === "no_successor" ? <Text style={[styles.alert, { color: colors.destructive }]}>{t("resignationNoSuccessor")}</Text> : null}
-                {r.successor ? <Text style={[styles.sub, { color: colors.success }]}>{t("resignationSuccessor")} : {r.successor.name}</Text> : null}
+                {r.successor ? <Text style={[styles.sub, { color: colors.success }]}>{labelValue(lang, t("resignationSuccessor"), r.successor.name)}</Text> : null}
 
                 {r.role === "syndic" && r.interimMandateId ? (
                   <View style={{ gap: 6 }}>

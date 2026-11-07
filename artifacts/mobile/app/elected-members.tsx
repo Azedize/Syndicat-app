@@ -115,7 +115,7 @@ function ElectedMembersInner() {
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.name, { color: colors.foreground }]}>{m.name}</Text>
                 <Text style={[styles.role, { color: colors.mutedForeground }]}>{roleLabel(m.role)}</Text>
-                {m.mandateStart ? <Text style={[styles.date, { color: colors.mutedForeground }]}>{t("mandateSinceLabel")} {formatDay(lang, m.mandateStart)}{m.mandateEnd ? ` → ${formatDay(lang, m.mandateEnd)}` : ""}</Text> : null}
+                {m.mandateStart ? <Text style={[styles.date, { color: colors.mutedForeground }]}>{t("mandateSinceLabel")} {formatDay(lang, m.mandateStart)}{m.mandateEnd ? ` – ${formatDay(lang, m.mandateEnd)}` : ""}</Text> : null}
               </View>
               {m.status === "resigned" ? (
                 <Text style={[styles.badge, { color: colors.destructive }]}>{t("mandateResigned")}</Text>
