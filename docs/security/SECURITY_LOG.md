@@ -225,3 +225,9 @@ Constat sans correction : `seed.ts` contient une adresse `@gmail.com` (`sara.bou
 - **Faille corrigée :** pendant un vote ouvert, l'API donnait le score de chaque candidat à tout membre de la copropriété, alors que la route des résultats le refusait. Masqué pour tous les rôles jusqu'à la clôture (`mobile-actions-test`).
 - **Vérifié :** la table `votes` ne contient aucun lien vers le votant ; `vote_receipts` ne contient pas le choix ; un second vote est refusé.
 
+
+## 2026-11-07 — Sessions fermées dès un changement de mot de passe
+
+- **Constat :** après une réinitialisation ou un changement de mot de passe, les refresh tokens étaient révoqués, mais un jeton d'accès déjà émis restait valable jusqu'à 15 minutes. Les autres codes et liens de réinitialisation restaient ouverts jusqu'à leur expiration.
+- **Correction :** la colonne `users.password_changed_at` (migration 0019) est comparée à la date d'émission du jeton dans le contrôle de session appliqué à chaque requête (`lib/access.ts`). Un jeton antérieur reçoit `401 SESSION_PASSWORD_CHANGED`. Une réinitialisation réussie ferme tous les codes et liens encore ouverts.
+- **Vérifié :** `password-reset-test` 33/33 (ancien jeton d'accès refusé, nouveau jeton accepté, ancien lien fermé) ; `auth-security-test` 44/44.

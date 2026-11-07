@@ -2113,3 +2113,17 @@ Vérifié sur émulateur, compte syndic : 12 formulaires ouverts, dernier champ 
 - **Sélection des copropriétés dans les tests :** 11 suites choisissaient une copropriété d'après le seul statut de son abonnement (« active » ou « trial »), sans regarder sa date de fin ni la société de syndic. Un essai terminé ou une société suspendue la rend en lecture seule, et l'API répondait à juste titre `402` ou `423`. Elles utilisent maintenant `writableSubscriptionSql()`. Le catalogue de la marketplace est placé dans une copropriété où l'on peut écrire. `scenarios` ajoute une résidence à l'abonnement expiré, avec son propre syndic. Le seuil du test du catalogue passe de 150 à 100 annonces approuvées (environ 78 % de 200, soit plusieurs pages de 50).
 - **Non-régression :** 46 suites sur 47 réussies. `election-audit` reste à 30/31 : la règle des élections d'urgence n'a pas encore été décidée.
 - **Application :** `.env` pointe vers `syndycat_test`, avec `LOCAL_UPLOADS_DIR=uploads-test`. L'ancienne valeur est copiée dans `.env.backup-20261106.local`, ignoré par Git. L'API du port 5000 doit être redémarrée pour la prendre en compte.
+
+## 2026-11-07 — Règles électorales, démission du syndic, sessions après changement de mot de passe
+
+Détail et points juridiques à valider : `docs/architecture/GOVERNANCE_RULES.md`.
+
+- **Égalités :** plus aucun départage manuel (`tiebreakWinnerIds` refusé). Une égalité au premier tour prépare un second tour entre les candidats à égalité. Si l'égalité persiste, personne n'est désigné et l'organisateur peut planifier un nouveau scrutin.
+- **Plusieurs sièges :** un bulletin peut choisir jusqu'au nombre de sièges, sans doublon, et moins si l'électeur le souhaite. Les bulletins et les voix pondérées par les quotes-parts sont comptés séparément.
+- **Types d'élection :** syndic et syndic adjoint suivent les règles imposées par les articles 19 et 21 (3/4 des voix, pondération, un siège). Le président de l'assemblée ne peut être ni le syndic ni son adjoint (art. 17). Les autres types relèvent de règles internes.
+- **Démission du syndic ou de son adjoint :** procédure officielle (art. 26 ter, 27, 27 ter), avec un nouvel écran `app/resignations.tsx`. Elle couvre l'échéance de 30 jours, l'intérim, la passation, l'assemblée, le successeur et les cas sans adjoint ou sans successeur. Aucun mandat n'est supprimé.
+- **Mot de passe :** un jeton d'accès émis avant un changement est refusé immédiatement. Une réinitialisation réussie ferme tous les autres codes et liens.
+- **Migrations :** 0019 et 0020, additives, appliquées à `syndycat_test` uniquement.
+- **Tests :** nouvelles suites `election-rules` (27/27, unitaire) et `governance-rules` (46/46, de bout en bout). `password-reset` passe à 33/33 et `election-audit` à 33/34 (S7, élection d'urgence, non décidée). Non-régression : 48 suites sur 49.
+- **Non vérifié :** les nouveaux écrans n'ont été essayés ni sur émulateur ni sur téléphone.
+- **Identifiant de l'application :** analyse seulement, rien n'a été changé. Le changement suppose de nouvelles applications Firebase et la vérification de la disponibilité du nom sur Google Play et l'App Store.

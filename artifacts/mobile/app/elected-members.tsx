@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/ui/Feather";
 import ScreenHeader from "@/components/ScreenHeader";
 import { router } from "expo-router";
 import React from "react";
@@ -10,7 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
-import { elections as electionsApi } from "@/features/governance/api";
+import { elections as electionsApi, resignations as resignationsApi } from "@/features/governance/api";
+import { askText } from "@/components/ui/TextPrompt";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface Mandate {
@@ -57,6 +58,9 @@ function ElectedMembersInner() {
 
   const mandates = (data?.data ?? []).filter((m) => m.status === "active" || m.status === "resigned");
   const roleLabel = (role: string) => ({
+    syndic: t("mandateRoleSyndic"),
+    vice_syndic: t("mandateRoleViceSyndic"),
+    ag_president: t("mandateRoleAgPresident"),
     president: t("mandateRolePresident"),
     vice_president: t("mandateRoleVicePresident"),
     secretary: t("mandateRoleSecretary"),
@@ -84,6 +88,17 @@ function ElectedMembersInner() {
           data={mandates}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
+          ListHeaderComponent={
+            <TouchableOpacity
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push("/resignations" as any)}
+              accessibilityRole="link"
+            >
+              <Feather name="log-out" size={18} color={colors.warning} />
+              <Text style={[styles.name, { color: colors.foreground, flex: 1 }]}>{t("resignationsTitle")}</Text>
+              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          }
           refreshControl={<RefreshControl refreshing={false} onRefresh={() => { void refetch(); }} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={styles.center}>
@@ -107,10 +122,22 @@ function ElectedMembersInner() {
                 <TouchableOpacity
                   style={[styles.resignBtn, { backgroundColor: colors.destructive + "15" }]}
                   onPress={() =>
-                    Alert.alert(t("resignMandate"), m.name, [
-                      { text: t("electionClosed"), style: "cancel" },
-                      { text: t("resignMandate"), style: "destructive", onPress: () => resignMutation.mutate(m.id) },
-                    ])
+                    // Syndic and adjoint resign through the official procedure (Loi 18-00, art. 26 ter, 27 ter).
+                    m.role === "syndic" || m.role === "vice_syndic"
+                      ? askText({ title: t("officialResignationTitle"), message: t("officialResignationMessage"), confirmLabel: t("resignMandate"), destructive: true }).then(async (reason) => {
+                          if (reason === null) return;
+                          try {
+                            await resignationsApi.create(m.id, reason || undefined);
+                            queryClient.invalidateQueries({ queryKey: ["mandates"] });
+                            router.push("/resignations" as any);
+                          } catch (err: any) {
+                            Alert.alert(t("officialResignationTitle"), err?.message || t("electionActionFailed"));
+                          }
+                        })
+                      : Alert.alert(t("resignMandate"), m.name, [
+                          { text: t("cancel"), style: "cancel" },
+                          { text: t("resignMandate"), style: "destructive", onPress: () => resignMutation.mutate(m.id) },
+                        ])
                   }
                 >
                   <Text style={{ color: colors.destructive, fontSize: 11, fontWeight: "700" }}>{t("resignMandate")}</Text>
