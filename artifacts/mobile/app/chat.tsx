@@ -268,9 +268,9 @@ export default function ChatScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert(t("newConversation"), undefined, [
               { text: t("cancel"), style: "cancel" },
-              { text: t("chat"), onPress: handleOpenNew },
+              { text: t("directMessage"), onPress: handleOpenNew },
               {
-                text: t("newConversation"),
+                text: t("groupConversation"),
                 onPress: () => {
                   setShowGroupNew(true);
                   setSelectedContacts([]);
