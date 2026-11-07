@@ -646,14 +646,14 @@ router.get("/organizations/:id/portfolio/:syndicateId/incidents", requireAuth, a
     const sid = String(req.params.syndicateId);
     await requirePortfolioAccess(req, String(req.params.id), sid);
     const rows = await db.execute(sql`
-      SELECT 'ticket' AS kind, t.id, t.title AS label, t.status, t.created_at FROM support_tickets t
+      SELECT 'ticket' AS kind, t.id, t.title AS label, NULL::text AS sub, t.status, t.created_at FROM support_tickets t
         WHERE t.syndicate_id = ${sid} AND t.status IN ('open', 'in_progress')
       UNION ALL
-      SELECT 'sinistre', x.id, x.type || ' — ' || left(x.description, 80), COALESCE(x.status, 'declared'), x.created_at FROM sinistres x
+      SELECT 'sinistre', x.id, left(x.description, 80), x.type, COALESCE(x.status, 'declared'), x.created_at FROM sinistres x
         JOIN buildings b ON b.id = x.building_id
         WHERE b.syndicate_id = ${sid} AND COALESCE(x.status, 'declared') NOT IN ('resolved', 'closed')
       UNION ALL
-      SELECT 'travaux', w.id, w.title, COALESCE(w.status, 'reported'), w.created_at FROM travaux w
+      SELECT 'travaux', w.id, w.title, NULL, COALESCE(w.status, 'reported'), w.created_at FROM travaux w
         JOIN buildings b ON b.id = w.building_id
         WHERE b.syndicate_id = ${sid} AND COALESCE(w.status, 'reported') NOT IN ('completed', 'cancelled')
       ORDER BY created_at DESC

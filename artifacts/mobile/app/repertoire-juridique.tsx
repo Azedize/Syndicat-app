@@ -19,6 +19,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
@@ -67,7 +68,7 @@ export default function RepertoireJuridiqueScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [search, setSearch] = useState("");
@@ -206,7 +207,7 @@ export default function RepertoireJuridiqueScreen() {
                     <Text style={[styles.articlesText, { color: colors.mutedForeground }]}>{t("legalDirectoryCasesCount").replace("{count}", String(fiche.jurisprudence.length))}</Text>
                   </View>
                 ) : null}
-                <Text style={[styles.updatedText, { color: colors.mutedForeground }]}>{t("legalDirectoryUpdated").replace("{date}", fiche.updated)}</Text>
+                <Text style={[styles.updatedText, { color: colors.mutedForeground }]}>{t("legalDirectoryUpdated").replace("{date}", formatDay(lang, fiche.updated))}</Text>
               </View>
             </TouchableOpacity>
           );
@@ -233,7 +234,7 @@ export default function RepertoireJuridiqueScreen() {
                     <View style={[styles.themeHeaderBox, { backgroundColor: tc.color + "10", borderColor: tc.color + "30" }]}>
                       <Feather name={tc.icon} size={18} color={tc.color} />
                       <Text style={[styles.themeHeaderText, { color: tc.color }]}>{themeLabel(selected.theme)}</Text>
-                      <Text style={[styles.updatedBadge, { color: tc.color }]}>{t("legalDirectoryUpdated").replace("{date}", selected.updated)}</Text>
+                      <Text style={[styles.updatedBadge, { color: tc.color }]}>{t("legalDirectoryUpdated").replace("{date}", formatDay(lang, selected.updated))}</Text>
                     </View>
                     <Text style={[styles.detailTitre, { color: colors.foreground }]}>{selected.titre}</Text>
                     <View style={[styles.resumeBox, { backgroundColor: tc.color + "10", borderColor: tc.color + "30", borderLeftColor: tc.color, borderLeftWidth: 4 }]}>

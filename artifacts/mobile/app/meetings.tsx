@@ -23,6 +23,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData, type Meeting } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -70,7 +71,7 @@ export default function MeetingsScreen() {
   } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
-  const { t, isRTL } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const FAV_ID = "screen-meetings";
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -301,7 +302,7 @@ export default function MeetingsScreen() {
               {upcoming[0]!.title}
             </Text>
             <Text style={styles.upcomingDate}>
-              {upcoming[0]!.date} à {upcoming[0]!.time}
+              {formatDay(lang, upcoming[0]!.date)} · {upcoming[0]!.time}
             </Text>
           </View>
           <Feather
@@ -423,7 +424,7 @@ export default function MeetingsScreen() {
                   <Text
                     style={[styles.infoText, { color: colors.mutedForeground }]}
                   >
-                    {m.date}
+                    {formatDay(lang, m.date)}
                   </Text>
                 </View>
                 <View style={styles.infoItem}>
@@ -679,7 +680,7 @@ export default function MeetingsScreen() {
                 ]}
               >
                 {[
-                  { icon: "calendar" as const, value: selected.date },
+                  { icon: "calendar" as const, value: formatDay(lang, selected.date) },
                   { icon: "clock" as const, value: selected.time },
                   {
                     icon: "users" as const,
@@ -931,17 +932,18 @@ export default function MeetingsScreen() {
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      const [d, m2, y] = (selected?.date ?? "01/01/2026").split(
-                        "/",
-                      );
-                      const isoDate = `${y}${m2}${d}`;
+                      // Google Calendar wants YYYYMMDDTHHMMSS; meetings are stored as YYYY-MM-DD + HH:MM, one hour long by default
+                      const day = (selected?.date ?? "").slice(0, 10).replace(/-/g, "");
+                      const [hh = "09", mm = "00"] = (selected?.time ?? "").split(":");
+                      const end = String(Math.min(Number(hh) + 1, 23)).padStart(2, "0");
+                      const isoDate = `${day}T${hh.padStart(2, "0")}${mm.slice(0, 2)}00/${day}T${end}${mm.slice(0, 2)}00`;
                       Linking.openURL(
-                        `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(selected?.title ?? "")}&dates=${isoDate}/${isoDate}&details=${encodeURIComponent(selected?.description ?? "")}&location=${encodeURIComponent(selected?.location ?? "")}`,
+                        `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(selected?.title ?? "")}&dates=${isoDate}&details=${encodeURIComponent(selected?.description ?? "")}&location=${encodeURIComponent(selected?.location ?? "")}`,
                       ).catch(() =>
                         showToast({
                           type: "info",
                           title: t("calendarTitle"),
-                          message: `"${selected?.title}" ${selected?.date} ${selected?.time}.`,
+                          message: `"${selected?.title}" ${formatDay(lang, selected?.date)} ${selected?.time}.`,
                         }),
                       );
                     }}

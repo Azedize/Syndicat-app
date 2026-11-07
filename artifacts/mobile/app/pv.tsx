@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -74,6 +75,9 @@ const MEETING_TYPE_TO_PV: Record<string, PVType> = {
   ag_constitutive: "ag",
   general: "ag",
   ag_elective: "election",
+  board: "bureau",
+  committee: "commission",
+  emergency: "urgence",
 };
 
 const MEETING_STATUS_TO_PV: Record<string, PVStatus> = {
@@ -138,7 +142,7 @@ function PVScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   // Secretary writes PVs; President signs them. Both need admin-level PV access.
   // super_admin is excluded — they never manage syndicate documents directly.
   const isAdmin =
@@ -208,7 +212,7 @@ function PVScreenInner() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await Share.share({
       title: pv.title,
-      message: `${pv.title}\nDate: ${pv.date}\n\n${t("pvSummaryLabel")}: ${pv.summary}\n\n${t("pvResolutionsLabel")}:\n${pv.resolutions.map((r, i) => `${i + 1}. ${r}`).join("\n")}`,
+      message: `${pv.title}\nDate: ${formatDay(lang, pv.date)}\n\n${t("pvSummaryLabel")}: ${pv.summary}\n\n${t("pvResolutionsLabel")}:\n${pv.resolutions.map((r, i) => `${i + 1}. ${r}`).join("\n")}`,
     });
   };
 
@@ -221,9 +225,9 @@ function PVScreenInner() {
   const MEETING_TYPE_MAP: Record<PVType, string> = {
     ag: "ag_ordinaire",
     election: "ag_elective",
-    bureau: "general",
-    commission: "general",
-    urgence: "general",
+    bureau: "board",
+    commission: "committee",
+    urgence: "emergency",
   };
 
   const handleCreate = async () => {
@@ -397,7 +401,7 @@ function PVScreenInner() {
                       { color: colors.mutedForeground },
                     ]}
                   >
-                    {pv.date}
+                    {formatDay(lang, pv.date)}
                   </Text>
                   <Text
                     style={[
@@ -545,7 +549,7 @@ function PVScreenInner() {
                         <Text
                           style={[styles.pvHeroMetaText, { color: tc.color }]}
                         >
-                          {selectedPV.date}
+                          {formatDay(lang, selectedPV.date)}
                         </Text>
                         <Text
                           style={[styles.pvHeroMetaText, { color: tc.color }]}

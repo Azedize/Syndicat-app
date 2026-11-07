@@ -734,11 +734,11 @@ export class Generator {
     for (let m = 0; m < nMeetings; m++) {
       const past = r.chance(0.7);
       const d = past ? this.past(5, 600) : addDays(this.o.now, r.int(3, 90));
-      const type = r.weighted([["ag_ordinaire", 40], ["ag_extraordinaire", 10], ["general", 40], ["emergency", 10]] as const);
+      const type = r.weighted([["ag_ordinaire", 40], ["ag_extraordinaire", 10], ["board", 40], ["emergency", 10]] as const);
       const status = past ? r.weighted([["completed", 90], ["cancelled", 10]] as const) : "scheduled";
       const id = r.uuid();
       c.meetings.push({ id, date: ymd(d), status, type });
-      b.add("meetings", { id, syndicate_id: c.sid, title: type.startsWith("ag") ? `Assemblée générale ${type === "ag_ordinaire" ? "ordinaire" : "extraordinaire"} ${d.getUTCFullYear()}` : "Réunion du conseil syndical", date: ymd(d), time: `${r.int(17, 20)}:00`, location: r.pick(["Salle commune", "Hall du bâtiment A", "Visioconférence"]), type, description: "Réunion (données de test)", agenda: "1. Approbation des comptes\n2. Budget\n3. Travaux\n4. Questions diverses", status, created_by: c.admin.id, created_at: addDays(d, -r.int(15, 30)) });
+      b.add("meetings", { id, syndicate_id: c.sid, title: type.startsWith("ag") ? `Assemblée générale ${type === "ag_ordinaire" ? "ordinaire" : "extraordinaire"} ${d.getUTCFullYear()}` : type === "emergency" ? "Réunion exceptionnelle du conseil syndical" : "Réunion du conseil syndical", date: ymd(d), time: `${r.int(17, 20)}:00`, location: r.pick(["Salle commune", "Hall du bâtiment A", "Visioconférence"]), type, description: "Réunion (données de test)", agenda: "1. Approbation des comptes\n2. Budget\n3. Travaux\n4. Questions diverses", status, created_by: c.admin.id, created_at: addDays(d, -r.int(15, 30)) });
       if (status === "completed") {
         for (const u of r.sample(c.allUsers.filter((x) => x.role !== "tenant"), Math.min(c.allUsers.length, r.int(3, 15)))) b.add("meeting_attendees", { meeting_id: id, user_id: u.id });
         if (type.startsWith("ag")) {

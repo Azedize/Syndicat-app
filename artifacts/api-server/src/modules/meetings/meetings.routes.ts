@@ -385,7 +385,7 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
       entity: "meeting",
       entityId: id,
       syndicateId: meeting.syndicateId ?? undefined,
-      details: `Présence confirmée par ${user.userId}`,
+      details: "Présence confirmée", // the actor is already stored with the entry
     });
     res.json({ message: "Présence confirmée avec succès" });
   } catch (err) {

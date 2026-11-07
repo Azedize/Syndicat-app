@@ -190,7 +190,7 @@ function formatWorkflowDate(value: string | undefined, lang: "fr" | "en" | "ar" 
 
 export default function WorkflowScreen() {
   const colors = useColors();
-  const { lang, isRTL } = useLanguage();
+  const { t: tr, lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { documents } = useData();
@@ -198,7 +198,8 @@ export default function WorkflowScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const rowDirection = "row";
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // The /workflows API is reserved to the platform super admin (requireSuperAdmin).
+  const isAdmin = user?.role === "super_admin";
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,7 +226,7 @@ export default function WorkflowScreen() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadWorkflows(); }, []);
+  useEffect(() => { if (isAdmin) loadWorkflows(); else setLoading(false); }, [isAdmin]);
 
   const filtered = tab === "all" ? workflows : workflows.filter((w) => w.status === tab);
 
@@ -304,7 +305,7 @@ export default function WorkflowScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color="#fff" />
           </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+          <View style={{ flex: 1, alignItems: "flex-start" }}>
             <Text style={[styles.headerTitle, { textAlign: "auto" }]}>{STRINGS.headerTitle[lang]}</Text>
             <Text style={[styles.headerSub, { textAlign: "auto" }]}>{STRINGS.headerSub[lang]}</Text>
           </View>
@@ -362,7 +363,9 @@ export default function WorkflowScreen() {
         ))}
       </ScrollView>
 
-      {loading ? (
+      {!isAdmin ? (
+        <EmptyState icon="lock" title={STRINGS.headerTitle[lang]} description={tr("accessRestricted")} />
+      ) : loading ? (
         <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} accentColor={colors.primary} />
       ) : error ? (
         <ErrorState
@@ -736,7 +739,7 @@ const styles = StyleSheet.create({
   statBoxCompact: { minWidth: 0 },
   statVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
   statLab: { fontSize: 9, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", textAlign: "center" },
-  tabBar: { flexShrink: 0, borderBottomWidth: 1 },
+  tabBar: { flexGrow: 0, flexShrink: 0, borderBottomWidth: 1 },
   tabContent: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center" },
   tabBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   tabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },

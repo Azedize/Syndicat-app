@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Alert as AppAlert } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
@@ -113,7 +114,7 @@ export default function AlertsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { alerts, markAlertRead, markAllAlertsRead } = useData();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -379,7 +380,7 @@ export default function AlertsScreen() {
                 <View style={styles.notifFooter}>
                   <Feather name="clock" size={10} color={colors.mutedForeground} />
                   <Text style={[styles.notifDate, { color: colors.mutedForeground }]}>
-                    {alert.date}
+                    {formatDay(lang, alert.date)}
                   </Text>
                   <Text style={[styles.notifSep, { color: colors.mutedForeground }]}>·</Text>
                   <Text style={[styles.notifTarget, { color: colors.mutedForeground }]}>
@@ -463,7 +464,7 @@ export default function AlertsScreen() {
                   style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   {[
-                    { label: t("notificationDateLabel"), value: selected.date, icon: "calendar" as const },
+                    { label: t("notificationDateLabel"), value: formatDay(lang, selected.date), icon: "calendar" as const },
                     {
                       label: t("notificationRecipientsLabel"),
                       value:

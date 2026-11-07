@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useRef } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { CONTROL, RADIUS, SPACING } from "@/constants/spacing";
 import { FONT } from "@/constants/typography";
@@ -26,6 +26,7 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const REPEAT_GUARD_MS = 800;
 const HEIGHT: Record<ButtonSize, number> = { sm: CONTROL.SM, md: CONTROL.MD, lg: CONTROL.LG };
 const FONT_SIZE: Record<ButtonSize, number> = { sm: 13, md: 14, lg: 15 };
 
@@ -51,6 +52,9 @@ export default function Button({
 }: ButtonProps) {
   const colors = useColors();
   const inactive = disabled || loading;
+  // `loading` only blocks the button once the parent re-renders: two taps in the
+  // same frame would both submit. Presses closer than this are ignored.
+  const lastPress = useRef(0);
 
   const palette = {
     primary: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary, pressed: colors.primaryStrong },
@@ -65,6 +69,9 @@ export default function Button({
     <Pressable
       onPress={() => {
         if (inactive) return;
+        const now = Date.now();
+        if (now - lastPress.current < REPEAT_GUARD_MS) return;
+        lastPress.current = now;
         if (haptic && Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress?.();
       }}

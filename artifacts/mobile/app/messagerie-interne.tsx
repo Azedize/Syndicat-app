@@ -24,6 +24,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements as announcementsApi, type ApiAnnouncement } from "@/features/community/api";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
@@ -117,7 +118,7 @@ function mapApiAnnouncement(
 
 export default function MessagerieInterneScreen() {
   const colors = useColors();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
@@ -313,7 +314,7 @@ export default function MessagerieInterneScreen() {
               {item.from}
             </Text>
             <Text style={[styles.msgDate, { color: colors.mutedForeground }]}>
-              {item.date}
+              {formatDay(lang, item.date)}
             </Text>
           </View>
           <Text
@@ -581,7 +582,7 @@ export default function MessagerieInterneScreen() {
                           value: `${selected.from} — ${selected.fromRole}`,
                         },
                         { label: t("toLabel"), value: selected.to },
-                        { label: t("dateLabel"), value: selected.date },
+                        { label: t("dateLabel"), value: formatDay(lang, selected.date) },
                       ].map((row, i) => (
                         <View key={row.label}>
                           {i > 0 && (

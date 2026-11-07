@@ -20,6 +20,7 @@ import Modal from "@/components/ui/AppModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -450,7 +451,7 @@ function RegisterView() {
                     <Text style={[styles.payAmount, { color: isDebit ? colors.dangerText : colors.successText }]}>
                       {isDebit ? "-" : "+"}{formatMAD(tx.amount, lang)}
                     </Text>
-                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
+                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{formatDay(lang, tx.date)}</Text>
                   </View>
                 </View>
 
@@ -502,7 +503,7 @@ function RegisterView() {
                   {[
                     { icon: "tag" as const,      label: t("type"),       value: typeLabel },
                     { icon: "hash" as const,     label: t("reference"), value: formatRef(tx.id) },
-                    { icon: "calendar" as const, label: t("date"),       value: tx.date },
+                    { icon: "calendar" as const, label: t("date"),       value: formatDay(lang, tx.date) },
                     ...(tx.member ? [{ icon: "user" as const, label: t("member"), value: tx.member }] : []),
                   ].map(({ icon, label, value }, i) => (
                     <View key={label}>
@@ -540,7 +541,7 @@ function RegisterView() {
                         `${t("type")} : ${TYPE_LABELS[tx.type] ?? tx.type}\n` +
                         `${t("label")} : ${tx.label}\n` +
                         `${t("amount")} : ${formatMAD(tx.amount, lang)}\n` +
-                        `${t("date")} : ${tx.date}`;
+                        `${t("date")} : ${formatDay(lang, tx.date)}`;
                       shareContent(details, `${t("transactionLabel")} ${formatRef(tx.id)}`);
                     }}
                   >
@@ -750,7 +751,7 @@ function MyPaymentsView() {
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <Text style={[styles.payAmount, { color: colors.foreground }]}>{formatMAD(Number(p.amount), lang)}</Text>
-                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{String(p.declaredAt).slice(0, 10)}</Text>
+                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{formatDay(lang, String(p.declaredAt))}</Text>
                   </View>
                 </View>
                 {p.status === "validated" && p.receiptNumber ? (

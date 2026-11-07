@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useColors } from "@/hooks/useColors";
 import { organizations as orgApi, type CondominiumStatus, type MoneyByCurrency, type Portfolio, type PortfolioRow, type TeamRole } from "@/features/organizations/api";
 import ScreenHeader from "@/components/ScreenHeader";
@@ -70,6 +71,30 @@ const S = {
   noAssignment: { fr: "Aucune affectation.", en: "No assignment.", ar: "لا توجد تكليفات.", es: "Sin asignaciones." },
   drillOutstanding: { fr: "Impayés", en: "Unpaid", ar: "غير المدفوع", es: "Impagos" },
   drillIncidents: { fr: "Incidents", en: "Incidents", ar: "الحوادث", es: "Incidencias" },
+  kind_ticket: { fr: "Réclamation", en: "Ticket", ar: "شكاية", es: "Reclamación" },
+  kind_sinistre: { fr: "Sinistre", en: "Claim", ar: "حادث", es: "Siniestro" },
+  kind_travaux: { fr: "Travaux", en: "Works", ar: "أشغال", es: "Obras" },
+  type_charges_courantes: { fr: "Charges courantes", en: "Current charges", ar: "التكاليف الجارية", es: "Gastos corrientes" },
+  type_fonds_travaux: { fr: "Fonds de travaux", en: "Works fund", ar: "صندوق الأشغال", es: "Fondo de obras" },
+  type_ascenseur: { fr: "Ascenseur", en: "Elevator", ar: "المصعد", es: "Ascensor" },
+  type_degat_eau: { fr: "Dégât des eaux", en: "Water damage", ar: "تسرب المياه", es: "Daños por agua" },
+  type_degat_eaux: { fr: "Dégât des eaux", en: "Water damage", ar: "تسرب المياه", es: "Daños por agua" },
+  type_dommage_commun: { fr: "Dommage aux parties communes", en: "Common-area damage", ar: "ضرر بالأجزاء المشتركة", es: "Daño en zonas comunes" },
+  type_incendie: { fr: "Incendie", en: "Fire", ar: "حريق", es: "Incendio" },
+  type_vandalisme: { fr: "Vandalisme", en: "Vandalism", ar: "تخريب", es: "Vandalismo" },
+  type_vol: { fr: "Vol", en: "Theft", ar: "سرقة", es: "Robo" },
+  type_autre: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
+  st_overdue: { fr: "En retard", en: "Overdue", ar: "متأخر", es: "Vencido" },
+  st_partially_paid: { fr: "Partiellement payé", en: "Partially paid", ar: "مدفوع جزئيا", es: "Pagado parcialmente" },
+  st_pending_validation: { fr: "En attente de validation", en: "Awaiting validation", ar: "في انتظار المصادقة", es: "Pendiente de validación" },
+  st_pending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
+  st_open: { fr: "Ouvert", en: "Open", ar: "مفتوح", es: "Abierto" },
+  st_in_progress: { fr: "En cours", en: "In progress", ar: "قيد المعالجة", es: "En curso" },
+  st_declared: { fr: "Déclaré", en: "Reported", ar: "مصرح به", es: "Declarado" },
+  st_expert: { fr: "Chez l'expert", en: "With the assessor", ar: "لدى الخبير", es: "En peritaje" },
+  st_repair: { fr: "En réparation", en: "Under repair", ar: "قيد الإصلاح", es: "En reparación" },
+  st_reported: { fr: "Signalé", en: "Reported", ar: "مبلغ عنه", es: "Notificado" },
+  st_assigned: { fr: "Attribué", en: "Assigned", ar: "مسند", es: "Asignado" },
   nothing: { fr: "Rien à afficher.", en: "Nothing to show.", ar: "لا شيء.", es: "Nada." },
   lot: { fr: "Lot", en: "Unit", ar: "الوحدة", es: "Unidad" },
   draft: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" },
@@ -329,6 +354,12 @@ function TeamSheet({ condo, onClose, tr, lang }: { condo: PortfolioRow | null; o
 
 function DrillSheet({ drill, orgId, onClose, tr }: { drill: { condo: PortfolioRow; kind: "outstanding" | "incidents" } | null; orgId: string; onClose: () => void; tr: T }) {
   const colors = useColors();
+  const { lang: L } = useLanguage();
+  // Server codes (status, kind, type) shown in the reader's language; an unknown code stays as is.
+  const code = (prefix: "kind_" | "type_" | "st_", v: string | null | undefined) => {
+    const k = `${prefix}${v ?? ""}` as keyof typeof S;
+    return k in S ? tr(k) : String(v ?? "");
+  };
   const [rows, setRows] = useState<any[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -363,16 +394,16 @@ function DrillSheet({ drill, orgId, onClose, tr }: { drill: { condo: PortfolioRo
                   {tr("lot")} {r.lot_number} · {Number(r.remaining).toFixed(2)} {drill.condo.currency}
                 </Text>
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                  {r.period} · {r.type} · {r.status}
+                  {r.period} · {code("type_", r.type)} · {code("st_", r.status)}
                   {r.owner_name ? ` · ${r.owner_name}` : ""}
-                  {r.due_date ? ` · ${String(r.due_date).slice(0, 10)}` : ""}
+                  {r.due_date ? ` · ${formatDay(L, String(r.due_date))}` : ""}
                 </Text>
               </>
             ) : (
               <>
                 <Text style={[styles.name, { color: colors.foreground }]}>{r.label}</Text>
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                  {r.kind} · {r.status} · {String(r.created_at).slice(0, 10)}
+                  {code("kind_", r.kind)}{r.sub ? ` · ${code("type_", r.sub)}` : ""} · {code("st_", r.status)} · {formatDay(L, String(r.created_at))}
                 </Text>
               </>
             )}

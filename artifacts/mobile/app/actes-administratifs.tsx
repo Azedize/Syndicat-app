@@ -28,6 +28,7 @@ import { ticketedUrl } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { localDate } from "@/lib/localDate";
 
@@ -141,7 +142,7 @@ function ActesAdministratifsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
@@ -650,14 +651,14 @@ function ActesAdministratifsScreenInner() {
                         { color: colors.mutedForeground },
                       ]}
                     >
-                      {acte.date}
+                      {formatDay(lang, acte.date)}
                     </Text>
                   </View>
                   {acte.dateEcheance ? (
                     <View style={styles.acteMeta}>
                       <Feather name="clock" size={11} color={colors.danger} />
                       <Text style={[styles.acteMetaText, { color: colors.danger }]}>
-                        {t("actsDueDate")}: {acte.dateEcheance}
+                        {t("actsDueDate")}: {formatDay(lang, acte.dateEcheance)}
                       </Text>
                     </View>
                   ) : null}
@@ -704,7 +705,7 @@ function ActesAdministratifsScreenInner() {
                       onPress={() =>
                         Share.share({
                           title: selected.titre,
-                          message: `${selected.titre}\n\n${t("actsReferenceShort")}: ${selected.numero}\n${t("dateLabel")}: ${selected.date}\n\n${selected.resumeContenu ?? ""}`,
+                          message: `${selected.titre}\n\n${t("actsReferenceShort")}: ${selected.numero}\n${t("dateLabel")}: ${formatDay(lang, selected.date)}\n\n${selected.resumeContenu ?? ""}`,
                         })
                       }
                     >
@@ -794,9 +795,9 @@ function ActesAdministratifsScreenInner() {
                         {
                           label: t("dateLabel"),
                           value:
-                            selected.date +
+                            formatDay(lang, selected.date) +
                             (selected.dateEcheance
-                              ? ` · ${t("actsDueDate")}: ${selected.dateEcheance}`
+                              ? ` · ${t("actsDueDate")}: ${formatDay(lang, selected.dateEcheance)}`
                               : ""),
                           icon: "calendar" as const,
                         },
@@ -1060,7 +1061,7 @@ function ActesAdministratifsScreenInner() {
                         onPress={() =>
                           Share.share({
                             title: selected.titre,
-                            message: `${selected.titre}\n\n${t("actsReferenceShort")}: ${selected.numero} — ${selected.date}\n${selected.resumeContenu ?? ""}`,
+                            message: `${selected.titre}\n\n${t("actsReferenceShort")}: ${selected.numero} — ${formatDay(lang, selected.date)}\n${selected.resumeContenu ?? ""}`,
                           })
                         }
                       >
