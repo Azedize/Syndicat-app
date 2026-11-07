@@ -251,6 +251,33 @@ export const NOTIFICATIONS = {
     link: "/governance",
     roles: GOVERNANCE,
   },
+  // Organizational structure (committees: internal bodies, no legal power).
+  "org.structureActivated": {
+    title: { fr: "Organisation de la copropriété", en: "Organization of the condominium", ar: "تنظيم الملكية المشتركة", es: "Organización de la comunidad" },
+    message: { fr: "L'organisation de la copropriété a été mise à jour (version {version}).", en: "The organization of the condominium was updated (version {version}).", ar: "تم تحديث تنظيم الملكية المشتركة (الإصدار {version}).", es: "La organización de la comunidad se ha actualizado (versión {version})." },
+    link: "/organization",
+  },
+  "org.assigned": {
+    title: { fr: "Nouvelle fonction", en: "New position", ar: "مهمة جديدة", es: "Nueva función" },
+    message: { fr: "Vous êtes désigné(e) « {position} » — {component}.", en: "You are appointed « {position} » — {component}.", ar: "تم تعيينك «{position}» — {component}.", es: "Ha sido designado/a «{position}» — {component}." },
+    link: "/organization",
+  },
+  "org.assignmentEnded": {
+    title: { fr: "Fin de fonction", en: "Position ended", ar: "انتهاء المهمة", es: "Fin de función" },
+    message: { fr: "Votre fonction « {position} » — {component} a pris fin.", en: "Your position « {position} » — {component} has ended.", ar: "انتهت مهمتك «{position}» — {component}.", es: "Su función «{position}» — {component} ha terminado." },
+    link: "/organization",
+  },
+  "org.componentClosed": {
+    title: { fr: "Comité clos", en: "Committee closed", ar: "إغلاق اللجنة", es: "Comité cerrado" },
+    message: { fr: "« {component} » a été clos. Son historique est conservé.", en: "« {component} » was closed. Its history is kept.", ar: "تم إغلاق «{component}». تم الاحتفاظ بسجله.", es: "« {component} » se ha cerrado. Su historial se conserva." },
+    link: "/organization",
+  },
+  "org.recommendation": {
+    title: { fr: "Recommandation d'un comité", en: "Committee recommendation", ar: "توصية من لجنة", es: "Recomendación de un comité" },
+    message: { fr: "{component} vous adresse une recommandation : « {title} ». La décision vous revient.", en: "{component} sends you a recommendation: « {title} ». The decision is yours.", ar: "توجه إليك {component} توصية: «{title}». القرار لك.", es: "{component} le envía una recomendación: «{title}». La decisión es suya." },
+    link: "/organization",
+    roles: SYNDIC,
+  },
   // Official resignations (Loi 18-00, art. 26 ter, 27, 27 ter): every co-owner is informed.
   "resignation.syndic": {
     title: { fr: "Démission du syndic", en: "The syndic has resigned", ar: "استقالة السنديك", es: "Dimisión del administrador" },

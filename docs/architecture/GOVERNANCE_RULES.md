@@ -90,3 +90,48 @@ L'ancienne démission « en un clic » et la révocation administrative restent 
 - `0020_election_rules_resignations` : ajoute des colonnes à `elections`, `votes` et `candidates`, et crée la table `mandate_resignations`. Les élections existantes gardent leur comportement : un choix par bulletin, une voix par électeur, premier tour.
 
 Les deux migrations sont additives. Les instructions pour les annuler figurent en commentaire dans chaque fichier SQL. Elles sont appliquées à `syndycat_test` ; elles ne sont **pas** appliquées à `syndycat_global_cps`.
+
+## 7. Organisation de la copropriété (migration 0021)
+
+La recherche juridique et le comparatif sont dans `docs/research/SYNDICATE_STRUCTURE_BENCHMARK.md`.
+
+### Modèle
+
+`org_structures` (une par copropriété, brouillon puis active) → `org_components` (organes légaux, comités, composantes personnalisées) → `org_positions` (intitulé, responsabilités, droits) → `org_assignments` (personne, titulaire ou suppléant, dates, motif de fin, remplacement, décision d'assemblée).
+
+À côté :
+- `org_tasks` : tâches, recommandations au syndic avec sa réponse, rapports ;
+- `org_structure_versions` : un instantané à chaque activation, avec la décision d'assemblée qui l'a motivée ;
+- le journal d'audit : actions `ORG_*`.
+
+Une affectation **ne modifie jamais** `users.role`.
+
+### Rôles et responsabilités
+
+| Composante | Nature | Titulaires désignés par | Peut être supprimée ou close ici |
+|---|---|---|---|
+| Assemblée générale | légale | tous les copropriétaires | non |
+| Syndic | légale | l'assemblée (élection de type `syndic`) | non |
+| Syndic adjoint | légale | l'assemblée (élection de type `vice_syndic`) | non |
+| Président et secrétaire de séance | légale, liée à la réunion | l'assemblée, à chaque réunion | — (affichés, pas d'affectation) |
+| Conseil syndical | légale pour un ensemble immobilier à plusieurs syndicats seulement | — | oui (comité) |
+| Comités financier, technique, sécurité, communication, vie sociale, espaces verts, juridique, audit, stationnement, référents d'immeuble, personnalisés | internes | le syndic gestionnaire (règle **à confirmer**) | close à tout moment ; suppression seulement si jamais utilisée |
+
+### Droits
+
+| Action | Syndic gestionnaire | Responsable de comité (par défaut) | Membre de comité (par défaut) | Résident |
+|---|---|---|---|---|
+| Créer, modifier, activer l'organisation | ✔ | ✘ | ✘ | ✘ |
+| Créer un comité, un poste ; affecter, remplacer, clore | ✔ | ✘ | ✘ | ✘ |
+| Voir l'organisation active | ✔ | ✔ | ✔ | ✔ (selon la visibilité de chaque comité) |
+| Voir les tâches du comité (`tasks.view`) | ✔ | ✔ | ✔ | ✘ |
+| Créer et confier des tâches (`tasks.manage`) | ✔ | ✔ | ✘ | ✘ |
+| Recommander au syndic (`recommendations.create`) | ✔ | ✔ | ✔ | ✘ |
+| Rapport d'activité (`reports.create`) | ✔ | ✔ | ✘ | ✘ |
+| Consulter les finances ou les incidents (`finance.view`, `maintenance.view`) | ✔ | selon le comité | selon le comité | ✘ |
+| Décider d'une recommandation | ✔ | ✘ | ✘ | ✘ |
+| Approuver une dépense, payer, publier une décision officielle, convoquer l'assemblée | selon son rôle légal (inchangé) | **jamais par le comité** | **jamais par le comité** | ✘ |
+
+Les droits d'un poste sont choisis dans la liste fermée de `org.catalog.ts`. Tout pouvoir réservé est refusé (`RESERVED_POWER`). Un intitulé « syndic » ou « syndic adjoint » est aussi refusé pour un poste de comité (`LEGAL_TITLE`).
+
+Ces droits n'ouvrent que l'espace du comité. Leur usage dans d'autres écrans (par exemple, permettre au comité communication de publier une annonce) n'est **pas** branché : c'est une décision métier.

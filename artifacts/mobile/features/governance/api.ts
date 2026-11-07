@@ -218,3 +218,55 @@ export const meetings = {
     });
   },
 };
+
+// ─── Organizational structure (statutory bodies, internal committees) ─────────
+
+export interface OrgAssignment { id: string; userId: string; userName: string; kind: "holder" | "substitute"; startDate: string; endDate: string | null; status: "active" | "ended"; endReason: string | null }
+export interface OrgPosition { id: string; title: string; description: string | null; responsibilities: string[]; permissions: string[]; isLeader: boolean; maxHolders: number | null; status: string; assignments: OrgAssignment[] }
+export interface OrgComponent {
+  id: string;
+  category: "statutory" | "committee" | "custom";
+  type: string;
+  name: string;
+  description: string | null;
+  objectives: string | null;
+  responsibilities: string[];
+  status: "active" | "inactive" | "closed";
+  visibility: "members" | "team" | "component";
+  reportingFrequency: string | null;
+  legalStatus: "statutory" | "conditional" | "internal";
+  legalBasis: string | null;
+  mine: boolean;
+  closeReason: string | null;
+  positions: OrgPosition[];
+}
+export interface OrgStructureResponse {
+  data: null | { id: string; status: "draft" | "active"; version: number; template: string | null; components: OrgComponent[] };
+  facts: { buildings: number; lots: number; residents: number; floors: number };
+  statutoryHolders: { id: string; role: string; name: string; mandateStart: string | null; mandateEnd: string | null }[];
+  canManage: boolean;
+  review: null | { errors: { code: string; message: string }[]; warnings: { code: string; message: string }[] };
+}
+export interface OrgRecommendation { type: string; strength: "statutory" | "consider"; reasons: string[] }
+
+export const organization = {
+  structure: () => request<OrgStructureResponse>("/org/structure"),
+  catalog: () => request<{ data: { types: { type: string; category: string; legalStatus: string; legalBasis?: string }[]; capabilities: string[] } }>("/org/catalog"),
+  recommend: (profile: Record<string, unknown>) => request<{ data: { template: "small" | "medium" | "large"; items: OrgRecommendation[] } }>("/org/recommendations", { method: "POST", body: JSON.stringify(profile) }),
+  create: (template: string, profile: Record<string, unknown>, components?: string[]) => request<{ data: { id: string } }>("/org/structure", { method: "POST", body: JSON.stringify({ template, profile, components }) }),
+  activate: (reason?: string) => request<{ data: { version: number; warnings: unknown[] } }>("/org/structure/activate", { method: "POST", body: JSON.stringify({ reason }) }),
+  addComponent: (type: string, data: Record<string, unknown> = {}) => request<{ data: OrgComponent }>("/org/components", { method: "POST", body: JSON.stringify({ type, ...data }) }),
+  updateComponent: (id: string, data: Record<string, unknown>) => request<{ data: OrgComponent }>(`/org/components/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  removeComponent: (id: string) => request<{ data: { id: string } }>(`/org/components/${id}`, { method: "DELETE" }),
+  closeComponent: (id: string, reason: string) => request<{ data: unknown }>(`/org/components/${id}/close`, { method: "POST", body: JSON.stringify({ reason }) }),
+  addPosition: (componentId: string, data: { title: string; permissions?: string[]; isLeader?: boolean }) => request<{ data: OrgPosition }>(`/org/components/${componentId}/positions`, { method: "POST", body: JSON.stringify(data) }),
+  people: () => request<{ data: { id: string; name: string; role: string }[] }>("/org/people"),
+  assign: (positionId: string, userId: string, kind: "holder" | "substitute" = "holder") => request<{ data: OrgAssignment }>(`/org/positions/${positionId}/assignments`, { method: "POST", body: JSON.stringify({ userId, kind }) }),
+  endAssignment: (id: string, reason: string) => request<{ data: unknown }>(`/org/assignments/${id}/end`, { method: "POST", body: JSON.stringify({ reason }) }),
+  replace: (id: string, userId: string, reason: string) => request<{ data: unknown }>(`/org/assignments/${id}/replace`, { method: "POST", body: JSON.stringify({ userId, reason }) }),
+  workspace: (componentId: string) => request<{ data: { capabilities: string[]; leader: boolean; tasks: { id: string; kind: string; title: string; status: string; syndicResponse: string | null }[]; finance: any; maintenance: any } }>(`/org/components/${componentId}/workspace`),
+  addTask: (componentId: string, data: { kind: "task" | "recommendation" | "report"; title: string; description?: string }) => request<{ data: unknown }>(`/org/components/${componentId}/tasks`, { method: "POST", body: JSON.stringify(data) }),
+  updateTask: (id: string, status: string) => request<{ data: unknown }>(`/org/tasks/${id}`, { method: "PUT", body: JSON.stringify({ status }) }),
+  respond: (id: string, response: "accepted" | "declined", note?: string) => request<{ data: unknown }>(`/org/tasks/${id}/respond`, { method: "POST", body: JSON.stringify({ response, note }) }),
+  history: () => request<{ data: { versions: { id: string; version: number; reason: string | null; createdAt: string }[]; events: { action: string; details: string | null; userName: string | null; createdAt: string }[] } }>("/org/structure/history"),
+};

@@ -2127,3 +2127,21 @@ Détail et points juridiques à valider : `docs/architecture/GOVERNANCE_RULES.md
 - **Tests :** nouvelles suites `election-rules` (27/27, unitaire) et `governance-rules` (46/46, de bout en bout). `password-reset` passe à 33/33 et `election-audit` à 33/34 (S7, élection d'urgence, non décidée). Non-régression : 48 suites sur 49.
 - **Non vérifié :** les nouveaux écrans n'ont été essayés ni sur émulateur ni sur téléphone.
 - **Identifiant de l'application :** analyse seulement, rien n'a été changé. Le changement suppose de nouvelles applications Firebase et la vérification de la disponibilité du nom sur Google Play et l'App Store.
+
+## 2026-11-07 — Organisation configurable de la copropriété
+
+Détail : `docs/architecture/GOVERNANCE_RULES.md` § 7 et `docs/research/SYNDICATE_STRUCTURE_BENCHMARK.md`.
+
+- **Recherche :** le texte officiel de la loi 18-00 modifiée par la loi 106-12 a été analysé. Le comparatif des applications concurrentes est limité, faute de documentation publique sur leurs comités et leurs droits. La loi 30-24, signalée par la presse, ne semble pas promulguée : à vérifier au Bulletin officiel.
+- **Migration 0021 :** 6 tables additives (`org_*`), appliquées à `syndycat_test`.
+- **API `/org/*` :**
+  - catalogue, recommandations expliquées, structure (création depuis un modèle, activation avec version et instantané, historique) ;
+  - comités, postes, affectations (remplacement, fin) ;
+  - espace de comité (tâches, recommandations, rapports, consultation des finances et des incidents).
+  - Organes légaux protégés ; pouvoirs réservés refusés ; isolation par copropriété ; tout est inscrit au journal d'audit.
+- **Mobile :**
+  - `app/organization.tsx` (tableau de bord et fiche de comité) et `app/organization-wizard.tsx` (assistant en 6 étapes) ;
+  - l'onglet « Commissions » de `governance.tsx`, jusqu'ici une liste vide figée, affiche maintenant les vrais comités ;
+  - une entrée de menu pour tous les rôles ; 136 textes en FR, EN, AR et ES.
+- **Tests :** `org-structure` 53/53, de bout en bout (scénarios 1 à 9, 11 et 12). Tests statiques mobiles : contrat API 535/535, règles natives, RTL, contrastes, routes.
+- **Non vérifié :** les écrans n'ont été essayés ni sur émulateur ni sur téléphone, dont le scénario 10 (arabe et mode sombre).

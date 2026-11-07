@@ -22,6 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { organization as orgApi } from "@/features/governance/api";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
@@ -71,7 +72,8 @@ function GovernanceScreenInner() {
   const { t } = useLanguage();
   const [tab, setTab] = useState<TabType>("organigramme");
   const [bureau, setBureau] = useState<BureauMember[]>([]);
-  const [commissions] = useState<Commission[]>([]);
+  // Committees of the organization module (they used to be an empty placeholder list).
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [mandats, setMandats] = useState<Mandat[]>([]);
   const [nomineeInput, setNomineeInput] = useState("");
   const [delegations, setDelegations] = useState<Delegation[]>([]);
@@ -105,6 +107,19 @@ function GovernanceScreenInner() {
       setBureau(bureauResult.data ?? []);
       setMandats(mandateResult.data ?? []);
       setDelegations(delegationResult.data ?? []);
+      const org = await orgApi.structure().catch(() => null);
+      setCommissions(
+        (org?.data?.components ?? [])
+          .filter((c) => c.category !== "statutory" && c.status !== "closed")
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            members: new Set(c.positions.flatMap((p) => p.assignments.filter((a) => a.status === "active").map((a) => a.userId))).size,
+            status: c.status === "active" ? "active" : "inactive",
+            chair: c.positions.find((p) => p.isLeader)?.assignments.find((a) => a.status === "active")?.userName ?? "—",
+            nextMeeting: "—",
+          })),
+      );
     } catch {
       setLoadError(true);
     } finally {
@@ -304,12 +319,15 @@ function GovernanceScreenInner() {
               <Text style={[styles.commHeaderText, { color: colors.tint }]}>
                 {commissions.filter((c) => c.status === "active").length} {t("governanceActiveCommissions")}
               </Text>
+              <TouchableOpacity onPress={() => router.push("/organization" as any)} accessibilityRole="link" style={{ marginStart: "auto" }}>
+                <Text style={[styles.commHeaderText, { color: colors.tint, textDecorationLine: "underline" }]}>{t("orgGovernanceOpen")}</Text>
+              </TouchableOpacity>
             </View>
           }
           renderItem={({ item: c }) => (
             <TouchableOpacity
               style={[styles.commCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => { setSelectedCommission(c); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/organization" as any); }}
               activeOpacity={0.8}
             >
               <View style={[styles.commIcon, { backgroundColor: colors.primary + "15" }]}>
@@ -323,10 +341,12 @@ function GovernanceScreenInner() {
                   <Text style={[styles.commMetaDot, { color: colors.mutedForeground }]}>•</Text>
                   <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceChairPrefix")}: {c.chair.split(" ")[0]}</Text>
                 </View>
-                <View style={styles.commMeta}>
-                  <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceNextMeeting")}: {c.nextMeeting}</Text>
-                </View>
+                {c.nextMeeting !== "—" ? (
+                  <View style={styles.commMeta}>
+                    <Feather name="calendar" size={11} color={colors.mutedForeground} />
+                    <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceNextMeeting")}: {c.nextMeeting}</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <View style={[styles.commStatus, { backgroundColor: c.status === "active" ? colors.success + "15" : colors.muted }]}>

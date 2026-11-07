@@ -3533,3 +3533,135 @@ export const appelRemindersTable = pgTable(
     check("appel_reminders_kind_chk", sql`${t.kind} IN ('overdue', 'manual')`),
   ],
 );
+
+// ─── Organizational structure (migration 0021) ───────────────────────────────
+// Statutory bodies, optional internal committees and custom components of a
+// condominium, their positions and assigned members. An assignment never
+// changes users.role: committee permissions only open the committee workspace.
+
+export const orgStructuresTable = pgTable(
+  "org_structures",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    // draft | active
+    status: text("status").notNull().default("draft"),
+    template: text("template"),
+    profile: jsonb("profile").notNull().default({}),
+    version: integer("version").notNull().default(0),
+    activatedAt: timestamp("activated_at"),
+    activatedBy: text("activated_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("org_structures_syndicate_idx").on(t.syndicateId)],
+);
+
+export const orgStructureVersionsTable = pgTable("org_structure_versions", {
+  id: id(),
+  structureId: text("structure_id").notNull().references(() => orgStructuresTable.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  snapshot: jsonb("snapshot").notNull(),
+  reason: text("reason"),
+  decisionMeetingId: text("decision_meeting_id").references(() => meetingsTable.id, { onDelete: "set null" }),
+  createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+export const orgComponentsTable = pgTable(
+  "org_components",
+  {
+    id: id(),
+    structureId: text("structure_id").notNull().references(() => orgStructuresTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    // statutory | committee | custom
+    category: text("category").notNull(),
+    type: text("type").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    objectives: text("objectives"),
+    responsibilities: text("responsibilities").array().notNull().default(sql`'{}'::text[]`),
+    // active | inactive | closed
+    status: text("status").notNull().default("active"),
+    reportingFrequency: text("reporting_frequency"),
+    // members | team | component
+    visibility: text("visibility").notNull().default("members"),
+    startsOn: date("starts_on"),
+    endsOn: date("ends_on"),
+    closeReason: text("close_reason"),
+    closedAt: timestamp("closed_at"),
+    decisionMeetingId: text("decision_meeting_id").references(() => meetingsTable.id, { onDelete: "set null" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("org_components_structure_idx").on(t.structureId), index("org_components_syndicate_idx").on(t.syndicateId)],
+);
+
+export const orgPositionsTable = pgTable(
+  "org_positions",
+  {
+    id: id(),
+    componentId: text("component_id").notNull().references(() => orgComponentsTable.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    responsibilities: text("responsibilities").array().notNull().default(sql`'{}'::text[]`),
+    permissions: text("permissions").array().notNull().default(sql`'{}'::text[]`),
+    scope: text("scope"),
+    isLeader: boolean("is_leader").notNull().default(false),
+    maxHolders: integer("max_holders"),
+    // active | inactive
+    status: text("status").notNull().default("active"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("org_positions_component_idx").on(t.componentId)],
+);
+
+export const orgAssignmentsTable = pgTable(
+  "org_assignments",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    componentId: text("component_id").notNull().references(() => orgComponentsTable.id, { onDelete: "cascade" }),
+    positionId: text("position_id").notNull().references(() => orgPositionsTable.id, { onDelete: "restrict" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+    // holder | substitute
+    kind: text("kind").notNull().default("holder"),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"),
+    // active | ended
+    status: text("status").notNull().default("active"),
+    endReason: text("end_reason"),
+    replacedBy: text("replaced_by"),
+    decisionMeetingId: text("decision_meeting_id").references(() => meetingsTable.id, { onDelete: "set null" }),
+    decisionDocumentId: text("decision_document_id").references(() => documentsTable.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("org_assignments_component_idx").on(t.componentId), index("org_assignments_user_idx").on(t.userId)],
+);
+
+export const orgTasksTable = pgTable(
+  "org_tasks",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    componentId: text("component_id").notNull().references(() => orgComponentsTable.id, { onDelete: "cascade" }),
+    // task | recommendation | report
+    kind: text("kind").notNull().default("task"),
+    title: text("title").notNull(),
+    description: text("description"),
+    // open | in_progress | done | cancelled
+    status: text("status").notNull().default("open"),
+    assigneeUserId: text("assignee_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    dueDate: date("due_date"),
+    // accepted | declined: the syndic's decision on a recommendation
+    syndicResponse: text("syndic_response"),
+    syndicResponseNote: text("syndic_response_note"),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("org_tasks_component_idx").on(t.componentId)],
+);

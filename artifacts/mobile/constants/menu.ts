@@ -138,6 +138,7 @@ export const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "agendaMenu",           icon: "calendar",     route: "/agenda",              color: "#13976C", roles: ["syndicate_admin", "president", "secretary", "committee_member", "treasurer", "member"] },
       { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#1F5EFF", roles: ["syndicate_admin", "president", "secretary"] },
       { labelKey: "governance",           icon: "award",        route: "/governance",          color: "#8b5cf6", roles: ["syndicate_admin", "president", "secretary", "committee_member"] },
+      { labelKey: "orgStructureTitle",    icon: "git-branch",   route: "/organization",        color: "#0EA5E9", roles: ["syndicate_admin", "president", "treasurer", "secretary", "committee_member", "member", "tenant"] },
       { labelKey: "organigramme",         icon: "git-merge",    route: "/organigramme",        color: "#7C3AED", roles: ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"] },
     ],
   },

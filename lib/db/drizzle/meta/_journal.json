@@ -148,6 +148,13 @@
       "when": 1792966187433,
       "tag": "0020_election_rules_resignations",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793052587433,
+      "tag": "0021_org_structure",
+      "breakpoints": true
     }
   ]
 }
