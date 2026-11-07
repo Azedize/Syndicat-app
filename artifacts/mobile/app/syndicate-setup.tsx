@@ -145,7 +145,7 @@ function validateRegNumber(v: string): string | null {
 
 function validateFoundingDate(v: string): string | null {
   if (!v.trim()) return "setupValidationRequired";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return "setupValidationDate";
+  if (!isValidYmd(v)) return "setupValidationDate";
   return null;
 }
 

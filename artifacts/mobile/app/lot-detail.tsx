@@ -99,7 +99,6 @@ const S = {
   required: { fr: "Champs obligatoires manquants ou invalides.", en: "Missing or invalid fields.", ar: "حقول ناقصة أو غير صالحة.", es: "Campos obligatorios inválidos." },
 } as const;
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function LotDetailInner() {
   const colors = useColors();

@@ -315,7 +315,6 @@ function ElectionsScreenInner() {
   const [invalidVotesDraft, setInvalidVotesDraft] = useState("");
   const [showDelegatePicker, setShowDelegatePicker] = useState(false);
 
-  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const ELECTION_TYPES = [
     { value: "syndic", key: "electionTypeSyndic" },
     { value: "vice_syndic", key: "electionTypeViceSyndic" },
