@@ -32,6 +32,7 @@ import { syndicates as syndicatesApi } from "@/features/organizations/api";
 import { apiRequest } from "@/lib/api";
 import { localDate } from "@/lib/localDate";
 
+import { isValidYmd } from "@/lib/dateInput";
 const TOTAL_STEPS = 4;
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
 const STEP_LABEL_KEYS = ["setupStepIdentity", "setupStepContact", "setupStepLegal", "setupStepConfig"] as const;

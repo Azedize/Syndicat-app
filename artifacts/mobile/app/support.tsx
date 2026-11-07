@@ -29,6 +29,7 @@ import { Avatar, Button, Card, Chip, ListItem, SheetHeader, Skeleton, StatusBadg
 import { TYPE } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 
+import { ToastContainer } from "@/components/ToastContainer";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Filter = "all" | "open" | "in_progress" | "resolved";
@@ -469,6 +470,7 @@ export default function SupportScreen() {
             </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
+        <ToastContainer />
       </Modal>
 
       {/* ── New ticket ── */}
@@ -515,6 +517,7 @@ export default function SupportScreen() {
             />
           </KeyboardAwareScrollViewCompat>
         </KeyboardAvoidingView>
+        <ToastContainer />
       </Modal>
     </View>
   );

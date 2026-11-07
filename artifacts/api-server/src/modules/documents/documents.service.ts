@@ -311,7 +311,7 @@ export async function getMeetingData(
   const resolutionsText = resolutions
     .map(
       (r) =>
-        `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
+        `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "adopted" || r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
         (r.tantiemesFor
           ? ` — Pour: ${r.tantiemesFor} / Contre: ${r.tantiemesAgainst} / Abs.: ${r.tantiemesAbstain}`
           : ""),

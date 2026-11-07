@@ -41,6 +41,7 @@ import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
+import { ToastContainer } from "@/components/ToastContainer";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PlatformCat = "bug" | "feature" | "acces" | "formation" | "autre";
@@ -828,6 +829,7 @@ function PlatformSupportScreen() {
             </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
+        <ToastContainer />
       </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -965,6 +967,7 @@ function PlatformSupportScreen() {
             </TouchableOpacity>
           </KeyboardAwareScrollViewCompat>
         </KeyboardAvoidingView>
+        <ToastContainer />
       </Modal>
     </View>
   );

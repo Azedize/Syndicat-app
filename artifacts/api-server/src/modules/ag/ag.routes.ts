@@ -127,6 +127,14 @@ router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
       resolutionsByMeeting.set(r.meetingId, list);
     }
 
+    // Who drew up each meeting (shown as the author of its minutes).
+    const authorIds = [...new Set(rows.map((m) => m.createdBy).filter((x): x is string => !!x))];
+    const authorNames = new Map(
+      authorIds.length
+        ? (await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, authorIds))).map((u) => [u.id, u.name])
+        : [],
+    );
+
     const enriched = rows.map((m) => {
       const attendees = attendeesByMeeting.get(m.id) ?? [];
       const resolutions = resolutionsByMeeting.get(m.id) ?? [];
@@ -139,6 +147,7 @@ router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
       ).length;
       return {
         ...m,
+        createdByName: m.createdBy ? (authorNames.get(m.createdBy) ?? null) : null,
         attendeesCount: attendees.length,
         userAttending,
         resolutionsCount: resolutions.length,

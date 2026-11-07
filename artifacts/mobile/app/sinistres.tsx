@@ -21,6 +21,7 @@ import { TYPE } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 import { localDate } from "@/lib/localDate";
 
+import { isValidYmd } from "@/lib/dateInput";
 type FeatherName = keyof typeof Feather.glyphMap;
 
 const TYPE_CONFIG: Record<string, { label: string; icon: FeatherName; tone: StatusTone }> = {
@@ -141,7 +142,7 @@ function SinistresScreenInner() {
     setShowModal(true);
   };
 
-  const dateValid = /^\d{4}-\d{2}-\d{2}$/.test(form.date) && !Number.isNaN(new Date(form.date).getTime());
+  const dateValid = isValidYmd(form.date);
   const amountValid = !form.estimatedAmount || (Number.isFinite(Number(form.estimatedAmount.replace(",", "."))) && Number(form.estimatedAmount.replace(",", ".")) >= 0);
 
   const handleSubmit = async () => {

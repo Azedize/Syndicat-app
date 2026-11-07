@@ -14,6 +14,7 @@ import { incidentNotificationTemplate } from "../../lib/email/templates.js";
 import { getUserBuildingIds, getUserLotIds } from "../../lib/scope.js";
 import { getScopedClaim } from "./sinistres.service.js";
 
+import { isoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 function forbidden(message = "Accès refusé") {
@@ -179,6 +180,9 @@ router.post("/sinistres", requireAuth, async (req, res) => {
       return void res.status(400).json({
         error: "buildingId, type, description et date sont obligatoires",
       });
+    }
+    if (!isoDateSchema.safeParse(date).success) {
+      return void res.status(400).json({ error: "Date invalide (AAAA-MM-JJ)", code: "INVALID_DATE" });
     }
 
     const supervisedSyndicateId =

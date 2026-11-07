@@ -98,7 +98,7 @@ function meetingToPV(m: any): PV {
     type: MEETING_TYPE_TO_PV[m.type] ?? "ag",
     status: MEETING_STATUS_TO_PV[m.status] ?? "pending",
     date: m.date ?? "",
-    redacteur: m.createdByName ?? "Syndic",
+    redacteur: m.createdByName ?? "—",
     presences: m.attendeesCount ?? 0,
     summary: rawDesc || m.agenda || m.title || "",
     resolutions: (m.resolutions ?? []).map((r: any) => {

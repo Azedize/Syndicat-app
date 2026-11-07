@@ -31,6 +31,7 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 
+import { ToastContainer } from "@/components/ToastContainer";
 /**
  * Treasury of the syndicate: bank / cash accounts with balances computed by
  * the server from the journal, the journal itself (append-only, corrections
@@ -185,6 +186,7 @@ function Sheet({ visible, title, onClose, children, colors, bottomInset, closeLa
           {children}
         </KeyboardAwareScrollViewCompat>
       </KeyboardAvoidingView>
+      <ToastContainer />
     </Modal>
   );
 }

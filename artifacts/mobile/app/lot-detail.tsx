@@ -17,6 +17,7 @@ import { BalanceMeter, Button, StatusBadge } from "@/components/ui";
 import { TYPE } from "@/constants/typography";
 import { useCallStatus } from "@/hooks/useCallStatus";
 
+import { isValidYmd } from "@/lib/dateInput";
 /**
  * Lot detail: identity, ownership (co-owners, shares, history), occupancy
  * (tenancies), financial summary, related records and audit trail. What is
@@ -237,7 +238,7 @@ function LotDetailInner() {
   };
   const sharesTotal = ownerRows.reduce((s, o) => s + (Number(o.share.replace(",", ".")) || 0), 0);
   const submitOwners = async (acknowledgeOutstanding = false) => {
-    if (ownerRows.length === 0 || ownerReason.trim().length < 3 || Math.round(sharesTotal * 100) !== 10000 || (ownerDate && !DATE_RE.test(ownerDate))) {
+    if (ownerRows.length === 0 || ownerReason.trim().length < 3 || Math.round(sharesTotal * 100) !== 10000 || (ownerDate && !isValidYmd(ownerDate))) {
       return Alert.alert(tr("error"), `${tr("required")} (${tr("sharesTotal")} = 100 %)`);
     }
     const r = await run(() =>
@@ -260,7 +261,7 @@ function LotDetailInner() {
   };
 
   const submitMoveIn = async () => {
-    if (tenantForm.name.trim().length < 2 || (tenantForm.leaseStart && !DATE_RE.test(tenantForm.leaseStart)) || (tenantForm.rent && !(Number(tenantForm.rent) >= 0))) {
+    if (tenantForm.name.trim().length < 2 || (tenantForm.leaseStart && !isValidYmd(tenantForm.leaseStart)) || (tenantForm.rent && !(Number(tenantForm.rent) >= 0))) {
       return Alert.alert(tr("error"), tr("required"));
     }
     const r = await run(() =>

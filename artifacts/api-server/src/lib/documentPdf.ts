@@ -2601,7 +2601,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       };
       const pvType = PV_TYPES[String(input._meetingType ?? "")];
       const pvResult = (r: string) =>
-        r === "approved" ? (isArabic ? "مصادق عليه" : "Adoptée") : r === "rejected" ? (isArabic ? "مرفوض" : "Rejetée") : isArabic ? "قيد الانتظار" : "En attente";
+        r === "adopted" || r === "approved" ? (isArabic ? "مصادق عليه" : "Adoptée") : r === "rejected" ? (isArabic ? "مرفوض" : "Rejetée") : isArabic ? "قيد الانتظار" : "En attente";
       let pvResolutions: Array<{ number?: number; title?: string; result?: string; pour?: number | null; contre?: number | null; abstention?: number | null }> = [];
       try {
         if (input._resolutionsJson) pvResolutions = JSON.parse(String(input._resolutionsJson));

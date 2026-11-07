@@ -21,6 +21,7 @@ import { Avatar, Button, Card, Chip, SheetHeader, Skeleton, StatusBadge, TextFie
 import { TYPE } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 
+import { ToastContainer } from "@/components/ToastContainer";
 type ApiComment = { id: string; text: string; userName?: string | null; authorName?: string | null; userId?: string | null; createdAt: string };
 type ApiPublication = {
   id: string;
@@ -279,6 +280,7 @@ export default function PublicationsScreen() {
             </KeyboardAwareScrollViewCompat>
           </KeyboardAvoidingView>
         ) : null}
+        <ToastContainer />
       </Modal>
 
       {/* Publish */}
@@ -307,6 +309,7 @@ export default function PublicationsScreen() {
             />
           </KeyboardAwareScrollViewCompat>
         </View>
+        <ToastContainer />
       </Modal>
     </View>
   );

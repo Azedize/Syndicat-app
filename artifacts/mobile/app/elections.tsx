@@ -32,6 +32,7 @@ import { elections as electionsApi, resignations as resignationsApi } from "@/fe
 import { pickAndUploadPhoto } from "@/lib/upload";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
+import { isValidYmd } from "@/lib/dateInput";
 type ElectionStatus =
   | "draft"
   | "candidacy_open"
@@ -838,7 +839,7 @@ function ElectionsScreenInner() {
     if (action === "open_voting" && selected?.status === "draft") {
       askText({ title: label, message: t("runoffEndDatePrompt"), confirmLabel: label, required: true }).then(async (end) => {
         if (!end) return;
-        if (!DATE_RE.test(end.trim())) return handleDateError();
+        if (!isValidYmd(end.trim())) return handleDateError();
         try {
           await electionsApi.update(selected.id, { startDate: new Date().toISOString().slice(0, 10), endDate: end.trim() });
           transitionMutation.mutate({ action });
@@ -866,7 +867,7 @@ function ElectionsScreenInner() {
   const handleCreate = () => {
     if (!newTitle.trim()) return;
     for (const v of [candStart, candEnd, newStart, newEnd]) {
-      if (!DATE_RE.test(v)) {
+      if (!isValidYmd(v)) {
         handleDateError();
         return;
       }

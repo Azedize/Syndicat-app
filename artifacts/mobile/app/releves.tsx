@@ -13,6 +13,7 @@ import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
+import { isValidYmd } from "@/lib/dateInput";
 /**
  * Bank statements of one account and their reconciliation. A statement is
  * what the bank issued (period, printed balances, lines). The server computes
@@ -78,7 +79,7 @@ const S = {
 
 const CATS = { out: ["frais_bancaires", "agios", "regularisation"], in: ["interets_bancaires", "regularisation"] };
 const fmt = (v: string | number) => `${Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
-const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
+const isDate = (v: string) => isValidYmd(v);
 const signed = (v: string) => {
   const x = v.replace(/\s/g, "").replace(",", ".");
   return /^-?\d+(\.\d{1,2})?$/.test(x) ? Number(x).toFixed(2) : null;
