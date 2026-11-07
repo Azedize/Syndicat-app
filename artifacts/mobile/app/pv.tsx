@@ -158,6 +158,39 @@ function PVScreenInner() {
   const [filterType, setFilterType] = useState<"all" | PVType>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | PVStatus>("all");
   const [selectedPV, setSelectedPV] = useState<PV | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  // Opens the minutes PDF of a meeting: the document already generated for it, or — for the
+  // syndic — a new one generated from the meeting (template « pv »). Members only see it once
+  // the syndic has generated and shared it.
+  const openMinutesPdf = async (pv: PV) => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const found = await apiRequest<{ data: { id: string }[] }>(`/documents?meetingId=${encodeURIComponent(pv.id)}&category=pv&limit=1`);
+      let id = found.data?.[0]?.id;
+      if (!id && isAdmin) {
+        const created = await apiRequest<{ data: { id: string } }>("/documents", "POST", {
+          title: pv.title,
+          category: "pv",
+          templateId: "pv",
+          meetingId: pv.id,
+          language: lang,
+        });
+        id = created.data?.id;
+      }
+      if (!id) {
+        Alert.alert(t("pvDownloadTitle"), t("pvNotAvailableYet"));
+        return;
+      }
+      setSelectedPV(null);
+      router.push({ pathname: "/document-viewer", params: { id } } as any);
+    } catch (e: any) {
+      Alert.alert(t("error"), e?.message ?? t("pvNotAvailableYet"));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -710,17 +743,13 @@ function PVScreenInner() {
                     styles.actionBtn,
                     { backgroundColor: colors.primary },
                   ]}
+                  disabled={pdfBusy}
                   onPress={() => {
-                    Haptics.notificationAsync(
-                      Haptics.NotificationFeedbackType.Success,
-                    );
-                    Alert.alert(
-                      t("pvDownloadTitle"),
-                      `"${selectedPV.title}" ${t("pvDownloadedSuffix")}`,
-                    );
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    openMinutesPdf(selectedPV);
                   }}
                 >
-                  <Feather name="download" size={15} color="#fff" />
+                  {pdfBusy ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="download" size={15} color="#fff" />}
                   <Text style={[styles.actionBtnText, { color: "#fff" }]}>
                     {t("pvDownloadPDF")}
                   </Text>

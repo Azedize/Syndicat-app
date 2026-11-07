@@ -232,7 +232,7 @@ export default function ProductDetailScreen() {
         Alert.alert(t("productValidatePromotion"), t("productValidatePromotionMessage"), [
         { text: t("cartCancel"), style: "cancel" },
         {
-          text: "Approuver",
+          text: t("approveBtn"),
           onPress: async () => {
             setValidatingPromo(true);
             try {

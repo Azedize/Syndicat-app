@@ -2054,6 +2054,12 @@ export const TRANSLATIONS: Translations = {
     ar: "تم إنشاء الانتخاب الجديد بنجاح.",
     es: "La nueva elección ha sido creada con éxito.",
   },
+  pvNotAvailableYet: {
+    fr: "Le procès-verbal de cette réunion n'a pas encore été établi par le syndic.",
+    en: "The syndic has not drawn up the minutes of this meeting yet.",
+    ar: "لم يحرر السنديك بعد محضر هذا الاجتماع.",
+    es: "El administrador aún no ha redactado el acta de esta reunión.",
+  },
   invalidTimeFormat: {
     fr: "L'heure doit être au format HH:MM (24 h).",
     en: "Time must be in HH:MM format (24 h).",

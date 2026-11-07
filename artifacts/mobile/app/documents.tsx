@@ -191,6 +191,7 @@ const DOC_STRINGS: Record<string, Record<LangCode, string>> = {
   publish: { fr: "Publier", en: "Publish", ar: "نشر", es: "Publicar" },
   archive: { fr: "Archiver", en: "Archive", ar: "أرشفة", es: "Archivar" },
   delete: { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
+  restoreAction: { fr: "Restaurer", en: "Restore", ar: "استعادة", es: "Restaurar" },
   fileSize: { fr: "Taille", en: "File size", ar: "الحجم", es: "Tamaño" },
   publishedCount: {
     fr: "Publiés",
@@ -1380,7 +1381,7 @@ export default function DocumentsScreen() {
       [
         { text: docText("cancel"), style: "cancel" },
         {
-          text: "Supprimer",
+          text: docText("delete"),
           style: "destructive",
           onPress: async () => {
             // Optimistic: close modal + remove from list immediately
@@ -1484,7 +1485,7 @@ export default function DocumentsScreen() {
     Alert.alert(docText("deleteCommentTitle"), docText("irreversible"), [
       { text: docText("cancel"), style: "cancel" },
       {
-        text: "Supprimer",
+        text: docText("delete"),
         style: "destructive",
         onPress: async () => {
           setDeletingComment(commentId);
@@ -1537,7 +1538,7 @@ export default function DocumentsScreen() {
       [
         { text: docText("cancel"), style: "cancel" },
         {
-          text: "Restaurer",
+          text: docText("restoreAction"),
           onPress: async () => {
             setRestoringVersion(versionId);
             try {
@@ -1780,7 +1781,7 @@ export default function DocumentsScreen() {
                         { color: colors.mutedForeground },
                       ]}
                     >
-                      {d.date}
+                      {formatDocumentDate(d.date)}
                     </Text>
                     <Text
                       style={[styles.docDot, { color: colors.mutedForeground }]}
@@ -2443,13 +2444,13 @@ export default function DocumentsScreen() {
                             {
                               icon: "calendar" as const,
                               label: DOC_STRINGS.createdDate[lang],
-                              value: selected.date,
+                              value: formatDocumentDate(selected.date),
                               valueColor: undefined,
                             },
                             {
                               icon: "refresh-cw" as const,
                               label: DOC_STRINGS.updatedDate[lang],
-                              value: selected.date,
+                              value: formatDocumentDate(selected.date),
                               valueColor: undefined,
                             },
                             {

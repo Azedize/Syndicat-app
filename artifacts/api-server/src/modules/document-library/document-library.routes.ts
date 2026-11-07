@@ -292,6 +292,8 @@ const listSchema = z.object({
   entityType: z.enum(ENTITY_TYPES as [EntityType, ...EntityType[]]).optional(),
   entityId: z.string().trim().max(100).optional(),
   lotId: z.string().trim().max(100).optional(),
+  // Documents generated for a meeting (its minutes, its notice): stored in generation_params.
+  meetingId: z.string().uuid().optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sort: z.enum(["recent", "oldest", "title", "-title", "largest"]).default("recent"),
@@ -315,6 +317,7 @@ router.get("/documents", requireAuth, async (req, res) => {
     if (q.entityType) c.push(eq(documentsTable.entityType, q.entityType));
     if (q.entityId) c.push(eq(documentsTable.entityId, q.entityId));
     if (q.lotId) c.push(eq(documentsTable.lotId, q.lotId));
+    if (q.meetingId) c.push(sql`${documentsTable.generationParams}->>'meetingId' = ${q.meetingId}`);
     if (q.from) c.push(gte(documentsTable.createdAt, new Date(`${q.from}T00:00:00Z`)));
     if (q.to) c.push(lte(documentsTable.createdAt, new Date(`${q.to}T23:59:59.999Z`)));
     if (q.q) {

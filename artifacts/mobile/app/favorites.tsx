@@ -119,10 +119,10 @@ export default function FavoritesScreen() {
             <Text style={[styles.suggestTitle, { color: colors.mutedForeground }]}>{t("suggestionsLabel")}</Text>
             <View style={styles.suggestGrid}>
               {[
-                { id: "fav-dash", title: "Dashboard", icon: "home", color: "#5A4AD6", route: "/(tabs)/" },
-                { id: "fav-elections", title: "Élections", icon: "check-square", color: colors.warning, route: "/elections" },
-                { id: "fav-chat", title: "Chat", icon: "message-circle", color: "#C2456E", route: "/chat" },
-                { id: "fav-docs", title: "Documents", icon: "file-text", color: "#5A4AD6", route: "/documents" },
+                { id: "fav-dash", title: t("dashboard"), icon: "home", color: "#5A4AD6", route: "/(tabs)/" },
+                { id: "fav-elections", title: t("elections"), icon: "check-square", color: colors.warning, route: "/elections" },
+                { id: "fav-chat", title: t("chat"), icon: "message-circle", color: "#C2456E", route: "/chat" },
+                { id: "fav-docs", title: t("documents"), icon: "file-text", color: "#5A4AD6", route: "/documents" },
               ].filter((s) => !favorites.some((f) => f.id === s.id)).map((s) => (
                 <TouchableOpacity
                   key={s.id}

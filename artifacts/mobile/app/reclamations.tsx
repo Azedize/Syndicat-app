@@ -167,6 +167,8 @@ const EVENT: Record<string, L4> = {
 const TEAM = ["syndicate_admin", "president", "secretary", "treasurer", "committee_member"];
 const MANAGERS = ["syndicate_admin", "president", "secretary"];
 const NEEDS_TEXT: Partial<Record<ClaimStatus, keyof typeof S>> = { awaiting_info: "question", resolved: "resolution", rejected: "reason" };
+// Minimum length the API asks for each of these texts (claims.routes.ts).
+const MIN_TEXT: Partial<Record<ClaimStatus, number>> = { awaiting_info: 5, resolved: 10, rejected: 5 };
 const fmtDate = (s: string | null | undefined, lang: string) => (s ? new Date(s).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 
 /** Turns a server error into the right reaction on the screen. */
@@ -428,13 +430,15 @@ function ClaimSheet({ id, onClose, onChanged, tr, lang, role, userId, initialTar
             <>
               <Text style={[styles.section, { color: colors.mutedForeground }]}>{tr("move")}</Text>
               <ChoiceChips value={form.target} onChange={(v) => setForm((p) => ({ ...p, target: v as ClaimStatus, targetText: "" }))} options={c.allowedTransitions.map((s) => ({ key: s, label: STATUS[s][lang] }))} />
-              {form.target && NEEDS_TEXT[form.target] ? (
+              {form.target && c.allowedTransitions.includes(form.target) && NEEDS_TEXT[form.target] ? (
                 <TextInput placeholder={tr(NEEDS_TEXT[form.target]!)} placeholderTextColor={colors.mutedForeground} value={form.targetText} onChangeText={(v) => setForm((p) => ({ ...p, targetText: v }))} style={[...input, { minHeight: 60 }]} multiline />
               ) : null}
-              {form.target ? (
+              {/* Once the claim has moved, the previous choice is no longer a possible step. */}
+              {form.target && c.allowedTransitions.includes(form.target) ? (
                 <ActionButton
                   label={`→ ${STATUS[form.target][lang]}`}
                   busy={busy}
+                  disabled={form.targetText.trim().length < (MIN_TEXT[form.target] ?? 0)}
                   onPress={() => {
                     const t = form.target as ClaimStatus;
                     const extra = t === "awaiting_info" ? { question: form.targetText } : t === "resolved" ? { resolution: form.targetText } : t === "rejected" ? { reason: form.targetText } : {};
