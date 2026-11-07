@@ -27679,4 +27679,10 @@ export const TRANSLATIONS: Translations = {
     ar: "عضو",
     es: "miembro",
   },
+  mandateSinceLabel: {
+    fr: "Mandat depuis le",
+    en: "Mandate since",
+    ar: "الولاية منذ",
+    es: "Mandato desde el",
+  },
 };

@@ -10,6 +10,7 @@ import {
   tenantsTable,
   usersTable,
 } from "@workspace/db/schema";
+import { localToday } from "../../lib/charge-time.js";
 import { countOutcome, rolesForWinners, toUnits, type MajorityBase, type Tally, type VotingMethod, type Weighting } from "./elections.rules.js";
 
 /** Resolves the list of userIds eligible to vote/candidate for a given election scope. */
@@ -249,11 +250,15 @@ export async function publishElectionResults(election: typeof electionsTable.$in
   const scored = count.ranking.filter((r) => count.winners.includes(r.id)).map((r) => ({ id: r.id, score: r.score }));
   const roles = rolesForWinners(election.electionType ?? "special", scored);
 
+  // The mandate starts when the results are published, or at the planned end of
+  // the vote if that is earlier — never in the future.
+  const today = localToday();
+  const mandateStart = election.endDate && election.endDate < today ? election.endDate : today;
   let mandateEnd: string | null = null;
   if (election.mandateDurationMonths) {
-    const start = new Date(election.endDate ?? new Date().toISOString());
-    start.setMonth(start.getMonth() + election.mandateDurationMonths);
-    mandateEnd = start.toISOString().slice(0, 10);
+    const end = new Date(`${mandateStart}T00:00:00Z`);
+    end.setUTCMonth(end.getUTCMonth() + election.mandateDurationMonths);
+    mandateEnd = end.toISOString().slice(0, 10);
   }
 
   return db.transaction(async (tx) => {
@@ -270,7 +275,7 @@ export async function publishElectionResults(election: typeof electionsTable.$in
           userId: winner.userId,
           role: r.role,
           name: winner.name,
-          mandateStart: election.endDate,
+          mandateStart,
           mandateEnd,
           status: "active",
           electionId: election.id,

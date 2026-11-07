@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { elections as electionsApi, resignations as resignationsApi } from "@/features/governance/api";
 import { askText } from "@/components/ui/TextPrompt";
+import { formatDay } from "@/features/governance/orgLabels";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface Mandate {
@@ -38,7 +39,7 @@ function ElectedMembersInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
@@ -114,7 +115,7 @@ function ElectedMembersInner() {
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.name, { color: colors.foreground }]}>{m.name}</Text>
                 <Text style={[styles.role, { color: colors.mutedForeground }]}>{roleLabel(m.role)}</Text>
-                {m.mandateStart ? <Text style={[styles.date, { color: colors.mutedForeground }]}>{t("mandateActive")}: {m.mandateStart}</Text> : null}
+                {m.mandateStart ? <Text style={[styles.date, { color: colors.mutedForeground }]}>{t("mandateSinceLabel")} {formatDay(lang, m.mandateStart)}{m.mandateEnd ? ` → ${formatDay(lang, m.mandateEnd)}` : ""}</Text> : null}
               </View>
               {m.status === "resigned" ? (
                 <Text style={[styles.badge, { color: colors.destructive }]}>{t("mandateResigned")}</Text>
