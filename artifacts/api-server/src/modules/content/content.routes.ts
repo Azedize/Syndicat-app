@@ -33,6 +33,7 @@ import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
 import { asLang, notificationLink, renderNotification } from "../../lib/notification-texts.js";
 import { serverAuditLog } from "../../lib/audit.js";
 
+import { isoDateSchema, optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 function isSameSyndicate(req: any, syndicateId: string | null): boolean {
@@ -147,7 +148,7 @@ router.post(
         "travail",
         "convention",
       ]),
-      date: z.string(),
+      date: isoDateSchema,
       action: z.string().optional(),
       syndicateId: z.string().optional(),
     });
@@ -936,7 +937,7 @@ router.post(
       title: z.string().min(1),
       message: z.string().min(1),
       type: z.enum(["info", "warning", "success", "error"]).default("info"),
-      date: z.string(),
+      date: isoDateSchema,
       target: z.enum(["all", "admin", "member"]).default("all"),
       syndicateId: z.string().optional(),
     });
@@ -1050,8 +1051,8 @@ router.post(
       email: z.string(),
       benefit: z.string(),
       discount: z.string().optional(),
-      startDate: z.string(),
-      endDate: z.string().optional(),
+      startDate: isoDateSchema,
+      endDate: optionalIsoDateSchema,
       description: z.string().default(""),
       syndicateId: z.string().optional(),
     });

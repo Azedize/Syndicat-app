@@ -1,13 +1,26 @@
 import { getApiBaseUrl, getToken, refreshAccessToken } from "../services/api";
 import { requestLanguage } from "@/i18n/current";
 import { fetchWithTimeout } from "./fetchTimeout";
+import { dropDuplicateWrite } from "./singleFlight";
 
-export async function apiRequest<T = any>(
+export function apiRequest<T = any>(
   path: string,
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET",
   body?: unknown,
   token?: string | null,
   extraHeaders?: Record<string, string>,
+): Promise<T> {
+  return dropDuplicateWrite(method, path, body !== undefined ? JSON.stringify(body) : undefined, () =>
+    send<T>(path, method, body, token, extraHeaders),
+  );
+}
+
+async function send<T>(
+  path: string,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  body: unknown,
+  token: string | null | undefined,
+  extraHeaders: Record<string, string> | undefined,
 ): Promise<T> {
   const url = `${getApiBaseUrl()}${path.trim()}`;
 

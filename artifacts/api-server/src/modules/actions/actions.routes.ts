@@ -9,6 +9,7 @@ import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { annotateActions } from "./actions.service.js";
 
+import { isoDateSchema, optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ router.post(
       description: z.string().max(5000).default(""),
       type: z.enum(["greve", "manifestation", "petition", "negociation", "communique"]),
       status: z.enum(["planned", "active", "completed", "cancelled"]).default("planned"),
-      date: z.string().min(1),
+      date: isoDateSchema,
       location: z.string().max(200).optional(),
       organizer: z.string().min(1).max(200),
       participantsTarget: z.number().int().min(0).default(0),
@@ -130,7 +131,7 @@ router.put(
       description: z.string().max(5000).optional(),
       type: z.enum(["greve", "manifestation", "petition", "negociation", "communique"]).optional(),
       status: z.enum(["planned", "active", "completed", "cancelled"]).optional(),
-      date: z.string().optional(),
+      date: optionalIsoDateSchema,
       location: z.string().max(200).nullable().optional(),
       organizer: z.string().min(1).max(200).optional(),
       participantsTarget: z.number().int().min(0).optional(),

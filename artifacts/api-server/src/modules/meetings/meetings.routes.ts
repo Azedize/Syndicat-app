@@ -14,6 +14,7 @@ import { serverAuditLog } from "../../lib/audit.js";
 import { sendEmailToMany } from "../../lib/notify.js";
 import { meetingInvitationTemplate } from "../../lib/email/templates.js";
 
+import { isoDateSchema, optionalIsoDateSchema, timeOfDaySchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 const ALL_MEETING_TYPES = [
@@ -134,8 +135,8 @@ router.post(
   async (req, res) => {
     const schema = z.object({
       title: z.string().min(1),
-      date: z.string(),
-      time: z.string(),
+      date: isoDateSchema,
+      time: timeOfDaySchema,
       location: z.string(),
       type: z.enum(ALL_MEETING_TYPES).default("general"),
       description: z.string().default(""),
@@ -245,8 +246,8 @@ router.put(
   async (req, res) => {
     const schema = z.object({
       title: z.string().min(1).optional(),
-      date: z.string().optional(),
-      time: z.string().optional(),
+      date: optionalIsoDateSchema,
+      time: timeOfDaySchema.optional(),
       location: z.string().optional(),
       description: z.string().optional(),
       status: z

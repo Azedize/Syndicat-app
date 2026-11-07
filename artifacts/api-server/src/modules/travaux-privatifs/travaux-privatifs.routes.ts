@@ -8,6 +8,7 @@ import { requireAuth, requireAdmin } from "../../middleware/auth.js";
 import { assertUserCanAccessBuilding, getUserLotIds } from "../../lib/scope.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { loadAndScope } from "./travaux-privatifs.service.js";
+import { isoDateSchema } from "../../lib/dateSchemas.js";
 /**
  * Travaux Privatifs — Resident Structural/Exterior Modification Requests
  *
@@ -450,7 +451,7 @@ router.post(
 // ─── POST /travaux-privatifs/:id/vote ─────────────────────────────────────────
 const voteSchema = z.object({
   voteOutcome: z.enum(["approved", "rejected", "inconclusive"]),
-  voteDate: z.string().min(1),
+  voteDate: isoDateSchema,
   voteSummary: z.string().min(1).max(3000),
   voteItemId: z.string().optional(),
 });

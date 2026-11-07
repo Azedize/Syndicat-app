@@ -37,6 +37,7 @@ import {
 } from "../../lib/treasury.js";
 import { METRIC_DEFINITIONS, ledgerFlows } from "../../lib/finance-metrics.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 /** Register types that are money in vs money out of the syndicate. */
 const INFLOW_TYPES = new Set(["cotisation", "recette", "revenue"]);
 
@@ -135,7 +136,7 @@ router.post(
         type: z.enum(["cotisation", "depense", "salaire", "recette"]),
         amount: z.number().positive(),
         label: z.string().min(1),
-        date: z.string(),
+        date: isoDateSchema,
         status: z.enum(["paid", "pending", "overdue"]).default("paid"),
         memberId: z.string().optional(),
         syndicateId: z.string().optional(),
@@ -357,7 +358,7 @@ router.post(
       amount: z.number().positive(),
       month: z.string(),
       status: z.enum(["paid", "pending"]).default("pending"),
-      paidDate: z.string().optional(),
+      paidDate: optionalIsoDateSchema,
       syndicateId: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
@@ -764,7 +765,7 @@ router.post(
       // Ignored: the number is allocated by the server (BL-<year>-<n>, per condominium).
       reference: z.string().optional(),
       recipient: z.string().min(1),
-      date: z.string(),
+      date: isoDateSchema,
       type: z.enum(["sortie", "entree"]).default("sortie"),
       items: z.array(itemSchema).default([]),
       syndicateId: z.string().optional(),

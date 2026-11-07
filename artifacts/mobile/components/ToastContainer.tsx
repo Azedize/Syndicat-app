@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Toast, useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { crossPlatformShadow } from "@/lib/shadow";
 
@@ -53,6 +54,7 @@ const DURATION_MS = 4500;
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const colors = useColors();
+  const { t } = useLanguage();
   const cfg = TYPE_CONFIG[toast.type];
 
   // Entrance animation
@@ -94,7 +96,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     return () => clearTimeout(timer);
   }, []);
 
-  const title = toast.title ?? cfg.defaultTitle;
+  // Default title in the reader's language (the French one only if the key is missing).
+  const title = toast.title ?? (t(toast.type) === toast.type ? cfg.defaultTitle : t(toast.type));
 
   return (
     <Animated.View

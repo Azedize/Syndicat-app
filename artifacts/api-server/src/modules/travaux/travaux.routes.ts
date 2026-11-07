@@ -25,6 +25,7 @@ import { FinanceError, fromCents, sendFinanceError, toCents } from "../../lib/tr
 import { getUserBuildingIds, assertUserCanAccessBuilding, getUserLotIds } from "../../lib/scope.js";
 import { getScopedTravail, assertPrestataireMatchesBuilding } from "./travaux.service.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 function getMutationSyndicate(
@@ -336,8 +337,8 @@ const createTravauxSchema = z.object({
   lotId: z.string().optional(),
   prestataireId: z.string().optional(),
   estimatedAmount: z.number().positive().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: optionalIsoDateSchema,
+  endDate: optionalIsoDateSchema,
   notes: z.string().max(2000).optional(),
 });
 

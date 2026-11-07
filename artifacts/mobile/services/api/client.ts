@@ -5,6 +5,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { isTunnelHost, resolveApiBaseUrl } from "@/lib/login-transport";
 import { fetchWithTimeout } from "@/lib/fetchTimeout";
+import { dropDuplicateWrite } from "@/lib/singleFlight";
 import { requestLanguage } from "@/i18n/current";
 
 const TOKEN_KEY = "@syndycat_token";
@@ -243,12 +244,17 @@ async function attemptTokenRefresh(): Promise<string | null> {
 
 // ─── Core request function with auto-retry on 401 ────────────────────────────
 
-export async function request<T>(
+export function request<T>(
   path: string,
   options: RequestInit = {},
   withAuth = true,
   _isRetry = false,
 ): Promise<T> {
+  if (_isRetry) return send<T>(path, options, withAuth, true);
+  return dropDuplicateWrite(options.method, path, options.body ?? undefined, () => send<T>(path, options, withAuth, false));
+}
+
+async function send<T>(path: string, options: RequestInit, withAuth: boolean, _isRetry: boolean): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Accept-Language": requestLanguage(),

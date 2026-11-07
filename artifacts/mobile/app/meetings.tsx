@@ -2,7 +2,7 @@ import { Feather } from "@/components/ui/Feather";
 import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -24,6 +24,7 @@ import { useData, type Meeting } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { formatDay } from "@/lib/formatDay";
+import { isValidTime, isValidYmd } from "@/lib/dateInput";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -74,6 +75,10 @@ export default function MeetingsScreen() {
   const { t, lang, isRTL } = useLanguage();
   const FAV_ID = "screen-meetings";
   const [selected, setSelected] = useState<Meeting | null>(null);
+  // The open sheet follows the list (attendance count, edits made elsewhere).
+  useEffect(() => {
+    setSelected((cur) => (cur ? meetings.find((m) => m.id === cur.id) ?? cur : cur));
+  }, [meetings]);
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
@@ -167,6 +172,8 @@ export default function MeetingsScreen() {
 
   const handleCreate = async () => {
     if (!newTitle.trim() || !newDate.trim() || saving) return;
+    if (!isValidYmd(newDate)) { showToast({ type: "warning", title: t("error"), message: t("invalidDateFormat") }); return; }
+    if (newTime.trim() && !isValidTime(newTime)) { showToast({ type: "warning", title: t("error"), message: t("invalidTimeFormat") }); return; }
     setSaving(true);
     try {
       const res = await apiRequest<{ data: any }>(
@@ -223,6 +230,8 @@ export default function MeetingsScreen() {
 
   const handleEdit = async () => {
     if (!editMeeting || !editTitle.trim() || saving) return;
+    if (!isValidYmd(editDate)) { showToast({ type: "warning", title: t("error"), message: t("invalidDateFormat") }); return; }
+    if (editTime.trim() && !isValidTime(editTime)) { showToast({ type: "warning", title: t("error"), message: t("invalidTimeFormat") }); return; }
     setSaving(true);
     try {
       const res = await apiRequest<{ data: any }>(
@@ -448,7 +457,7 @@ export default function MeetingsScreen() {
                   <Text
                     style={[styles.infoText, { color: colors.mutedForeground }]}
                   >
-                    {m.attendees} {t("participants")}
+                    {m.attendees} {t(m.attendees === 1 ? "participantOne" : "participants")}
                   </Text>
                 </View>
               </View>
@@ -573,8 +582,8 @@ export default function MeetingsScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push({
-                      pathname: "/documents",
-                      params: { template: "pv", meetingId: m.id },
+                      pathname: "/pv",
+                      params: { meetingId: m.id },
                     } as any);
                   }}
                 >
@@ -684,7 +693,7 @@ export default function MeetingsScreen() {
                   { icon: "clock" as const, value: selected.time },
                   {
                     icon: "users" as const,
-                    value: `${selected.attendees} ${t("participants")}`,
+                    value: `${selected.attendees} ${t(selected.attendees === 1 ? "participantOne" : "participants")}`,
                   },
                 ].map((item) => (
                   <View key={item.icon} style={styles.detailInfoItem}>
@@ -849,7 +858,7 @@ export default function MeetingsScreen() {
                       { color: colors.foreground },
                     ]}
                   >
-                    {selected.attendees} {t("participants")}
+                    {selected.attendees} {t(selected.attendees === 1 ? "participantOne" : "participants")}
                   </Text>
                   {selected.userConfirmed ? (
                     <Text
@@ -966,8 +975,8 @@ export default function MeetingsScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelected(null);
                     router.push({
-                      pathname: "/documents",
-                      params: { template: "pv", meetingId: selected.id },
+                      pathname: "/pv",
+                      params: { meetingId: selected.id },
                     } as any);
                   }}
                 >

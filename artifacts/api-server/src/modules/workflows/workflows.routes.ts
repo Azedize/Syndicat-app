@@ -9,6 +9,7 @@ import { serverAuditLog } from "../../lib/audit.js";
 import { localToday } from "../../lib/charge-time.js";
 import { withSteps } from "./workflows.service.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── GET /workflows ───────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ router.post("/workflows", requireAuth, requireSuperAdmin, async (req, res) => {
     category: z.string().min(1).max(100),
     description: z.string().max(5000).default(""),
     priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
-    deadline: z.string().optional(),
+    deadline: optionalIsoDateSchema,
     document: z.string().max(300).optional(),
   });
   const result = schema.safeParse(req.body);

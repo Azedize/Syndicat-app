@@ -77,13 +77,8 @@ export const amountSchema = z
   .refine((c) => c > 0 && c <= MAX_CENTS, { message: "Montant hors limites" })
   .transform((c) => fromCents(c));
 
-/** Calendar date YYYY-MM-DD that actually exists. */
-export const isoDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date invalide (AAAA-MM-JJ)" })
-  .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v), {
-    message: "Date invalide",
-  });
+/** Calendar date YYYY-MM-DD that actually exists (kept here for existing imports). */
+export { isoDateSchema } from "./dateSchemas.js";
 
 export function today(): string {
   return localToday();

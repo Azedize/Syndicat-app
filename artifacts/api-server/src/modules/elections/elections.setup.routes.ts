@@ -12,6 +12,7 @@ import { getEligibleVoterIds, closeElectionVoting, publishElectionResults } from
 import { assertAccess } from "./elections.access.js";
 import { defaultsFor, ELECTION_TYPES, validateConfig } from "./elections.rules.js";
 
+import { isoDateSchema, optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── Phase 1 — Election creation (Syndicate Admin only) ──────────────────────
@@ -36,8 +37,8 @@ router.post(
       tenantsCanVote: z.boolean().optional(),
       candidacyStart: z.string(),
       candidacyEnd: z.string(),
-      startDate: z.string(),
-      endDate: z.string(),
+      startDate: isoDateSchema,
+      endDate: isoDateSchema,
       isEmergency: z.boolean().default(false),
       // Fixed mandate length for winners, in months. Omit/null = indefinite mandate (no auto-expiry).
       mandateDurationMonths: z
@@ -177,8 +178,8 @@ router.put(
       tenantsCanVote: z.boolean().optional(),
       candidacyStart: z.string().optional(),
       candidacyEnd: z.string().optional(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
+      startDate: optionalIsoDateSchema,
+      endDate: optionalIsoDateSchema,
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {

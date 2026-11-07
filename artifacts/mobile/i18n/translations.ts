@@ -1552,6 +1552,12 @@ export const TRANSLATIONS: Translations = {
     ar: "المنتهية",
     es: "Completadas",
   },
+  participantOne: {
+    fr: "participant",
+    en: "attendee",
+    ar: "مشارك",
+    es: "participante",
+  },
   participants: {
     fr: "participants",
     en: "attendees",
@@ -2047,6 +2053,12 @@ export const TRANSLATIONS: Translations = {
     en: "The new election has been created successfully.",
     ar: "تم إنشاء الانتخاب الجديد بنجاح.",
     es: "La nueva elección ha sido creada con éxito.",
+  },
+  invalidTimeFormat: {
+    fr: "L'heure doit être au format HH:MM (24 h).",
+    en: "Time must be in HH:MM format (24 h).",
+    ar: "يجب أن يكون الوقت بتنسيق HH:MM (24 ساعة).",
+    es: "La hora debe tener el formato HH:MM (24 h).",
   },
   invalidDateFormat: {
     fr: "Les dates doivent être au format AAAA-MM-JJ.",

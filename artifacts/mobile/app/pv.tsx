@@ -1,6 +1,6 @@
 import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
@@ -167,17 +167,21 @@ function PVScreenInner() {
   const [newResolution, setNewResolution] = useState("");
   const [newResolutions, setNewResolutions] = useState<string[]>([]);
 
+  // Opened from a meeting (« Télécharger le PV »): show that meeting's minutes directly.
+  const { meetingId } = useLocalSearchParams<{ meetingId?: string }>();
   const fetchPVs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiRequest<{ data: any[] }>("/ag-meetings");
-      setPVList((res.data ?? []).map(meetingToPV));
+      const res = await apiRequest<{ data: any[] }>("/ag-meetings?scope=minutes");
+      const list = (res.data ?? []).map(meetingToPV);
+      setPVList(list);
+      if (meetingId) setSelectedPV((cur) => cur ?? list.find((p) => p.id === meetingId) ?? null);
     } catch {
       // keep empty list — network error handled silently
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [meetingId]);
 
   useEffect(() => {
     fetchPVs();

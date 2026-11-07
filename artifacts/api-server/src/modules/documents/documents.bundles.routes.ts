@@ -38,6 +38,7 @@ import {
   getAttestationPaiementData,
 } from "./documents.service.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── GET /documents/entities ──────────────────────────────────────────────────
@@ -1261,7 +1262,7 @@ router.post(
   async (req, res) => {
     const schema = z.object({
       meetingId: z.string().uuid().optional(),
-      meetingDate: z.string().optional(),
+      meetingDate: optionalIsoDateSchema,
       lieu: z.string().max(300).optional(),
       heure: z.string().max(50).optional(),
       agendaText: z.string().max(5000).optional(),

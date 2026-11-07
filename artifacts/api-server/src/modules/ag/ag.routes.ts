@@ -21,6 +21,7 @@ import { z } from "zod";
 import { sendEmailToMany } from "../../lib/notify.js";
 import { agmInvitationTemplate } from "../../lib/email/templates.js";
 
+import { isoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 function assertAgSyndicateAccess(
@@ -78,14 +79,16 @@ router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
           : undefined
         : eq(meetingsTable.syndicateId, user.syndicateId!);
 
-    // Filter meetings of AG type
+    // AG meetings by default; ?scope=minutes lists every meeting type, for the minutes (PV)
+    // screen, which also keeps board, committee and emergency meetings.
+    const allTypes = req.query.scope === "minutes";
     const rows = await db
       .select()
       .from(meetingsTable)
       .where(
         and(
           // AG meetings have type "general" or "ag_*"
-          sql`(${meetingsTable.type} LIKE 'ag%' OR ${meetingsTable.type} = 'general')`,
+          allTypes ? undefined : sql`(${meetingsTable.type} LIKE 'ag%' OR ${meetingsTable.type} = 'general')`,
           buildingId
             ? sql`${meetingsTable.description} LIKE ${"%" + buildingId + "%"}`
             : undefined,
@@ -212,7 +215,7 @@ router.post(
   async (req, res) => {
     const schema = z.object({
       title: z.string().min(1),
-      date: z.string(),
+      date: isoDateSchema,
       time: z.string().optional().default("10:00"),
       location: z.string().optional().default(""),
       type: z

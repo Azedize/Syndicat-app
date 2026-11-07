@@ -13,6 +13,7 @@ import { bustLogoCache } from "../../lib/documentPdf.js";
 import { assignTrial } from "../../modules/subscriptions/subscriptions.service.js";
 import { hasRecentlyVerifiedPhone } from "../../integrations/zimsend.service.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── GET /syndicates ───────────────────────────────────────────────────────────
@@ -154,7 +155,7 @@ export const createSyndicateSchema = z.object({
     })
     .optional()
     .or(z.literal("")),
-  foundingDate: z.string().optional(),
+  foundingDate: optionalIsoDateSchema,
   // Finance
   cotisationAmount: z.string().optional(),
   cotisationCycle: z
@@ -380,7 +381,7 @@ const updateSchema = z.object({
   registrationNumber: z.string().optional(),
   iceNumber: z.string().optional(),
   rcNumber: z.string().optional(),
-  foundingDate: z.string().optional(),
+  foundingDate: optionalIsoDateSchema,
   cotisationAmount: z.string().optional(),
   cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
   logoColor: z

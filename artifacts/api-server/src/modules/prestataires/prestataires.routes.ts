@@ -22,6 +22,7 @@ import { getUserBuildingIds, assertUserCanAccessBuilding } from "../../lib/scope
 import { serverAuditLog } from "../../lib/audit.js";
 import { localToday } from "../../lib/charge-time.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── Prestataires ───────────────────────────────────────────────────────────
@@ -824,8 +825,8 @@ const createContractSchema = z.object({
   prestataireId: z.string().min(1),
   buildingId: z.string().min(1),
   title: z.string().min(1).max(200),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: optionalIsoDateSchema,
+  endDate: optionalIsoDateSchema,
   monthlyAmount: z.number().positive().optional(),
   annualAmount: z.number().positive().optional(),
   autoRenew: z.boolean().optional(),

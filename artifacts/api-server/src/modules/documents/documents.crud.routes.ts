@@ -46,6 +46,7 @@ import {
   getAttestationPaiementData,
 } from "./documents.service.js";
 
+import { optionalIsoDateSchema } from "../../lib/dateSchemas.js";
 const router = Router();
 
 // ─── GET /documents/:id ────────────────────────────────────────────────────────
@@ -252,7 +253,7 @@ router.post(
       expiresAt: z.string().optional(),
       // Extra fields passed through to the template
       lieu: z.string().optional(),
-      meetingDate: z.string().optional(),
+      meetingDate: optionalIsoDateSchema,
       heure: z.string().optional(),
       agendaText: z.string().optional(),
       deliberationsText: z.string().optional(),
