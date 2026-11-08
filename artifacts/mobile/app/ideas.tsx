@@ -85,6 +85,7 @@ const STRINGS = {
   },
   retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
   submitError: { fr: "Impossible de soumettre l'idée.", en: "Unable to submit the idea.", ar: "تعذر إرسال الفكرة.", es: "No se puede enviar la idea." },
+  yearlyLimit: { fr: "Vous avez déjà une proposition active cette année : une seule est possible par an.", en: "You already have an active proposal this year: only one is allowed per year.", ar: "لديك بالفعل اقتراح نشط هذه السنة: يسمح باقتراح واحد في السنة.", es: "Ya tiene una propuesta activa este año: solo se permite una por año." },
   voteError: { fr: "Impossible d'enregistrer le vote.", en: "Unable to record the vote.", ar: "تعذر تسجيل التصويت.", es: "No se puede registrar el voto." },
   reviewError: { fr: "Impossible de mettre à jour la proposition.", en: "Unable to update the proposal.", ar: "تعذر تحديث المقترح.", es: "No se puede actualizar la propuesta." },
   submittedSuccess: { fr: "Votre proposition a été envoyée.", en: "Your proposal was submitted.", ar: "تم إرسال مقترحك.", es: "Su propuesta ha sido enviada." },
@@ -209,8 +210,8 @@ export default function IdeasScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", message: STRINGS.submittedSuccess[L] });
       load(true);
-    } catch {
-      showToast({ type: "error", title: STRINGS.error[L], message: STRINGS.submitError[L] });
+    } catch (e: any) {
+      showToast({ type: "error", title: STRINGS.error[L], message: e?.code === "IDEA_YEARLY_LIMIT" ? STRINGS.yearlyLimit[L] : STRINGS.submitError[L] });
     } finally {
       setSubmitting(false);
     }

@@ -2199,3 +2199,31 @@ Détail : `docs/architecture/GOVERNANCE_RULES.md` § 7 et `docs/research/SYNDICA
 **À décider :** une nouvelle élection de syndic ou d'adjoint ne met pas fin au mandat en cours ; deux mandats actifs peuvent donc coexister.
 
 **Non-régression :** 49 suites sur 50 (`election-audit` S7 en attente de décision).
+
+## 2026-11-08 — Recette par rôle et entre comptes (mission 2)
+
+Détail complet : `reports/real-world-acceptance-testing.md`.
+
+Conditions : émulateur Android, Expo Go, base de test. 10 rôles identifiés (8 rôles d'utilisateur, 2 rôles de société de syndic). 9 profils essayés à l'écran. Pour chaque profil, tous les écrans de son menu ont été balayés.
+
+**Corrigé :**
+- **Plantage du super admin :** `crypto` n'existe pas sous Hermes. L'éditeur de modèles plantait, puis l'erreur restait affichée sur tous les écrans.
+- **Menu :** 5 écrans proposés à des rôles que leur garde renvoyait à l'accueil, et le budget du président refusé par le serveur. Menu et raccourcis sont alignés ; nouveau test `menu-guards`.
+- **Notifications :**
+  - le code de type de sinistre s'affichait brut ;
+  - la catégorie « Erreur » est devenue « Urgent » ;
+  - les notifications de réclamation, en français figé, passent par des modèles traduits.
+- **Annonces urgentes :** le syndic voit maintenant le nombre d'accusés « lu et compris ».
+- **Connexion :** un compte en attente ou désactivé reçoit un message traduit et juste.
+- **Idées :** la limite d'une idée par an est expliquée.
+- **Charges :** la ligne de reçu affichait un segment vide.
+
+**Vérifié entre comptes, à l'écran :**
+- paiement d'un acompte avec preuve, validé par le trésorier ;
+- réclamation du membre traitée par le syndic jusqu'à la clôture ;
+- annonce urgente et son accusé de lecture ;
+- portefeuille d'une société de syndic et changement de copropriété.
+
+**Tests :** nouvelles suites `acceptance-roles` (49), `acceptance-subscriptions` (23) et `menu-guards` (112). `payment-reference` corrigée : un paiement en plusieurs fois mettait en défaut son hypothèse. Non-régression : 54 suites sur 54.
+
+**À décider :** 7 points, dans la section 7 du rapport (droits du président et de l'équipe, abonnements, limites des formules, règle des idées, SMTP de test).

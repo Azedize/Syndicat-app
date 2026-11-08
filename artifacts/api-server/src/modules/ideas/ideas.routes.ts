@@ -116,6 +116,7 @@ router.post("/ideas", requireAuth, async (req, res) => {
       return void res.status(409).json({
         error:
           "Vous avez déjà soumis une idée cette année. Une seule proposition active par an est autorisée.",
+        code: "IDEA_YEARLY_LIMIT",
       });
     }
 

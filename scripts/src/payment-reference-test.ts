@@ -72,6 +72,10 @@ async function main() {
     JOIN appels_de_fonds a ON a.id = ap.appel_id
     LEFT JOIN (SELECT ledger_entry_id, SUM(amount) matched FROM reconciliation_matches GROUP BY ledger_entry_id) m ON m.ledger_entry_id = le.id
     WHERE le.direction = 'in' AND le.amount - COALESCE(m.matched, 0) > 0
+      -- A call paid in several instalments has several entries carrying the same
+      -- reference, all rightly flagged: pick a call settled by a single payment.
+      AND NOT EXISTS (SELECT 1 FROM appel_payments ap2 JOIN ledger_entries le2 ON le2.source_type = 'appel_payment' AND le2.source_id = ap2.id
+                      WHERE ap2.appel_id = ap.appel_id AND ap2.id <> ap.id)
       AND EXISTS (SELECT 1 FROM ledger_entries o LEFT JOIN (SELECT ledger_entry_id, SUM(amount) matched FROM reconciliation_matches GROUP BY ledger_entry_id) om ON om.ledger_entry_id = o.id
                   WHERE o.account_id = le.account_id AND o.id <> le.id AND o.direction = 'in' AND o.amount - COALESCE(om.matched, 0) > 0)
     ORDER BY le.created_at DESC LIMIT 1`));
