@@ -10,6 +10,7 @@ import * as documentsApi from "@/features/documents/api";
 import { marketplace as marketplaceApi } from "@/features/marketplace/api";
 import { notifications as notificationsApi } from "@/features/notifications/api";
 import { notificationBus } from "@/hooks/useNotificationBus";
+import { useAppActive } from "@/hooks/useAppActive";
 import { useAuth } from "./AuthContext";
 import { useLanguage } from "./LanguageContext";
 
@@ -1476,22 +1477,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
 
+  // Periodic refreshes run only while the app is in the foreground; coming
+  // back refreshes at once (see hooks/useAppActive).
+  const appActive = useAppActive();
+  const wasBackground = React.useRef(false);
   useEffect(() => {
-    if (!user) return;
+    if (!appActive) { wasBackground.current = true; return; }
+    if (wasBackground.current && user) {
+      wasBackground.current = false;
+      void refreshAlerts();
+      void refreshConversations();
+    }
+  }, [appActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!user || !appActive) return;
     const id = setInterval(() => {
       refreshAlerts();
     }, 30_000);
     return () => clearInterval(id);
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, appActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll conversations every 5s for real-time unread count and last message updates
   useEffect(() => {
-    if (!user) return;
+    if (!user || !appActive) return;
     const id = setInterval(() => {
       refreshConversations();
     }, 5_000);
     return () => clearInterval(id);
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, appActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Adds a member that the caller has ALREADY persisted (POST /members) to the
   // local list. Posting again here created a duplicate request per addition.

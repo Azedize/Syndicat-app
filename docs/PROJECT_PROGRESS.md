@@ -2239,6 +2239,8 @@ Détail : `reports/real-world-acceptance-testing.md` (sections 11 à 16), `repor
 - E-mail d'invitation traduit (fr, en, ar, es).
 - L'assistant d'équipe ne propose plus un rôle déjà pourvu.
 - Assistant de création de copropriété traduit.
+- Écran de connexion : chaque message d'erreur ne s'affiche plus qu'une fois ; un refus 400 n'affiche plus le texte français du serveur.
+- E-mail de bienvenue des copropriétaires traduit (fr, en, ar, es).
 
 **Ajouté :**
 - faux serveur SMTP local (`scripts/src/mail-sink.ts`, `scripts/start-mail-sink-api.ps1`), actif seulement hors production et en boucle locale ;

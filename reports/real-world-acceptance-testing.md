@@ -203,9 +203,9 @@ Le faux serveur (`scripts/src/mail-sink.ts`) range les messages dans des fichier
 | Assistant de création : secteurs et textes d'aide en français | CORRIGÉ |
 | Mention « Twilio Verify » dans le texte de l'étape SMS | CORRIGÉ (texte neutre) |
 | Le refus de rafraîchir la session ne disait pas pourquoi | CORRIGÉ (`ACCOUNT_DISABLED`) |
-| Code à 6 chiffres : la touche d'effacement ne revient pas à la case précédente | RESTANT |
-| Écran de connexion : le même message d'erreur s'affiche trois fois | RESTANT |
-| E-mail de bienvenue des copropriétaires en français seulement | RESTANT |
+| Code à 6 chiffres : la touche d'effacement ne revient pas à la case précédente | NON REPRODUIT : avec la vraie touche du clavier à l'écran, chaque appui efface le dernier chiffre et revient à la case précédente. Le premier constat venait de la touche simulée par adb |
+| Écran de connexion : le même message d'erreur s'affiche trois fois | CORRIGÉ : un message de saisie s'affiche sous son champ, les autres dans le bandeau, chacun une seule fois. Un e-mail mal formé (400) affichait aussi le texte français du serveur ; il donne maintenant « Incorrect email or password. » |
+| E-mail de bienvenue des copropriétaires en français seulement | CORRIGÉ : fr, en, ar, es, selon la langue de l'émetteur ; vérifié en arabe avec le faux SMTP |
 | Invitations sans expiration, mot de passe provisoire permanent ; plusieurs présidents possibles ; `autoRenew` sans traitement | DÉCISIONS (points complémentaires) |
 
 **Régression introduite puis corrigée pendant la mission :** la première version du faux SMTP empêchait de marquer « non joignables » les adresses réservées créées à travers lui (3 comptes QA). Le passe-droit ne s'applique plus qu'à l'envoi (`deliveryRefused`). Les 3 comptes ont été remis au bon statut. `email-accounts-test` reconnaît les messages reçus par le faux SMTP et vérifie qu'ils ne visent que des adresses de test.
@@ -230,4 +230,5 @@ Le faux serveur (`scripts/src/mail-sink.ts`) range les messages dans des fichier
   - qa.salma.0811@example.test, syndic ;
   - qa.karim.0811@example.test, président ;
   - qa.nadia.0811@example.test, deuxième présidente créée avant la correction de l'assistant.
-- **Journal des e-mails :** 8 messages reçus par le faux SMTP. Leurs copies sont dans `scripts/.seedgen/mail-sink/`, ignoré par Git.
+- **Copropriétaire « Youssef QA »** (qa.youssef.0811@example.test), avec son compte, dans la même copropriété : créé pour vérifier l'e-mail de bienvenue en arabe.
+- **Journal des e-mails :** 10 messages reçus par le faux SMTP. Leurs copies sont dans `scripts/.seedgen/mail-sink/`, ignoré par Git.

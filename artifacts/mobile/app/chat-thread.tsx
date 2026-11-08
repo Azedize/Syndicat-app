@@ -38,6 +38,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import EmptyState from "@/components/EmptyState";
 import { useColors } from "@/hooks/useColors";
+import { useAppActive } from "@/hooks/useAppActive";
 
 // ─── Common emojis for the picker panel ──────────────────────────────────────
 const EMOJI_GRID = [
@@ -276,9 +277,11 @@ export default function ChatThreadScreen() {
     };
   }, [id, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll for new messages, edits, deletions, and typing every 4 seconds
+  // Poll for new messages, edits, deletions, and typing every 4 seconds,
+  // only while the app is in the foreground.
+  const appActive = useAppActive();
   useEffect(() => {
-    if (!id) return;
+    if (!id || !appActive) return;
     const timer = setInterval(async () => {
       try {
         const since = lastMessageAtRef.current ?? new Date(0).toISOString();
@@ -319,7 +322,7 @@ export default function ChatThreadScreen() {
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, appActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge API history + optimistic local messages
   const apiMsgsForThread = apiMessages.filter((m) => m.conversationId === id);

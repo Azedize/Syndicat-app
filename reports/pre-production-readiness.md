@@ -28,7 +28,7 @@ Ce rapport fait suite à `reports/full-user-testing-report.md` (mission 1) et `r
 |---|---|---|
 | Rôles vérifiés à l'écran | 9 sur 10 | 10 sur 10 (org_staff ajouté) |
 | Défauts mineurs de la mission 2 | 11 restants | 8 corrigés et revérifiés, 3 documentés (traduction des erreurs serveur, arabe dans les PDF, preuve ouverte dans le navigateur) |
-| Nouveaux défauts trouvés en mission 3 | — | 11 : 5 corrigés, 3 documentés, 3 renvoyés aux décisions métier |
+| Nouveaux défauts trouvés en mission 3 | — | 11 : 7 corrigés, 1 non reproduit (artefact de l'outil de test), 3 renvoyés aux décisions métier |
 | Parcours e-mail validés | 0 (bloqués) | 3 (inscription, mot de passe oublié, invitation) |
 | Suites automatiques | 54 sur 54 | 54 sur 54 (après correction d’une régression du faux SMTP introduite pendant la mission) |
 | Corrections de mission 1 retirées le 7 novembre | non réappliquées | toujours non réappliquées, en attente de votre décision |
