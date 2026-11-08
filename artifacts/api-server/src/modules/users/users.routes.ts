@@ -18,7 +18,7 @@ import { requireAuth, requireRole, BCRYPT_COST } from "../../middleware/auth.js"
 import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
-import { welcomeTemplate } from "../../lib/email/templates.js";
+import { emailLang, welcomeTemplate } from "../../lib/email/templates.js";
 
 const router = Router();
 
@@ -292,11 +292,13 @@ router.post(
         created.role,
         loginUrl,
         temporaryPassword,
+        emailLang(req.headers["accept-language"]),
       );
       const sent = await sendTransactionalEmail({
         to: created.email,
         subject,
         html,
+        lang: emailLang(req.headers["accept-language"]),
         template: "welcome",
         syndicateId: created.syndicateId,
         req,

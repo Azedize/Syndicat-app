@@ -40,7 +40,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { getUserLotIds } from "../../lib/scope.js";
 import { z } from "zod";
-import { isReservedEmail, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
+import { deliveryRefused, isReservedEmail, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
 import { emailChangedNoticeTemplate, emailLang, verificationCodeTemplate } from "../../lib/email/templates.js";
 /**
@@ -315,7 +315,7 @@ router.post("/me/email-change/request", requireAuth, async (req, res) => {
   const email = parsed.data.email;
   const user = req.user!;
   try {
-    if (isReservedEmail(email)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
+    if (deliveryRefused(email)) return void res.status(400).json(RESERVED_EMAIL_ERROR);
     const [current] = await db.select({ email: usersTable.email, language: usersTable.language }).from(usersTable).where(eq(usersTable.id, user.userId));
     if (current && current.email.toLowerCase() === email) {
       return void res.status(400).json({ error: "C'est déjà votre adresse actuelle.", code: "EMAIL_UNCHANGED" });

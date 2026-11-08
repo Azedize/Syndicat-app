@@ -2227,3 +2227,24 @@ Conditions : émulateur Android, Expo Go, base de test. 10 rôles identifiés (8
 **Tests :** nouvelles suites `acceptance-roles` (49), `acceptance-subscriptions` (23) et `menu-guards` (112). `payment-reference` corrigée : un paiement en plusieurs fois mettait en défaut son hypothèse. Non-régression : 54 suites sur 54.
 
 **À décider :** 7 points, dans la section 7 du rapport (droits du président et de l'équipe, abonnements, limites des formules, règle des idées, SMTP de test).
+
+## 2026-11-08 — Finalisation avant production (mission 3)
+
+Détail : `reports/real-world-acceptance-testing.md` (sections 11 à 16), `reports/pre-production-readiness.md`, `reports/business-decisions-pending.md`.
+
+**Verdict : prêt pour une bêta privée, pas pour la production.** Les raisons : iOS, téléphone réel et paiements réels non testés, et des décisions métier encore ouvertes.
+
+**Corrigé :**
+- 8 des 11 défauts de la mission 2 : raison de la déconnexion forcée, message réseau commun, formats de montants et de dates, valeurs par défaut enregistrées traduites, erreur de chargement des procès-verbaux.
+- E-mail d'invitation traduit (fr, en, ar, es).
+- L'assistant d'équipe ne propose plus un rôle déjà pourvu.
+- Assistant de création de copropriété traduit.
+
+**Ajouté :**
+- faux serveur SMTP local (`scripts/src/mail-sink.ts`, `scripts/start-mail-sink-api.ps1`), actif seulement hors production et en boucle locale ;
+- inscription, mot de passe oublié et invitation validés de bout en bout ;
+- test de charge local (`scripts/src/load-test.ts`) : aucune erreur jusqu'à 700 utilisateurs ; débit plafonné vers 360 requêtes par seconde.
+
+**Non-régression :** 54 suites sur 54.
+
+**À décider :** 7 décisions et 3 points complémentaires dans `reports/business-decisions-pending.md`, ainsi que le sort des corrections de mission 1 retirées le 7 novembre.

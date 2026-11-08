@@ -42,6 +42,11 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Each message is shown once: under its field for a validation message,
+  // otherwise in the banner (wrong credentials, server, sign-out reason).
+  const emailError = error && error === t("emailRequired") ? error : undefined;
+  const passwordError = error && (error === t("passwordRequired") || error === t("passwordTooShort")) ? error : undefined;
+  const bannerError = error && !emailError && !passwordError ? error : "";
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
 
@@ -83,7 +88,7 @@ export default function LoginScreen() {
       // be reported as a network problem.
       const networkFailure = !status && error instanceof TypeError;
       if (networkFailure) setError(t("authServerError"));
-      else if (status === 401) setError(t("invalidCredentials"));
+      else if (status === 401 || status === 400) setError(t("invalidCredentials"));
       else if (status === 429) setError(t("authTooManyAttempts"));
       else if (error?.code === "ACCOUNT_PENDING") setError(t("authAccountPending"));
       else if (error?.code === "ACCOUNT_DISABLED") setError(t("authAccountDisabled"));
@@ -135,7 +140,7 @@ export default function LoginScreen() {
             <Text style={[styles.welcomeSub, { color: mutedColor }]}>{t("authSecureWorkspace")}</Text>
           </View>
 
-          <MizanFormField label={t("email")} icon="mail" focused={emailFocused} error={error && !email.trim() ? error : undefined}>
+          <MizanFormField label={t("email")} icon="mail" focused={emailFocused} error={emailError}>
             <TextInput
               style={[styles.input, { color: fgColor }]}
               value={email} onChangeText={(v) => { setEmail(v); setError(""); }}
@@ -147,7 +152,7 @@ export default function LoginScreen() {
             />
           </MizanFormField>
 
-          <MizanFormField label={t("password")} icon="lock" focused={passFocused} error={error && !password ? error : undefined} trailing={
+          <MizanFormField label={t("password")} icon="lock" focused={passFocused} error={passwordError} trailing={
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10} accessibilityRole="button" accessibilityLabel={showPassword ? t("hidePassword") : t("showPassword")}>
               <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={mutedColor} />
             </TouchableOpacity>
@@ -168,10 +173,10 @@ export default function LoginScreen() {
             <Text style={[styles.forgotLink, { color: colors.tint }]}>{t("forgotPassword")}</Text>
           </TouchableOpacity>
 
-          {!!error && (
+          {!!bannerError && (
             <View style={[styles.errorBox, { backgroundColor: colors.dangerSoft, borderColor: colors.danger + "40" }]} accessibilityLiveRegion="polite">
               <Feather name="alert-circle" size={16} color={colors.danger} />
-              <Text style={[styles.errorText, { color: colors.dangerText }]}>{error}</Text>
+              <Text style={[styles.errorText, { color: colors.dangerText }]}>{bannerError}</Text>
             </View>
           )}
 

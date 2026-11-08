@@ -114,8 +114,12 @@ async function main() {
   check("test account restored", (await post("/auth/login", { email: subject.email, password: PASSWORD })).status === 200);
 
   // ── Nothing real left the machine ──
-  const [sent] = await q<{ n: number }>(`SELECT count(*)::int AS n FROM email_logs WHERE status = 'sent'`);
+  // Messages taken by the local test sink (scripts/src/mail-sink.ts) never left the
+  // machine: they are recognised by the sink's receipt and must all be test addresses.
+  const [sent] = await q<{ n: number }>(`SELECT count(*)::int AS n FROM email_logs WHERE status = 'sent' AND coalesce(provider_message_id, '') NOT LIKE '%(mizan-mail-sink)'`);
   check("no e-mail recorded as sent on the test base", sent.n === 0, String(sent.n));
+  const [sink] = await q<{ n: number; real: number }>(`SELECT count(*)::int AS n, count(*) FILTER (WHERE lower(split_part(recipient,'@',2)) !~ '(^|\\.)(test|invalid|example|localhost|local)$' AND lower(split_part(recipient,'@',2)) NOT IN ('example.com','example.net','example.org'))::int AS real FROM email_logs WHERE status = 'sent' AND provider_message_id LIKE '%(mizan-mail-sink)'`);
+  check("test-sink messages only went to reserved test addresses", sink.real === 0, `${sink.n} in the sink, ${sink.real} to a real domain`);
   const newLogs = (await q<{ n: number }>(`SELECT count(*)::int AS n FROM email_logs`))[0].n - logsBefore;
   check("each attempt is logged (none hidden)", newLogs >= 1, `${newLogs} new log(s)`);
 

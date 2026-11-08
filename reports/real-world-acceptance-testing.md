@@ -161,3 +161,73 @@ Tout le reste a été supprimé : comptes et copropriétés jetables, annonce ur
 **Nécessite encore des corrections et des essais.** L'application n'est pas prête pour une publication en production :
 - les parcours qui envoient un e-mail, les paiements réels, iOS et le téléphone réel n'ont pas été vérifiés ;
 - sept décisions métier restent ouvertes, dont deux sur les droits et trois sur les abonnements.
+
+---
+
+# Mission 3 — Suite et finalisation (8 novembre 2026)
+
+Synthèse et verdict : `reports/pre-production-readiness.md`. Décisions à prendre : `reports/business-decisions-pending.md`.
+
+## 11. Défauts de la mission 2 : état
+
+| Défaut | État | Vérification |
+|---|---|---|
+| Déconnexion forcée sans message | CORRIGÉ | La raison renvoyée par le serveur (compte désactivé, mot de passe changé ailleurs, accès modifié) s'affiche sur l'écran de connexion |
+| Messages génériques hors ligne | CORRIGÉ | Message réseau traduit commun (`lib/fetchTimeout.ts`, `lib/errorText.ts`) |
+| Portefeuille : montants au format français | CORRIGÉ | « 5,258.73 MAD » en anglais |
+| Journal d'audit : dates brutes | CORRIGÉ | Dates mises en forme selon la langue |
+| Réclamations : format de date | CORRIGÉ | « Dec 11, 2025 » |
+| Annonces : audience « Tous » traduite et enregistrée telle quelle | CORRIGÉ | La valeur `all` est enregistrée et les anciennes valeurs traduites sont reconnues |
+| Réunions : lieu « À définir » enregistré traduit | CORRIGÉ | « TBD » en anglais |
+| Procès-verbaux : erreur de chargement silencieuse | CORRIGÉ | État d'erreur affiché |
+| Messages d'erreur du serveur en français | RESTANT | Chantier module par module |
+| Arabe dans les PDF (pdfmake) | RESTANT | Mise en forme bidirectionnelle à prévoir |
+| Preuve de paiement ouverte dans le navigateur externe | RESTANT | Visionneuse intégrée à prévoir |
+
+## 12. Parcours e-mail, avec le faux SMTP local
+
+Le faux serveur (`scripts/src/mail-sink.ts`) range les messages dans des fichiers et ne relaie rien ; l'API de test 5057 est lancée par `scripts/start-mail-sink-api.ps1`. Le SMTP de production n'a été ni utilisé ni modifié.
+
+| Parcours | Résultat |
+|---|---|
+| Inscription | Validation du formulaire, code faux refusé, code juste accepté, compte actif et vérifié. L'étape SMS a été simulée en injectant le code en base. La copropriété n'est créée qu'une fois malgré un double appui |
+| Mot de passe oublié | Réponse neutre, code reçu en anglais, mot de passe changé, e-mail de confirmation reçu, ancien mot de passe 401, nouveau 200, code réutilisé refusé (`RESET_CODE_INVALID`) |
+| Invitation | E-mail dans la langue de l'invitant (il était toujours en français), rôle et copropriété justes, mot de passe provisoire, changement obligatoire |
+
+## 13. Nouveaux défauts trouvés en mission 3
+
+| Défaut | État |
+|---|---|
+| Invitation toujours rédigée en français | CORRIGÉ (fr, en, ar, es) |
+| Assistant d'équipe : propose de nouveau un rôle déjà pourvu, d'où un deuxième président | CORRIGÉ dans l'application ; le serveur l'accepte encore (décision) |
+| Assistant de création : secteurs et textes d'aide en français | CORRIGÉ |
+| Mention « Twilio Verify » dans le texte de l'étape SMS | CORRIGÉ (texte neutre) |
+| Le refus de rafraîchir la session ne disait pas pourquoi | CORRIGÉ (`ACCOUNT_DISABLED`) |
+| Code à 6 chiffres : la touche d'effacement ne revient pas à la case précédente | RESTANT |
+| Écran de connexion : le même message d'erreur s'affiche trois fois | RESTANT |
+| E-mail de bienvenue des copropriétaires en français seulement | RESTANT |
+| Invitations sans expiration, mot de passe provisoire permanent ; plusieurs présidents possibles ; `autoRenew` sans traitement | DÉCISIONS (points complémentaires) |
+
+**Régression introduite puis corrigée pendant la mission :** la première version du faux SMTP empêchait de marquer « non joignables » les adresses réservées créées à travers lui (3 comptes QA). Le passe-droit ne s'applique plus qu'à l'envoi (`deliveryRefused`). Les 3 comptes ont été remis au bon statut. `email-accounts-test` reconnaît les messages reçus par le faux SMTP et vérifie qu'ils ne visent que des adresses de test.
+
+## 14. Rôles, finances, performance, sécurité
+
+- **org_staff à l'écran :**
+  - le portefeuille montre 4 copropriétés sur 5, conformément à la règle du serveur ;
+  - les actions sont réduites (pas de création de copropriété ni de gestion d'équipe) ;
+  - le changement de copropriété fonctionne et l'isolation est respectée.
+- **Finances (lecture seule) :** une écriture au grand livre par paiement validé ; aucun reçu en double dans une même copropriété ; aucun trop-perçu. Les 4 écarts restants sont d'anciennes lignes de démonstration (adf_1, adf_6, adf_7, adf_10).
+- **Charge (locale) :** aucune erreur jusqu'à 700 utilisateurs simultanés. p95 : 467 ms à 100 utilisateurs, 1,2 s à 300, 3 s à 700. Le débit plafonne vers 360 requêtes par seconde (un seul processus, pool de 10 connexions).
+- **Sécurité :** aucun secret suivi par Git ; les clés Firebase sont à restreindre dans la console Google ; la limite de 500 requêtes par minute et par IP est à revoir.
+
+## 15. Non-régression
+
+54 suites sur 54 après correction. La première passe complète donnait 52 sur 54 : `email-step-test` et `email-accounts-test` échouaient, à cause de la régression du faux SMTP décrite à la section 13.
+
+## 16. Données de test ajoutées (base `syndycat_test`, rien de supprimé)
+
+- **Copropriété « Residence QA Acceptance » :**
+  - qa.salma.0811@example.test, syndic ;
+  - qa.karim.0811@example.test, président ;
+  - qa.nadia.0811@example.test, deuxième présidente créée avant la correction de l'assistant.
+- **Journal des e-mails :** 8 messages reçus par le faux SMTP. Leurs copies sont dans `scripts/.seedgen/mail-sink/`, ignoré par Git.

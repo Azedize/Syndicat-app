@@ -11534,10 +11534,10 @@ export const TRANSLATIONS: Translations = {
     es: "Confirmar código",
   },
   setupSmsHint: {
-    fr: "Le SMS est envoyé via Twilio Verify. Format accepté : +212XXXXXXXXX ou 06XXXXXXXX. Le code expire dans 10 minutes.",
-    en: "The SMS is sent via Twilio Verify. Accepted format: +212XXXXXXXXX or 06XXXXXXXX. The code expires in 10 minutes.",
-    ar: "تُرسل الرسالة عبر Twilio Verify. الصيغة المقبولة: +212XXXXXXXXX أو 06XXXXXXXX. تنتهي صلاحية الرمز خلال 10 دقائق.",
-    es: "El SMS se envía mediante Twilio Verify. Formato aceptado: +212XXXXXXXXX o 06XXXXXXXX. El código caduca en 10 minutos.",
+    fr: "Le code est envoyé par SMS. Format accepté : +212XXXXXXXXX ou 06XXXXXXXX. Le code expire dans 10 minutes.",
+    en: "The code is sent by SMS. Accepted format: +212XXXXXXXXX or 06XXXXXXXX. The code expires in 10 minutes.",
+    ar: "يُرسل الرمز عبر رسالة قصيرة. الصيغة المقبولة: +212XXXXXXXXX أو 06XXXXXXXX. تنتهي صلاحية الرمز خلال 10 دقائق.",
+    es: "El código se envía por SMS. Formato aceptado: +212XXXXXXXXX o 06XXXXXXXX. El código caduca en 10 minutos.",
   },
   setupCreatedTitle: {
     fr: "Syndicat créé !",
@@ -15081,6 +15081,10 @@ export const TRANSLATIONS: Translations = {
   authPasswordChangedElsewhere: { fr: "Votre mot de passe a été modifié : reconnectez-vous avec le nouveau.", en: "Your password was changed: sign in with the new one.", ar: "تم تغيير كلمة المرور: سجل الدخول بالكلمة الجديدة.", es: "Su contraseña ha cambiado: inicie sesión con la nueva." },
   authSessionEnded: { fr: "Votre session a pris fin : reconnectez-vous.", en: "Your session has ended: please sign in again.", ar: "انتهت جلستك: يرجى تسجيل الدخول من جديد.", es: "Su sesión ha terminado: vuelva a iniciar sesión." },
   pvLoadError: { fr: "Les procès-verbaux n'ont pas pu être chargés. Vérifiez la connexion et réessayez.", en: "The minutes could not be loaded. Check the connection and try again.", ar: "تعذر تحميل المحاضر. تحقق من الاتصال وأعد المحاولة.", es: "No se pudieron cargar las actas. Compruebe la conexión e inténtelo de nuevo." },
+  setupCountryPlaceholder: { fr: "Maroc", en: "Morocco", ar: "المغرب", es: "Marruecos" },
+  setupIcePlaceholder: { fr: "15 chiffres", en: "15 digits", ar: "15 رقما", es: "15 dígitos" },
+  setupRcPlaceholder: { fr: "Ex. : 123456", en: "E.g. 123456", ar: "مثال: 123456", es: "Ej.: 123456" },
+  setupMembersPlaceholder: { fr: "Ex. : 50", en: "E.g. 50", ar: "مثال: 50", es: "Ej.: 50" },
   alertUrgent: { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
   alertError: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
 

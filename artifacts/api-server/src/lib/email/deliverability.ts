@@ -28,9 +28,17 @@ export function mailSinkEnabled(env: Record<string, string | undefined> = proces
 }
 
 export function isReservedEmail(email: string): boolean {
-  if (mailSinkEnabled()) return false;
   const domain = emailDomain(email);
   return !domain || RESERVED_TLD.test(domain) || RESERVED_DOMAINS.has(domain);
+}
+
+/**
+ * Whether a message to this address must be refused before sending. Reserved
+ * addresses stay marked undeliverable in the database even under the test mail
+ * sink; only the sending step lets them through to the local sink.
+ */
+export function deliveryRefused(email: string): boolean {
+  return isReservedEmail(email) && !mailSinkEnabled();
 }
 
 /** Status a new account starts with. */

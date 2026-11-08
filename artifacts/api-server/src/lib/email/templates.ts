@@ -427,22 +427,83 @@ export function accountDeletedTemplate(name: string, lang: EmailLang = "fr"): Em
   };
 }
 
-export function welcomeTemplate(name: string, role: string, loginUrl?: string, temporaryPassword?: string): EmailTemplate {
-  const roleLabel: Record<string, string> = {
-    super_admin: "Administrateur plateforme",
-    syndicate_admin: "Administrateur de syndicat",
-    member: "Copropriétaire",
-    tenant: "Locataire",
-  };
-  return {
+const WELCOME_COPY: Record<EmailLang, {
+  roles: Record<string, string>;
+  subject: string;
+  hello: (n: string) => string;
+  created: (r: string) => string;
+  next: string;
+  temp: string;
+  password: string;
+  change: string;
+  open: string;
+  sign: string;
+}> = {
+  fr: {
+    roles: { super_admin: "Administrateur plateforme", syndicate_admin: "Administrateur de syndicat", member: "Copropriétaire", tenant: "Locataire" },
     subject: "Bienvenue sur MIZAN",
+    hello: (n) => `Bonjour ${n},`,
+    created: (r) => `Votre compte MIZAN a été créé avec succès en tant que <strong>${r}</strong>.`,
+    next: "Vous pouvez dès maintenant vous connecter pour gérer vos démarches liées à votre syndicat de copropriété.",
+    temp: "Identifiant temporaire",
+    password: "Mot de passe :",
+    change: "Veuillez changer ce mot de passe après votre première connexion.",
+    open: "Accéder à mon compte",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    roles: { super_admin: "Platform administrator", syndicate_admin: "Syndicate administrator", member: "Co-owner", tenant: "Tenant" },
+    subject: "Welcome to MIZAN",
+    hello: (n) => `Hello ${n},`,
+    created: (r) => `Your MIZAN account has been created as <strong>${r}</strong>.`,
+    next: "You can now sign in to follow everything related to your co-ownership.",
+    temp: "Temporary sign-in details",
+    password: "Password:",
+    change: "Please change this password after your first sign-in.",
+    open: "Open my account",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    roles: { super_admin: "مسؤول المنصة", syndicate_admin: "مسؤول الاتحاد", member: "مالك مشترك", tenant: "مكتري" },
+    subject: "مرحبًا بك في ميزان",
+    hello: (n) => `مرحبًا ${n}،`,
+    created: (r) => `تم إنشاء حسابك على ميزان بصفة <strong>${r}</strong>.`,
+    next: "يمكنك الآن تسجيل الدخول لمتابعة كل ما يتعلق بملكيتك المشتركة.",
+    temp: "بيانات دخول مؤقتة",
+    password: "كلمة المرور:",
+    change: "يُرجى تغيير كلمة المرور هذه بعد أول تسجيل دخول.",
+    open: "الدخول إلى حسابي",
+    sign: "— فريق ميزان",
+  },
+  es: {
+    roles: { super_admin: "Administrador de la plataforma", syndicate_admin: "Administrador de la comunidad", member: "Copropietario", tenant: "Inquilino" },
+    subject: "Bienvenido a MIZAN",
+    hello: (n) => `Hola ${n}:`,
+    created: (r) => `Su cuenta MIZAN se ha creado como <strong>${r}</strong>.`,
+    next: "Ya puede iniciar sesión para seguir todo lo relacionado con su comunidad.",
+    temp: "Acceso temporal",
+    password: "Contraseña:",
+    change: "Cambie esta contraseña después de su primer inicio de sesión.",
+    open: "Acceder a mi cuenta",
+    sign: "— El equipo MIZAN",
+  },
+};
+
+export function welcomeTemplate(name: string, role: string, loginUrl?: string, temporaryPassword?: string, lang: EmailLang = "fr"): EmailTemplate {
+  const c = WELCOME_COPY[lang];
+  const dir = lang === "ar" ? ' dir="rtl"' : "";
+  return {
+    subject: c.subject,
+    lang,
     html: `
-      <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Votre compte MIZAN a été créé avec succès en tant que <strong>${escapeHtml(roleLabel[role] ?? role)}</strong>.</p>
-      <p>Vous pouvez dès maintenant vous connecter pour gérer vos démarches liées à votre syndicat de copropriété.</p>
-      ${temporaryPassword ? `<div style="margin:20px 0;padding:16px;background:#EFF6FF;border-radius:10px;border-left:4px solid #2563EB;"><p style="margin:0 0 6px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;">Identifiant temporaire</p><p style="margin:0;color:#0A1628;"><strong>Mot de passe :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(temporaryPassword)}</code></p></div><p style="color:#DC2626;font-size:13px;">Veuillez changer ce mot de passe après votre première connexion.</p>` : ""}
-      ${loginUrl ? button(loginUrl, "Accéder à mon compte") : ""}
-      <p>— L'équipe MIZAN</p>`,
+      <div${dir}>
+      <p>${escapeHtml(c.hello(name))}</p>
+      <p>${c.created(escapeHtml(c.roles[role] ?? role))}</p>
+      <p>${c.next}</p>
+      ${temporaryPassword ? `<div style="margin:20px 0;padding:16px;background:#EFF6FF;border-radius:10px;border-left:4px solid #2563EB;"><p style="margin:0 0 6px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;">${c.temp}</p><p style="margin:0;color:#0A1628;"><strong>${c.password}</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(temporaryPassword)}</code></p></div><p style="color:#DC2626;font-size:13px;">${c.change}</p>` : ""}
+      ${loginUrl ? button(loginUrl, c.open) : ""}
+      <p>${c.sign}</p>
+      </div>`,
   };
 }
 

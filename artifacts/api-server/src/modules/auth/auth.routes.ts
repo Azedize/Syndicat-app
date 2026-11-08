@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { initialEmailStatus, isReservedEmail, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
+import { deliveryRefused, initialEmailStatus, reservedEmailRefused, RESERVED_EMAIL_ERROR } from "../../lib/email/deliverability.js";
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 import { z } from "zod";
@@ -867,7 +867,7 @@ router.post("/auth/otp/send", async (req, res) => {
   }
   const em = email.trim().toLowerCase();
   // A reserved address can never receive a code: say so instead of a 502.
-  if (isReservedEmail(em)) {
+  if (deliveryRefused(em)) {
     return void res.status(400).json(RESERVED_EMAIL_ERROR);
   }
   try {

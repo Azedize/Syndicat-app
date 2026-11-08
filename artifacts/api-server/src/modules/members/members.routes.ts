@@ -17,7 +17,7 @@ import {
 } from "drizzle-orm";
 import { requireAuth, requireRole, requireOperationalAccess, BCRYPT_COST } from "../../middleware/auth.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
-import { welcomeTemplate } from "../../lib/email/templates.js";
+import { emailLang, welcomeTemplate } from "../../lib/email/templates.js";
 import { serverAuditLog } from "../../lib/audit.js";
 import { getPagination, buildPagedResponse } from "../../lib/paginate.js";
 import { createAlert } from "../../lib/notify.js";
@@ -289,8 +289,9 @@ router.post(
       let invitationEmail: "sent" | "not_sent" | undefined;
       if (temporaryPassword) {
         const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
-        const { subject, html } = welcomeTemplate(member!.name, "member", loginUrl, temporaryPassword);
-        const sent = await sendTransactionalEmail({ to: email, subject, html, template: "welcome", syndicateId, req });
+        const lang = emailLang(req.headers["accept-language"]);
+        const { subject, html } = welcomeTemplate(member!.name, "member", loginUrl, temporaryPassword, lang);
+        const sent = await sendTransactionalEmail({ to: email, subject, html, lang, template: "welcome", syndicateId, req });
         invitationEmail = sent.ok ? "sent" : "not_sent";
       }
 

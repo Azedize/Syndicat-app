@@ -40,7 +40,7 @@ function serve() {
             const name = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.eml`;
             writeFileSync(join(DIR, name), `X-Sink-From: ${from}\r\nX-Sink-To: ${to.join(", ")}\r\n${data.join("\r\n")}\r\n`);
             data = [];
-            say("250 OK stored");
+            say("250 OK stored (mizan-mail-sink)");
           } else data.push(line.startsWith("..") ? line.slice(1) : line);
           continue;
         }

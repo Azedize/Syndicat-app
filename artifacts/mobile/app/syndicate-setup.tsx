@@ -33,6 +33,7 @@ import { apiRequest } from "@/lib/api";
 import { localDate } from "@/lib/localDate";
 
 import { isValidYmd } from "@/lib/dateInput";
+import { formatDay } from "@/lib/formatDay";
 const TOTAL_STEPS = 4;
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
 const STEP_LABEL_KEYS = ["setupStepIdentity", "setupStepContact", "setupStepLegal", "setupStepConfig"] as const;
@@ -62,6 +63,22 @@ const SECTORS = [
   "Santé / cliniques",
   "Autre",
 ];
+
+/** Reader's label of a sector (the value stored stays the French one). */
+const SECTOR_LABELS: Record<string, { en: string; ar: string; es: string }> = {
+  "Copropriété résidentielle": { en: "Residential co-ownership", ar: "ملكية مشتركة سكنية", es: "Comunidad residencial" },
+  "Copropriété commerciale": { en: "Commercial co-ownership", ar: "ملكية مشتركة تجارية", es: "Comunidad comercial" },
+  "Usage mixte (résidentiel + commercial)": { en: "Mixed use (residential + commercial)", ar: "استعمال مختلط (سكني + تجاري)", es: "Uso mixto (residencial + comercial)" },
+  "Résidence fermée (gated community)": { en: "Gated community", ar: "إقامة مغلقة", es: "Urbanización cerrada" },
+  "Complexe hôtelier / touristique": { en: "Hotel / tourist complex", ar: "مركب فندقي / سياحي", es: "Complejo hotelero / turístico" },
+  "Immeubles de bureaux": { en: "Office buildings", ar: "عمارات مكاتب", es: "Edificios de oficinas" },
+  "Zone industrielle": { en: "Industrial zone", ar: "منطقة صناعية", es: "Zona industrial" },
+  "Quartier administratif": { en: "Administrative district", ar: "حي إداري", es: "Barrio administrativo" },
+  "Complexe universitaire": { en: "University complex", ar: "مركب جامعي", es: "Complejo universitario" },
+  "Santé / cliniques": { en: "Health / clinics", ar: "الصحة / المصحات", es: "Salud / clínicas" },
+  "Autre": { en: "Other", ar: "أخرى", es: "Otro" },
+};
+const sectorLabel = (v: string, lang: string) => (lang === "fr" ? v : (SECTOR_LABELS[v] as Record<string, string> | undefined)?.[lang] ?? v);
 
 const REGIONS = [
   "Casablanca-Settat",
@@ -363,6 +380,7 @@ function SimplePicker({
   colors,
   error,
   title,
+  labelOf = (v: string) => v,
 }: {
   label: string;
   value: string;
@@ -371,13 +389,14 @@ function SimplePicker({
   colors: ReturnType<typeof useColors>;
   error?: string;
   title: string;
+  labelOf?: (v: string) => string;
 }) {
   const { t, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const showSearch = options.length > 8;
   const filtered = showSearch
-    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter((o) => labelOf(o).toLowerCase().includes(query.toLowerCase()))
     : options;
 
   return (
@@ -393,7 +412,7 @@ function SimplePicker({
         activeOpacity={0.8}
       >
         <Text style={[styles.input, { color: value ? colors.foreground : colors.mutedForeground }]}>
-           {value || t("setupSelect")}
+           {value ? labelOf(value) : t("setupSelect")}
         </Text>
         <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
       </TouchableOpacity>
@@ -446,7 +465,7 @@ function SimplePicker({
                 }}
               >
                  <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground, textAlign: "auto" }]}>
-                  {item}
+                  {labelOf(item)}
                 </Text>
                 {item === value ? <Feather name="check" size={16} color={colors.primary} /> : null}
               </TouchableOpacity>
@@ -1070,6 +1089,7 @@ function SyndicateSetupScreenInner() {
               value={form.sector}
               onChange={(v) => up("sector", v)}
               options={SECTORS}
+              labelOf={(v) => sectorLabel(v, lang)}
               colors={colors}
                title={t("setupSectorLabel")}
             />
@@ -1105,7 +1125,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupPhoneLabel")} colors={colors} error={errors.phone}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="06 00 00 00 00 ou +212 6 00 00 00 00"
+                placeholder={t("phonePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.phone}
                 onChangeText={(v) => up("phone", v)}
@@ -1142,7 +1162,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupCountryLabel")} colors={colors} error={errors.country}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Maroc"
+                placeholder={t("setupCountryPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.country}
                 onChangeText={(v) => up("country", v)}
@@ -1168,7 +1188,7 @@ function SyndicateSetupScreenInner() {
                   <Text style={[styles.logoName, { color: colors.foreground }]} numberOfLines={1}>
                     {form.name || "Nom du syndicat"}
                   </Text>
-                  <Text style={[styles.logoSector, { color: colors.mutedForeground }]}>{form.sector}</Text>
+                  <Text style={[styles.logoSector, { color: colors.mutedForeground }]}>{sectorLabel(form.sector, lang)}</Text>
                 </View>
                 {form.logoUri ? (
                   <TouchableOpacity
@@ -1284,7 +1304,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupFoundingDateLabel")} colors={colors} error={errors.foundingDate}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="AAAA-MM-JJ"
+                placeholder={t("dateFormatPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.foundingDate}
                 onChangeText={(v) => up("foundingDate", v)}
@@ -1294,7 +1314,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupIceLabel")} colors={colors} error={errors.iceNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="15 chiffres"
+                placeholder={t("setupIcePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.iceNumber}
                 onChangeText={(v) => up("iceNumber", v)}
@@ -1306,7 +1326,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupRcLabel")} colors={colors} error={errors.rcNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: 123456"
+                placeholder={t("setupRcPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.rcNumber}
                 onChangeText={(v) => up("rcNumber", v)}
@@ -1316,7 +1336,7 @@ function SyndicateSetupScreenInner() {
              <Field label={t("setupMemberCountLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: 50"
+                placeholder={t("setupMembersPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.memberCount}
                 onChangeText={(v) => up("memberCount", v)}
@@ -1375,7 +1395,7 @@ function SyndicateSetupScreenInner() {
                  { icon: "phone" as const, value: form.phone || t("setupSummaryNotProvided") },
                  { icon: "map-pin" as const, value: form.city ? `${form.city}, ${form.country}` : t("setupSummaryNotProvided") },
                  { icon: "file-text" as const, value: `N° ${form.registrationNumber || t("setupSummaryNotProvided")}` },
-                 { icon: "calendar" as const, value: `${t("setupFoundedOn")} ${form.foundingDate || t("setupSummaryNotProvided")}` },
+                 { icon: "calendar" as const, value: `${t("setupFoundedOn")} ${form.foundingDate ? formatDay(lang, form.foundingDate) : t("setupSummaryNotProvided")}` },
               ].map(({ icon, value }, i) => (
                 <View key={i} style={styles.previewRow}>
                   <Feather name={icon} size={13} color={colors.mutedForeground} />
