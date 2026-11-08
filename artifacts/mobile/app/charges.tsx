@@ -660,7 +660,7 @@ function ChargesScreenInner() {
                     >
                       <Feather name="check-circle" size={14} color={colors.success} />
                       <Text style={[TYPE.caption, { color: colors.successText, flex: 1 }]}>
-                        {t("paymentReceiptLabel")} {appel.receiptNumber} — {formatDate(appel.paidDate, lang)} · {getPaymentMethodLabel(appel.paymentMethod)}
+                        {[`${t("paymentReceiptLabel")} ${appel.receiptNumber}`, appel.paidDate ? formatDate(appel.paidDate, lang) : null, appel.paymentMethod ? getPaymentMethodLabel(appel.paymentMethod) : null].filter(Boolean).join(" · ")}
                       </Text>
                       <Feather name="download" size={14} color={colors.success} />
                     </Pressable>

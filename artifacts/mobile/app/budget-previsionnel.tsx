@@ -60,7 +60,7 @@ const pct = (realise: number, prevu: number) => prevu > 0 ? Math.min(100, Math.r
 // pas accès aux données financières.
 export default function BudgetPrevisionnelScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer", "president"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer"]}>
       <BudgetPrevisionnelScreenInner />
     </RoleGuard>
   );

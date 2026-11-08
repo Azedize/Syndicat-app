@@ -467,7 +467,7 @@ export default function NotificationsScreen() {
                   {alerts.map((alert, i) => {
                     const tone = ALERT_TONES[alert.type] ?? "info";
                     const typeLabel =
-                      alert.type === "info" ? t("alertInfo") : alert.type === "warning" ? t("alertWarning") : alert.type === "success" ? t("alertSuccess") : t("alertError");
+                      alert.type === "info" ? t("alertInfo") : alert.type === "warning" ? t("alertWarning") : alert.type === "success" ? t("alertSuccess") : t("alertUrgent");
                     return (
                       <ListItem
                         key={alert.id}

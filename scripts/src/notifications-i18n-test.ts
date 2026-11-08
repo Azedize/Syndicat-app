@@ -12,6 +12,8 @@
  */
 import { pool } from "@workspace/db";
 import { writableSubscriptionSql } from "./test-domain.js";
+import { renderNotification } from "../../artifacts/api-server/src/lib/notification-texts.js";
+import { renderNotification } from "../../artifacts/api-server/src/lib/notification-texts.js";
 
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
 if (!/syndycat_test/.test(process.env.DATABASE_URL ?? "")) throw new Error("notifications-i18n: run it against the isolated test base (testdb exec).");
@@ -105,6 +107,17 @@ async function main() {
     await pool`DELETE FROM alerts WHERE syndicate_id = ${S.id} AND created_at >= ${startedAt} AND key IN ('ticket.new', 'ticket.platformNew')`;
     await pool`DELETE FROM support_tickets WHERE syndicate_id = ${S.id} AND created_at >= ${startedAt} AND description = 'Test des notifications'`.catch(() => {});
   }
+
+  // A code sent as a parameter is shown in words (it read « Claim declared: degat_eau »).
+  const claimFr = renderNotification("claim.declared", { type: "degat_eau", description: "Fuite" }, "fr");
+  const claimAr = renderNotification("claim.declared", { type: "incendie", description: "x" }, "ar");
+  check("a claim type is shown in words, not as a code", claimFr?.title === "Sinistre déclaré : dégât des eaux" && !!claimAr?.title.includes("حريق"), `${claimFr?.title} | ${claimAr?.title}`);
+  // Claim (réclamation) notifications were stored as French text only.
+  const claimCreated = renderNotification("claimRequest.created", { ref: "RCL-1", title: "Fuite", location: "Hall" }, "en");
+  const resolvedAr = renderNotification("claimRequest.resolved", { ref: "RCL-1", text: "OK" }, "ar");
+  check("a claim notification follows the reader's language", claimCreated?.title === "New claim RCL-1" && !!resolvedAr?.message.startsWith("تمت المعالجة"), `${claimCreated?.title} | ${resolvedAr?.message}`);
+  const unknown = renderNotification("claim.declared", { type: "nouveau_type", description: "x" }, "en");
+  check("an unknown claim type stays readable", unknown?.title === "Claim declared: nouveau_type", unknown?.title);
 
   const failed = checks.filter((c) => !c.ok).length;
   console.log(`\n${checks.length - failed}/${checks.length} notification language checks passed`);

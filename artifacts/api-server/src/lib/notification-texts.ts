@@ -335,6 +335,66 @@ export const NOTIFICATIONS = {
     link: "/parking",
     roles: TEAM,
   },
+  "claimRequest.created": {
+    title: { fr: "Nouvelle réclamation {ref}", en: "New claim {ref}", ar: "شكاية جديدة {ref}", es: "Nueva reclamación {ref}" },
+    message: { fr: "{title} — {location}", en: "{title} — {location}", ar: "{title} — {location}", es: "{title} — {location}" },
+    link: "/reclamations",
+  },
+  "claimRequest.assignedToYou": {
+    title: { fr: "Réclamation {ref} assignée", en: "Claim {ref} assigned to you", ar: "أسندت إليك الشكاية {ref}", es: "Reclamación {ref} asignada" },
+    message: { fr: "{title} — {location}{instructions}", en: "{title} — {location}{instructions}", ar: "{title} — {location}{instructions}", es: "{title} — {location}{instructions}" },
+    link: "/reclamations",
+  },
+  "claimRequest.takenInCharge": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Votre réclamation est prise en charge.", en: "Your claim is being handled.", ar: "شكايتك قيد المعالجة.", es: "Su reclamación está siendo atendida." },
+    link: "/reclamations",
+  },
+  "claimRequest.inProgress": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Intervention en cours.", en: "Work in progress.", ar: "التدخل جار.", es: "Intervención en curso." },
+    link: "/reclamations",
+  },
+  "claimRequest.infoRequested": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Le syndic a besoin d'une précision : {text}", en: "The syndic needs more information: {text}", ar: "يحتاج السنديك إلى توضيح: {text}", es: "El administrador necesita una precisión: {text}" },
+    link: "/reclamations",
+  },
+  "claimRequest.resolved": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Résolue : {text}", en: "Resolved: {text}", ar: "تمت المعالجة: {text}", es: "Resuelta: {text}" },
+    link: "/reclamations",
+  },
+  "claimRequest.rejected": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Non retenue : {text}", en: "Not accepted: {text}", ar: "غير مقبولة: {text}", es: "No aceptada: {text}" },
+    link: "/reclamations",
+  },
+  "claimRequest.closed": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Votre réclamation est clôturée.", en: "Your claim is closed.", ar: "تم إغلاق شكايتك.", es: "Su reclamación está cerrada." },
+    link: "/reclamations",
+  },
+  "claimRequest.scheduled": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Intervention prévue le {day} à {time}.", en: "Work scheduled on {day} at {time}.", ar: "التدخل مبرمج يوم {day} على الساعة {time}.", es: "Intervención prevista el {day} a las {time}." },
+    link: "/reclamations",
+  },
+  "claimRequest.message": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Nouveau message : {text}", en: "New message: {text}", ar: "رسالة جديدة: {text}", es: "Nuevo mensaje: {text}" },
+    link: "/reclamations",
+  },
+  "claimRequest.answer": {
+    title: { fr: "Réclamation {ref}", en: "Claim {ref}", ar: "الشكاية {ref}", es: "Reclamación {ref}" },
+    message: { fr: "Réponse du résident : {text}", en: "Resident's answer: {text}", ar: "رد الساكن: {text}", es: "Respuesta del residente: {text}" },
+    link: "/reclamations",
+  },
+  "claimRequest.reopened": {
+    title: { fr: "Réclamation {ref} rouverte", en: "Claim {ref} reopened", ar: "أعيد فتح الشكاية {ref}", es: "Reclamación {ref} reabierta" },
+    message: { fr: "{text}", en: "{text}", ar: "{text}", es: "{text}" },
+    link: "/reclamations",
+  },
   "claim.declared": {
     title: { fr: "Sinistre déclaré : {type}", en: "Claim declared: {type}", ar: "تم التصريح بحادث: {type}", es: "Siniestro declarado: {type}" },
     message: { fr: "{description}", en: "{description}", ar: "{description}", es: "{description}" },
@@ -382,10 +442,25 @@ function localDate(s: string, lang: Lang) {
   }
 }
 
-function fill(template: string, params: NotificationParams, lang: Lang) {
+/** Codes sent as parameters, shown in the reader's language (an unknown code stays as is). */
+const PARAM_LABELS: Record<string, Record<string, Record<Lang, string>>> = {
+  "claim.declared:type": {
+    degat_eau: { fr: "dégât des eaux", en: "water damage", ar: "تسرب المياه", es: "daños por agua" },
+    degat_eaux: { fr: "dégât des eaux", en: "water damage", ar: "تسرب المياه", es: "daños por agua" },
+    incendie: { fr: "incendie", en: "fire", ar: "حريق", es: "incendio" },
+    vol: { fr: "vol / cambriolage", en: "theft / burglary", ar: "سرقة", es: "robo" },
+    ascenseur: { fr: "panne d'ascenseur", en: "elevator failure", ar: "عطل المصعد", es: "avería del ascensor" },
+    dommage_commun: { fr: "dommage aux parties communes", en: "common-area damage", ar: "ضرر بالأجزاء المشتركة", es: "daño en zonas comunes" },
+    vandalisme: { fr: "vandalisme", en: "vandalism", ar: "تخريب", es: "vandalismo" },
+    autre: { fr: "autre", en: "other", ar: "أخرى", es: "otro" },
+  },
+};
+
+function fill(template: string, params: NotificationParams, lang: Lang, key = "") {
   return template.replace(/\{(\w+)\}/g, (_m, name: string) => {
     const v = params[name];
-    const s = v === null || v === undefined ? "" : localDate(String(v), lang);
+    const label = v === null || v === undefined ? undefined : PARAM_LABELS[`${key}:${name}`]?.[String(v)]?.[lang];
+    const s = label ?? (v === null || v === undefined ? "" : localDate(String(v), lang));
     return lang === "ar" && s ? `⁨${s}⁩` : s;
   });
 }
@@ -394,7 +469,7 @@ export function renderNotification(key: string | null | undefined, params: Notif
   const t = key ? (NOTIFICATIONS as Record<string, Template>)[key] : undefined;
   if (!t) return null;
   const p = params ?? {};
-  return { title: fill(t.title[lang], p, lang), message: fill(t.message[lang], p, lang) };
+  return { title: fill(t.title[lang], p, lang, key ?? ""), message: fill(t.message[lang], p, lang, key ?? "") };
 }
 
 /** The link of a notification, if this role may open the screen it points to. */

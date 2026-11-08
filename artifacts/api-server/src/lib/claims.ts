@@ -3,6 +3,8 @@ import { alertsTable, claimEventsTable, claimNotificationsTable, claimsTable } f
 import { and, eq, sql } from "drizzle-orm";
 import type { JwtPayload } from "../middleware/auth.js";
 import { sendPushToUsers } from "./notify.js";
+import { frenchCopy, renderNotification, type Lang, type NotificationKey, type NotificationParams } from "./notification-texts.js";
+import { usersTable } from "@workspace/db/schema";
 import { logger } from "./logger.js";
 import { localToday } from "./charge-time.js";
 
@@ -106,7 +108,7 @@ export async function teamRoleIn(userId: string, syndicateId: string): Promise<s
 export async function notifyClaimEvent(
   event: { id: string; claimId: string; syndicateId: string; authorId: string | null },
   recipients: (string | null | undefined)[],
-  message: { title: string; body: string; type?: "info" | "success" | "warning" | "error" },
+  message: ClaimMessage,
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   const unique = [...new Set(recipients.filter((r): r is string => !!r && r !== event.authorId))];
   if (unique.length === 0) return { sent: 0, failed: 0, skipped: 0 };
@@ -123,16 +125,24 @@ export async function notifyClaimEvent(
   return { sent, failed, skipped: unique.length - created.length };
 }
 
-async function deliver(
-  n: typeof claimNotificationsTable.$inferSelect,
-  message: { title: string; body: string; type?: string },
-): Promise<boolean> {
+/** A claim notification: a template (shown in each reader's language), or a plain text (retries of old rows). */
+export type ClaimMessage =
+  | { key: NotificationKey; params: NotificationParams; type?: "info" | "success" | "warning" | "error" }
+  | { key?: undefined; title: string; body: string; type?: "info" | "success" | "warning" | "error" };
+
+const asLang = (v: string | null | undefined): Lang => (v === "en" || v === "ar" || v === "es" ? v : "fr");
+
+async function deliver(n: typeof claimNotificationsTable.$inferSelect, message: ClaimMessage): Promise<boolean> {
   try {
+    const params = message.key ? (Object.fromEntries(Object.entries(message.params).map(([k, v]) => [k, v ?? ""])) as Record<string, string | number>) : null;
+    const stored = message.key ? frenchCopy(message.key, params!) : { title: message.title, message: message.body };
     const [alert] = await db
       .insert(alertsTable)
       .values({
-        title: message.title,
-        message: message.body,
+        title: stored.title,
+        message: stored.message,
+        key: message.key ?? null,
+        params,
         type: message.type ?? "info",
         date: localToday(),
         syndicateId: n.syndicateId,
@@ -145,7 +155,9 @@ async function deliver(
       .set({ status: "sent", attempts: sql`${claimNotificationsTable.attempts} + 1`, sentAt: new Date(), alertId: alert.id, error: null })
       .where(eq(claimNotificationsTable.id, n.id));
     // Push is best effort on top of the in-app notification.
-    sendPushToUsers([n.userId], message.title, message.body, { claimId: n.claimId }).catch(() => {});
+    const [reader] = await db.select({ language: usersTable.language }).from(usersTable).where(eq(usersTable.id, n.userId));
+    const push = message.key ? renderNotification(message.key, params, asLang(reader?.language)) ?? stored : stored;
+    sendPushToUsers([n.userId], push.title, push.message, { claimId: n.claimId }).catch(() => {});
     return true;
   } catch (err: any) {
     logger.warn({ err: err?.message, notificationId: n.id }, "claim notification failed");

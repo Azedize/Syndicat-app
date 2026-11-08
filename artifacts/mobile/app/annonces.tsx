@@ -257,8 +257,12 @@ export default function AnnoncesScreen() {
               <Card padding="none">
                 <ListItem icon="user" title={selected.author} subtitle={t("authorLabel")} divider />
                 <ListItem icon="users" title={selected.audience} subtitle={t("audienceLabel")} divider />
-                <ListItem icon="clock" title={date(selected.createdAt, { day: "numeric", month: "long", year: "numeric" })} subtitle={t("publishedOn")} divider={!!selected.expiresAt} />
+                <ListItem icon="clock" title={date(selected.createdAt, { day: "numeric", month: "long", year: "numeric" })} subtitle={t("publishedOn")} divider={!!selected.expiresAt || (canManage && typeof selected.acknowledgementCount === "number")} />
                 {selected.expiresAt ? <ListItem icon="calendar" title={date(selected.expiresAt)} subtitle={t("expiresOn")} /> : null}
+                {/* Team only: how many residents confirmed « read and understood » (urgent announcements ask for it). */}
+                {canManage && typeof selected.acknowledgementCount === "number" ? (
+                  <ListItem icon="check-circle" title={String(selected.acknowledgementCount)} subtitle={t("annAcknowledgements")} />
+                ) : null}
               </Card>
               {canManage ? (
                 <Button

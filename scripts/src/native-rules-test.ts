@@ -45,6 +45,14 @@ for (const file of files) {
     report(file, "Alert.prompt does nothing on Android: use askText", m.index, source);
   }
 
+  // Hermes has no global `crypto`: `crypto.randomUUID?.()` throws while rendering
+  // (the template editor crashed on Android). Import expo-crypto or build an id.
+  if (!/import [^;]*\bcrypto\b[^;]* from /i.test(source)) {
+    for (const m of source.matchAll(/(?<![\w.])crypto\.\w+/g)) {
+      report(file, "no global crypto on Android (Hermes): import expo-crypto or build the id", m.index, source);
+    }
+  }
+
   // A plain Modal leaves its fields under the keyboard, unless the file handles the keyboard itself.
   const rnImport = source.match(/import(?: [A-Za-z]+,)? \{([^}]*)\} from "react-native"/);
   if (rnImport && /\bModal\b/.test(rnImport[1]) && !source.includes("KeyboardAvoidingView")) {

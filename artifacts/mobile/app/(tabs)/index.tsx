@@ -197,12 +197,6 @@ const QUICK_ACTIONS_TREASURER = [
     color: "#2563EB",
   },
   {
-    labelKey: "escalationLabel",
-    icon: "trending-up",
-    route: "/escalation",
-    color: "#ef4444",
-  },
-  {
     labelKey: "devisFactures",
     icon: "file-text",
     route: "/invoices",

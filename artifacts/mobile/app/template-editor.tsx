@@ -306,7 +306,7 @@ const defaultForm = (): TemplateForm => ({
   description: emptyI18N(),
   variables: [],
   sections: [
-    { id: crypto.randomUUID?.() ?? String(Date.now()), title: { fr: "Contenu", ar: "المحتوى", en: "Content", es: "Contenido" }, content: emptyI18N(), type: "text", required: true, order: 0 },
+    { id: `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, title: { fr: "Contenu", ar: "المحتوى", en: "Content", es: "Contenido" }, content: emptyI18N(), type: "text", required: true, order: 0 },
   ],
   languages: ["fr"],
   layoutConfig: { accentColor: "#5A4AD6", headerStyle: "branded", footerStyle: "full", watermark: false, showQr: true, showStamp: true },

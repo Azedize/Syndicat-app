@@ -200,7 +200,7 @@ router.post("/claims", requireAuth, async (req, res) => {
     await notifyClaimEvent(
       { id: created.eventId, claimId: claim.id, syndicateId: sid, authorId: user.userId },
       await claimManagers(sid),
-      { title: `Nouvelle réclamation ${claim.reference}`, body: `${claim.title} — ${claim.location}`, type: "info" },
+      { key: "claimRequest.created", params: { ref: claim.reference, title: claim.title, location: claim.location }, type: "info" },
     );
     res.status(201).json({ data: await view(claim, user) });
   } catch (err) {
@@ -444,13 +444,13 @@ router.post("/claims/:id/transition", requireAuth, async (req, res) => {
           { id: outcome.event.id, claimId: c.id, syndicateId: sid, authorId: user.userId },
           [c.reporterUserId],
           {
-            title: `Réclamation ${c.reference}`,
-            body:
-              outcome.event.type === "info_requested" ? `Le syndic a besoin d'une précision : ${outcome.event.body}`
-              : outcome.event.type === "resolved" ? `Résolue : ${outcome.event.body}`
-              : outcome.event.type === "rejected" ? `Non retenue : ${outcome.event.body}`
-              : outcome.event.type === "closed" ? "Votre réclamation est clôturée."
-              : "Intervention en cours.",
+            key:
+              outcome.event.type === "info_requested" ? "claimRequest.infoRequested"
+              : outcome.event.type === "resolved" ? "claimRequest.resolved"
+              : outcome.event.type === "rejected" ? "claimRequest.rejected"
+              : outcome.event.type === "closed" ? "claimRequest.closed"
+              : "claimRequest.inProgress",
+            params: { ref: c.reference, text: outcome.event.body ?? "" },
             type: outcome.event.type === "rejected" ? "warning" : "info",
           },
         );
@@ -531,12 +531,12 @@ router.post("/claims/:id/assign", requireAuth, async (req, res) => {
       const c = out.claim;
       await serverAuditLog(req, { action: "CLAIM_ASSIGNED", entity: "claim", entityId: c.id, syndicateId: sid, details: `${c.reference} → ${d.assigneeUserId ?? ""} ${d.prestataireId ?? ""}` });
       await notifyClaimEvent({ id: out.event.id, claimId: c.id, syndicateId: sid, authorId: user.userId }, [d.assigneeUserId], {
-        title: `Réclamation ${c.reference} assignée`,
-        body: `${c.title} — ${c.location}${d.instructions ? ` — ${d.instructions}` : ""}`,
+        key: "claimRequest.assignedToYou",
+        params: { ref: c.reference, title: c.title, location: c.location, instructions: d.instructions ? ` — ${d.instructions}` : "" },
       });
       await notifyClaimEvent({ id: out.publicEvent!.id, claimId: c.id, syndicateId: sid, authorId: user.userId }, [c.reporterUserId], {
-        title: `Réclamation ${c.reference}`,
-        body: "Votre réclamation est prise en charge.",
+        key: "claimRequest.takenInCharge",
+        params: { ref: c.reference },
       });
     }
     res.json({ data: await view(out.claim, user) });
@@ -643,8 +643,12 @@ router.post("/claims/:id/schedule", requireAuth, async (req, res) => {
     });
     if (out.event) {
       await notifyClaimEvent({ id: out.event.id, claimId: out.claim.id, syndicateId: sid, authorId: user.userId }, [out.claim.reporterUserId], {
-        title: `Réclamation ${out.claim.reference}`,
-        body: `Intervention prévue le ${when.toLocaleString("fr-MA", { timeZone: "Africa/Casablanca" })}.`,
+        key: "claimRequest.scheduled",
+        params: {
+          ref: out.claim.reference,
+          day: when.toLocaleDateString("sv-SE", { timeZone: "Africa/Casablanca" }),
+          time: when.toLocaleTimeString("fr-FR", { timeZone: "Africa/Casablanca", hour: "2-digit", minute: "2-digit" }),
+        },
       });
     }
     res.json({ data: await view(out.claim, user) });
@@ -691,8 +695,8 @@ router.post("/claims/:id/comments", requireAuth, async (req, res) => {
       const c = out.claim;
       const recipients = isTeam ? (d.internal ? [] : [c.reporterUserId]) : [c.assigneeUserId, ...(await claimManagers(sid))];
       await notifyClaimEvent({ id: out.event.id, claimId: c.id, syndicateId: sid, authorId: user.userId }, recipients, {
-        title: `Réclamation ${c.reference}`,
-        body: `${out.answered ? "Réponse du résident" : "Nouveau message"} : ${d.text.slice(0, 140)}`,
+        key: out.answered ? "claimRequest.answer" : "claimRequest.message",
+        params: { ref: c.reference, text: d.text.slice(0, 140) },
       });
     }
     res.status(201).json({ data: await view(out.claim, user) });
@@ -833,8 +837,8 @@ router.post("/claims/:id/reopen", requireAuth, async (req, res) => {
       const c = out.claim;
       await serverAuditLog(req, { action: "CLAIM_REOPENED", entity: "claim", entityId: c.id, syndicateId: sid, details: `${c.reference} (${c.reopenCount}) — ${parsed.data.reason}` });
       await notifyClaimEvent({ id: out.event.id, claimId: c.id, syndicateId: sid, authorId: user.userId }, [c.assigneeUserId, c.reporterUserId, ...(await claimManagers(sid))], {
-        title: `Réclamation ${c.reference} rouverte`,
-        body: parsed.data.reason.slice(0, 160),
+        key: "claimRequest.reopened",
+        params: { ref: c.reference, text: parsed.data.reason.slice(0, 160) },
         type: "warning",
       });
     }

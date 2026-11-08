@@ -15074,6 +15074,8 @@ export const TRANSLATIONS: Translations = {
   alertInfo: { fr: "Info", en: "Info", ar: "معلومة", es: "Info" },
   alertWarning: { fr: "Alerte", en: "Alert", ar: "تنبيه", es: "Alerta" },
   alertSuccess: { fr: "Succès", en: "Success", ar: "نجاح", es: "Éxito" },
+  annAcknowledgements: { fr: "Accusés « lu et compris »", en: "« Read and understood » confirmations", ar: "إقرارات « قرأت وفهمت »", es: "Confirmaciones « leído y entendido »" },
+  alertUrgent: { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
   alertError: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
 
   // ── Search ───────────────────────────────────────────────────────────────────
