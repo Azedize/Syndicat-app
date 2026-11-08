@@ -12,7 +12,7 @@ import { Feather } from "@/components/ui/Feather";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +36,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import MizanFormField from "@/components/MizanFormField";
 import { team as teamApi } from "@/features/directory/api";
 
+import { apiRequest } from "@/lib/api";
 // ─── Team roles config ────────────────────────────────────────────────────────
 
 const ROLES = [
@@ -149,6 +150,22 @@ export default function TeamInviteScreen() {
   const [inviting, setInviting] = useState(false);
   const [invited, setInvited] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
+
+  // Roles already held in the condominium (invited earlier, or another visit of
+  // the wizard): they are skipped, so a second president is not invited by mistake.
+  useEffect(() => {
+    apiRequest<{ data: { role: string }[] }>("/users?limit=100")
+      .then((res) => {
+        const held = new Set((res.data ?? []).map((u) => u.role));
+        const filled = ROLES.filter((r) => held.has(r.id)).map((r) => r.id);
+        if (!filled.length) return;
+        setInvited((prev) => [...new Set([...prev, ...filled])]);
+        const next = ROLES.findIndex((r) => !held.has(r.id));
+        if (next < 0) setCompleted(true);
+        else setCurrentStep((cur) => (cur === 0 ? next : cur));
+      })
+      .catch(() => {});
+  }, []);
 
   const gradColors: [string, string] = isDark
     ? ["#0E0C1C", "#17142B"]

@@ -53,7 +53,7 @@ async function getTransporter() {
  * prevent the API from starting.
  */
 export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
-  if (outboundDeliveryDisabled()) {
+  if (outboundDeliveryDisabled() && !mailSinkEnabled()) {
     logger.warn("Outbound delivery disabled (OUTBOUND_DELIVERY=off): no e-mail leaves this server.");
     return { ok: false, error: "delivery disabled" };
   }
@@ -166,7 +166,7 @@ export async function sendTransactionalEmail(opts: SendEmailOptions): Promise<Se
     return { ok: false, skipped: true, error: "undeliverable", logId: log.id };
   }
 
-  if (outboundDeliveryDisabled()) {
+  if (outboundDeliveryDisabled() && !mailSinkEnabled()) {
     logger.info({ to: opts.to, subject: opts.subject }, "Email skipped — outbound delivery disabled");
     await finalizeLog(log.id, "skipped", OUTBOUND_DISABLED_REASON, 0);
     return { ok: false, skipped: true, error: "delivery_disabled", logId: log.id };
@@ -285,7 +285,7 @@ export async function retryEmailLog(logId: string): Promise<SendEmailResult> {
     return { ok: false, error: "Ce message contenait un code, un lien ou un mot de passe à usage unique : il n'est pas conservé. Demandez-en un nouveau." };
   }
   if (!log.bodyHtml) return { ok: false, error: "Corps de l'email introuvable — impossible de renvoyer" };
-  if (outboundDeliveryDisabled()) return { ok: false, skipped: true, error: "delivery_disabled", logId: log.id };
+  if (outboundDeliveryDisabled() && !mailSinkEnabled()) return { ok: false, skipped: true, error: "delivery_disabled", logId: log.id };
   const skipReason = await undeliverableReason(log.recipient);
   if (skipReason) return { ok: false, skipped: true, error: "undeliverable", logId: log.id };
 

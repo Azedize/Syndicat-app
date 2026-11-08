@@ -10,7 +10,7 @@ import { requireAuth, requireAdmin, BCRYPT_COST } from "../../middleware/auth.js
 import { serverAuditLog } from "../../lib/audit.js";
 import { BankDetailsError, maskBankIdentifier, normaliseBankFields } from "../../lib/bank-details.js";
 import { sendTransactionalEmail } from "../../lib/email/emailService.js";
-import { teamInvitationTemplate } from "../../lib/email/templates.js";
+import { teamInvitationTemplate, emailLang } from "../../lib/email/templates.js";
 /**
  * P11 — Syndic Team Directory
  * - Lists admins + committee members with their roles, contacts, office hours
@@ -320,17 +320,20 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
     // Send invitation email (best-effort); the answer says whether it left.
     let invitationEmail: "sent" | "not_sent" = "not_sent";
     try {
+      const lang = emailLang(req.headers["accept-language"]);
       const { subject, html } = teamInvitationTemplate(
         name,
         emailLower,
         role,
-        syndicate?.name ?? "votre syndicat",
+        syndicate?.name ?? "MIZAN",
         tempPassword,
+        lang,
       );
       const sent = await sendTransactionalEmail({
         to: emailLower,
         subject,
         html,
+        lang,
         template: "team_invitation",
         syndicateId,
       });

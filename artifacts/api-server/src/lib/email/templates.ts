@@ -446,29 +446,85 @@ export function welcomeTemplate(name: string, role: string, loginUrl?: string, t
   };
 }
 
-export function teamInvitationTemplate(name: string, email: string, role: string, syndicateName: string, tempPassword: string): EmailTemplate {
-  const roleLabels: Record<string, string> = {
-    president: "Président",
-    treasurer: "Trésorier",
-    secretary: "Secrétaire",
-    committee_member: "Membre du Conseil",
-    syndicate_admin: "Administrateur de Syndicat",
-  };
-  const roleLabel = roleLabels[role] ?? role;
+const INVITATION_COPY: Record<EmailLang, {
+  roles: Record<string, string>;
+  subject: (s: string) => string;
+  hello: (n: string) => string;
+  invited: (s: string, r: string) => string;
+  credentials: string;
+  email: string;
+  temp: string;
+  change: string;
+  download: string;
+  sign: string;
+}> = {
+  fr: {
+    roles: { president: "Président", treasurer: "Trésorier", secretary: "Secrétaire", committee_member: "Membre du Conseil", syndicate_admin: "Administrateur de Syndicat" },
+    subject: (s) => `Invitation à rejoindre ${s} — MIZAN`,
+    hello: (n) => `Bonjour ${n},`,
+    invited: (s, r) => `Vous avez été invité(e) à rejoindre <strong>${s}</strong> sur la plateforme <strong>MIZAN</strong> en tant que <strong>${r}</strong>.`,
+    credentials: "Vos identifiants de connexion",
+    email: "Email",
+    temp: "Mot de passe temporaire",
+    change: "⚠️ Vous devrez changer ce mot de passe lors de votre première connexion.",
+    download: "Téléchargez l'application <strong>MIZAN</strong> depuis l'App Store ou Google Play pour commencer.",
+    sign: "— L'équipe MIZAN",
+  },
+  en: {
+    roles: { president: "President", treasurer: "Treasurer", secretary: "Secretary", committee_member: "Council member", syndicate_admin: "Syndicate administrator" },
+    subject: (s) => `Invitation to join ${s} — MIZAN`,
+    hello: (n) => `Hello ${n},`,
+    invited: (s, r) => `You have been invited to join <strong>${s}</strong> on the <strong>MIZAN</strong> platform as <strong>${r}</strong>.`,
+    credentials: "Your sign-in details",
+    email: "Email",
+    temp: "Temporary password",
+    change: "⚠️ You will have to change this password when you first sign in.",
+    download: "Download the <strong>MIZAN</strong> app from the App Store or Google Play to get started.",
+    sign: "— The MIZAN team",
+  },
+  ar: {
+    roles: { president: "الرئيس", treasurer: "أمين المال", secretary: "الكاتب", committee_member: "عضو المجلس", syndicate_admin: "مدير الاتحاد" },
+    subject: (s) => `دعوة للانضمام إلى ${s} — MIZAN`,
+    hello: (n) => `مرحبا ${n}،`,
+    invited: (s, r) => `تمت دعوتك للانضمام إلى <strong>${s}</strong> على منصة <strong>MIZAN</strong> بصفة <strong>${r}</strong>.`,
+    credentials: "معلومات تسجيل الدخول",
+    email: "البريد الإلكتروني",
+    temp: "كلمة المرور المؤقتة",
+    change: "⚠️ سيتعين عليك تغيير كلمة المرور هذه عند أول تسجيل دخول.",
+    download: "حمّل تطبيق <strong>MIZAN</strong> من App Store أو Google Play للبدء.",
+    sign: "— فريق MIZAN",
+  },
+  es: {
+    roles: { president: "Presidente", treasurer: "Tesorero", secretary: "Secretario", committee_member: "Miembro del consejo", syndicate_admin: "Administrador de la comunidad" },
+    subject: (s) => `Invitación para unirse a ${s} — MIZAN`,
+    hello: (n) => `Hola ${n}:`,
+    invited: (s, r) => `Ha sido invitado(a) a unirse a <strong>${s}</strong> en la plataforma <strong>MIZAN</strong> como <strong>${r}</strong>.`,
+    credentials: "Sus datos de acceso",
+    email: "Correo",
+    temp: "Contraseña temporal",
+    change: "⚠️ Deberá cambiar esta contraseña al iniciar sesión por primera vez.",
+    download: "Descargue la aplicación <strong>MIZAN</strong> desde App Store o Google Play para empezar.",
+    sign: "— El equipo de MIZAN",
+  },
+};
 
+/** Team invitation, in the inviter's app language (the invitee's is not known yet). */
+export function teamInvitationTemplate(name: string, email: string, role: string, syndicateName: string, tempPassword: string, lang: EmailLang = "fr"): EmailTemplate {
+  const c = INVITATION_COPY[lang] ?? INVITATION_COPY.fr;
+  const roleLabel = c.roles[role] ?? role;
   return {
-    subject: `Invitation à rejoindre ${syndicateName} — MIZAN`,
+    subject: c.subject(syndicateName),
     html: `
-      <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Vous avez été invité(e) à rejoindre <strong>${escapeHtml(syndicateName)}</strong> sur la plateforme <strong>MIZAN</strong> en tant que <strong>${escapeHtml(roleLabel)}</strong>.</p>
+      <p>${escapeHtml(c.hello(name))}</p>
+      <p>${c.invited(escapeHtml(syndicateName), escapeHtml(roleLabel))}</p>
       <div style="margin:24px 0;padding:20px;background:#EFF6FF;border-radius:12px;border-left:4px solid #2563EB;">
-        <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Vos identifiants de connexion</p>
-        <p style="margin:0 0 4px 0;font-size:14px;color:#0A1628;"><strong>Email :</strong> ${escapeHtml(email)}</p>
-        <p style="margin:0;font-size:14px;color:#0A1628;"><strong>Mot de passe temporaire :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(tempPassword)}</code></p>
+        <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:1px;">${c.credentials}</p>
+        <p style="margin:0 0 4px 0;font-size:14px;color:#0A1628;"><strong>${c.email} :</strong> ${escapeHtml(email)}</p>
+        <p style="margin:0;font-size:14px;color:#0A1628;"><strong>${c.temp} :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(tempPassword)}</code></p>
       </div>
-      <p style="color:#DC2626;font-size:13px;">⚠️ Vous devrez changer ce mot de passe lors de votre première connexion.</p>
-      <p>Téléchargez l'application <strong>MIZAN</strong> depuis l'App Store ou Google Play pour commencer.</p>
-      <p>— L'équipe MIZAN</p>`,
+      <p style="color:#DC2626;font-size:13px;">${c.change}</p>
+      <p>${c.download}</p>
+      <p>${c.sign}</p>`,
   };
 }
 
