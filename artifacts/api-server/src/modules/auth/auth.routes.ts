@@ -177,7 +177,12 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
     if (user.status !== "active") {
-      res.status(403).json({ error: "Compte désactivé" });
+      // The code lets the app explain the situation in the reader's language.
+      res.status(403).json(
+        user.status === "pending"
+          ? { error: "Compte en attente d'activation", code: "ACCOUNT_PENDING" }
+          : { error: "Compte désactivé", code: "ACCOUNT_DISABLED" },
+      );
       return;
     }
 

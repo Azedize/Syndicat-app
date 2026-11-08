@@ -72,6 +72,8 @@ export default function LoginScreen() {
       if (networkFailure) setError(t("authServerError"));
       else if (status === 401) setError(t("invalidCredentials"));
       else if (status === 429) setError(t("authTooManyAttempts"));
+      else if (error?.code === "ACCOUNT_PENDING") setError(t("authAccountPending"));
+      else if (error?.code === "ACCOUNT_DISABLED") setError(t("authAccountDisabled"));
       else if (status && status < 500 && error?.message) setError(String(error.message));
       else setError(t("authUnexpectedError"));
       if (!status && __DEV__) {

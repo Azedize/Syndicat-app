@@ -15075,6 +15075,8 @@ export const TRANSLATIONS: Translations = {
   alertWarning: { fr: "Alerte", en: "Alert", ar: "تنبيه", es: "Alerta" },
   alertSuccess: { fr: "Succès", en: "Success", ar: "نجاح", es: "Éxito" },
   annAcknowledgements: { fr: "Accusés « lu et compris »", en: "« Read and understood » confirmations", ar: "إقرارات « قرأت وفهمت »", es: "Confirmaciones « leído y entendido »" },
+  authAccountPending: { fr: "Votre compte n'est pas encore activé. Contactez votre syndic.", en: "Your account is not activated yet. Contact your syndic.", ar: "لم يتم تفعيل حسابك بعد. اتصل بالسنديك.", es: "Su cuenta aún no está activada. Contacte con su administrador." },
+  authAccountDisabled: { fr: "Votre compte est désactivé. Contactez votre syndic.", en: "Your account is disabled. Contact your syndic.", ar: "حسابك معطل. اتصل بالسنديك.", es: "Su cuenta está desactivada. Contacte con su administrador." },
   alertUrgent: { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
   alertError: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
 

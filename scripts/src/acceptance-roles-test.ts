@@ -90,13 +90,15 @@ async function main() {
     const susp = await call(rt, "GET", "/announcements");
     check("suspended account: refused at once with ACCOUNT_DISABLED", susp.status === 401 && susp.body?.code === "ACCOUNT_DISABLED", `${susp.status} ${susp.body?.code}`);
     const suspLogin = await call(null, "POST", "/auth/login", { email: resident.email, password: PASSWORD });
-    check("a suspended account cannot log in", suspLogin.status >= 400 && !suspLogin.body?.data?.token, String(suspLogin.status));
+    check("a suspended account cannot log in, and the app is told why", suspLogin.status === 403 && !suspLogin.body?.data?.token && suspLogin.body?.code === "ACCOUNT_DISABLED", `${suspLogin.status} ${suspLogin.body?.code}`);
     await pool`UPDATE users SET status = 'active' WHERE id = ${resident.id}`;
     const back = await call(sign(resident), "GET", "/announcements");
     check("reactivated: access is back", back.status === 200, String(back.status));
     await pool`UPDATE users SET status = 'pending' WHERE id = ${resident.id}`;
     const pend = await call(sign(resident), "GET", "/announcements");
     check("an account still pending is refused", pend.status === 401, String(pend.status));
+    const pendLogin = await call(null, "POST", "/auth/login", { email: resident.email, password: PASSWORD });
+    check("a pending account cannot log in, with ACCOUNT_PENDING", pendLogin.status === 403 && pendLogin.body?.code === "ACCOUNT_PENDING", `${pendLogin.status} ${pendLogin.body?.code}`);
     await pool`UPDATE users SET status = 'active' WHERE id = ${resident.id}`;
 
     // ── 1c. Moved out of the condominium.
