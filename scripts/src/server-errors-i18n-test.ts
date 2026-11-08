@@ -20,7 +20,26 @@ import { pathToFileURL } from "node:url";
 const API_SRC = path.resolve("../artifacts/api-server/src");
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
 const { ERROR_CATALOG, translateError } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/index.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/index.js");
-const { ERROR_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/patterns.js");
+const { ERROR_PATTERNS: BASE_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/patterns.js");
+const { OPERATIONS_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns-operations.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/patterns-operations.js");
+const ERROR_PATTERNS = [...BASE_PATTERNS, ...OPERATIONS_PATTERNS];
+
+/** The template literal opening at `start` (a backtick), nested templates included. */
+function templateAt(src: string, start: number): string {
+  let depth = 0;
+  for (let i = start + 1; i < src.length; i++) {
+    const c = src[i];
+    if (c === "\\") { i++; continue; }
+    if (c === "$" && src[i + 1] === "{") { depth++; i++; continue; }
+    if (c === "}" && depth > 0) { depth--; continue; }
+    if (c === "`") {
+      if (depth === 0) return src.slice(start + 1, i);
+      const inner = templateAt(src, i); // a template inside ${…}
+      i += inner.length + 1;
+    }
+  }
+  return src.slice(start + 1);
+}
 
 const checks: boolean[] = [];
 const check = (name: string, ok: boolean, detail?: string) => {
@@ -68,6 +87,19 @@ for (const f of files) {
   for (const re of [/error:\s*`([^`]+)`/g, /new (?:Error|HttpError|RouteError)\(\s*`([^`]+)`/g]) {
     for (const m of src.matchAll(re)) (m[1].includes("${") ? dynamics : literals).set(m[1], rel);
   }
+  // Refusals through the shared helpers: FinanceError, BankDetailsError, InvalidPhoneError,
+  // fail(status, code, message), paymentError(res, code, message), election rule err(field, code, message).
+  const HELPERS = /(?:new (?:FinanceError|BankDetailsError|InvalidPhoneError)\(\s*(?:\d+\s*,\s*)?(?:"[A-Z_]+"\s*,\s*)?|\bfail\(\s*\d{3}\s*,\s*"[A-Z_]+"\s*,\s*|paymentError\(\s*res\s*,\s*"[A-Z_]+"\s*,\s*|\berr\(\s*"[A-Za-z]+"\s*,\s*"[A-Z_]+"\s*,\s*)(["`])/g;
+  for (const m of src.matchAll(HELPERS)) {
+    const at = (m.index ?? 0) + m[0].length - 1;
+    if (m[1] === '"') {
+      const lit = /^"((?:[^"\\]|\\.)+)"/.exec(src.slice(at))?.[1];
+      if (lit && !/^[A-Z_]+$/.test(lit)) literals.set(lit, rel);
+    } else {
+      const tpl = templateAt(src, at);
+      (tpl.includes("${") ? dynamics : literals).set(tpl, rel);
+    }
+  }
   // Messages of the request schemas (answered as `{ error: issues[0].message }`).
   for (const m of src.matchAll(/\.(?:min|max|email|regex|refine|length|url|nonempty|positive|nonnegative|int|gte|lte|gt|lt)\((?:[^()"]|\([^()]*\))*?"((?:[^"\\]|\\.)+)"\s*\)/g)) validations.set(m[1], rel);
   // Refusals thrown as { status: 4xx, message } or added as schema issues.
@@ -93,7 +125,31 @@ for (const [sample, expected] of [["Required", "A required field is missing."], 
 }
 
 // A message built with values: substitute plausible values and expect a pattern to recognise it.
-const sample = (tpl: string) => tpl.replace(/\$\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g, (_m, expr: string) => (/toISOString/.test(expr) ? "2026-01-31" : "12"));
+// A condition (`a ? "x" : "y"`) takes its first branch, a nested template is filled in turn,
+// a few variables get a realistic value, any other value becomes « 12 ».
+const HINTS: Record<string, string> = { what: "Le syndic", from: "open", to: "closed", next: "active" };
+function sample(tpl: string): string {
+  let out = "";
+  for (let i = 0; i < tpl.length; i++) {
+    if (tpl[i] === "$" && tpl[i + 1] === "{") {
+      let depth = 1, j = i + 2;
+      for (; j < tpl.length && depth; j++) {
+        if (tpl[j] === "`") j += templateAt(tpl, j).length + 1;
+        else if (tpl[j] === "{") depth++;
+        else if (tpl[j] === "}") depth--;
+      }
+      const expr = tpl.slice(i + 2, j - 1).trim();
+      const branch = /\?\s*(?:"([^"]*)"|`([^`]*)`)\s*:/.exec(expr);
+      if (branch) out += branch[1] !== undefined ? branch[1] : sample(branch[2]);
+      else if (/toISOString|Date|leaseStart|latestStart|effectiveFrom|openingDate/.test(expr)) out += "2026-01-31";
+      else if (/\.join\(/.test(expr)) out += "admin, bank_fees";
+      else if (/^[\w.]+$/.test(expr) && HINTS[expr.split(".").pop()!]) out += HINTS[expr.split(".").pop()!];
+      else out += "12";
+      i = j - 1;
+    } else out += tpl[i];
+  }
+  return out;
+}
 const dynMissing = [...dynamics].filter(([s]) => !INTERNAL_DYNAMIC.test(s) && !translateError(sample(s), "en"));
 check(`every message built with values is recognised (${dynamics.size - dynMissing.length}/${dynamics.size})`, dynMissing.length === 0,
   dynMissing.map(([s, f]) => `${f}: « ${s} »`).join(" | "));

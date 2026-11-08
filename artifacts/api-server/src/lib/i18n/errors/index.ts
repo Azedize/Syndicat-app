@@ -22,6 +22,9 @@ import { GOVERNANCE_ERRORS } from "./catalog-governance.js";
 import { PROPERTY_ERRORS } from "./catalog-property.js";
 import { ERROR_PATTERNS } from "./patterns.js";
 import { VALIDATION_ERRORS } from "./catalog-validation.js";
+import { OPERATIONS_ERRORS } from "./catalog-operations.js";
+import { OPERATIONS_ERRORS_2 } from "./catalog-operations-2.js";
+import { OPERATIONS_PATTERNS } from "./patterns-operations.js";
 import type { ErrorEntry } from "./types.js";
 
 export type ErrorLang = "fr" | "en" | "ar";
@@ -34,6 +37,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorEntry>> = {
   ...GOVERNANCE_ERRORS,
   ...CONTENT_ERRORS,
   ...VALIDATION_ERRORS,
+  ...OPERATIONS_ERRORS,
+  ...OPERATIONS_ERRORS_2,
 };
 
 /** Language of the error texts for an Accept-Language header. */
@@ -53,7 +58,7 @@ export function translateError(message: string, lang: ErrorLang): { error: strin
     const [code, en, ar, fr] = entry;
     return { code, error: lang === "en" ? en : lang === "ar" ? ar : fr ?? message };
   }
-  for (const [pattern, code, fr, en, ar] of ERROR_PATTERNS) {
+  for (const [pattern, code, fr, en, ar] of [...ERROR_PATTERNS, ...OPERATIONS_PATTERNS]) {
     const m = pattern.exec(message);
     if (m) return { code, error: fill(lang === "en" ? en : lang === "ar" ? ar : fr, m.slice(1)) };
   }
