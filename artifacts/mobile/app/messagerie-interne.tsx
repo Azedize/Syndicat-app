@@ -30,6 +30,7 @@ import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
+import { isAllAudience } from "@/lib/defaultValues";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type MessageType =
@@ -104,7 +105,7 @@ function mapApiAnnouncement(
     from: a.author ?? fallbacks.administration,
     fromRole:
       a.authorId === currentUserId ? fallbacks.self : fallbacks.administration,
-    to: a.audience === "all" || !a.audience ? fallbacks.allMembers : a.audience,
+    to: isAllAudience(a.audience) ? fallbacks.allMembers : a.audience,
     date: a.createdAt ? a.createdAt.slice(0, 10) : "",
     priority: mapPriority(a.priority),
     attachments: 0,

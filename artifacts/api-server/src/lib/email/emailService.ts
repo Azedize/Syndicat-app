@@ -10,7 +10,7 @@
 import { db } from "@workspace/db";
 import { emailLogsTable, auditLogsTable, usersTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { isReservedEmail } from "./deliverability.js";
+import { isReservedEmail, mailSinkEnabled } from "./deliverability.js";
 import type { Request } from "express";
 import { logger } from "../logger.js";
 import { OUTBOUND_DISABLED_REASON, outboundDeliveryDisabled } from "../outbound.js";
@@ -118,6 +118,8 @@ export interface SendEmailResult {
 
 /** Why mail must not be sent to this address, or null when it may be. */
 async function undeliverableReason(to: string): Promise<string | null> {
+  // The test sink keeps every message on this machine: nothing to protect.
+  if (mailSinkEnabled()) return null;
   if (isReservedEmail(to)) return "reserved domain";
   try {
     const [row] = await db

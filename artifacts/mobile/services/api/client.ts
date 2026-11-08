@@ -170,7 +170,7 @@ let refreshQueue: Array<(token: string | null) => void> = [];
 
 // Session events, so the auth state follows what happens to the tokens in
 // the background (renewed after 15 min, or revoked on the server).
-type SessionListener = { expired?: () => void; renewed?: (token: string) => void };
+type SessionListener = { expired?: (reason?: string) => void; renewed?: (token: string) => void };
 const sessionListeners = new Set<SessionListener>();
 export function subscribeSession(listener: SessionListener): () => void {
   sessionListeners.add(listener);
@@ -215,8 +215,9 @@ async function attemptTokenRefresh(): Promise<string | null> {
       // Only a definitive refusal ends the session. Rate limiting or a server
       // error is transient: keep the tokens and let the user retry.
       if (res.status === 401 || res.status === 403) {
+        const reason = ((await res.json().catch(() => null)) as { code?: string } | null)?.code;
         await clearAllTokens();
-        sessionListeners.forEach((l) => l.expired?.());
+        sessionListeners.forEach((l) => l.expired?.(reason));
       }
       return null;
     }

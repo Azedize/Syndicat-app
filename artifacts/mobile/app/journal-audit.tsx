@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
+import { formatDay } from "@/lib/formatDay";
 interface AuditLog {
   id: string;
   userId: string;
@@ -269,7 +270,7 @@ function JournalAuditScreenInner() {
                      {log.syndicateId ? ` • ${AUDIT_TEXT.syndicate[lang]} ${log.syndicateId.slice(0, 8)}` : ""}
                   </Text>
                   {log.details ? (
-                    <Text style={[styles.details, { color: colors.mutedForeground }]} numberOfLines={2}>{log.details}</Text>
+                    <Text style={[styles.details, { color: colors.mutedForeground }]} numberOfLines={2}>{log.details.replace(/\b(\d{4}-\d{2}-\d{2})(?:T[\d:.]+Z?)?\b/g, (_m, d: string) => formatDay(lang, d))}</Text>
                   ) : null}
                 </View>
                  <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{formatDate(log.createdAt, lang)}</Text>

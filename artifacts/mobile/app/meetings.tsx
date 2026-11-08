@@ -34,6 +34,7 @@ import MizanFormField from "@/components/MizanFormField";
 import { useToast } from "@/context/ToastContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
+import { isLocationTbd } from "@/lib/defaultValues";
 const TYPE_CONFIG: Record<
   string,
   { icon: keyof typeof Feather.glyphMap; color: string }
@@ -183,7 +184,7 @@ export default function MeetingsScreen() {
           title: newTitle.trim(),
           date: newDate.trim(),
           time: newTime.trim() || "09:00",
-          location: newLocation.trim() || t("locationTBD"),
+          location: newLocation.trim(),
           type: newType,
           description: newDesc.trim(),
         },
@@ -475,7 +476,7 @@ export default function MeetingsScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  {m.location}
+                  {isLocationTbd(m.location) ? t("locationTBD") : m.location}
                 </Text>
               </View>
 
@@ -664,7 +665,7 @@ export default function MeetingsScreen() {
                     setEditTitle(selected.title);
                     setEditDate(selected.date);
                     setEditTime(selected.time);
-                    setEditLocation(selected.location);
+                    setEditLocation(isLocationTbd(selected.location) ? "" : selected.location);
                     setEditDesc(selected.description ?? "");
                     setShowEditMeeting(true);
                   }}
@@ -737,7 +738,7 @@ export default function MeetingsScreen() {
                       { color: colors.foreground },
                     ]}
                   >
-                    {selected.location}
+                    {isLocationTbd(selected.location) ? t("locationTBD") : selected.location}
                   </Text>
                 </View>
                 <TouchableOpacity

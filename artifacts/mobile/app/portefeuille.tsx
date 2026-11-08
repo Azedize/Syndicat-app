@@ -13,6 +13,7 @@ import ScreenHeader from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/DataState";
 import { ActionButton, ChoiceChips, FieldLabel, FormSheet, formStyles } from "@/components/FormSheet";
 
+import { useFormat } from "@/hooks/useFormat";
 /**
  * Company portfolio: every condominium of the syndic company the person can
  * see, with figures computed by the server from each condominium's own
@@ -123,7 +124,8 @@ const NEXT: Record<CondominiumStatus, Exclude<CondominiumStatus, "draft">[]> = {
 };
 const STATUS_COLOR: Record<CondominiumStatus, string> = { draft: "#6A6680", active: "#13976C", suspended: "#C98511", archived: "#A6A1BE" };
 const newKey = () => `condo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-const money = (m: MoneyByCurrency) => (m.length ? m.map((x) => `${Number(x.amount).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} ${x.currency}`).join(" · ") : "0");
+/** Amounts per currency in the reader's format (the app language, not always French). */
+const moneyList = (fmt: ReturnType<typeof useFormat>["money"], m: MoneyByCurrency) => (m.length ? m.map((x) => fmt(x.amount, { currency: x.currency })).join(" · ") : fmt(0));
 
 // ─── Sheets (module level so typing never remounts them) ─────────────────────
 
@@ -355,6 +357,7 @@ function TeamSheet({ condo, onClose, tr, lang }: { condo: PortfolioRow | null; o
 function DrillSheet({ drill, orgId, onClose, tr }: { drill: { condo: PortfolioRow; kind: "outstanding" | "incidents" } | null; orgId: string; onClose: () => void; tr: T }) {
   const colors = useColors();
   const { lang: L } = useLanguage();
+  const { money: fmtMoney } = useFormat();
   // Server codes (status, kind, type) shown in the reader's language; an unknown code stays as is.
   const code = (prefix: "kind_" | "type_" | "st_", v: string | null | undefined) => {
     const k = `${prefix}${v ?? ""}` as keyof typeof S;
@@ -391,7 +394,7 @@ function DrillSheet({ drill, orgId, onClose, tr }: { drill: { condo: PortfolioRo
             {drill?.kind === "outstanding" ? (
               <>
                 <Text style={[styles.name, { color: colors.foreground }]}>
-                  {tr("lot")} {r.lot_number} · {Number(r.remaining).toFixed(2)} {drill.condo.currency}
+                  {tr("lot")} {r.lot_number} · {fmtMoney(r.remaining, { currency: drill.condo.currency })}
                 </Text>
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
                   {r.period} · {code("type_", r.type)} · {code("st_", r.status)}
@@ -421,6 +424,7 @@ export default function PortefeuilleScreen() {
   const insets = useSafeAreaInsets();
   const { lang } = useLanguage();
   const L = (["fr", "en", "ar", "es"].includes(lang) ? lang : "fr") as Lang;
+  const { money: fmtMoney } = useFormat();
   const tr: T = useCallback((k) => S[k][L] ?? S[k].fr, [L]);
   const { switchContext, user } = useAuth();
 
@@ -506,11 +510,11 @@ export default function PortefeuilleScreen() {
             <Metric k="units" value={t.units} />
             <Metric k="vacantUnits" value={t.vacantUnits} />
             <Metric k="coOwners" value={t.coOwners} />
-            <Metric k="outstanding" value={money(t.outstanding)} />
+            <Metric k="outstanding" value={moneyList(fmtMoney, t.outstanding)} />
             <Metric k="overdueCalls" value={t.overdueCalls} />
             <Metric k="paymentsToValidate" value={t.paymentsToValidate} />
             <Metric k="openIncidents" value={t.openIncidents} />
-            <Metric k="treasury" value={money(t.treasury)} />
+            <Metric k="treasury" value={moneyList(fmtMoney, t.treasury)} />
           </View>
         ) : null}
         {showDefs && pf && (
@@ -548,7 +552,7 @@ export default function PortefeuilleScreen() {
                   <Text style={[styles.badge, { color: STATUS_COLOR[c.status] ?? colors.mutedForeground }]}>{tr(c.status)}</Text>
                 </View>
                 <Text style={[styles.meta, { color: colors.foreground, marginTop: 6 }]}>
-                  {tr("outstanding")} {Number(c.outstanding).toFixed(2)} {c.currency} · {tr("overdueCalls")} {c.overdueCalls} · {tr("paymentsToValidate")} {c.paymentsToValidate} · {tr("openIncidents")} {c.openIncidents}
+                  {tr("outstanding")} {fmtMoney(c.outstanding, { currency: c.currency })} · {tr("overdueCalls")} {c.overdueCalls} · {tr("paymentsToValidate")} {c.paymentsToValidate} · {tr("openIncidents")} {c.openIncidents}
                 </Text>
               </TouchableOpacity>
               {open && (

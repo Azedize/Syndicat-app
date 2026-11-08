@@ -15077,6 +15077,10 @@ export const TRANSLATIONS: Translations = {
   annAcknowledgements: { fr: "Accusés « lu et compris »", en: "« Read and understood » confirmations", ar: "إقرارات « قرأت وفهمت »", es: "Confirmaciones « leído y entendido »" },
   authAccountPending: { fr: "Votre compte n'est pas encore activé. Contactez votre syndic.", en: "Your account is not activated yet. Contact your syndic.", ar: "لم يتم تفعيل حسابك بعد. اتصل بالسنديك.", es: "Su cuenta aún no está activada. Contacte con su administrador." },
   authAccountDisabled: { fr: "Votre compte est désactivé. Contactez votre syndic.", en: "Your account is disabled. Contact your syndic.", ar: "حسابك معطل. اتصل بالسنديك.", es: "Su cuenta está desactivada. Contacte con su administrador." },
+  authAccessChanged: { fr: "Vos droits dans cette copropriété ont changé : reconnectez-vous.", en: "Your access to this condominium has changed: please sign in again.", ar: "تغيرت صلاحياتك في هذه الملكية المشتركة: يرجى تسجيل الدخول من جديد.", es: "Sus permisos en esta comunidad han cambiado: vuelva a iniciar sesión." },
+  authPasswordChangedElsewhere: { fr: "Votre mot de passe a été modifié : reconnectez-vous avec le nouveau.", en: "Your password was changed: sign in with the new one.", ar: "تم تغيير كلمة المرور: سجل الدخول بالكلمة الجديدة.", es: "Su contraseña ha cambiado: inicie sesión con la nueva." },
+  authSessionEnded: { fr: "Votre session a pris fin : reconnectez-vous.", en: "Your session has ended: please sign in again.", ar: "انتهت جلستك: يرجى تسجيل الدخول من جديد.", es: "Su sesión ha terminado: vuelva a iniciar sesión." },
+  pvLoadError: { fr: "Les procès-verbaux n'ont pas pu être chargés. Vérifiez la connexion et réessayez.", en: "The minutes could not be loaded. Check the connection and try again.", ar: "تعذر تحميل المحاضر. تحقق من الاتصال وأعد المحاولة.", es: "No se pudieron cargar las actas. Compruebe la conexión e inténtelo de nuevo." },
   alertUrgent: { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
   alertError: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
 

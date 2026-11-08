@@ -20,6 +20,7 @@ import {
   subscribeSession,
 } from "../services/api";
 
+import { setSignOutReason } from "@/lib/signOutReason";
 /**
  * Platform roles — must stay in sync with the API server's UserRole type.
  *   super_admin      — SaaS platform owner.
@@ -116,7 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () =>
       subscribeSession({
         renewed: (t) => setTokenState(t),
-        expired: () => {
+        expired: (reason) => {
+          setSignOutReason(reason);
           setTokenState(null);
           setUser(null);
         },

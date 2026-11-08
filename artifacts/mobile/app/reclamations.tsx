@@ -169,7 +169,7 @@ const MANAGERS = ["syndicate_admin", "president", "secretary"];
 const NEEDS_TEXT: Partial<Record<ClaimStatus, keyof typeof S>> = { awaiting_info: "question", resolved: "resolution", rejected: "reason" };
 // Minimum length the API asks for each of these texts (claims.routes.ts).
 const MIN_TEXT: Partial<Record<ClaimStatus, number>> = { awaiting_info: 5, resolved: 10, rejected: 5 };
-const fmtDate = (s: string | null | undefined, lang: string) => (s ? new Date(s).toLocaleString(localeOf(lang), { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+const fmtDate = (s: string | null | undefined, lang: string) => (s ? new Date(s).toLocaleString(localeOf(lang), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 /** Turns a server error into the right reaction on the screen. */
 function explain(e: any, tr: T): string {

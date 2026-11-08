@@ -18,6 +18,7 @@ import {
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import Modal from "@/components/ui/AppModal";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/DataState";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -155,6 +156,7 @@ function PVScreenInner() {
 
   const [pvList, setPVList] = useState<PV[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filterType, setFilterType] = useState<"all" | PVType>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | PVStatus>("all");
   const [selectedPV, setSelectedPV] = useState<PV | null>(null);
@@ -205,12 +207,14 @@ function PVScreenInner() {
   const fetchPVs = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(false);
       const res = await apiRequest<{ data: any[] }>("/ag-meetings?scope=minutes");
       const list = (res.data ?? []).map(meetingToPV);
       setPVList(list);
       if (meetingId) setSelectedPV((cur) => cur ?? list.find((p) => p.id === meetingId) ?? null);
     } catch {
-      // keep empty list — network error handled silently
+      // Said on screen: an empty list would read as « no minutes ».
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -374,6 +378,8 @@ function PVScreenInner() {
             <View style={styles.center}>
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          ) : loadError ? (
+            <ErrorState title={t("error")} description={t("pvLoadError")} retryLabel={t("retry")} onRetry={fetchPVs} accentColor={colors.primary} />
           ) : (
             <EmptyState
               icon="file-text"

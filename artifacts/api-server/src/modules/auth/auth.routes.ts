@@ -258,7 +258,7 @@ router.post("/auth/refresh", async (req, res) => {
       .from(usersTable)
       .where(eq(usersTable.id, tokenRow.userId));
     if (!user || user.status !== "active") {
-      res.status(401).json({ error: "Compte introuvable ou désactivé" });
+      res.status(401).json({ error: "Compte introuvable ou désactivé", code: "ACCOUNT_DISABLED" });
       return;
     }
 

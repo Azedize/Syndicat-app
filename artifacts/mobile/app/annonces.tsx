@@ -19,6 +19,8 @@ import { Button, Card, Chip, ListItem, SheetHeader, Skeleton, StatusBadge, TextF
 import { TYPE } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 
+import { isAllAudience } from "@/lib/defaultValues";
+import { errorText } from "@/lib/errorText";
 type Priority = ApiAnnouncement["priority"];
 type FeatherName = keyof typeof Feather.glyphMap;
 
@@ -34,7 +36,7 @@ export default function AnnoncesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { date } = useFormat();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -74,7 +76,7 @@ export default function AnnoncesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: t("publishAnnouncement"), message: t("annPublishedMessage") });
     },
-    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annPublishError") }),
+    onError: (e) => showToast({ type: "error", title: t("annActionErrorTitle"), message: errorText(e, t, t("annPublishError")) }),
   });
 
   const deleteMutation = useMutation({
@@ -84,7 +86,7 @@ export default function AnnoncesScreen() {
       setSelected(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annDeleteError") }),
+    onError: (e) => showToast({ type: "error", title: t("annActionErrorTitle"), message: errorText(e, t, t("annDeleteError")) }),
   });
 
   const all = data?.data ?? [];
@@ -112,13 +114,13 @@ export default function AnnoncesScreen() {
       title: newTitle.trim(),
       body: newBody.trim(),
       priority: newPriority,
-      audience: newAudience.trim() || t("uiAnnAudienceAll"),
+      audience: newAudience.trim() || "all",
       pinned: newPinned,
     });
   };
 
   const handleDelete = (a: ApiAnnouncement) => {
-    Alert.alert(t("confirmDeleteTitle"), `${t("deleteAnnouncement")} « ${a.title} » ?`, [
+    Alert.alert(t("confirmDeleteTitle"), `${t("deleteAnnouncement")} « ${a.title} »${lang === "ar" ? " ؟" : lang === "fr" ? " ?" : "?"}`, [
       { text: t("annCancel"), style: "cancel" },
       { text: t("deleteAnnouncement"), style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
     ]);
@@ -242,7 +244,7 @@ export default function AnnoncesScreen() {
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
         {selected && sel ? (
           <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
-            <SheetHeader title={selected.title} subtitle={selected.audience} onClose={() => setSelected(null)} />
+            <SheetHeader title={selected.title} subtitle={isAllAudience(selected.audience) ? t("uiAnnAudienceAll") : selected.audience} onClose={() => setSelected(null)} />
             <KeyboardAwareScrollViewCompat bottomOffset={24} contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
               <View style={styles.badges}>
                 <StatusBadge label={t(sel.key)} tone={sel.tone} icon={sel.icon} size="md" />
@@ -256,7 +258,7 @@ export default function AnnoncesScreen() {
               </Card>
               <Card padding="none">
                 <ListItem icon="user" title={selected.author} subtitle={t("authorLabel")} divider />
-                <ListItem icon="users" title={selected.audience} subtitle={t("audienceLabel")} divider />
+                <ListItem icon="users" title={isAllAudience(selected.audience) ? t("uiAnnAudienceAll") : selected.audience} subtitle={t("audienceLabel")} divider />
                 <ListItem icon="clock" title={date(selected.createdAt, { day: "numeric", month: "long", year: "numeric" })} subtitle={t("publishedOn")} divider={!!selected.expiresAt || (canManage && typeof selected.acknowledgementCount === "number")} />
                 {selected.expiresAt ? <ListItem icon="calendar" title={date(selected.expiresAt)} subtitle={t("expiresOn")} /> : null}
                 {/* Team only: how many residents confirmed « read and understood » (urgent announcements ask for it). */}

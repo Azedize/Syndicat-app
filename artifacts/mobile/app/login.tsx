@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -29,6 +29,7 @@ import { getApiBaseUrl } from "@/services/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { ThemeToggleButton } from "@/components/theme/ThemeSwitcher";
 
+import { takeSignOutReason } from "@/lib/signOutReason";
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
@@ -43,6 +44,18 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
+
+  // Signed out by the server (account disabled, access withdrawn…): say why, once.
+  useEffect(() => {
+    const reason = takeSignOutReason();
+    if (!reason) return;
+    setError(
+      reason === "ACCOUNT_DISABLED" ? t("authAccountDisabled")
+      : reason === "SESSION_PASSWORD_CHANGED" ? t("authPasswordChangedElsewhere")
+      : reason === "SESSION_CONTEXT_REVOKED" || reason === "CONTEXT_FORBIDDEN" ? t("authAccessChanged")
+      : t("authSessionEnded"),
+    );
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim()) { setError(t("emailRequired")); return; }

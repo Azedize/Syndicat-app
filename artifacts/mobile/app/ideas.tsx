@@ -19,6 +19,7 @@ import { Button, Card, Chip, SheetHeader, Skeleton, StatusBadge, TextField, tone
 import { TYPE } from "@/constants/typography";
 import { RADIUS } from "@/constants/spacing";
 
+import { errorText } from "@/lib/errorText";
 type Localized = Record<LangCode, string>;
 
 const STRINGS = {
@@ -149,7 +150,7 @@ export default function IdeasScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
-  const { lang, isRTL } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { date } = useFormat();
   const L = lang as LangCode;
 
@@ -211,7 +212,7 @@ export default function IdeasScreen() {
       showToast({ type: "success", message: STRINGS.submittedSuccess[L] });
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: STRINGS.error[L], message: e?.code === "IDEA_YEARLY_LIMIT" ? STRINGS.yearlyLimit[L] : STRINGS.submitError[L] });
+      showToast({ type: "error", title: STRINGS.error[L], message: e?.code === "IDEA_YEARLY_LIMIT" ? STRINGS.yearlyLimit[L] : errorText(e, t, STRINGS.submitError[L]) });
     } finally {
       setSubmitting(false);
     }
