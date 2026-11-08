@@ -1,3 +1,5 @@
+import { withArabicData } from "../../lib/pdf-bidi.js";
+import { ARABIC_FONT_FILES } from "../../lib/documentPdf.js";
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import {
@@ -62,10 +64,12 @@ async function sendPdf(res: any, docDef: any, filename: string) {
     },
   };
 
+  // Arabic data (a co-owner's name…): Amiri and right-to-left layout for those texts.
+  const def = withArabicData(docDef, fonts as Record<string, unknown>, ARABIC_FONT_FILES);
   const printer = new PdfPrinter(fonts);
   const pdfDoc = printer.createPdfKitDocument({
     defaultStyle: { font: "Helvetica", fontSize: 10 },
-    ...docDef,
+    ...def,
   });
 
   res.setHeader("Content-Type", "application/pdf");

@@ -1,4 +1,6 @@
 // budget: appels endpoints (mounted by budget.routes.ts, in order).
+import { withArabicData } from "../../lib/pdf-bidi.js";
+import { ARABIC_FONT_FILES } from "../../lib/documentPdf.js";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -1209,7 +1211,8 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       ],
     };
 
-    const pdfDoc = printer.createPdfKitDocument(docDef);
+    // Arabic data (a co-owner's name…): Amiri and right-to-left layout for those texts.
+    const pdfDoc = printer.createPdfKitDocument(withArabicData(docDef as Record<string, unknown>, fonts, ARABIC_FONT_FILES));
     const chunks: Buffer[] = [];
     pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
     pdfDoc.on("end", () => {

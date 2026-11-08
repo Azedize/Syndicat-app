@@ -11,6 +11,7 @@
  *  • Multi-tenant: accent color, logo, registration, contact per syndicate
  *  • QR verification code + watermark for draft/specimen status
  */
+import { fixArabicDocument, fixArabicDynamic } from "./pdf-bidi.js";
 import { existsSync } from "fs";
 import fs from "fs/promises";
 import path from "path";
@@ -172,6 +173,8 @@ if (existsSync(`${FONTS_DIR}/Amiri-Regular.ttf`)) {
 const PRIMARY_FONT = FONTS.DejaVu ? "DejaVu" : "Helvetica";
 // Arabic font: Amiri if available, else fall back to primary
 const ARABIC_FONT = FONTS.Amiri ? "Amiri" : PRIMARY_FONT;
+/** Amiri files, for other PDF builders that may print Arabic data. */
+export const ARABIC_FONT_FILES: { normal: string; bold: string } | null = FONTS.Amiri ? { normal: (FONTS.Amiri as any).normal, bold: (FONTS.Amiri as any).bold } : null;
 
 // ─── Brand Token System ────────────────────────────────────────────────────────
 // Single source of truth derived from artifacts/mobile/constants/colors.ts
@@ -979,7 +982,8 @@ function officialBody(header: unknown, title: string, accent: string, blocks: Of
       const total = b.totalRow ? [b.totalRow.map((cell, j) => ({ text: cell, fontSize: 9.5, bold: true, color: BRAND.ink, alignment: b.columns[j]?.align ?? "left" }))] : [];
       if (b.title) out.push({ ...(officialHeadingAligned(officialLabel(b.title, rtl), accent, rtl) as object), unbreakable: true });
       out.push({
-        table: { headerRows: 1, dontBreakRows: true, keepWithHeaderRows: 1, widths: b.columns.map((c) => c.width), body: [head, ...body, ...total] },
+        // Right-to-left documents: the first column sits on the right.
+        table: { headerRows: 1, dontBreakRows: true, keepWithHeaderRows: 1, widths: rtl ? b.columns.map((c) => c.width).reverse() : b.columns.map((c) => c.width), body: (rtl ? [head, ...body, ...total].map((row) => [...row].reverse()) : [head, ...body, ...total]) },
         layout: {
           hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (b.totalRow && i === node.table.body.length - 1 ? 1 : 0),
           vLineWidth: () => 0,
@@ -1816,7 +1820,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     pending_review: { label: "EN RÉVISION", color: BRAND.warning },
     rejected:       { label: "REJETÉ",      color: BRAND.destructiveDark },
   };
-  const footerStatus = docStatus ? (statusBadgeMap[docStatus] ?? null) : null;
+  const statusBadgeAr: Record<string, string> = { published: "منشورة", signed: "موقّعة", validated: "مصادق عليها", archived: "مؤرشفة", generated: "مُنشأة", draft: "مسودة", pending_review: "قيد المراجعة", rejected: "مرفوضة" };
+  const footerStatusBase = docStatus ? (statusBadgeMap[docStatus] ?? null) : null;
+  const footerStatus = footerStatusBase && isArabic && docStatus ? { ...footerStatusBase, label: statusBadgeAr[docStatus] ?? footerStatusBase.label } : footerStatusBase;
 
   const footer = (page: number, pages: number) => ({
     stack: [
@@ -1853,7 +1859,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               }] : []),
               {
                 // Factual: no certification mechanism stands behind this footer.
-                text: "Document généré par MIZAN",
+                text: isArabic ? "وثيقة أُنشئت بواسطة MIZAN" : "Document généré par MIZAN",
                 fontSize: 5.5, color: BRAND.mutedLight,
                 alignment: "center" as const,
               },
@@ -4194,7 +4200,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // ── ENTERPRISE FAMILY: Image 1 — two-column layout with 155pt sidebar ──
       footerFn = (_p: number, _ps: number) => ({
         columns: [
-          { text: "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: isArabic ? "وثيقة أُنشئت إلكترونيًا بواسطة MIZAN." : "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
           { text: `${_p} / ${_ps}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
         ],
       });
@@ -4276,7 +4282,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Enterprise footer
       footerFn = (_page: number, _pages: number) => ({
         columns: [
-          { text: "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: isArabic ? "وثيقة أُنشئت إلكترونيًا بواسطة MIZAN." : "Document généré électroniquement par MIZAN.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
           { text: `${_page} / ${_pages}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
         ],
       });
@@ -4544,6 +4550,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     };
     content = swap(content) as unknown[];
     Object.assign(styles, swap(styles));
+  }
+  if (isArabic) {
+    // Right-to-left layout of every Arabic text (lib/pdf-bidi.ts): line order,
+    // Latin words and amounts in place, mirrored brackets.
+    const margins = pageMarginOverride ?? ([40, 22, 40, 58] as [number, number, number, number]);
+    const width = 595.28 - margins[0] - margins[2];
+    const amiri = FONTS.Amiri as { normal: string; bold: string } | undefined;
+    const arabicFonts = amiri ? { normal: amiri.normal, bold: amiri.bold } : undefined;
+    content = fixArabicDocument(content, width, arabicFonts, styles as Record<string, Record<string, unknown>>) as unknown[];
+    if (footerFn) footerFn = fixArabicDynamic(footerFn, width, arabicFonts, styles as Record<string, Record<string, unknown>>);
   }
   return {
     pageSize: "A4" as const,

@@ -12,6 +12,7 @@ import { enforceSessionContext } from "./lib/access.js";
 import Redis from "ioredis";
 import { processStripeWebhook } from "./integrations/stripe/stripeWebhook.js";
 import { rateLimitProfile } from "./lib/rate-limit-profile.js";
+import { errorLang, localizeErrorBody } from "./lib/i18n/errors/index.js";
 
 const app: Express = express();
 
@@ -141,6 +142,19 @@ app.use(
     },
   }),
 );
+
+// Error answers in the reader's language, with a stable code (lib/i18n/errors).
+// Installed before every limiter and route so that all refusals go through it.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const json = res.json.bind(res);
+  res.json = (body?: unknown) =>
+    json(
+      localizeErrorBody(body, res.statusCode, errorLang(req.headers["accept-language"]), (message) =>
+        ((req as any).log ?? logger).warn({ message, url: req.originalUrl?.split("?")[0] }, "Untranslated error message"),
+      ),
+    );
+  next();
+});
 
 // Stripe requires the exact raw request body for signature verification.
 // This route must stay before express.json().

@@ -13,6 +13,8 @@
     "election-audit:test": "node --env-file=../.env --import=tsx ./src/election-audit-test.ts",
     "rbac-regression:test": "node --env-file=../.env --import=tsx ./src/rbac-regression-test.ts",
     "auth-security:test": "node --env-file=../.env --import=tsx ./src/auth-security-test.ts",
+    "server-errors-i18n:test": "node --env-file=../.env --import=tsx ./src/server-errors-i18n-test.ts",
+    "pdf-arabic:test": "node --env-file=../.env --import=tsx ./src/pdf-arabic-test.ts",
     "documents-security:test": "node --env-file=../.env --import=tsx ./src/documents-security-test.ts",
     "scenario-e2e:test": "node --env-file=../.env --import=tsx ./src/scenario-e2e-test.ts",
     "journeys:test": "node --env-file=../.env --import=tsx ./src/journeys-test.ts",

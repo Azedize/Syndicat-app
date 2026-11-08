@@ -501,7 +501,8 @@ export default function ChatThreadScreen() {
       setEditingText("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      const msg = err?.message?.includes("Délai") ? err.message : t("error");
+      // The server answers in the reader's language; the code says it is the edit window.
+      const msg = err?.code === "CHAT_EDIT_WINDOW_PASSED" ? err.message : t("error");
       Alert.alert(t("error"), msg);
     }
   };

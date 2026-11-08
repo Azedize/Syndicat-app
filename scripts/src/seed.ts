@@ -116,6 +116,17 @@ import {
   templateRequestsTable,
   otpTokensTable,
 } from "@workspace/db/schema";
+// Demo data only: fixed accounts with a known weak password (a platform super
+// admin among them) and calls for funds marked paid without any payment.
+// Never on production or on a remote database (mission 4, 2026-11-08).
+{
+  const target = (() => { try { return new URL(process.env.DATABASE_URL ?? ""); } catch { return null; } })();
+  const local = !!target && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(target.hostname);
+  if (process.env.NODE_ENV === "production" || !local) {
+    console.error("seed: refused — demo data (weak shared passwords) is for a local development or test database only.");
+    process.exit(1);
+  }
+}
 import { assertDevDatabase } from "./seedgen/guard";
 
 // Demo accounts share a weak password: local development databases only.
