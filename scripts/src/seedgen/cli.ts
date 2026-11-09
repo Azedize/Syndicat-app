@@ -168,7 +168,8 @@ async function generate(tables: TableInfo[]) {
   const order = dependencyOrder(tables).order;
   const before = Object.fromEntries(tables.map((t) => [t.name, t.rows]));
   const now = new Date();
-  const g = new Generator({ seed, scale, runKey, order, now, log });
+  const companies = opt("companies", "") ? Number(opt("companies", "")) : undefined;
+  const g = new Generator({ seed, scale, companies, runKey, order, now, log });
   // own random stream: the earlier phases (and the test accounts) stay the same for a seed
   const extras: ExtrasEnv = { rng: new Rng((seed * 31 + 7) >>> 0), now, order, counts: g.counts, usersDone: new Set() };
   const nSyndicates = Number(opt("syndicates", String(Math.max(2, Math.round(60 * scale)))));

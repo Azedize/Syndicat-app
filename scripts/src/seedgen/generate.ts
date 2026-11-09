@@ -37,6 +37,8 @@ export const TEST_PASSWORD = "MizanTest#2026";
 export interface GenOptions {
   seed: number;
   scale: number;
+  /** Number of syndic companies (default: 12 × scale, at least 3). */
+  companies?: number;
   runKey: string;
   order: string[];
   now: Date;
@@ -150,7 +152,13 @@ export class Generator {
   // ─── Global: syndic companies and platform administrators ────────────────
   async global(tx: Tx, plans: { id: string; name: string; price: string | null }[]) {
     const b = new Batch();
-    const orgs = D.SYNDIC_COMPANIES.slice(0, Math.max(3, Math.round(12 * this.o.scale))).map((name, i) => {
+    const nCompanies = this.o.companies ?? Math.max(3, Math.round(12 * this.o.scale));
+    // Beyond the 12 base names: « <base name> <city> » — distinct and reproducible.
+    const base = D.SYNDIC_COMPANIES;
+    const companyNames = Array.from({ length: nCompanies }, (_, i) =>
+      i < base.length ? base[i] : `${base[i % base.length]} ${D.CITIES[Math.floor(i / base.length - 1) % D.CITIES.length].city}${i >= base.length * (D.CITIES.length + 1) ? ` ${i}` : ""}`,
+    );
+    const orgs = companyNames.map((name, i) => {
       const city = this.rng.pick(D.CITIES);
       return b.add("organizations", {
         id: this.rng.uuid(),
