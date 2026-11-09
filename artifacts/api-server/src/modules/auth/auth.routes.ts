@@ -998,7 +998,7 @@ router.post("/auth/sms/send", async (req, res) => {
     });
   } catch (err: any) {
     req.log.error(err, "POST /auth/sms/send error");
-    res.status(500).json({ error: err?.message ?? "Erreur serveur" });
+    res.status(500).json({ error: "Erreur serveur" }); // the detail stays in the log above
   }
 });
 
@@ -1038,7 +1038,7 @@ router.post("/auth/sms/verify", async (req, res) => {
     });
   } catch (err: any) {
     req.log.error(err, "POST /auth/sms/verify error");
-    res.status(500).json({ error: err?.message ?? "Erreur serveur" });
+    res.status(500).json({ error: "Erreur serveur" }); // the detail stays in the log above
   }
 });
 
