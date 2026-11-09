@@ -37,6 +37,16 @@ export const NOTIFICATIONS = {
     },
     link: "/charges",
   },
+  "fundsCall.overdue": {
+    title: { fr: "Rappel : appel de fonds échu", en: "Reminder: call for funds overdue", ar: "تذكير: نداء أموال متأخر", es: "Recordatorio: derrama vencida" },
+    message: {
+      fr: "Appel de fonds {period} : {amount} MAD restent dus, échéance du {dueDate} dépassée.",
+      en: "Call for funds {period}: {amount} MAD still due, due date {dueDate} passed.",
+      ar: "نداء الأموال {period}: ما زال {amount} درهم مستحقًا، وقد انقضى أجل {dueDate}.",
+      es: "Derrama {period}: quedan {amount} MAD pendientes, vencimiento del {dueDate} superado.",
+    },
+    link: "/charges",
+  },
   "payment.toValidate": {
     title: { fr: "Paiement à valider", en: "Payment to validate", ar: "أداء في انتظار المصادقة", es: "Pago por validar" },
     message: {
@@ -456,11 +466,19 @@ const PARAM_LABELS: Record<string, Record<string, Record<Lang, string>>> = {
   },
 };
 
+/** An amount parameter written in the reader's language: « 1 250,50 » in French, « 1,250.50 » in English. */
+const AMOUNT_PARAM = /^(amount|remaining|total|balance)$/;
+function localAmount(v: unknown, lang: Lang) {
+  const n = typeof v === "number" ? v : Number(String(v));
+  if (!Number.isFinite(n) || String(v).trim() === "") return String(v);
+  return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2, numberingSystem: "latn" } as Intl.NumberFormatOptions).replace(/ /g, " ");
+}
+
 function fill(template: string, params: NotificationParams, lang: Lang, key = "") {
   return template.replace(/\{(\w+)\}/g, (_m, name: string) => {
     const v = params[name];
     const label = v === null || v === undefined ? undefined : PARAM_LABELS[`${key}:${name}`]?.[String(v)]?.[lang];
-    const s = label ?? (v === null || v === undefined ? "" : localDate(String(v), lang));
+    const s = label ?? (v === null || v === undefined ? "" : AMOUNT_PARAM.test(name) ? localAmount(v, lang) : localDate(String(v), lang));
     return lang === "ar" && s ? `⁨${s}⁩` : s;
   });
 }

@@ -132,7 +132,7 @@ export async function documentsPhase(g: DocHost, tx: Tx, c: DocCtx) {
       held.setUTCDate(held.getUTCDate() + 3);
       const res = resolutions.filter((x) => x.meeting_id === m.id).map((x) => ({ number: x.number, title: x.title, majority: x.required_majority, for: x.tantiemes_for, against: x.tantiemes_against, abstain: x.tantiemes_abstain, result: x.result }));
       const pv = await save("procès-verbal", `PV ${m.title} ${m.date}`, c.admin.id, P.minutesDoc(c, { title: m.title, date: m.date, time: m.time, location: m.location, reference: `PV-${m.date.slice(0, 4)}-${String(i + 1).padStart(3, "0")}`, attendees: m.attendees, proxies: m.proxies, totalTantiemes: totalT, resolutions: res }));
-      doc(pv, { title: `Procès-verbal — ${m.title} (${m.date})`, category: "proces_verbal", visibility: "owners", createdBy: c.admin.id, at: held > g.now ? g.now : held, entityType: "meeting", entityId: m.id });
+      doc(pv, { title: `Procès-verbal — ${m.title} (${new Date(`${m.date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })})`, category: "proces_verbal", visibility: "owners", createdBy: c.admin.id, at: held > g.now ? g.now : held, entityType: "meeting", entityId: m.id });
     }
   }
 

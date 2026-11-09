@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, Touc
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { formatDay } from "@/lib/formatDay";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
@@ -293,7 +294,7 @@ function Inner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { tr, money: fmt } = useRp();
   const isSyndic = user?.role === "syndicate_admin";
   const canCompute = isSyndic || user?.role === "treasurer";
@@ -531,7 +532,7 @@ function Inner() {
                     <Text style={[styles.name, { color: colors.foreground }]}>{k.code} — {k.name}{k.status === "archived" ? tr("archived") : ""}</Text>
                     {v ? (
                       <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                        v{v.version} · {v.method === "equal" ? tr("equalShares") : tr("coefficients")} · {v.categories.join(", ")} · {tr("since", { d: v.effectiveFrom })}{v.effectiveTo ? tr("until", { d: v.effectiveTo }) : ""}
+                        v{v.version} · {v.method === "equal" ? tr("equalShares") : tr("coefficients")} · {v.categories.join(", ")} · {tr("since", { d: formatDay(lang, v.effectiveFrom) })}{v.effectiveTo ? tr("until", { d: formatDay(lang, v.effectiveTo) }) : ""}
                       </Text>
                     ) : null}
                     {v ? <Text style={[styles.meta, { color: colors.mutedForeground }]}>{tr("sourceLabel", { s: v.sourceReference })}</Text> : null}

@@ -1197,7 +1197,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(electionProxiesTable).values([
     { id: "eproxy_1", electionId: "election_1", syndicateId: "syn_residence_atlas", grantorId: "user_member_5", grantorName: "Hassan Cherkaoui", granteeId: "user_member_1", granteeName: "Mohammed Alaoui", status: "active",  createdAt: daysAgo(5) },
-    { id: "eproxy_2", electionId: "election_2", syndicateId: "syn_jardins_agdal", grantorId: "user_member_4", grantorName: "Amina Rachidi", granteeId: "user_member_3", granteeName: "Rachid El Amrani", status: "used", documentUrl: "/objects/demo/eproxy_2.pdf", createdAt: daysAgo(34) },
+    { id: "eproxy_2", electionId: "election_3", syndicateId: "syn_jardins_agdal", grantorId: "user_member_4", grantorName: "Amina Rachidi", granteeId: "user_member_3", granteeName: "Rachid El Amrani", status: "active", documentUrl: "/objects/demo/eproxy_2.pdf", createdAt: daysAgo(3) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────

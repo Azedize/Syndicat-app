@@ -507,7 +507,7 @@ function TresorerieInner() {
                 accounts.map((a) => (
                   <View key={a.id} style={[styles.card, card, a.status !== "active" && { opacity: 0.55 }]}>
                     <View style={styles.row}>
-                      <Feather name={a.kind === "bank" ? "briefcase" : "dollar-sign"} size={18} color={colors.teal} />
+                      <Feather name={a.kind === "bank" ? "briefcase" : "archive"} size={18} color={colors.teal} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitle, { color: colors.foreground }]}>
                           {a.label}{a.isDefault ? " ★" : ""}

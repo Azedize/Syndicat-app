@@ -3,7 +3,7 @@ import { alertsTable, appelAdjustmentsTable, appelRemindersTable, appelsDeFondsT
 import { and, eq, sql } from "drizzle-orm";
 import { localToday } from "./charge-time.js";
 import { scheduleJob } from "./scheduler.js";
-import { sendPushToUsers } from "./notify.js";
+import { notifyUser } from "./notify.js";
 import { logger } from "./logger.js";
 import { FinanceError, fromCents, settlementStatus, toCents, type Tx } from "./treasury.js";
 
@@ -83,12 +83,10 @@ async function sendReminder(appelId: string, kind: "overdue" | "manual", created
     .onConflictDoNothing()
     .returning();
   if (!row) return null;
-  const title = "Rappel : appel de fonds échu";
-  const message = `Appel de fonds ${a.a.period} : ${remaining} MAD restent dus, échéance du ${a.a.dueDate} dépassée.`;
+  // A translated template: each debtor reads it (and gets the push) in their own language.
   for (const u of users) {
-    await db.insert(alertsTable).values({ title, message, type: "warning", date: localToday(), syndicateId: a.syndicateId, target: "all", recipientUserId: u });
+    await notifyUser(u, { key: "fundsCall.overdue", params: { period: a.a.period, amount: remaining, dueDate: a.a.dueDate }, type: "warning", syndicateId: a.syndicateId });
   }
-  sendPushToUsers(users, title, message, { appelId }).catch(() => {});
   return row;
 }
 
