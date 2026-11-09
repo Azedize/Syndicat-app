@@ -1,142 +1,149 @@
 # Rapport de génération des données de test
 
-Lancement `seedgen:s20261019` (graine 20261019, échelle 1) — statut **done**, durée 340 s. Domaine des comptes : `s20261019.seedgen.mizan.test`.
+Lancement `seedgen:s20261019` (graine 20261019, échelle 1) — statut **done**, durée 328 s. Domaine des comptes : `s20261019.seedgen.mizan.test`.
 
-Contrôles d'intégrité : **317/319 réussis**.
+Contrôles d'intégrité : **348/350 réussis**.
 
-Utilisateurs générés : **1043** (comptes de test, domaine réservé ; voir docs/database/DATABASE_SEEDING_GUIDE.md).
+Utilisateurs générés : **1033** (comptes de test, domaine réservé ; voir docs/database/DATABASE_SEEDING_GUIDE.md).
 
 ## Volumes par table
 
 | Table | Avant | Ajoutées | Après | Statut |
 |---|---:|---:|---:|---|
-| `actes_administratifs` | 5 | 131 | 136 | alimentée |
+| `actes_administratifs` | 5 | 126 | 131 | alimentée |
 | `action_participants` | 3 | 0 | 3 | non alimentée : voir union_actions |
 | `action_supports` | 3 | 0 | 3 | non alimentée : voir union_actions |
-| `ag_proxies` | 2 | 106 | 108 | alimentée |
-| `ag_resolutions` | 3 | 334 | 337 | alimentée |
-| `alert_reads` | 3 | 5726 | 5729 | alimentée |
-| `alerts` | 1299 | 10545 | 11844 | alimentée |
-| `allocation_key_shares` | 0 | 2469 | 2469 | alimentée |
-| `allocation_key_versions` | 0 | 74 | 74 | alimentée |
-| `allocation_keys` | 0 | 58 | 58 | alimentée |
-| `allocation_lines` | 0 | 22020 | 22020 | alimentée |
-| `allocation_sources` | 0 | 720 | 720 | alimentée |
-| `allocations` | 0 | 720 | 720 | alimentée |
-| `announcement_acknowledgements` | 0 | 1413 | 1413 | alimentée |
-| `announcements` | 4 | 463 | 467 | alimentée |
-| `appel_adjustments` | 0 | 72 | 72 | alimentée |
-| `appel_payments` | 1 | 21782 | 21783 | alimentée |
-| `appel_reminders` | 5 | 1942 | 1947 | alimentée |
-| `appels_de_fonds` | 10 | 22020 | 22030 | alimentée |
-| `audit_logs` | 3057 | 4802 | 7859 | alimentée |
-| `bank_statement_lines` | 0 | 2696 | 2696 | alimentée |
+| `ag_proxies` | 2 | 98 | 100 | alimentée |
+| `ag_resolutions` | 3 | 307 | 310 | alimentée |
+| `alert_reads` | 3 | 5994 | 5997 | alimentée |
+| `alerts` | 5 | 10954 | 10959 | alimentée |
+| `allocation_key_shares` | 0 | 2527 | 2527 | alimentée |
+| `allocation_key_versions` | 0 | 82 | 82 | alimentée |
+| `allocation_keys` | 0 | 63 | 63 | alimentée |
+| `allocation_lines` | 0 | 21505 | 21505 | alimentée |
+| `allocation_sources` | 0 | 680 | 680 | alimentée |
+| `allocations` | 0 | 680 | 680 | alimentée |
+| `announcement_acknowledgements` | 0 | 1401 | 1401 | alimentée |
+| `announcements` | 4 | 459 | 463 | alimentée |
+| `appel_adjustments` | 0 | 82 | 82 | alimentée |
+| `appel_payments` | 1 | 21227 | 21228 | alimentée |
+| `appel_reminders` | 0 | 1711 | 1711 | alimentée |
+| `appels_de_fonds` | 10 | 21505 | 21515 | alimentée |
+| `audit_logs` | 10 | 4533 | 4543 | alimentée |
+| `bank_statement_lines` | 0 | 2651 | 2651 | alimentée |
 | `bank_statements` | 0 | 60 | 60 | alimentée |
-| `billing_invoices` | 5 | 473 | 478 | alimentée |
-| `blocked_users` | 2 | 11 | 13 | alimentée |
+| `billing_invoices` | 5 | 479 | 484 | alimentée |
+| `blocked_users` | 2 | 14 | 16 | alimentée |
 | `bon_items` | 2 | 280 | 282 | alimentée |
-| `bons_livraison` | 2 | 133 | 135 | alimentée |
-| `budget_lines` | 8 | 2304 | 2312 | alimentée |
-| `budgets` | 3 | 326 | 329 | alimentée |
-| `buildings` | 4 | 146 | 150 | alimentée |
+| `bons_livraison` | 2 | 138 | 140 | alimentée |
+| `budget_lines` | 8 | 2176 | 2184 | alimentée |
+| `budgets` | 3 | 304 | 307 | alimentée |
+| `buildings` | 3 | 136 | 139 | alimentée |
 | `caisse_entries` | 8 | 0 | 8 | non alimentée : remplacée par le compte « Caisse » du journal |
-| `candidates` | 306 | 133 | 439 | alimentée |
-| `cart_items` | 2 | 75 | 77 | alimentée |
+| `candidates` | 6 | 111 | 117 | alimentée |
+| `cart_items` | 2 | 72 | 74 | alimentée |
 | `charge_attachments` | 3 | 0 | 3 | non alimentée : les preuves de paiement passent par appel_payments ; aucune pièce d'appel requise |
-| `chat_reports` | 2 | 7 | 9 | alimentée |
-| `claim_attachments` | 0 | 273 | 273 | alimentée |
-| `claim_events` | 0 | 4045 | 4045 | alimentée |
+| `chat_reports` | 2 | 10 | 12 | alimentée |
+| `claim_attachments` | 0 | 234 | 234 | alimentée |
+| `claim_events` | 0 | 3804 | 3804 | alimentée |
 | `claim_notifications` | 0 | 0 | 0 | non alimentée : file technique de livraison, remplie par l'API |
-| `claims` | 0 | 1027 | 1027 | alimentée |
-| `conseil_syndical` | 66 | 298 | 364 | alimentée |
-| `contrats_prestataires` | 4 | 413 | 417 | alimentée |
-| `conversation_archives` | 2 | 45 | 47 | alimentée |
-| `conversations` | 6 | 320 | 326 | alimentée |
+| `claims` | 0 | 955 | 955 | alimentée |
+| `conseil_syndical` | 6 | 289 | 295 | alimentée |
+| `contrats_prestataires` | 4 | 341 | 345 | alimentée |
+| `conversation_archives` | 2 | 39 | 41 | alimentée |
+| `conversations` | 6 | 282 | 288 | alimentée |
 | `cotisations` | 7 | 0 | 7 | non alimentée : remplacé par les appels de fonds ; des cotisations parallèles contrediraient les soldes |
 | `debt_escalations` | 2 | 0 | 2 | non alimentée : seuils de recouvrement non validés (voir SECURITY_LOG) : aucune étape contentieuse fabriquée |
-| `document_comments` | 4 | 119 | 123 | alimentée |
-| `document_sequences` | 11 | 657 | 668 | alimentée |
+| `document_comments` | 4 | 131 | 135 | alimentée |
+| `document_sequences` | 7 | 656 | 663 | alimentée |
 | `document_signatures` | 4 | 0 | 4 | non alimentée : une signature ne se fabrique pas (circuit de signature réel requis) |
-| `document_versions` | 3 | 92 | 95 | alimentée |
-| `documents` | 8 | 7519 | 7527 | alimentée |
-| `election_proxies` | 2 | 58 | 60 | alimentée |
-| `election_questions` | 3 | 25 | 28 | alimentée |
-| `elections` | 153 | 47 | 200 | alimentée |
-| `email_logs` | 502 | 70 | 572 | alimentée |
-| `expense_justifications` | 3 | 18 | 21 | alimentée |
-| `expense_votes` | 5 | 72 | 77 | alimentée |
-| `expenses` | 0 | 1426 | 1426 | alimentée |
+| `document_versions` | 3 | 108 | 111 | alimentée |
+| `documents` | 8 | 7308 | 7316 | alimentée |
+| `election_proxies` | 2 | 43 | 45 | alimentée |
+| `election_questions` | 3 | 19 | 22 | alimentée |
+| `elections` | 3 | 37 | 40 | alimentée |
+| `email_logs` | 7 | 0 | 7 | non alimentée : rempli uniquement par un envoi réel ; aucun e-mail n'est envoyé |
+| `expense_justifications` | 3 | 16 | 19 | alimentée |
+| `expense_votes` | 5 | 64 | 69 | alimentée |
+| `expenses` | 0 | 1367 | 1367 | alimentée |
 | `fiches_juridiques` | 6 | 0 | 6 | non alimentée : contenu juridique : jamais inventé |
-| `fonds_travaux` | 4 | 144 | 148 | alimentée |
-| `governance_delegations` | 0 | 29 | 29 | alimentée |
-| `idea_votes` | 5 | 732 | 737 | alimentée |
-| `ideas` | 4 | 152 | 156 | alimentée |
+| `fonds_travaux` | 4 | 136 | 140 | alimentée |
+| `governance_delegations` | 0 | 32 | 32 | alimentée |
+| `idea_votes` | 5 | 737 | 742 | alimentée |
+| `ideas` | 4 | 149 | 153 | alimentée |
 | `invoice_attachments` | 3 | 0 | 3 | non alimentée : les justificatifs sont portés par les dépenses (expenses.proof_url) |
-| `invoice_items` | 4 | 1724 | 1728 | alimentée |
-| `invoices` | 3 | 687 | 690 | alimentée |
-| `ledger_entries` | 0 | 22355 | 22355 | alimentée |
+| `invoice_items` | 4 | 1751 | 1755 | alimentée |
+| `invoices` | 3 | 713 | 716 | alimentée |
+| `ledger_entries` | 0 | 21697 | 21697 | alimentée |
 | `legal_alerts` | 3 | 0 | 3 | non alimentée : contenu réglementaire : jamais inventé |
-| `lot_ownerships` | 8 | 5550 | 5558 | alimentée |
-| `lots` | 28 | 4690 | 4718 | alimentée |
+| `lot_ownerships` | 8 | 5416 | 5424 | alimentée |
+| `lots` | 8 | 4582 | 4590 | alimentée |
+| `mandate_resignations` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
 | `marketplace_promotions` | 2 | 0 | 2 | non alimentée : paiement de promotion : aucun paiement fictif présenté comme réel |
-| `meeting_attendees` | 5 | 1879 | 1884 | alimentée |
-| `meetings` | 4 | 342 | 346 | alimentée |
-| `members` | 27 | 3760 | 3787 | alimentée |
-| `message_reactions` | 4 | 71 | 75 | alimentée |
-| `message_reads` | 4 | 523 | 527 | alimentée |
-| `messages` | 14 | 2244 | 2258 | alimentée |
+| `meeting_attendees` | 5 | 1734 | 1739 | alimentée |
+| `meetings` | 4 | 324 | 328 | alimentée |
+| `members` | 6 | 3670 | 3676 | alimentée |
+| `message_reactions` | 4 | 54 | 58 | alimentée |
+| `message_reads` | 4 | 454 | 458 | alimentée |
+| `messages` | 14 | 2101 | 2115 | alimentée |
 | `national_rankings` | 4 | 720 | 724 | alimentée |
-| `notification_preferences` | 6 | 1041 | 1047 | alimentée |
-| `orders` | 2 | 29 | 31 | alimentée |
-| `organization_members` | 0 | 43 | 43 | alimentée |
+| `notification_preferences` | 6 | 1031 | 1037 | alimentée |
+| `orders` | 2 | 23 | 25 | alimentée |
+| `org_assignments` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `org_components` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `org_positions` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `org_structure_versions` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `org_structures` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `org_tasks` | 0 | 0 | 0 | non alimentée : non documentée : à classer avant génération |
+| `organization_members` | 0 | 48 | 48 | alimentée |
 | `organizations` | 0 | 12 | 12 | alimentée |
-| `otp_tokens` | 2 | 1 | 3 | alimentée |
-| `parking_spots` | 9 | 1032 | 1041 | alimentée |
-| `parking_violations` | 2 | 130 | 132 | alimentée |
-| `partners` | 3 | 28 | 31 | alimentée |
-| `password_reset_tokens` | 2 | 2 | 4 | alimentée |
+| `otp_tokens` | 3 | 0 | 3 | non alimentée : codes de sécurité, jamais fabriqués |
+| `parking_spots` | 9 | 1031 | 1040 | alimentée |
+| `parking_violations` | 2 | 141 | 143 | alimentée |
+| `partners` | 3 | 26 | 29 | alimentée |
+| `password_reset_tokens` | 2 | 0 | 2 | non alimentée : jetons de sécurité, jamais fabriqués |
 | `payment_proofs` | 4 | 0 | 4 | non alimentée : voir cotisations |
 | `payslips` | 3 | 0 | 3 | non alimentée : aucun employé n'a de compte utilisateur dans le jeu ; salary_records couvre la paie |
-| `prestataire_evaluations` | 4 | 285 | 289 | alimentée |
-| `prestataires` | 5 | 238 | 243 | alimentée |
-| `product_comments` | 3 | 68 | 71 | alimentée |
-| `product_favorites` | 2 | 85 | 87 | alimentée |
-| `product_reports` | 2 | 6 | 8 | alimentée |
-| `products` | 6 | 362 | 368 | alimentée |
-| `publication_comments` | 3 | 449 | 452 | alimentée |
-| `publication_likes` | 5 | 1272 | 1277 | alimentée |
-| `publications` | 5 | 311 | 316 | alimentée |
+| `prestataire_evaluations` | 4 | 253 | 257 | alimentée |
+| `prestataires` | 5 | 203 | 208 | alimentée |
+| `product_comments` | 3 | 50 | 53 | alimentée |
+| `product_favorites` | 2 | 75 | 77 | alimentée |
+| `product_reports` | 2 | 11 | 13 | alimentée |
+| `products` | 6 | 167 | 173 | alimentée |
+| `publication_comments` | 3 | 453 | 456 | alimentée |
+| `publication_likes` | 5 | 1136 | 1141 | alimentée |
+| `publications` | 5 | 289 | 294 | alimentée |
 | `reclamations` | 6 | 0 | 6 | non alimentée : module retiré (routes 410) ; les incidents sont dans claims |
-| `reconciliation_matches` | 0 | 2176 | 2176 | alimentée |
-| `refresh_tokens` | 80 | 154 | 234 | alimentée |
-| `reviews` | 2 | 21 | 23 | alimentée |
-| `salary_records` | 5 | 1122 | 1127 | alimentée |
-| `scheduled_job_runs` | 8 | 0 | 8 | non alimentée : table technique tenue par le planificateur |
-| `sinistres` | 4 | 93 | 97 | alimentée |
-| `storage_objects` | 0 | 12477 | 12477 | alimentée |
-| `subscription_payments` | 3 | 473 | 476 | alimentée |
+| `reconciliation_matches` | 0 | 2160 | 2160 | alimentée |
+| `refresh_tokens` | 5 | 0 | 5 | non alimentée : jetons de sécurité créés uniquement par une vraie connexion |
+| `reviews` | 2 | 14 | 16 | alimentée |
+| `salary_records` | 5 | 1133 | 1138 | alimentée |
+| `scheduled_job_runs` | 0 | 0 | 0 | non alimentée : table technique tenue par le planificateur |
+| `sinistres` | 4 | 81 | 85 | alimentée |
+| `storage_objects` | 0 | 11707 | 11707 | alimentée |
+| `subscription_payments` | 3 | 479 | 482 | alimentée |
 | `subscription_plans` | 3 | 0 | 3 | inchangée |
-| `support_tickets` | 4 | 172 | 176 | alimentée |
-| `syndicate_memberships` | 0 | 17 | 17 | alimentée |
-| `syndicate_subscriptions` | 4 | 62 | 66 | alimentée |
-| `syndicates` | 4 | 62 | 66 | alimentée |
+| `support_tickets` | 4 | 162 | 166 | alimentée |
+| `syndicate_memberships` | 0 | 12 | 12 | alimentée |
+| `syndicate_subscriptions` | 2 | 60 | 62 | alimentée |
+| `syndicates` | 2 | 60 | 62 | alimentée |
 | `template_definition_permissions` | 9 | 0 | 9 | non alimentée : configuration |
 | `template_definition_versions` | 3 | 0 | 3 | non alimentée : configuration |
 | `template_definitions` | 5 | 0 | 5 | non alimentée : configuration de la plateforme, non dupliquée |
 | `template_requests` | 3 | 0 | 3 | non alimentée : demandes plateforme ponctuelles ; démo existante conservée |
-| `tenants` | 7 | 901 | 908 | alimentée |
-| `terms_acceptances` | 0 | 594 | 594 | alimentée |
-| `ticket_replies` | 4 | 118 | 122 | alimentée |
+| `tenants` | 2 | 927 | 929 | alimentée |
+| `terms_acceptances` | 0 | 549 | 549 | alimentée |
+| `ticket_replies` | 4 | 117 | 121 | alimentée |
 | `transactions` | 9 | 0 | 9 | non alimentée : les flux réels passent par le journal (ledger_entries) |
-| `travaux` | 5 | 561 | 566 | alimentée |
-| `travaux_privatifs` | 4 | 74 | 78 | alimentée |
+| `travaux` | 5 | 551 | 556 | alimentée |
+| `travaux_privatifs` | 4 | 76 | 80 | alimentée |
 | `treasury_accounts` | 4 | 120 | 124 | alimentée |
 | `union_actions` | 3 | 0 | 3 | non alimentée : fonction sans rapport avec la gestion de copropriété |
-| `users` | 42 | 1050 | 1092 | alimentée |
-| `vehicles` | 6 | 381 | 387 | alimentée |
-| `visitor_parking_reservations` | 2 | 67 | 69 | alimentée |
-| `vote_receipts` | 1205 | 251 | 1456 | alimentée |
-| `votes` | 1205 | 251 | 1456 | alimentée |
+| `users` | 14 | 1033 | 1047 | alimentée |
+| `vehicles` | 6 | 354 | 360 | alimentée |
+| `visitor_parking_reservations` | 2 | 68 | 70 | alimentée |
+| `vote_receipts` | 5 | 185 | 190 | alimentée |
+| `votes` | 5 | 185 | 190 | alimentée |
 | `workflow_steps` | 15 | 0 | 15 | non alimentée : voir workflows |
 | `workflows` | 5 | 0 | 5 | non alimentée : table sans rattachement à une copropriété : isolation impossible à garantir |
 
@@ -216,7 +223,7 @@ Utilisateurs générés : **1043** (comptes de test, domaine réservé ; voir do
 | Valeurs | parking_violations.status parmi les valeurs de l'application (données générées) | 0 | OK |
 | Valeurs | election_proxies.status parmi les valeurs de l'application (données générées) | 0 | OK |
 | Valeurs | documents.visibility parmi les valeurs de l'application (données générées) | 0 | OK |
-| Clés étrangères | 247 contraintes vérifiées (relations orphelines) | 0 | OK |
+| Clés étrangères | 278 contraintes vérifiées (relations orphelines) | 0 | OK |
 
 ## Nettoyage préalable (anciennes données du générateur)
 
@@ -344,44 +351,44 @@ Lignes pointant vers un utilisateur ou une copropriété supprimés par une colo
 
 Emplacement : `artifacts/api-server/uploads/` (stockage local de l'API, chemins `/objects/uploads/<id>.pdf|png`). Chaque fichier est enregistré dans `storage_objects` et relié à son objet métier.
 
-- Fichiers enregistrés : **12477** — PDF valides **10344** (10344 pages au total), PDF invalides 0 ; PNG valides **2133**, PNG invalides 0.
+- Fichiers enregistrés : **11707** — PDF valides **10105** (10105 pages au total), PDF invalides 0 ; PNG valides **1602**, PNG invalides 0.
 - Absents du disque : 0 ; taille différente de celle enregistrée : 0.
 - Validation : structure PDF complète (en-tête, table xref, objets, arbre des pages, flux décompressés) et PNG décodé (CRC, pixels décompressés).
 
 | Référence | Fichiers référencés | Sans fichier |
 |---|---:|---:|
-| `documents.file_url` | 7519 | 0 |
-| `document_versions.file_url` | 92 | 0 |
-| `expenses.proof_url` | 1426 | 0 |
-| `invoices.proof_url` | 687 | 0 |
-| `contrats_prestataires.document_url` | 413 | 0 |
-| `prestataires.document_url` | 238 | 0 |
+| `documents.file_url` | 7308 | 0 |
+| `document_versions.file_url` | 108 | 0 |
+| `expenses.proof_url` | 1367 | 0 |
+| `invoices.proof_url` | 713 | 0 |
+| `contrats_prestataires.document_url` | 341 | 0 |
+| `prestataires.document_url` | 203 | 0 |
 | `travaux.report_url` | 295 | 0 |
 | `travaux.invoice_url` | 295 | 0 |
-| `travaux.photo_urls` | 735 | 0 |
-| `sinistres.image_urls` | 143 | 0 |
-| `sinistres.invoice_url` | 33 | 0 |
-| `products.image_urls` | 783 | 0 |
-| `appel_payments.proof_url` | 187 | 0 |
-| `claim_attachments.object_path` | 273 | 0 |
+| `travaux.photo_urls` | 733 | 0 |
+| `sinistres.image_urls` | 118 | 0 |
+| `sinistres.invoice_url` | 35 | 0 |
+| `products.image_urls` | 337 | 0 |
+| `appel_payments.proof_url` | 193 | 0 |
+| `claim_attachments.object_path` | 234 | 0 |
 
 | Type de document produit | Fichiers |
 |---|---:|
 | règlement | 60 |
-| budget | 326 |
-| convocation | 230 |
-| procès-verbal | 216 |
-| appel de fonds | 4404 |
-| reçu | 734 |
-| justificatif de paiement | 187 |
-| devis prestataire | 238 |
-| contrat | 413 |
-| devis | 369 |
-| facture fournisseur | 646 |
-| photo | 1186 |
+| budget | 304 |
+| convocation | 219 |
+| procès-verbal | 199 |
+| appel de fonds | 4301 |
+| reçu | 701 |
+| justificatif de paiement | 193 |
+| devis prestataire | 203 |
+| contrat | 341 |
+| devis | 399 |
+| facture fournisseur | 644 |
+| photo | 1188 |
 | rapport d'intervention | 295 |
-| Photos d'infractions de stationnement | 66 |
-| Documents en arabe | 48 |
+| Photos d'infractions de stationnement | 63 |
+| Documents en arabe | 47 |
 
 ## Procédure exécutée (`seedgen run`)
 

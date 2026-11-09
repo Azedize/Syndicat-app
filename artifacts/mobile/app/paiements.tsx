@@ -413,7 +413,7 @@ function RegisterView() {
             const sTone = toneColors(colors, STATUS_TONES[tx.status as TxStatus] ?? "warning");
             const statusColors = { color: sTone.text, bg: sTone.bg };
             const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
-            const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
+            const statusLabel  = tx.status === "paid" ? t("paidOne") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
             const typeColor    = toneColors(colors, TYPE_TONES[tx.type as TxType] ?? "neutral").fg;
             const typeIcon     = TYPE_ICONS[tx.type as TxType] ?? "users";
             const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
@@ -480,7 +480,7 @@ function RegisterView() {
           const mTone = toneColors(colors, STATUS_TONES[tx.status as TxStatus] ?? "warning");
           const statusColors = { color: mTone.fg, bg: mTone.bg };
           const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
-          const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
+          const statusLabel  = tx.status === "paid" ? t("paidOne") : tx.status === "overdue" ? t("latePayment") : tx.status === "cancelled" ? t("statusCancelled") : t("inProgressPayment");
           const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
           const isDebit      = tx.type === "depense" || tx.type === "salaire";
           return (
@@ -680,7 +680,7 @@ function MyPaymentsView() {
   }, [load]);
 
   const statusLabel = (st: MyPayment["status"]) =>
-    st === "validated" ? t("paid") : st === "rejected" ? t("statusRejected") : st === "reversed" ? t("statusCancelled") : t("inValidation");
+    st === "validated" ? t("paidOne") : st === "rejected" ? t("statusRejected") : st === "reversed" ? t("statusCancelled") : t("inValidation");
   const validatedTotal = rows.filter((r) => r.status === "validated").reduce((s, r) => s + Number(r.amount), 0);
 
   const openReceipt = async (p: MyPayment) => {

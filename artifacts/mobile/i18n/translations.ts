@@ -2656,6 +2656,7 @@ export const TRANSLATIONS: Translations = {
   spent: { fr: "Dépensé", en: "Spent", ar: "مُنفق", es: "Gastado" },
   remaining: { fr: "Restant", en: "Remaining", ar: "المتبقي", es: "Restante" },
   paid: { fr: "Payés", en: "Paid", ar: "مدفوع", es: "Pagados" },
+  paidOne: { fr: "Payé", en: "Paid", ar: "مدفوع", es: "Pagado" },
   pendingPayment: {
     fr: "En attente",
     en: "Pending",

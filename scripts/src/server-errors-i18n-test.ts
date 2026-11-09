@@ -19,9 +19,9 @@ import { pathToFileURL } from "node:url";
 
 const API_SRC = path.resolve("../artifacts/api-server/src");
 const BASE = (process.env.API_BASE_URL ?? "http://localhost:5056/api").replace(/\/$/, "");
-const { ERROR_CATALOG, translateError } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/index.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/index.js");
-const { ERROR_PATTERNS: BASE_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/patterns.js");
-const { OPERATIONS_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns-operations.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/i18n/errors/patterns-operations.js");
+const { ERROR_CATALOG, translateError } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/index.ts")).href)) as any;
+const { ERROR_PATTERNS: BASE_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns.ts")).href)) as any;
+const { OPERATIONS_PATTERNS } = (await import(pathToFileURL(path.join(API_SRC, "lib/i18n/errors/patterns-operations.ts")).href)) as any;
 const ERROR_PATTERNS = [...BASE_PATTERNS, ...OPERATIONS_PATTERNS];
 
 /** The template literal opening at `start` (a backtick), nested templates included. */
@@ -156,7 +156,7 @@ check(`every message built with values is recognised (${dynamics.size - dynMissi
 
 // ── Static: catalogue quality ──
 const ARABIC = /[؀-ۿ]/;
-const entries = Object.entries(ERROR_CATALOG);
+const entries = Object.entries(ERROR_CATALOG as Record<string, [string, string, string, string?]>);
 const bad = entries.filter(([, [code, en, ar]]) => !/^[A-Z][A-Z0-9_]+$/.test(code) || !en.trim() || !ar.trim() || !ARABIC.test(ar) || /[éèàù]/.test(en));
 check(`every catalogue entry has a code, an English text and an Arabic text (${entries.length} messages, ${new Set(entries.map(([, e]) => e[0])).size} codes)`, bad.length === 0, bad.slice(0, 8).map(([k]) => k).join(" | "));
 const placeholders = (s: string) => (s.match(/\{\d\}/g) ?? []).sort().join();

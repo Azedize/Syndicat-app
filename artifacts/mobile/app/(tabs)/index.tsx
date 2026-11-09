@@ -532,7 +532,7 @@ export default function DashboardScreen() {
       action: t("cotisationLabel"),
       target: `${cotisation.label} · ${
         cotisation.status === "paid"
-          ? t("paid")
+          ? t("paidOne")
           : cotisation.status === "overdue"
             ? t("overdue")
             : t("pendingLabel")

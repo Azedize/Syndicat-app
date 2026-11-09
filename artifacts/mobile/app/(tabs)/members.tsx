@@ -214,7 +214,7 @@ export default function MembersScreen() {
 
   const cotTone = (status: Member["cotisationStatus"]): { tone: StatusTone; label: string } =>
     ({
-      paid: { tone: "success" as const, label: t("paid") },
+      paid: { tone: "success" as const, label: t("paidOne") },
       pending: { tone: "warning" as const, label: t("statusPending") },
       overdue: { tone: "danger" as const, label: t("latePayment") },
     })[status];

@@ -233,7 +233,7 @@ function ChargesScreenInner() {
     const map: Record<string, string> = {
       pending: t("atPay"),
       pending_validation: t("inValidation"),
-      paid: t("paid"),
+      paid: t("paidOne"),
       overdue: t("latePayment"),
       rejected: t("statusRejected"),
       partially_paid: t("statusPartiallyPaid"),

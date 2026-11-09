@@ -16,7 +16,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SRC = path.resolve("../artifacts/api-server/src/lib");
-const bidi = (await import(pathToFileURL(path.join(SRC, "pdf-bidi.ts")).href)) as typeof import("../../artifacts/api-server/src/lib/pdf-bidi.js");
+const bidi = (await import(pathToFileURL(path.join(SRC, "pdf-bidi.ts")).href)) as any;
 const doc = (await import(pathToFileURL(path.join(SRC, "documentPdf.ts")).href)) as any;
 
 const checks: boolean[] = [];
