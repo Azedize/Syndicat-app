@@ -41,7 +41,9 @@ async function main() {
   };
   // Writes need a live subscription (402 otherwise) and a syndic company that is not
   // suspended (423 otherwise): the invoice checks run in seeded condominiums that are writable.
-  const live = (await pool.unsafe(`SELECT s.id FROM syndicates s WHERE s.status = 'active' AND ${writableSubscriptionSql("s")} ORDER BY s.id LIMIT 2`)) as any[];
+  // A condominium with a call awaiting validation first, so that its check has something to look at.
+  const live = (await pool.unsafe(`SELECT s.id FROM syndicates s WHERE s.status = 'active' AND ${writableSubscriptionSql("s")}
+    ORDER BY EXISTS (SELECT 1 FROM appels_de_fonds a JOIN buildings b ON b.id = a.building_id JOIN appel_payments p ON p.appel_id = a.id AND p.status = 'pending' WHERE b.syndicate_id = s.id) DESC, s.id LIMIT 2`)) as any[];
   if (live.length < 2) throw new Error("mobile-actions: two condominiums with a subscription are needed");
   const liveSyndic = await make("syndicate_admin", live[0].id);
   const liveMember = await make("member", live[0].id);

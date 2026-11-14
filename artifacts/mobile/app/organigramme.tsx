@@ -408,10 +408,17 @@ export default function OrganigrammeScreen() {
     else setLoading(true);
     setLoadError(false);
     try {
-      const [orgRes, natRes] = await Promise.all([
+      // A platform administrator without supervision mode is refused the
+      // condominium chart (403) but still reads the national one: only a
+      // failure of everything this role can see is an error.
+      const [orgSettled, natSettled] = await Promise.allSettled([
         apiRequest<{ data: OrgData }>("/organigramme"),
         isSuperAdmin ? apiRequest<{ data: NationalData }>("/organigramme/national") : Promise.resolve(null),
       ]);
+      const orgRes = orgSettled.status === "fulfilled" ? orgSettled.value : null;
+      const natRes = natSettled.status === "fulfilled" ? natSettled.value : null;
+      if (orgSettled.status === "rejected" && !(isSuperAdmin && natRes)) throw orgSettled.reason;
+      if (natSettled.status === "rejected") throw natSettled.reason;
       if (orgRes?.data) setOrgData(orgRes.data);
       if (natRes?.data) setNationalData(natRes.data);
     } catch {

@@ -6024,6 +6024,7 @@ export const TRANSLATIONS: Translations = {
     ar: "شراكات نشطة",
     es: "alianzas activas",
   },
+  partnerActiveCountOne: { fr: "partenariat actif", en: "active partnership", ar: "شراكة نشطة", es: "alianza activa" },
   partnerActive: { fr: "Actifs", en: "Active", ar: "نشطة", es: "Activos" },
   partnerPending: {
     fr: "En cours",

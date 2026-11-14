@@ -120,10 +120,23 @@ async function main() {
   check("S8 a description can still be added to a statutory body", (await api(a2, "PUT", `/org/components/${syn.id}`, { description: "Désigné par l'AG du …" })).status === 200);
 
   // ── 9. A committee member cannot approve a payment ──
-  const [expense] = await q(`SELECT id FROM expenses WHERE syndicate_id = $1 AND status = 'submitted' LIMIT 1`, [S2]);
+  // A submitted expense of this condominium; generated data may have none: the
+  // test then adds its own (no ledger entry, no payment) and removes it after.
+  let [expense] = await q(`SELECT id FROM expenses WHERE syndicate_id = $1 AND status = 'submitted' LIMIT 1`, [S2]);
+  let ownExpense = false;
+  if (!expense) {
+    [expense] = await q(
+      `INSERT INTO expenses (syndicate_id, reference, label, category, amount, proof_url, status, created_by)
+       VALUES ($1, 'TEST-ORG-S9-' || floor(extract(epoch FROM now()))::text, 'Dépense de test (org-structure S9)', 'entretien', 120.00, '/objects/uploads/test-org-s9.pdf', 'submitted', $2)
+       RETURNING id`,
+      [S2, a2.id],
+    );
+    ownExpense = true;
+  }
   if (expense) {
     const approve = await api(m1, "POST", `/expenses/${expense.id}/approve`, {});
     check("S9 a financial committee member cannot approve an expense (403)", approve.status === 403, `${approve.status}`);
+    if (ownExpense) await q(`DELETE FROM expenses WHERE id = $1 AND status = 'submitted' AND ledger_entry_id IS NULL`, [expense.id]);
   } else check("S9 fixture: a submitted expense", false, "none");
   const ws = await api(m1, "GET", `/org/components/${fin.id}/workspace`);
   check("S9 …but sees the finances read-only in the committee workspace", ws.status === 200 && Array.isArray(ws.json?.data?.finance?.expenses) && !ws.json.data.capabilities.includes("expenses.approve"));

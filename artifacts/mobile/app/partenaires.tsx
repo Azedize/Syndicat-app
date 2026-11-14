@@ -2,7 +2,7 @@ import { Feather } from "@/components/ui/Feather";
 import ScreenHeader from "@/components/ScreenHeader";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   Platform,
@@ -96,13 +96,16 @@ function formatPartnerDate(value: string | undefined, lang: string) {
   }).format(date);
 }
 
+/** The stored type is free text: an unknown one is shown as « other » instead of crashing the screen. */
+const typeConfig = (type: string) => TYPE_CONFIG[type as Partner["type"]] ?? TYPE_CONFIG.autre;
+
 export default function PartenairesScreen() {
   const colors = useColors();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const {
-    partners,
+    partners: storedPartners,
     addPartner,
     updatePartnerStatus,
     dataLoading,
@@ -131,6 +134,14 @@ export default function PartenairesScreen() {
   const [newBenefit, setNewBenefit] = useState("");
   const [newDiscount, setNewDiscount] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  // The server stores no status for a partner yet: without one, it follows the
+  // end date (expired once passed, active otherwise) instead of breaking the screen.
+  const today = new Date().toISOString().slice(0, 10);
+  const partners = useMemo(
+    () => storedPartners.map((p) => (STATUS_CFG[p.status] ? p : { ...p, status: (p.endDate && p.endDate < today ? "expired" : "active") as Partner["status"] })),
+    [storedPartners, today],
+  );
 
   const filtered = partners
     .filter((p) => filterType === "all" || p.type === filterType)
@@ -231,7 +242,7 @@ export default function PartenairesScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title={t("partenairesTitle")}
-        subtitle={`${activeCount} ${t("partnerActiveCount")}`}
+        subtitle={`${activeCount} ${t(activeCount === 1 ? "partnerActiveCountOne" : "partnerActiveCount")}`}
         action={isAdmin ? { icon: "plus", label: t("newItem"), onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAdd(true); } } : undefined}
       />
 
@@ -405,7 +416,7 @@ export default function PartenairesScreen() {
 
         {/* Partner cards */}
         {filtered.map((partner) => {
-          const tc = TYPE_CONFIG[partner.type];
+          const tc = typeConfig(partner.type);
           const sc = STATUS_CFG[partner.status];
           return (
             <TouchableOpacity
@@ -495,14 +506,14 @@ export default function PartenairesScreen() {
                       styles.detailIcon,
                       {
                         backgroundColor:
-                          TYPE_CONFIG[selectedPartner.type].color + "18",
+                          typeConfig(selectedPartner.type).color + "18",
                       },
                     ]}
                   >
                     <Feather
-                      name={TYPE_CONFIG[selectedPartner.type].icon}
+                      name={typeConfig(selectedPartner.type).icon}
                       size={28}
-                      color={TYPE_CONFIG[selectedPartner.type].color}
+                      color={typeConfig(selectedPartner.type).color}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -517,17 +528,17 @@ export default function PartenairesScreen() {
                           styles.typeChip,
                           {
                             backgroundColor:
-                              TYPE_CONFIG[selectedPartner.type].color + "15",
+                              typeConfig(selectedPartner.type).color + "15",
                           },
                         ]}
                       >
                         <Text
                           style={[
                             styles.typeChipText,
-                            { color: TYPE_CONFIG[selectedPartner.type].color },
+                            { color: typeConfig(selectedPartner.type).color },
                           ]}
                         >
-                          {t(TYPE_CONFIG[selectedPartner.type].labelKey)}
+                          {t(typeConfig(selectedPartner.type).labelKey)}
                         </Text>
                       </View>
                       <View

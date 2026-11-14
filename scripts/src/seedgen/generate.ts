@@ -937,7 +937,7 @@ export class Generator {
     }
 
     // ── Partners, rankings, template requests, expense challenges ──
-    if (r.chance(0.4)) b.add("partners", { name: `${r.pick(["Pressing", "Salle de sport", "Plombier", "Pharmacie"])} ${r.pick(D.LAST_NAMES)}`, type: "commerce", sector: "services", contact: this.person(), phone: this.phone(), benefit: "Remise résidents", discount: `${r.int(5, 20)}%`, syndicate_id: c.sid, start_date: ymd(this.past(0, 200)) });
+    if (r.chance(0.4)) b.add("partners", { name: `${r.pick(["Pressing", "Salle de sport", "Plombier", "Pharmacie"])} ${r.pick(D.LAST_NAMES)}`, type: "commercial", sector: "services", contact: this.person(), phone: this.phone(), benefit: "Remise résidents", discount: `${r.int(5, 20)}%`, syndicate_id: c.sid, start_date: ymd(this.past(0, 200)) });
     for (let m = 1; m <= 12; m++) {
       const col = r.int(55, 99);
       b.add("national_rankings", { syndicate_id: c.sid, month: m, year: year - (m > this.o.now.getUTCMonth() + 1 ? 1 : 0), collection_rate: String(col), incident_resolution_rate: String(r.int(50, 99)), documentation_score: String(r.int(40, 100)), meeting_compliance_score: String(r.int(40, 100)), member_satisfaction: String(r.int(50, 100)), total_score: String(r.int(50, 98)), region: c.city.region });

@@ -15,6 +15,7 @@
     "auth-security:test": "node --env-file=../.env --import=tsx ./src/auth-security-test.ts",
     "server-errors-i18n:test": "node --env-file=../.env --import=tsx ./src/server-errors-i18n-test.ts",
     "pdf-arabic:test": "node --env-file=../.env --import=tsx ./src/pdf-arabic-test.ts",
+    "final-fixes:test": "node --env-file=../.env --import=tsx ./src/final-fixes-test.ts",
     "documents-security:test": "node --env-file=../.env --import=tsx ./src/documents-security-test.ts",
     "scenario-e2e:test": "node --env-file=../.env --import=tsx ./src/scenario-e2e-test.ts",
     "journeys:test": "node --env-file=../.env --import=tsx ./src/journeys-test.ts",

@@ -322,7 +322,8 @@ async function main() {
       entry1?.amount === "300.00" && entry1?.direction === "in" && entry1?.accountId === hayatSetup.bankId && entry1?.syndicateId === hayat.syndicateId,
     );
     const partialAlert = await ahmed.waitForAlert("Reste à payer");
-    step("Ahmed: notified, with the remaining balance", !!partialAlert && String(partialAlert.message).includes("300.00"));
+    // Amount in the reader's format (« 300,00 » in French, « 300.00 » in English).
+    step("Ahmed: notified, with the remaining balance", !!partialAlert && /300[.,]00/.test(String(partialAlert.message)));
     const afterPartial = (await ahmed.api("/appels-de-fonds")).json?.data?.[0];
     step("Ahmed: sees 'partially paid' and 300 still due", afterPartial?.status === "partially_paid" && afterPartial?.remaining === "300.00");
 

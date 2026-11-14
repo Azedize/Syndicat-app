@@ -23,6 +23,7 @@ for f in $SUITES; do
   code=$?
   secs=$(( $(date +%s) - start ))
   last=$(grep -E "passed|réussi|[0-9]+/[0-9]+|obtenus" "$LOGS/$name.log" | tail -1 | tr -s ' ' | cut -c1-120)
-  fails=$(grep -cE "^\s*(FAIL|ÉCHEC)" "$LOGS/$name.log")
+  # « ❌ FAIL » lines (election-audit) count too; a non-zero exit without any counted line is reported as exit=1.
+  fails=$(grep -cE "^\s*(❌ )?(FAIL|ÉCHEC)" "$LOGS/$name.log")
   printf "%-36s exit=%s fails=%s %4ss  %s\n" "$name" "$code" "$fails" "$secs" "$last" | tee -a "$LOGS/summary.txt"
 done

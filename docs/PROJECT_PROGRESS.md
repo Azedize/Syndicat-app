@@ -2250,3 +2250,37 @@ Détail : `reports/real-world-acceptance-testing.md` (sections 11 à 16), `repor
 **Non-régression :** 54 suites sur 54.
 
 **À décider :** 7 décisions et 3 points complémentaires dans `reports/business-decisions-pending.md`, ainsi que le sort des corrections de mission 1 retirées le 7 novembre.
+
+## 2026-11-09 — Validation finale sur émulateur Android
+
+Détail : `reports/mizan-final-production-readiness.md`.
+
+**Verdict : candidat à une bêta privée contrôlée sur Android.** Pas encore la production ; iOS n'est pas testé.
+
+**Environnement :**
+- base de navigation `mizan_test_clean` (campagne `s20261109` : 50 sociétés de syndic, 120 copropriétés) ;
+- base de non-régression `syndycat_test`, recréée par `testdb` ;
+- émulateur Pixel 10 Pro sous Android 17, avec Expo Go.
+
+**Couverture :**
+- 113 écrans ouverts, 281 ouvertures pour 9 comptes, les 10 rôles testés à l'écran ;
+- parcours de paiement validé de bout en bout : déclaration avec justificatif, refus sans justificatif, validation par la trésorière, reçu, écriture au grand livre, notification en arabe.
+
+**Corrigé :**
+- **Plantages :** l'écran Partenaires (type inconnu ou statut absent) et l'organigramme du super admin (vue nationale masquée par un refus attendu).
+- **Rappel d'appel échu :** il passe par un modèle traduit et les montants suivent la langue du lecteur.
+- **Affichage :** date de la répartition, libellés au singulier, icône de la caisse.
+- **Routes SMS :** elles ne renvoient plus le texte brut d'une exception.
+- **Données :** procuration de démonstration incohérente ; dates brutes dans les titres générés.
+- **Lanceur de tests :** il compte désormais les lignes « ❌ FAIL ».
+
+**Tests :**
+- 55 suites sur 56 ; le seul échec, election-audit S7, attend une décision métier ;
+- nouvelle suite `final-fixes` (12/12) ;
+- 350 contrôles d'intégrité sur 350 sur les deux bases.
+
+**À décider :**
+- migration additive `partners.status` (la validation d'un partenaire renvoie aujourd'hui une erreur 500) ;
+- décisions métier en attente et S7 ;
+- limite de requêtes par IP ;
+- source des images réalistes.
